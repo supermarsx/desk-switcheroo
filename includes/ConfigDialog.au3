@@ -56,10 +56,14 @@ Global $__g_CD_aidLblPreview[10]  ; index 1-9
 ; -- Buttons --
 Global $__g_CD_idBtnApply, $__g_CD_idBtnClose
 
-; -- Checkbox state tracking (proper mapping, no hash collisions) --
-Global $__g_CD_aChkIDs[30]     ; control IDs of all checkboxes
-Global $__g_CD_aChkStates[30]  ; boolean state per checkbox
+; -- Checkbox state tracking --
+Global $__g_CD_aChkIDs[20]     ; control IDs
+Global $__g_CD_aChkStates[20]  ; boolean states
+Global $__g_CD_aChkTexts[20]   ; original text per checkbox
 Global $__g_CD_iChkCount = 0
+
+; -- Reset button --
+Global $__g_CD_idBtnReset
 
 
 ; #FUNCTIONS# ===================================================
@@ -102,10 +106,10 @@ Func _CD_Show()
     __CD_BuildTabBehavior()
     __CD_BuildTabColors()
 
-    ; Apply + Close buttons
+    ; Apply + Reset + Close buttons
     Local $iBtnW = 80, $iBtnH = 28, $iBtnY = $iH - 38
-    Local $iGap = 12
-    Local $iTotalW = $iBtnW * 2 + $iGap
+    Local $iGap = 10
+    Local $iTotalW = $iBtnW * 3 + $iGap * 2
     Local $iBtnX = ($iW - $iTotalW) / 2
 
     $__g_CD_idBtnApply = GUICtrlCreateLabel("Apply", $iBtnX, $iBtnY, $iBtnW, $iBtnH, _
@@ -115,7 +119,14 @@ Func _CD_Show()
     GUICtrlSetBkColor($__g_CD_idBtnApply, $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnApply, 0)
 
-    $__g_CD_idBtnClose = GUICtrlCreateLabel("Close", $iBtnX + $iBtnW + $iGap, $iBtnY, $iBtnW, $iBtnH, _
+    $__g_CD_idBtnReset = GUICtrlCreateLabel("Reset", $iBtnX + $iBtnW + $iGap, $iBtnY, $iBtnW, $iBtnH, _
+        BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBtnReset, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBtnReset, 0xCC6666)
+    GUICtrlSetBkColor($__g_CD_idBtnReset, $THEME_BG_HOVER)
+    GUICtrlSetCursor($__g_CD_idBtnReset, 0)
+
+    $__g_CD_idBtnClose = GUICtrlCreateLabel("Close", $iBtnX + ($iBtnW + $iGap) * 2, $iBtnY, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnClose, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnClose, $THEME_FG_MENU)
@@ -184,87 +195,58 @@ Func __CD_RegCtrl($iTab, $idCtrl)
 EndFunc
 
 ; =============================================
-; LABEL-BASED CHECKBOX
+; LABEL-BASED CHECKBOX (single label per checkbox)
 ; =============================================
 
 Func __CD_CreateCheckbox($sText, $iX, $iY, $iW, $iTab)
-    ; Register a new checkbox slot
     $__g_CD_iChkCount += 1
     Local $idx = $__g_CD_iChkCount
-
-    ; Indicator box (12x12)
-    Local $idBox = GUICtrlCreateLabel("", $iX + 2, $iY + 5, 12, 12, $SS_NOTIFY)
-    GUICtrlSetBkColor($idBox, $THEME_BG_INPUT)
-    GUICtrlSetCursor($idBox, 0)
-    __CD_RegCtrl($iTab, $idBox)
-
-    ; Text label
-    Local $idTxt = GUICtrlCreateLabel($sText, $iX + 20, $iY, $iW - 20, 22, _
+    Local $id = GUICtrlCreateLabel("  [ ]  " & $sText, $iX, $iY, $iW, 22, _
         BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($idTxt, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idTxt, $THEME_FG_PRIMARY)
-    GUICtrlSetBkColor($idTxt, $GUI_BKCOLOR_TRANSPARENT)
-    GUICtrlSetCursor($idTxt, 0)
-    __CD_RegCtrl($iTab, $idTxt)
-
-    ; Store both IDs — use the box ID as the "checkbox ID" externally
-    $__g_CD_aChkIDs[$idx] = $idBox
+    GUICtrlSetFont($id, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($id, $THEME_FG_PRIMARY)
+    GUICtrlSetBkColor($id, $GUI_BKCOLOR_TRANSPARENT)
+    GUICtrlSetCursor($id, 0)
+    __CD_RegCtrl($iTab, $id)
+    $__g_CD_aChkIDs[$idx] = $id
     $__g_CD_aChkStates[$idx] = False
-
-    ; Also store text ID for click detection (tag it as idx + 1000)
-    ; We handle click detection by checking both box and text IDs
-    ; Store text ID in the next slot
-    If $__g_CD_iChkCount < 29 Then
-        $__g_CD_iChkCount += 1
-        $__g_CD_aChkIDs[$__g_CD_iChkCount] = $idTxt
-        $__g_CD_aChkStates[$__g_CD_iChkCount] = -1 ; marker: points to $idx
-    EndIf
-
-    Return $idBox
+    $__g_CD_aChkTexts[$idx] = $sText
+    Return $id
 EndFunc
 
-Func __CD_SetCheckState($idBox, $bChecked)
-    ; Find index by ID
+Func __CD_SetCheckState($id, $bChecked)
     For $i = 1 To $__g_CD_iChkCount
-        If $__g_CD_aChkIDs[$i] = $idBox And $__g_CD_aChkStates[$i] <> -1 Then
+        If $__g_CD_aChkIDs[$i] = $id Then
             $__g_CD_aChkStates[$i] = $bChecked
             If $bChecked Then
-                GUICtrlSetBkColor($idBox, 0x4A9EFF) ; blue accent
+                GUICtrlSetData($id, "  [x]  " & $__g_CD_aChkTexts[$i])
+                GUICtrlSetColor($id, $THEME_FG_WHITE)
             Else
-                GUICtrlSetBkColor($idBox, $THEME_BG_INPUT)
+                GUICtrlSetData($id, "  [ ]  " & $__g_CD_aChkTexts[$i])
+                GUICtrlSetColor($id, $THEME_FG_PRIMARY)
             EndIf
             Return
         EndIf
     Next
 EndFunc
 
-Func __CD_GetCheckState($idBox)
+Func __CD_GetCheckState($id)
     For $i = 1 To $__g_CD_iChkCount
-        If $__g_CD_aChkIDs[$i] = $idBox And $__g_CD_aChkStates[$i] <> -1 Then
-            Return $__g_CD_aChkStates[$i]
-        EndIf
+        If $__g_CD_aChkIDs[$i] = $id Then Return $__g_CD_aChkStates[$i]
     Next
     Return False
 EndFunc
 
-; Checks if a GUI message matches any checkbox (box or text label) and toggles it
-; Returns True if handled
 Func __CD_HandleCheckboxClick($msg)
     For $i = 1 To $__g_CD_iChkCount
         If $__g_CD_aChkIDs[$i] = $msg Then
-            ; Find the actual checkbox index
-            Local $iBoxIdx = $i
-            If $__g_CD_aChkStates[$i] = -1 Then
-                ; This is a text label — the box is at $i - 1
-                $iBoxIdx = $i - 1
-            EndIf
-            ; Toggle
-            Local $bNew = Not $__g_CD_aChkStates[$iBoxIdx]
-            $__g_CD_aChkStates[$iBoxIdx] = $bNew
-            If $bNew Then
-                GUICtrlSetBkColor($__g_CD_aChkIDs[$iBoxIdx], 0x4A9EFF)
+            $__g_CD_aChkStates[$i] = Not $__g_CD_aChkStates[$i]
+            If $__g_CD_aChkStates[$i] Then
+                GUICtrlSetData($msg, "  [x]  " & $__g_CD_aChkTexts[$i])
+                GUICtrlSetColor($msg, $THEME_FG_WHITE)
             Else
-                GUICtrlSetBkColor($__g_CD_aChkIDs[$iBoxIdx], $THEME_BG_INPUT)
+                GUICtrlSetData($msg, "  [ ]  " & $__g_CD_aChkTexts[$i])
+                GUICtrlSetColor($msg, $THEME_FG_PRIMARY)
             EndIf
             Return True
         EndIf
@@ -620,6 +602,8 @@ Func __CD_MessageLoop()
                     ExitLoop
                 Case $__g_CD_idBtnApply
                     __CD_ApplyChanges()
+                Case $__g_CD_idBtnReset
+                    __CD_ResetDefaults()
                 Case $__g_CD_idBtnClose
                     ExitLoop
             EndSwitch
@@ -650,9 +634,14 @@ Func __CD_MessageLoop()
         If Not @error Then
             Local $iFound = 0
             If $aCursor[4] = $__g_CD_idBtnApply Then $iFound = $__g_CD_idBtnApply
+            If $aCursor[4] = $__g_CD_idBtnReset Then $iFound = $__g_CD_idBtnReset
             If $aCursor[4] = $__g_CD_idBtnClose Then $iFound = $__g_CD_idBtnClose
             If $iFound <> $iHovered Then
-                If $iHovered <> 0 Then _Theme_RemoveHover($iHovered, $THEME_FG_MENU, $THEME_BG_HOVER)
+                If $iHovered <> 0 Then
+                    Local $iFgRestore = $THEME_FG_MENU
+                    If $iHovered = $__g_CD_idBtnReset Then $iFgRestore = 0xCC6666
+                    _Theme_RemoveHover($iHovered, $iFgRestore, $THEME_BG_HOVER)
+                EndIf
                 $iHovered = $iFound
                 If $iHovered <> 0 Then _Theme_ApplyHover($iHovered, $THEME_FG_WHITE, $THEME_BG_BTN_HOV)
             EndIf
@@ -738,4 +727,13 @@ Func __CD_ApplyChanges()
             _Cfg_DisableStartup()
         EndIf
     EndIf
+EndFunc
+
+Func __CD_ResetDefaults()
+    ; Delete the INI and re-init with defaults
+    Local $sPath = _Cfg_GetPath()
+    FileDelete($sPath)
+    _Cfg_Init($sPath)
+    ; Re-populate all controls from fresh defaults
+    __CD_PopulateControls()
 EndFunc
