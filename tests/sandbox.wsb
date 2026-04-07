@@ -1,0 +1,18 @@
+<Configuration>
+  <MappedFolders>
+    <MappedFolder>
+      <HostFolder>F:\Projects\desk-switcheroo</HostFolder>
+      <SandboxFolder>C:\project</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+    <MappedFolder>
+      <HostFolder>F:\Projects\desk-switcheroo\tests\results</HostFolder>
+      <SandboxFolder>C:\results</SandboxFolder>
+      <ReadOnly>false</ReadOnly>
+    </MappedFolder>
+  </MappedFolders>
+  <LogonCommand>
+    <Command>powershell -ExecutionPolicy Bypass -File C:\project\tests\sandbox_setup.ps1</Command>
+  </LogonCommand>
+  <MemoryInMB>2048</MemoryInMB>
+</Configuration>

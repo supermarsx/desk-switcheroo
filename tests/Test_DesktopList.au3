@@ -1,0 +1,102 @@
+#include-once
+
+; ===============================================================
+; Tests for includes\DesktopList.au3
+; GUI tests — creates actual windows, requires desktop session
+; ===============================================================
+
+Func _RunTest_DesktopList()
+    _Test_Suite("DesktopList")
+
+    ; Ensure dependencies are initialized
+    Local $sDllDir = StringRegExpReplace(@ScriptDir, "\\[^\\]+$", "")
+    Local $sDllPath = $sDllDir & "\VirtualDesktopAccessor.dll"
+    _VD_Init($sDllPath)
+    Local $sTempIni = @TempDir & "\desk_switcheroo_test_dl.ini"
+    If FileExists($sTempIni) Then FileDelete($sTempIni)
+    _Labels_Init($sTempIni, False)
+
+    ; Use a mock taskbar Y position for testing
+    Local $iTestTaskbarY = @DesktopHeight - 48
+    Local $iCurrentDesktop = _VD_GetCurrent()
+
+    ; -- Initially not visible --
+    _Test_AssertFalse("Initially not visible", _DL_IsVisible())
+    _Test_AssertEqual("Initially GUI = 0", _DL_GetGUI(), 0)
+
+    ; -- Show creates window --
+    _DL_Show($iTestTaskbarY, $iCurrentDesktop)
+    _Test_AssertTrue("Show: is visible", _DL_IsVisible())
+    _Test_AssertNotEqual("Show: GUI <> 0", _DL_GetGUI(), 0)
+
+    ; -- Count matches VD --
+    _Test_AssertEqual("Count matches VD_GetCount", _DL_GetCount(), _VD_GetCount())
+
+    ; -- Destroy removes window --
+    _DL_Destroy()
+    _Test_AssertFalse("Destroy: not visible", _DL_IsVisible())
+
+    ; -- Toggle on/off --
+    _DL_Toggle($iTestTaskbarY, $iCurrentDesktop)
+    _Test_AssertTrue("Toggle on: visible", _DL_IsVisible())
+    _DL_Toggle($iTestTaskbarY, $iCurrentDesktop)
+    _Test_AssertFalse("Toggle off: not visible", _DL_IsVisible())
+
+    ; -- ShowTemp creates window in temp mode --
+    _DL_ShowTemp($iTestTaskbarY, $iCurrentDesktop)
+    _Test_AssertTrue("ShowTemp: visible", _DL_IsVisible())
+
+    ; -- Auto-hide after timeout (move cursor away) --
+    ; We need to wait for the timer to elapse
+    ; Create a dummy main GUI handle for the auto-hide check
+    Local $hDummyMain = GUICreate("DummyMain", 1, 1, -100, -100)
+    Sleep(3200) ; wait for TEMPLIST timer (3000ms) + margin
+    Local $bAutoHid = _DL_CheckAutoHide($hDummyMain)
+    _Test_AssertTrue("Auto-hide after timeout", $bAutoHid)
+    _Test_AssertFalse("Not visible after auto-hide", _DL_IsVisible())
+    GUIDelete($hDummyMain)
+
+    ; -- HandleClick returns 0 for no match --
+    _DL_Show($iTestTaskbarY, $iCurrentDesktop)
+    Local $iResult = _DL_HandleClick(0)
+    _Test_AssertEqual("HandleClick(0) returns 0", $iResult, 0)
+    Local $iResult2 = _DL_HandleClick(-1)
+    _Test_AssertEqual("HandleClick(-1) returns 0", $iResult2, 0)
+    _DL_Destroy()
+
+    ; -- UpdateItemText does not crash when not visible --
+    _DL_UpdateItemText(1, "Test") ; should be a no-op
+
+    ; ---- Context menu tests ----
+
+    ; -- Context menu initially not visible --
+    _Test_AssertFalse("Ctx: initially not visible", _DL_CtxIsVisible())
+    _Test_AssertEqual("Ctx: initially GUI = 0", _DL_CtxGetGUI(), 0)
+    _Test_AssertEqual("Ctx: initially target = 0", _DL_CtxGetTarget(), 0)
+
+    ; -- Show context menu for desktop 1 --
+    _DL_Show($iTestTaskbarY, $iCurrentDesktop)
+    _DL_CtxShow(1)
+    _Test_AssertTrue("Ctx: is visible after show", _DL_CtxIsVisible())
+    _Test_AssertNotEqual("Ctx: GUI <> 0", _DL_CtxGetGUI(), 0)
+    _Test_AssertEqual("Ctx: target = 1", _DL_CtxGetTarget(), 1)
+
+    ; -- HandleClick with no match returns empty --
+    _Test_AssertEqual("Ctx: HandleClick(0) = empty", _DL_CtxHandleClick(0), "")
+    _Test_AssertEqual("Ctx: HandleClick(-1) = empty", _DL_CtxHandleClick(-1), "")
+
+    ; -- Destroy removes context menu --
+    _DL_CtxDestroy()
+    _Test_AssertFalse("Ctx: not visible after destroy", _DL_CtxIsVisible())
+    _Test_AssertEqual("Ctx: GUI = 0 after destroy", _DL_CtxGetGUI(), 0)
+    _Test_AssertEqual("Ctx: target = 0 after destroy", _DL_CtxGetTarget(), 0)
+
+    ; -- DL_Destroy also destroys context menu --
+    _DL_CtxShow(2)
+    _Test_AssertTrue("Ctx: visible before DL_Destroy", _DL_CtxIsVisible())
+    _DL_Destroy()
+    _Test_AssertFalse("Ctx: gone after DL_Destroy", _DL_CtxIsVisible())
+
+    ; -- Cleanup --
+    FileDelete($sTempIni)
+EndFunc
