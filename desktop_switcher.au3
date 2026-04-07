@@ -641,6 +641,37 @@ Func _ApplyDesktopChange()
     If $__g_bTrayMode Then TraySetToolTip("Desk Switcheroo - Desktop " & $iDesktop)
 EndFunc
 
+; Name:        _ApplySettingsLive
+; Description: Reloads all runtime state from config after Settings Apply.
+;              Called by ConfigDialog after saving.
+Func _ApplySettingsLive()
+    ; Re-register hotkeys with new bindings
+    _UnregisterHotkeys()
+    _RegisterHotkeys()
+
+    ; Update widget opacity
+    _WinAPI_SetLayeredWindowAttributes($gui, 0, _Cfg_GetThemeAlphaMain(), $LWA_ALPHA)
+
+    ; Update topmost interval
+    AdlibUnRegister("_ForceTopMost")
+    If Not _Cfg_GetTrayIconMode() Then
+        AdlibRegister("_ForceTopMost", _Cfg_GetTopmostInterval())
+    EndIf
+
+    ; Update config watcher
+    AdlibUnRegister("_AdlibConfigWatcher")
+    If _Cfg_GetConfigWatcherEnabled() Then
+        $__g_sCfgFileTime = FileGetTime(_Cfg_GetPath(), 0, 1)
+        AdlibRegister("_AdlibConfigWatcher", _Cfg_GetConfigWatcherInterval())
+    EndIf
+
+    ; Refresh display (count format, label, list)
+    _ApplyDesktopChange()
+
+    ; Force reposition with new widget position/offset
+    _ForceTopMost()
+EndFunc
+
 Func _RefreshIndex()
     $iDesktop = _VD_GetCurrent()
     _ApplyDesktopChange()

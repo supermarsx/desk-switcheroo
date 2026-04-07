@@ -797,6 +797,9 @@ Func __CD_ApplyChanges()
 
     _Cfg_Save()
 
+    ; Apply changes live to the running app
+    _ApplySettingsLive()
+
     ; Startup toggle with verification
     Local $sToastMsg = "Settings saved"
     Local $iToastIcon = $TOAST_SUCCESS
