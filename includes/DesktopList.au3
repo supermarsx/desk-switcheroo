@@ -37,10 +37,18 @@ Global $__g_DL_iCtxTarget    = 0
 Global $__g_DL_iCtxSwitch    = 0
 Global $__g_DL_iCtxRename    = 0
 Global $__g_DL_iCtxPeek      = 0
+Global $__g_DL_iCtxSetColor  = 0
 Global $__g_DL_iCtxMoveWin   = 0
 Global $__g_DL_iCtxAdd       = 0
 Global $__g_DL_iCtxDelete    = 0
 Global $__g_DL_iCtxHovered   = 0
+
+; -- Color picker submenu state --
+Global $__g_DL_hColorGUI = 0
+Global $__g_DL_bColorVisible = False
+Global $__g_DL_aColorPresetIDs[8]  ; [0]=7, [1-7]=control IDs
+Global $__g_DL_iColorCustomID = 0
+Global $__g_DL_iColorTarget = 0
 
 ; #FUNCTIONS# ===================================================
 
@@ -273,6 +281,7 @@ EndFunc
 Func _DL_CheckAutoHide($hMainGUI)
     If Not $__g_DL_bTemp Or Not $__g_DL_bVisible Then Return False
     If $__g_DL_bCtxVisible Then Return False ; don't auto-hide while context menu is open
+    If $__g_DL_bColorVisible Then Return False ; don't auto-hide while color picker is open
     If $__g_DL_iDragState > 0 Then Return False ; don't auto-hide during drag
     If TimerDiff($__g_DL_hTempTimer) <= _Cfg_GetAutoHideTimeout() Then Return False
     If _Theme_IsCursorOverWindow($__g_DL_hGUI) Or _Theme_IsCursorOverWindow($hMainGUI) Then Return False
@@ -529,6 +538,7 @@ Func _DL_CtxShow($iTarget)
     Local $iMenuW = 150
     Local $iSepH = 1
     Local $iItemCount = 5
+    If _Cfg_GetDesktopColorsEnabled() Then $iItemCount += 1
     If _Cfg_GetMoveWindowEnabled() Then $iItemCount += 1
     Local $iMenuH = $iItemCount * $THEME_MENU_ITEM_H + $iSepH + 12
 
@@ -550,6 +560,11 @@ Func _DL_CtxShow($iTarget)
 
     $__g_DL_iCtxPeek = _Theme_CreateMenuItem("  Peek", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
+
+    If _Cfg_GetDesktopColorsEnabled() Then
+        $__g_DL_iCtxSetColor = _Theme_CreateMenuItem("  Set Color", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+        $iY += $THEME_MENU_ITEM_H
+    EndIf
 
     If _Cfg_GetMoveWindowEnabled() Then
         $__g_DL_iCtxMoveWin = _Theme_CreateMenuItem("  Move Window Here", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
@@ -575,6 +590,7 @@ EndFunc
 ; Name:        _DL_CtxDestroy
 ; Description: Destroys the desktop list context menu and resets state
 Func _DL_CtxDestroy()
+    _DL_ColorPickerDestroy()
     If $__g_DL_hCtxGUI <> 0 Then
         GUIDelete($__g_DL_hCtxGUI)
         $__g_DL_hCtxGUI = 0
@@ -583,6 +599,7 @@ Func _DL_CtxDestroy()
     $__g_DL_iCtxTarget = 0
     $__g_DL_iCtxSwitch = 0
     $__g_DL_iCtxRename = 0
+    $__g_DL_iCtxSetColor = 0
     $__g_DL_iCtxMoveWin = 0
     $__g_DL_iCtxAdd = 0
     $__g_DL_iCtxPeek = 0
@@ -598,6 +615,7 @@ Func _DL_CtxHandleClick($msg)
     If $msg = $__g_DL_iCtxSwitch Then Return "switch"
     If $msg = $__g_DL_iCtxRename Then Return "rename"
     If $msg = $__g_DL_iCtxPeek Then Return "peek"
+    If $__g_DL_iCtxSetColor <> 0 And $msg = $__g_DL_iCtxSetColor Then Return "set_color"
     If $__g_DL_iCtxMoveWin <> 0 And $msg = $__g_DL_iCtxMoveWin Then Return "move_window"
     If $msg = $__g_DL_iCtxAdd Then Return "add"
     If $msg = $__g_DL_iCtxDelete Then Return "delete"
@@ -623,6 +641,7 @@ Func _DL_CtxCheckHover()
     If $aCursor[4] = $__g_DL_iCtxSwitch Then $iFound = $__g_DL_iCtxSwitch
     If $aCursor[4] = $__g_DL_iCtxRename Then $iFound = $__g_DL_iCtxRename
     If $aCursor[4] = $__g_DL_iCtxPeek Then $iFound = $__g_DL_iCtxPeek
+    If $__g_DL_iCtxSetColor <> 0 And $aCursor[4] = $__g_DL_iCtxSetColor Then $iFound = $__g_DL_iCtxSetColor
     If $__g_DL_iCtxMoveWin <> 0 And $aCursor[4] = $__g_DL_iCtxMoveWin Then $iFound = $__g_DL_iCtxMoveWin
     If $aCursor[4] = $__g_DL_iCtxAdd Then $iFound = $__g_DL_iCtxAdd
     If $aCursor[4] = $__g_DL_iCtxDelete Then $iFound = $__g_DL_iCtxDelete
@@ -648,6 +667,7 @@ Func _DL_CtxCheckAutoHide()
     If Not $__g_DL_bCtxVisible Or $__g_DL_hCtxGUI = 0 Then Return False
     If _Theme_IsCursorOverWindow($__g_DL_hCtxGUI) Then Return False
     If _Theme_IsCursorOverWindow($__g_DL_hGUI) Then Return False
+    If $__g_DL_bColorVisible And _Theme_IsCursorOverWindow($__g_DL_hColorGUI) Then Return False
     _DL_CtxDestroy()
     Return True
 EndFunc
@@ -671,4 +691,198 @@ EndFunc
 ; Return:      Desktop index (1-based), or 0 if no menu
 Func _DL_CtxGetTarget()
     Return $__g_DL_iCtxTarget
+EndFunc
+
+; =============================================
+; DESKTOP LIST — COLOR PICKER SUBMENU
+; =============================================
+
+; Name:        _DL_ColorPickerShow
+; Description: Creates a color picker popup to the right of the context menu
+; Parameters:  $iTarget - desktop index (1-based) to set color for
+Func _DL_ColorPickerShow($iTarget)
+    If $__g_DL_bColorVisible Then _DL_ColorPickerDestroy()
+    $__g_DL_iColorTarget = $iTarget
+
+    Local $iPickerW = 90
+    Local $iPickerH = 220
+
+    ; Position to the right of the context menu
+    Local $aCtxPos = WinGetPos($__g_DL_hCtxGUI)
+    Local $iPickerX = $aCtxPos[0] + $aCtxPos[2]
+    Local $iPickerY = $aCtxPos[1]
+    ; Keep on screen
+    If $iPickerX + $iPickerW > @DesktopWidth Then $iPickerX = $aCtxPos[0] - $iPickerW
+    If $iPickerY + $iPickerH > @DesktopHeight Then $iPickerY = @DesktopHeight - $iPickerH
+
+    $__g_DL_hColorGUI = _Theme_CreatePopup("ColorPicker", $iPickerW, $iPickerH, $iPickerX, $iPickerY, $THEME_BG_POPUP, $THEME_ALPHA_MENU)
+
+    $__g_DL_aColorPresetIDs[0] = 7
+    Local $iY = 6
+    For $i = 1 To 7
+        Local $iColor = $THEME_PRESET_COLORS[$i]
+        $__g_DL_aColorPresetIDs[$i] = GUICtrlCreateLabel(ChrW(0x25CF), 6, $iY, $iPickerW - 12, 24, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+        GUICtrlSetFont($__g_DL_aColorPresetIDs[$i], 12, 400, 0, $THEME_FONT_SYMBOL)
+        GUICtrlSetColor($__g_DL_aColorPresetIDs[$i], $iColor)
+        GUICtrlSetBkColor($__g_DL_aColorPresetIDs[$i], $GUI_BKCOLOR_TRANSPARENT)
+        GUICtrlSetCursor($__g_DL_aColorPresetIDs[$i], 0)
+        $iY += 26
+    Next
+
+    ; Separator
+    GUICtrlCreateLabel("", 10, $iY, $iPickerW - 20, 1)
+    GUICtrlSetBkColor(-1, $THEME_BG_SEPARATOR)
+    $iY += 5
+
+    ; Custom... text row
+    $__g_DL_iColorCustomID = GUICtrlCreateLabel("  Custom...", 6, $iY, $iPickerW - 12, 24, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_DL_iColorCustomID, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_DL_iColorCustomID, $THEME_FG_MENU)
+    GUICtrlSetBkColor($__g_DL_iColorCustomID, $GUI_BKCOLOR_TRANSPARENT)
+    GUICtrlSetCursor($__g_DL_iColorCustomID, 0)
+
+    GUISetState(@SW_SHOW, $__g_DL_hColorGUI)
+    $__g_DL_bColorVisible = True
+EndFunc
+
+; Name:        _DL_ColorPickerDestroy
+; Description: Destroys the color picker popup
+Func _DL_ColorPickerDestroy()
+    If $__g_DL_hColorGUI <> 0 Then
+        GUIDelete($__g_DL_hColorGUI)
+        $__g_DL_hColorGUI = 0
+    EndIf
+    $__g_DL_bColorVisible = False
+    $__g_DL_iColorTarget = 0
+    $__g_DL_iColorCustomID = 0
+    For $i = 1 To 7
+        $__g_DL_aColorPresetIDs[$i] = 0
+    Next
+EndFunc
+
+; Name:        _DL_ColorPickerHandleClick
+; Description: Processes a click in the color picker popup
+; Parameters:  $msg - GUI message from GUIGetMsg
+; Return:      Color value (int) if preset clicked, "custom" if Custom clicked, "" if no match
+Func _DL_ColorPickerHandleClick($msg)
+    If $msg <= 0 Then Return ""
+    For $i = 1 To 7
+        If $msg = $__g_DL_aColorPresetIDs[$i] Then Return $THEME_PRESET_COLORS[$i]
+    Next
+    If $msg = $__g_DL_iColorCustomID Then Return "custom"
+    Return ""
+EndFunc
+
+; Name:        _DL_ColorPickerIsVisible
+; Description: Returns whether the color picker is currently visible
+; Return:      True/False
+Func _DL_ColorPickerIsVisible()
+    Return $__g_DL_bColorVisible
+EndFunc
+
+; Name:        _DL_ColorPickerGetGUI
+; Description: Returns the color picker GUI handle
+; Return:      GUI handle or 0
+Func _DL_ColorPickerGetGUI()
+    Return $__g_DL_hColorGUI
+EndFunc
+
+; Name:        _DL_ColorPickerGetTarget
+; Description: Returns the desktop index targeted by the color picker
+; Return:      Desktop index (1-based)
+Func _DL_ColorPickerGetTarget()
+    Return $__g_DL_iColorTarget
+EndFunc
+
+; Name:        _DL_ColorPickerCustomDialog
+; Description: Shows a blocking dialog with a hex color input and OK/Cancel buttons
+; Return:      Color value (int) or -1 if cancelled
+Func _DL_ColorPickerCustomDialog()
+    Local $iDlgW = 200, $iDlgH = 80
+    Local $iDlgX = (@DesktopWidth - $iDlgW) / 2
+    Local $iDlgY = (@DesktopHeight - $iDlgH) / 2
+
+    Local $hDlg = _Theme_CreatePopup("CustomColor", $iDlgW, $iDlgH, $iDlgX, $iDlgY, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+
+    ; Hex label
+    GUICtrlCreateLabel("Hex color:", 10, 8, 60, 20, $SS_CENTERIMAGE)
+    GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor(-1, $THEME_FG_NORMAL)
+    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+
+    ; Input field
+    Local $idInput = GUICtrlCreateInput("FF0000", 74, 8, 110, 20)
+    GUICtrlSetFont($idInput, 9, 400, 0, $THEME_FONT_MONO)
+
+    ; OK button
+    Local $iBtnW = 50, $iBtnH = 24
+    Local $idOK = GUICtrlCreateLabel("OK", 10, $iDlgH - 34, $iBtnW, $iBtnH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idOK, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idOK, $THEME_FG_MENU)
+    GUICtrlSetBkColor($idOK, $THEME_BG_HOVER)
+    GUICtrlSetCursor($idOK, 0)
+
+    ; Cancel button
+    Local $idCancel = GUICtrlCreateLabel("Cancel", 10 + $iBtnW + 10, $iDlgH - 34, $iBtnW, $iBtnH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idCancel, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idCancel, $THEME_FG_MENU)
+    GUICtrlSetBkColor($idCancel, $THEME_BG_HOVER)
+    GUICtrlSetCursor($idCancel, 0)
+
+    GUISetState(@SW_SHOW, $hDlg)
+
+    ; Blocking message loop
+    Local $iResult = -1
+    Local $iHovered = 0
+    While 1
+        Local $aMsg = GUIGetMsg(1)
+        If $aMsg[1] = $hDlg Then
+            Switch $aMsg[0]
+                Case $GUI_EVENT_CLOSE
+                    ExitLoop
+                Case $idOK
+                    Local $sHex = GUICtrlRead($idInput)
+                    $sHex = StringStripWS($sHex, 3)
+                    If StringLeft($sHex, 2) = "0x" Then $sHex = StringMid($sHex, 3)
+                    If StringLen($sHex) = 6 And StringIsXDigit($sHex) Then
+                        $iResult = Int("0x" & $sHex)
+                    EndIf
+                    ExitLoop
+                Case $idCancel
+                    ExitLoop
+            EndSwitch
+        EndIf
+
+        ; Keyboard: Enter = OK, Escape = Cancel
+        Local $retEnter = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x0D)
+        If Not @error And BitAND($retEnter[0], 0x8000) <> 0 Then
+            Local $sHex2 = GUICtrlRead($idInput)
+            $sHex2 = StringStripWS($sHex2, 3)
+            If StringLeft($sHex2, 2) = "0x" Then $sHex2 = StringMid($sHex2, 3)
+            If StringLen($sHex2) = 6 And StringIsXDigit($sHex2) Then
+                $iResult = Int("0x" & $sHex2)
+            EndIf
+            ExitLoop
+        EndIf
+        Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
+        If Not @error And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
+
+        ; Hover effects on buttons
+        Local $aCursor = GUIGetCursorInfo($hDlg)
+        If Not @error Then
+            Local $iFound = 0
+            If $aCursor[4] = $idOK Then $iFound = $idOK
+            If $aCursor[4] = $idCancel Then $iFound = $idCancel
+            If $iFound <> $iHovered Then
+                If $iHovered <> 0 Then _Theme_RemoveHover($iHovered, $THEME_FG_MENU, $THEME_BG_HOVER)
+                $iHovered = $iFound
+                If $iHovered <> 0 Then _Theme_ApplyHover($iHovered, $THEME_FG_WHITE, $THEME_BG_BTN_HOV)
+            EndIf
+        EndIf
+
+        Sleep(10)
+    WEnd
+
+    GUIDelete($hDlg)
+    Return $iResult
 EndFunc
