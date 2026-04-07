@@ -63,15 +63,15 @@ Global $__g_Cfg_sLogLevel          = "info"
 Global $__g_Cfg_bDesktopColorsEnabled = False
 Global $__g_Cfg_aDesktopColors[10]
 $__g_Cfg_aDesktopColors[0] = 9
-$__g_Cfg_aDesktopColors[1] = 0x4A9EFF
-$__g_Cfg_aDesktopColors[2] = 0x4AFF7E
-$__g_Cfg_aDesktopColors[3] = 0xFF7E4A
-$__g_Cfg_aDesktopColors[4] = 0xFFD54A
-$__g_Cfg_aDesktopColors[5] = 0xB44AFF
-$__g_Cfg_aDesktopColors[6] = 0xFF4A9E
-$__g_Cfg_aDesktopColors[7] = 0x4AFFCF
-$__g_Cfg_aDesktopColors[8] = 0x9EFF4A
-$__g_Cfg_aDesktopColors[9] = 0xFF4A4A
+$__g_Cfg_aDesktopColors[1] = 0
+$__g_Cfg_aDesktopColors[2] = 0
+$__g_Cfg_aDesktopColors[3] = 0
+$__g_Cfg_aDesktopColors[4] = 0
+$__g_Cfg_aDesktopColors[5] = 0
+$__g_Cfg_aDesktopColors[6] = 0
+$__g_Cfg_aDesktopColors[7] = 0
+$__g_Cfg_aDesktopColors[8] = 0
+$__g_Cfg_aDesktopColors[9] = 0
 
 ; #FUNCTIONS# ===================================================
 
@@ -145,7 +145,7 @@ Func _Cfg_Load()
 
     ; [DesktopColors]
     $__g_Cfg_bDesktopColorsEnabled = __Cfg_ReadBool($f, "DesktopColors", "desktop_colors_enabled", False)
-    Local $aDefColors[10] = [9, 0x4A9EFF, 0x4AFF7E, 0xFF7E4A, 0xFFD54A, 0xB44AFF, 0xFF4A9E, 0x4AFFCF, 0x9EFF4A, 0xFF4A4A]
+    Local $aDefColors[10] = [9, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     For $i = 1 To 9
         Local $sVal = IniRead($f, "DesktopColors", "desktop_" & $i & "_color", "")
         If $sVal <> "" And StringLeft($sVal, 2) = "0x" Then
@@ -262,7 +262,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Logging", "log_level", "info")
 
     __Cfg_DefaultBool($f, "DesktopColors", "desktop_colors_enabled", False)
-    Local $aDefColors[10] = [9, 0x4A9EFF, 0x4AFF7E, 0xFF7E4A, 0xFFD54A, 0xB44AFF, 0xFF4A9E, 0x4AFFCF, 0x9EFF4A, 0xFF4A4A]
+    Local $aDefColors[10] = [9, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     For $i = 1 To 9
         __Cfg_DefaultVal($f, "DesktopColors", "desktop_" & $i & "_color", "0x" & Hex($aDefColors[$i], 6))
     Next
@@ -389,7 +389,7 @@ Func _Cfg_GetDesktopColorsEnabled()
     Return $__g_Cfg_bDesktopColorsEnabled
 EndFunc
 Func _Cfg_GetDesktopColor($i)
-    If $i < 1 Or $i > 9 Then Return 0xFFFFFF
+    If $i < 1 Or $i > 9 Then Return 0
     Return $__g_Cfg_aDesktopColors[$i]
 EndFunc
 
