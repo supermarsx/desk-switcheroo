@@ -326,7 +326,8 @@ EndFunc
 Func __CD_StyleCheckbox($idCtrl)
     GUICtrlSetFont($idCtrl, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idCtrl, $THEME_FG_NORMAL)
-    GUICtrlSetBkColor($idCtrl, $GUI_BKCOLOR_TRANSPARENT)
+    ; Checkboxes don't support $GUI_BKCOLOR_TRANSPARENT reliably with dark themes
+    GUICtrlSetBkColor($idCtrl, $THEME_BG_POPUP)
 EndFunc
 
 Func __CD_StyleLabel($idCtrl)
@@ -357,24 +358,54 @@ EndFunc
 
 Func __CD_PopulateControls()
     ; Tab 1: General
-    If _Cfg_GetStartWithWindows() Then GUICtrlSetState($__g_CD_idChkStartWin, $GUI_CHECKED)
-    If _Cfg_GetWrapNavigation() Then GUICtrlSetState($__g_CD_idChkWrapNav, $GUI_CHECKED)
-    If _Cfg_GetAutoCreateDesktop() Then GUICtrlSetState($__g_CD_idChkAutoCreate, $GUI_CHECKED)
+    If _Cfg_GetStartWithWindows() Then
+        GUICtrlSetState($__g_CD_idChkStartWin, $GUI_CHECKED)
+    Else
+        GUICtrlSetState($__g_CD_idChkStartWin, $GUI_UNCHECKED)
+    EndIf
+    If _Cfg_GetWrapNavigation() Then
+        GUICtrlSetState($__g_CD_idChkWrapNav, $GUI_CHECKED)
+    Else
+        GUICtrlSetState($__g_CD_idChkWrapNav, $GUI_UNCHECKED)
+    EndIf
+    If _Cfg_GetAutoCreateDesktop() Then
+        GUICtrlSetState($__g_CD_idChkAutoCreate, $GUI_CHECKED)
+    Else
+        GUICtrlSetState($__g_CD_idChkAutoCreate, $GUI_UNCHECKED)
+    EndIf
     GUICtrlSetData($__g_CD_idInpPadding, _Cfg_GetNumberPadding())
-    GUICtrlSetData($__g_CD_idCmbPosition, _Cfg_GetWidgetPosition())
+    ; Combo boxes: populate items with default selection via second parameter
+    GUICtrlSetData($__g_CD_idCmbPosition, "left|center|right", _Cfg_GetWidgetPosition())
     GUICtrlSetData($__g_CD_idInpOffsetX, _Cfg_GetWidgetOffsetX())
 
     ; Tab 2: Display
-    If _Cfg_GetShowCount() Then GUICtrlSetState($__g_CD_idChkShowCount, $GUI_CHECKED)
+    If _Cfg_GetShowCount() Then
+        GUICtrlSetState($__g_CD_idChkShowCount, $GUI_CHECKED)
+    Else
+        GUICtrlSetState($__g_CD_idChkShowCount, $GUI_UNCHECKED)
+    EndIf
     GUICtrlSetData($__g_CD_idInpCountFont, _Cfg_GetCountFontSize())
     GUICtrlSetData($__g_CD_idInpOpacity, _Cfg_GetThemeAlphaMain())
 
     ; Tab 3: Scroll
-    If _Cfg_GetScrollEnabled() Then GUICtrlSetState($__g_CD_idChkScroll, $GUI_CHECKED)
-    GUICtrlSetData($__g_CD_idCmbScrollDir, _Cfg_GetScrollDirection())
-    If _Cfg_GetScrollWrap() Then GUICtrlSetState($__g_CD_idChkScrollWrap, $GUI_CHECKED)
-    If _Cfg_GetListScrollEnabled() Then GUICtrlSetState($__g_CD_idChkListScroll, $GUI_CHECKED)
-    GUICtrlSetData($__g_CD_idCmbListAction, _Cfg_GetListScrollAction())
+    If _Cfg_GetScrollEnabled() Then
+        GUICtrlSetState($__g_CD_idChkScroll, $GUI_CHECKED)
+    Else
+        GUICtrlSetState($__g_CD_idChkScroll, $GUI_UNCHECKED)
+    EndIf
+    ; Combo boxes: populate items with default selection via second parameter
+    GUICtrlSetData($__g_CD_idCmbScrollDir, "normal|inverted", _Cfg_GetScrollDirection())
+    If _Cfg_GetScrollWrap() Then
+        GUICtrlSetState($__g_CD_idChkScrollWrap, $GUI_CHECKED)
+    Else
+        GUICtrlSetState($__g_CD_idChkScrollWrap, $GUI_UNCHECKED)
+    EndIf
+    If _Cfg_GetListScrollEnabled() Then
+        GUICtrlSetState($__g_CD_idChkListScroll, $GUI_CHECKED)
+    Else
+        GUICtrlSetState($__g_CD_idChkListScroll, $GUI_UNCHECKED)
+    EndIf
+    GUICtrlSetData($__g_CD_idCmbListAction, "switch|scroll", _Cfg_GetListScrollAction())
 
     ; Tab 4: Hotkeys
     GUICtrlSetData($__g_CD_idInpHkNext, _Cfg_GetHotkeyNext())
@@ -385,16 +416,32 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpHkToggleList, _Cfg_GetHotkeyToggleList())
 
     ; Tab 5: Behavior
-    If _Cfg_GetConfirmDelete() Then GUICtrlSetState($__g_CD_idChkConfirmDel, $GUI_CHECKED)
-    If _Cfg_GetMiddleClickDelete() Then GUICtrlSetState($__g_CD_idChkMidClick, $GUI_CHECKED)
-    If _Cfg_GetMoveWindowEnabled() Then GUICtrlSetState($__g_CD_idChkMoveWin, $GUI_CHECKED)
+    If _Cfg_GetConfirmDelete() Then
+        GUICtrlSetState($__g_CD_idChkConfirmDel, $GUI_CHECKED)
+    Else
+        GUICtrlSetState($__g_CD_idChkConfirmDel, $GUI_UNCHECKED)
+    EndIf
+    If _Cfg_GetMiddleClickDelete() Then
+        GUICtrlSetState($__g_CD_idChkMidClick, $GUI_CHECKED)
+    Else
+        GUICtrlSetState($__g_CD_idChkMidClick, $GUI_UNCHECKED)
+    EndIf
+    If _Cfg_GetMoveWindowEnabled() Then
+        GUICtrlSetState($__g_CD_idChkMoveWin, $GUI_CHECKED)
+    Else
+        GUICtrlSetState($__g_CD_idChkMoveWin, $GUI_UNCHECKED)
+    EndIf
     GUICtrlSetData($__g_CD_idInpPeekDelay, _Cfg_GetPeekBounceDelay())
     GUICtrlSetData($__g_CD_idInpAutoHide, _Cfg_GetAutoHideTimeout())
     GUICtrlSetData($__g_CD_idInpTopmost, _Cfg_GetTopmostInterval())
     GUICtrlSetData($__g_CD_idInpCmDelay, _Cfg_GetCmAutoHideDelay())
 
     ; Tab 6: Colors
-    If _Cfg_GetDesktopColorsEnabled() Then GUICtrlSetState($__g_CD_idChkColorsEnabled, $GUI_CHECKED)
+    If _Cfg_GetDesktopColorsEnabled() Then
+        GUICtrlSetState($__g_CD_idChkColorsEnabled, $GUI_CHECKED)
+    Else
+        GUICtrlSetState($__g_CD_idChkColorsEnabled, $GUI_UNCHECKED)
+    EndIf
     For $i = 1 To 9
         Local $sHex = Hex(_Cfg_GetDesktopColor($i), 6)
         GUICtrlSetData($__g_CD_aidInpColor[$i], $sHex)
@@ -462,28 +509,49 @@ EndFunc
 ; =============================================
 
 Func __CD_ApplyChanges()
+    ; Guard: if the dialog GUI was destroyed, bail out
+    If $__g_CD_hGUI = 0 Then Return
+
     ; Remember previous startup state to detect changes
     Local $bOldStartup = _Cfg_GetStartWithWindows()
 
+    ; Helper: safely read a control, returning "" on error
+    ; (GUICtrlRead returns "" for invalid IDs, but we add explicit checks)
+
     ; Tab 1: General
-    _Cfg_SetStartWithWindows(BitAND(GUICtrlRead($__g_CD_idChkStartWin), $GUI_CHECKED) <> 0)
-    _Cfg_SetWrapNavigation(BitAND(GUICtrlRead($__g_CD_idChkWrapNav), $GUI_CHECKED) <> 0)
-    _Cfg_SetAutoCreateDesktop(BitAND(GUICtrlRead($__g_CD_idChkAutoCreate), $GUI_CHECKED) <> 0)
-    _Cfg_SetNumberPadding(Int(GUICtrlRead($__g_CD_idInpPadding)))
-    _Cfg_SetWidgetPosition(GUICtrlRead($__g_CD_idCmbPosition))
-    _Cfg_SetWidgetOffsetX(Int(GUICtrlRead($__g_CD_idInpOffsetX)))
+    _Cfg_SetStartWithWindows(BitAND(GUICtrlRead($__g_CD_idChkStartWin), $GUI_CHECKED) = $GUI_CHECKED)
+    _Cfg_SetWrapNavigation(BitAND(GUICtrlRead($__g_CD_idChkWrapNav), $GUI_CHECKED) = $GUI_CHECKED)
+    _Cfg_SetAutoCreateDesktop(BitAND(GUICtrlRead($__g_CD_idChkAutoCreate), $GUI_CHECKED) = $GUI_CHECKED)
+
+    Local $sPadding = GUICtrlRead($__g_CD_idInpPadding)
+    If StringIsInt($sPadding) Then _Cfg_SetNumberPadding(Int($sPadding))
+
+    Local $sPos = GUICtrlRead($__g_CD_idCmbPosition)
+    If $sPos <> "" Then _Cfg_SetWidgetPosition($sPos)
+
+    Local $sOffsetX = GUICtrlRead($__g_CD_idInpOffsetX)
+    If $sOffsetX <> "" And StringIsInt($sOffsetX) Then _Cfg_SetWidgetOffsetX(Int($sOffsetX))
 
     ; Tab 2: Display
-    _Cfg_SetShowCount(BitAND(GUICtrlRead($__g_CD_idChkShowCount), $GUI_CHECKED) <> 0)
-    _Cfg_SetCountFontSize(Int(GUICtrlRead($__g_CD_idInpCountFont)))
-    _Cfg_SetThemeAlphaMain(Int(GUICtrlRead($__g_CD_idInpOpacity)))
+    _Cfg_SetShowCount(BitAND(GUICtrlRead($__g_CD_idChkShowCount), $GUI_CHECKED) = $GUI_CHECKED)
+
+    Local $sCountFont = GUICtrlRead($__g_CD_idInpCountFont)
+    If StringIsInt($sCountFont) Then _Cfg_SetCountFontSize(Int($sCountFont))
+
+    Local $sOpacity = GUICtrlRead($__g_CD_idInpOpacity)
+    If StringIsInt($sOpacity) Then _Cfg_SetThemeAlphaMain(Int($sOpacity))
 
     ; Tab 3: Scroll
-    _Cfg_SetScrollEnabled(BitAND(GUICtrlRead($__g_CD_idChkScroll), $GUI_CHECKED) <> 0)
-    _Cfg_SetScrollDirection(GUICtrlRead($__g_CD_idCmbScrollDir))
-    _Cfg_SetScrollWrap(BitAND(GUICtrlRead($__g_CD_idChkScrollWrap), $GUI_CHECKED) <> 0)
-    _Cfg_SetListScrollEnabled(BitAND(GUICtrlRead($__g_CD_idChkListScroll), $GUI_CHECKED) <> 0)
-    _Cfg_SetListScrollAction(GUICtrlRead($__g_CD_idCmbListAction))
+    _Cfg_SetScrollEnabled(BitAND(GUICtrlRead($__g_CD_idChkScroll), $GUI_CHECKED) = $GUI_CHECKED)
+
+    Local $sScrollDir = GUICtrlRead($__g_CD_idCmbScrollDir)
+    If $sScrollDir <> "" Then _Cfg_SetScrollDirection($sScrollDir)
+
+    _Cfg_SetScrollWrap(BitAND(GUICtrlRead($__g_CD_idChkScrollWrap), $GUI_CHECKED) = $GUI_CHECKED)
+    _Cfg_SetListScrollEnabled(BitAND(GUICtrlRead($__g_CD_idChkListScroll), $GUI_CHECKED) = $GUI_CHECKED)
+
+    Local $sListAction = GUICtrlRead($__g_CD_idCmbListAction)
+    If $sListAction <> "" Then _Cfg_SetListScrollAction($sListAction)
 
     ; Tab 4: Hotkeys
     _Cfg_SetHotkeyNext(GUICtrlRead($__g_CD_idInpHkNext))
@@ -494,16 +562,24 @@ Func __CD_ApplyChanges()
     _Cfg_SetHotkeyToggleList(GUICtrlRead($__g_CD_idInpHkToggleList))
 
     ; Tab 5: Behavior
-    _Cfg_SetConfirmDelete(BitAND(GUICtrlRead($__g_CD_idChkConfirmDel), $GUI_CHECKED) <> 0)
-    _Cfg_SetMiddleClickDelete(BitAND(GUICtrlRead($__g_CD_idChkMidClick), $GUI_CHECKED) <> 0)
-    _Cfg_SetMoveWindowEnabled(BitAND(GUICtrlRead($__g_CD_idChkMoveWin), $GUI_CHECKED) <> 0)
-    _Cfg_SetPeekBounceDelay(Int(GUICtrlRead($__g_CD_idInpPeekDelay)))
-    _Cfg_SetAutoHideTimeout(Int(GUICtrlRead($__g_CD_idInpAutoHide)))
-    _Cfg_SetTopmostInterval(Int(GUICtrlRead($__g_CD_idInpTopmost)))
-    _Cfg_SetCmAutoHideDelay(Int(GUICtrlRead($__g_CD_idInpCmDelay)))
+    _Cfg_SetConfirmDelete(BitAND(GUICtrlRead($__g_CD_idChkConfirmDel), $GUI_CHECKED) = $GUI_CHECKED)
+    _Cfg_SetMiddleClickDelete(BitAND(GUICtrlRead($__g_CD_idChkMidClick), $GUI_CHECKED) = $GUI_CHECKED)
+    _Cfg_SetMoveWindowEnabled(BitAND(GUICtrlRead($__g_CD_idChkMoveWin), $GUI_CHECKED) = $GUI_CHECKED)
+
+    Local $sPeekDelay = GUICtrlRead($__g_CD_idInpPeekDelay)
+    If StringIsInt($sPeekDelay) Then _Cfg_SetPeekBounceDelay(Int($sPeekDelay))
+
+    Local $sAutoHide = GUICtrlRead($__g_CD_idInpAutoHide)
+    If StringIsInt($sAutoHide) Then _Cfg_SetAutoHideTimeout(Int($sAutoHide))
+
+    Local $sTopmost = GUICtrlRead($__g_CD_idInpTopmost)
+    If StringIsInt($sTopmost) Then _Cfg_SetTopmostInterval(Int($sTopmost))
+
+    Local $sCmDelay = GUICtrlRead($__g_CD_idInpCmDelay)
+    If StringIsInt($sCmDelay) Then _Cfg_SetCmAutoHideDelay(Int($sCmDelay))
 
     ; Tab 6: Colors
-    _Cfg_SetDesktopColorsEnabled(BitAND(GUICtrlRead($__g_CD_idChkColorsEnabled), $GUI_CHECKED) <> 0)
+    _Cfg_SetDesktopColorsEnabled(BitAND(GUICtrlRead($__g_CD_idChkColorsEnabled), $GUI_CHECKED) = $GUI_CHECKED)
     For $i = 1 To 9
         Local $sHex = GUICtrlRead($__g_CD_aidInpColor[$i])
         ; Strip leading 0x if user typed it
@@ -513,6 +589,8 @@ Func __CD_ApplyChanges()
         ; Validate hex string
         If StringLen($sHex) = 6 And StringIsXDigit($sHex) Then
             _Cfg_SetDesktopColor($i, Int("0x" & $sHex))
+            ; Update the preview swatch
+            GUICtrlSetBkColor($__g_CD_aidLblPreview[$i], Int("0x" & $sHex))
         EndIf
     Next
 

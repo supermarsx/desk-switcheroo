@@ -160,6 +160,7 @@ EndFunc
 Func _DL_HandleClick($msg)
     If $__g_DL_iDragState > 0 Then Return 0
     If $msg <= 0 Then Return 0
+    If UBound($__g_DL_aItems) < 2 Or $__g_DL_aItems[0] < 1 Then Return 0
     For $i = 1 To $__g_DL_aItems[0]
         If $msg = $__g_DL_aItems[$i] Or $msg = $__g_DL_aPeekBtns[$i] Then
             If _Peek_IsActive() Then
@@ -177,13 +178,14 @@ EndFunc
 Func _DL_CheckHover($iCurrentDesktop)
     If Not $__g_DL_bVisible Or $__g_DL_hGUI = 0 Then Return
     If $__g_DL_iDragState = 2 Then Return ; drag controls visuals during active drag
+    If UBound($__g_DL_aItems) < 2 Or $__g_DL_aItems[0] < 1 Then Return
     Local $aCursor = GUIGetCursorInfo($__g_DL_hGUI)
     If @error Then
         ; Cursor left the list
-        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <> $iCurrentDesktop Then
+        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <= $__g_DL_aItems[0] And $__g_DL_iHovered <> $iCurrentDesktop Then
             _Theme_RemoveHover($__g_DL_aItems[$__g_DL_iHovered], $THEME_FG_DIM)
         EndIf
-        If $__g_DL_iPeekHovered > 0 Then
+        If $__g_DL_iPeekHovered > 0 And $__g_DL_iPeekHovered <= $__g_DL_aPeekBtns[0] Then
             GUICtrlSetColor($__g_DL_aPeekBtns[$__g_DL_iPeekHovered], $THEME_FG_PEEK_DIM)
             $__g_DL_iPeekHovered = 0
         EndIf
@@ -216,22 +218,22 @@ Func _DL_CheckHover($iCurrentDesktop)
 
     ; Update text hover highlight
     If $iEffective <> $__g_DL_iHovered Then
-        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <> $iCurrentDesktop Then
+        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <= $__g_DL_aItems[0] And $__g_DL_iHovered <> $iCurrentDesktop Then
             _Theme_RemoveHover($__g_DL_aItems[$__g_DL_iHovered], $THEME_FG_DIM)
         EndIf
         $__g_DL_iHovered = $iEffective
-        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <> $iCurrentDesktop Then
+        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <= $__g_DL_aItems[0] And $__g_DL_iHovered <> $iCurrentDesktop Then
             _Theme_ApplyHover($__g_DL_aItems[$__g_DL_iHovered], $THEME_FG_WHITE, $THEME_BG_HOVER)
         EndIf
     EndIf
 
     ; Update peek button hover + trigger peek
     If $iPeekFound <> $__g_DL_iPeekHovered Then
-        If $__g_DL_iPeekHovered > 0 Then
+        If $__g_DL_iPeekHovered > 0 And $__g_DL_iPeekHovered <= $__g_DL_aPeekBtns[0] Then
             GUICtrlSetColor($__g_DL_aPeekBtns[$__g_DL_iPeekHovered], $THEME_FG_PEEK_DIM)
         EndIf
         $__g_DL_iPeekHovered = $iPeekFound
-        If $__g_DL_iPeekHovered > 0 Then
+        If $__g_DL_iPeekHovered > 0 And $__g_DL_iPeekHovered <= $__g_DL_aPeekBtns[0] Then
             GUICtrlSetColor($__g_DL_aPeekBtns[$__g_DL_iPeekHovered], $THEME_FG_WHITE)
         EndIf
 
@@ -249,7 +251,7 @@ EndFunc
 ; Parameters:  $iCurrentDesktop - currently active desktop (1-based)
 Func _DL_UpdateHighlight($iCurrentDesktop)
     If Not $__g_DL_bVisible Then Return
-    If $__g_DL_aItems[0] < 1 Then Return
+    If UBound($__g_DL_aItems) < 2 Or $__g_DL_aItems[0] < 1 Then Return
     For $i = 1 To $__g_DL_aItems[0]
         If $i = $__g_DL_iHovered And $i <> $iCurrentDesktop Then ContinueLoop
         If $i = $iCurrentDesktop Then
@@ -387,7 +389,7 @@ Func _DL_DragMouseMove()
         If $iRow = $__g_DL_iDragTarget Then Return ; no change
 
         ; Remove old target highlight
-        If $__g_DL_iDragTarget > 0 And $__g_DL_iDragTarget <> $__g_DL_iDragSource Then
+        If $__g_DL_iDragTarget > 0 And $__g_DL_iDragTarget <= $__g_DL_aItems[0] And $__g_DL_iDragTarget <> $__g_DL_iDragSource Then
             GUICtrlSetColor($__g_DL_aItems[$__g_DL_iDragTarget], $THEME_FG_DIM)
             GUICtrlSetBkColor($__g_DL_aItems[$__g_DL_iDragTarget], $GUI_BKCOLOR_TRANSPARENT)
         EndIf
@@ -395,7 +397,7 @@ Func _DL_DragMouseMove()
         $__g_DL_iDragTarget = $iRow
 
         ; Apply new target highlight
-        If $__g_DL_iDragTarget > 0 And $__g_DL_iDragTarget <> $__g_DL_iDragSource Then
+        If $__g_DL_iDragTarget > 0 And $__g_DL_iDragTarget <= $__g_DL_aItems[0] And $__g_DL_iDragTarget <> $__g_DL_iDragSource Then
             GUICtrlSetColor($__g_DL_aItems[$__g_DL_iDragTarget], $THEME_FG_WHITE)
             GUICtrlSetBkColor($__g_DL_aItems[$__g_DL_iDragTarget], $THEME_BG_DROP_TARGET)
         EndIf

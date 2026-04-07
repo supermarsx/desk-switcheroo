@@ -41,8 +41,9 @@ Func _VD_GetCount()
         Local $iElapsed = TimerDiff($__g_VD_hCountTimer)
         If $iElapsed < 500 Then Return $__g_VD_iCachedCount
     EndIf
+    If $__g_VD_hDLL = -1 Then Return 1
     Local $aResult = DllCall($__g_VD_hDLL, "int", "GetDesktopCount")
-    If @error Or $aResult[0] < 1 Then Return 1
+    If @error Or Not IsArray($aResult) Or $aResult[0] < 1 Then Return 1
     $__g_VD_iCachedCount = $aResult[0]
     $__g_VD_hCountTimer = TimerInit()
     Return $aResult[0]
@@ -58,8 +59,9 @@ EndFunc
 ; Description: Returns the current virtual desktop index (1-based)
 ; Return:      Integer >= 1
 Func _VD_GetCurrent()
+    If $__g_VD_hDLL = -1 Then Return 1
     Local $aResult = DllCall($__g_VD_hDLL, "int", "GetCurrentDesktopNumber")
-    If @error Or $aResult[0] < 0 Then Return 1
+    If @error Or Not IsArray($aResult) Or $aResult[0] < 0 Then Return 1
     Return $aResult[0] + 1
 EndFunc
 
@@ -67,7 +69,9 @@ EndFunc
 ; Description: Switches to a virtual desktop by index (1-based)
 ; Parameters:  $iDesktop - target desktop index (1-based)
 Func _VD_GoTo($iDesktop)
+    If $__g_VD_hDLL = -1 Then Return
     DllCall($__g_VD_hDLL, "int", "GoToDesktopNumber", "int", $iDesktop - 1)
+    ; @error is non-critical here — the switch simply won't happen
 EndFunc
 
 ; Name:        _VD_HasNameSupport
@@ -82,7 +86,7 @@ EndFunc
 ; Parameters:  $iDesktop - desktop index (1-based)
 ; Return:      Name string, or "" if unavailable
 Func _VD_GetName($iDesktop)
-    If Not $__g_VD_bNameSupport Then Return ""
+    If Not $__g_VD_bNameSupport Or $__g_VD_hDLL = -1 Then Return ""
     ; Use char buffer — DllStructGetData returns a string up to the first null
     Local $tBuf = DllStructCreate("char[1024]")
     DllCall($__g_VD_hDLL, "int", "GetDesktopName", "int", $iDesktop - 1, _
@@ -100,7 +104,7 @@ EndFunc
 ;              $sName - new name string
 ; Return:      True on success, False on failure
 Func _VD_SetName($iDesktop, $sName)
-    If Not $__g_VD_bNameSupport Then Return False
+    If Not $__g_VD_bNameSupport Or $__g_VD_hDLL = -1 Then Return False
     ; Convert to UTF-8 null-terminated byte buffer
     Local $bUtf8 = StringToBinary($sName, 4)
     Local $iLen = BinaryLen($bUtf8)
@@ -118,8 +122,9 @@ EndFunc
 ; Parameters:  $hWnd - window handle
 ; Return:      Desktop index (1-based), or 0 if error/pinned
 Func _VD_GetWindowDesktopNumber($hWnd)
+    If $__g_VD_hDLL = -1 Then Return 0
     Local $aResult = DllCall($__g_VD_hDLL, "int", "GetWindowDesktopNumber", "hwnd", $hWnd)
-    If @error Or $aResult[0] < 0 Then Return 0
+    If @error Or Not IsArray($aResult) Or $aResult[0] < 0 Then Return 0
     Return $aResult[0] + 1
 EndFunc
 
@@ -129,6 +134,7 @@ EndFunc
 ;              $iDesktop - target desktop index (1-based)
 ; Return:      True on success, False on failure
 Func _VD_MoveWindowToDesktop($hWnd, $iDesktop)
+    If $__g_VD_hDLL = -1 Then Return False
     DllCall($__g_VD_hDLL, "int", "MoveWindowToDesktopNumber", "hwnd", $hWnd, "int", $iDesktop - 1)
     If @error Then Return False
     Return True
@@ -188,6 +194,7 @@ EndFunc
 ;              $iMsg - custom message ID (e.g. $WM_USER + 200)
 ; Return:      True on success, False if unsupported
 Func _VD_RegisterNotify($hWnd, $iMsg)
+    If $__g_VD_hDLL = -1 Then Return False
     DllCall($__g_VD_hDLL, "int", "RegisterPostMessageHook", "hwnd", $hWnd, "uint", $iMsg)
     If @error Then Return False
     Return True
@@ -197,6 +204,7 @@ EndFunc
 ; Description: Unregisters the desktop change notification hook
 ; Parameters:  $hWnd - the window handle that was registered
 Func _VD_UnregisterNotify($hWnd)
+    If $__g_VD_hDLL = -1 Then Return
     DllCall($__g_VD_hDLL, "int", "UnregisterPostMessageHook", "hwnd", $hWnd)
 EndFunc
 
@@ -204,6 +212,7 @@ EndFunc
 ; Description: Creates a new virtual desktop
 ; Return:      True on success, False on failure or unsupported
 Func _VD_CreateDesktop()
+    If $__g_VD_hDLL = -1 Then Return False
     DllCall($__g_VD_hDLL, "int", "CreateDesktop")
     If @error Then Return False
     _VD_InvalidateCountCache()
@@ -224,6 +233,7 @@ Func _VD_RemoveDesktop($iDesktop, $iFallback = Default)
             $iFallback = 2
         EndIf
     EndIf
+    If $__g_VD_hDLL = -1 Then Return False
     Local $aResult = DllCall($__g_VD_hDLL, "int", "RemoveDesktop", "int", $iDesktop - 1, "int", $iFallback - 1)
     If @error Then Return False
     _VD_InvalidateCountCache()

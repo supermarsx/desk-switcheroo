@@ -13,6 +13,7 @@
 #include "includes\ContextMenu.au3"
 #include "includes\RenameDialog.au3"
 #include "includes\DesktopList.au3"
+#include "includes\ConfigDialog.au3"
 
 ; ---- Ensure cleanup on unexpected exit ----
 Global $__g_bShuttingDown = False
@@ -21,7 +22,8 @@ OnAutoItExitRegister("_OnExit")
 ; ---- Singleton: kill previous instance on relaunch ----
 Local $sMutexName = "DesktopSwitcherMutex_7F3A"
 Local $hMutex = DllCall("kernel32.dll", "handle", "CreateMutexW", "ptr", 0, "bool", True, "wstr", $sMutexName)
-If DllCall("kernel32.dll", "dword", "GetLastError")[0] = 183 Then
+Local $aLastErr = DllCall("kernel32.dll", "dword", "GetLastError")
+If Not @error And IsArray($aLastErr) And $aLastErr[0] = 183 Then
     Local $aProcs = ProcessList(@AutoItExe)
     For $p = 1 To $aProcs[0][0]
         If $aProcs[$p][1] <> @AutoItPID Then
@@ -310,6 +312,7 @@ While 1
 
     ; Right-click detection
     Local $rBtn = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x02)
+    If @error Or Not IsArray($rBtn) Then ContinueLoop
     Local $bRightDown = (BitAND($rBtn[0], 0x8000) <> 0)
 
     If $bRightWasDown And Not $bRightDown Then
@@ -352,6 +355,7 @@ While 1
 
     ; Middle-click detection
     Local $mBtn = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x04)
+    If @error Or Not IsArray($mBtn) Then ContinueLoop
     Local $bMiddleDown = (BitAND($mBtn[0], 0x8000) <> 0)
 
     If $bMiddleWasDown And Not $bMiddleDown Then
@@ -378,6 +382,7 @@ While 1
 
     ; Left-click drag detection for desktop list
     Local $lBtn = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x01)
+    If @error Or Not IsArray($lBtn) Then ContinueLoop
     Local $bLeftDown = (BitAND($lBtn[0], 0x8000) <> 0)
 
     If $bLeftDown And Not $bLeftWasDown Then
