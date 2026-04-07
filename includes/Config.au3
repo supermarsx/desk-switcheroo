@@ -455,10 +455,14 @@ Func _Cfg_EnableStartup()
         $sCmd = '"' & @AutoItExe & '" "' & @ScriptFullPath & '" -autostart'
     EndIf
     RegWrite($sKey, "DeskSwitcheroo", "REG_SZ", $sCmd)
+    ; Verify it was written
+    Return (_Cfg_IsStartupEnabled())
 EndFunc
 
 Func _Cfg_DisableStartup()
     RegDelete("HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run", "DeskSwitcheroo")
+    ; Verify it was removed
+    Return (Not _Cfg_IsStartupEnabled())
 EndFunc
 
 Func _Cfg_IsStartupEnabled()

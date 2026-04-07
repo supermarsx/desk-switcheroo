@@ -724,19 +724,31 @@ Func __CD_ApplyChanges()
 
     _Cfg_Save()
 
-    ; Startup toggle
+    ; Startup toggle with verification
+    Local $sToastMsg = "Settings saved"
+    Local $iToastIcon = $TOAST_SUCCESS
     If _Cfg_GetStartWithWindows() <> $bOldStartup Then
         If _Cfg_GetStartWithWindows() Then
-            _Cfg_EnableStartup()
+            If _Cfg_EnableStartup() Then
+                $sToastMsg = "Settings saved — startup enabled"
+            Else
+                $sToastMsg = "Settings saved — startup failed"
+                $iToastIcon = $TOAST_ERROR
+            EndIf
         Else
-            _Cfg_DisableStartup()
+            If _Cfg_DisableStartup() Then
+                $sToastMsg = "Settings saved — startup disabled"
+            Else
+                $sToastMsg = "Settings saved — startup removal failed"
+                $iToastIcon = $TOAST_ERROR
+            EndIf
         EndIf
     EndIf
 
     ; Toast notification
     Local $aPos = WinGetPos($__g_CD_hGUI)
     If Not @error Then
-        _Theme_Toast("Settings saved", $aPos[0], $aPos[1] + $aPos[3] + 4, 1500, $TOAST_SUCCESS)
+        _Theme_Toast($sToastMsg, $aPos[0], $aPos[1] + $aPos[3] + 4, 2000, $iToastIcon)
     EndIf
 EndFunc
 
