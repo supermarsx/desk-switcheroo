@@ -47,6 +47,7 @@ Global $__g_DL_iCtxHovered   = 0
 Global $__g_DL_hColorGUI = 0
 Global $__g_DL_bColorVisible = False
 Global $__g_DL_aColorPresetIDs[8]  ; [0]=7, [1-7]=control IDs
+Global $__g_DL_iColorNoneID   = 0
 Global $__g_DL_iColorCustomID = 0
 Global $__g_DL_iColorTarget = 0
 
@@ -133,10 +134,13 @@ Func _DL_Show($iTaskbarY, $iCurrentDesktop)
         GUICtrlSetBkColor($__g_DL_aItems[$i], $iBg)
         GUICtrlSetCursor($__g_DL_aItems[$i], 0)
 
-        ; Desktop color indicator
+        ; Desktop color indicator (skip if colors disabled or color is 0/none)
         If _Cfg_GetDesktopColorsEnabled() And $i <= 9 Then
-            Local $iColorInd = GUICtrlCreateLabel("", $iListW - 8, $iY + 2, 4, $THEME_ITEM_HEIGHT - 6)
-            GUICtrlSetBkColor($iColorInd, _Cfg_GetDesktopColor($i))
+            Local $iClr = _Cfg_GetDesktopColor($i)
+            If $iClr <> 0 Then
+                Local $iColorInd = GUICtrlCreateLabel("", $iListW - 8, $iY + 2, 4, $THEME_ITEM_HEIGHT - 6)
+                GUICtrlSetBkColor($iColorInd, $iClr)
+            EndIf
         EndIf
     Next
 
@@ -561,10 +565,8 @@ Func _DL_CtxShow($iTarget)
     $__g_DL_iCtxPeek = _Theme_CreateMenuItem("  Peek", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 
-    If _Cfg_GetDesktopColorsEnabled() Then
-        $__g_DL_iCtxSetColor = _Theme_CreateMenuItem("  Set Color", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
-        $iY += $THEME_MENU_ITEM_H
-    EndIf
+    $__g_DL_iCtxSetColor = _Theme_CreateMenuItem("  Set Color  " & ChrW(0x25B6), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $iY += $THEME_MENU_ITEM_H
 
     If _Cfg_GetMoveWindowEnabled() Then
         $__g_DL_iCtxMoveWin = _Theme_CreateMenuItem("  Move Window Here", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
@@ -705,7 +707,7 @@ Func _DL_ColorPickerShow($iTarget)
     $__g_DL_iColorTarget = $iTarget
 
     Local $iPickerW = 90
-    Local $iPickerH = 220
+    Local $iPickerH = 280
 
     ; Position to the right of the context menu
     Local $aCtxPos = WinGetPos($__g_DL_hCtxGUI)
@@ -717,8 +719,23 @@ Func _DL_ColorPickerShow($iTarget)
 
     $__g_DL_hColorGUI = _Theme_CreatePopup("ColorPicker", $iPickerW, $iPickerH, $iPickerX, $iPickerY, $THEME_BG_POPUP, $THEME_ALPHA_MENU)
 
-    $__g_DL_aColorPresetIDs[0] = 7
     Local $iY = 6
+
+    ; "None" option at the top (clear color)
+    $__g_DL_iColorNoneID = GUICtrlCreateLabel("  None", 6, $iY, $iPickerW - 12, 24, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_DL_iColorNoneID, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_DL_iColorNoneID, $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_DL_iColorNoneID, $GUI_BKCOLOR_TRANSPARENT)
+    GUICtrlSetCursor($__g_DL_iColorNoneID, 0)
+    $iY += 26
+
+    ; Separator
+    GUICtrlCreateLabel("", 10, $iY, $iPickerW - 20, 1)
+    GUICtrlSetBkColor(-1, $THEME_BG_SEPARATOR)
+    $iY += 5
+
+    ; 7 preset colors
+    $__g_DL_aColorPresetIDs[0] = 7
     For $i = 1 To 7
         Local $iColor = $THEME_PRESET_COLORS[$i]
         $__g_DL_aColorPresetIDs[$i] = GUICtrlCreateLabel(ChrW(0x25CF), 6, $iY, $iPickerW - 12, 24, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
@@ -754,6 +771,7 @@ Func _DL_ColorPickerDestroy()
     EndIf
     $__g_DL_bColorVisible = False
     $__g_DL_iColorTarget = 0
+    $__g_DL_iColorNoneID = 0
     $__g_DL_iColorCustomID = 0
     For $i = 1 To 7
         $__g_DL_aColorPresetIDs[$i] = 0
@@ -766,6 +784,7 @@ EndFunc
 ; Return:      Color value (int) if preset clicked, "custom" if Custom clicked, "" if no match
 Func _DL_ColorPickerHandleClick($msg)
     If $msg <= 0 Then Return ""
+    If $msg = $__g_DL_iColorNoneID Then Return "none"
     For $i = 1 To 7
         If $msg = $__g_DL_aColorPresetIDs[$i] Then Return $THEME_PRESET_COLORS[$i]
     Next

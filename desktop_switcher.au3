@@ -345,14 +345,21 @@ While 1
         Local $vColorResult = _DL_ColorPickerHandleClick($msg)
         If $vColorResult <> "" Then
             Local $iColorTarget = _DL_ColorPickerGetTarget()
-            If $vColorResult = "custom" Then
+            If $vColorResult = "none" Then
+                ; Clear color — set to 0 (transparent/disabled for this desktop)
+                _Cfg_SetDesktopColor($iColorTarget, 0)
+                _Cfg_SetDesktopColorsEnabled(True)
+                _Cfg_Save()
+            ElseIf $vColorResult = "custom" Then
                 Local $iCustomColor = _DL_ColorPickerCustomDialog()
                 If $iCustomColor >= 0 Then
                     _Cfg_SetDesktopColor($iColorTarget, $iCustomColor)
+                    _Cfg_SetDesktopColorsEnabled(True)
                     _Cfg_Save()
                 EndIf
             Else
                 _Cfg_SetDesktopColor($iColorTarget, Int($vColorResult))
+                _Cfg_SetDesktopColorsEnabled(True)
                 _Cfg_Save()
             EndIf
             _DL_ColorPickerDestroy()
