@@ -295,6 +295,92 @@ Func _Theme_IsCursorOverWindow($hWnd)
     Return False
 EndFunc
 
+; =============================================
+; TOAST NOTIFICATION
+; =============================================
+
+Global $__g_Toast_hGUI = 0
+Global $__g_Toast_hTimer = 0
+Global $__g_Toast_iDuration = 0
+Global $__g_Toast_iFadeStep = 0
+Global $__g_Toast_iAlpha = 0
+
+; Name:        _Theme_Toast
+; Description: Shows a small non-blocking toast notification below the main widget.
+;              Call _Theme_ToastTick() from the main loop to handle fade-out.
+; Parameters:  $sText - message text
+;              $iX - X position (default: 0)
+;              $iY - Y position below widget
+;              $iDuration - how long to show in ms (default: 2000)
+;              $iBgColor - background color (default: $THEME_BG_POPUP)
+;              $iFgColor - text color (default: $THEME_FG_PRIMARY)
+Func _Theme_Toast($sText, $iX, $iY, $iDuration = 2000, $iBgColor = -1, $iFgColor = -1)
+    If $iBgColor = -1 Then $iBgColor = $THEME_BG_POPUP
+    If $iFgColor = -1 Then $iFgColor = $THEME_FG_PRIMARY
+
+    ; Destroy previous toast if still showing
+    _Theme_ToastDestroy()
+
+    Local $iW = 10 + StringLen($sText) * 7
+    If $iW < 100 Then $iW = 100
+    If $iW > 300 Then $iW = 300
+    Local $iH = 24
+
+    $__g_Toast_hGUI = GUICreate("Toast", $iW, $iH, $iX, $iY, $WS_POPUP, _
+        BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW, $WS_EX_LAYERED))
+    GUISetBkColor($iBgColor)
+
+    GUICtrlCreateLabel($sText, 0, 0, $iW, $iH, BitOR($SS_CENTER, $SS_CENTERIMAGE))
+    GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor(-1, $iFgColor)
+    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+
+    $__g_Toast_iAlpha = 220
+    _WinAPI_SetLayeredWindowAttributes($__g_Toast_hGUI, 0, $__g_Toast_iAlpha, $LWA_ALPHA)
+    GUISetState(@SW_SHOWNOACTIVATE, $__g_Toast_hGUI)
+
+    $__g_Toast_hTimer = TimerInit()
+    $__g_Toast_iDuration = $iDuration
+    $__g_Toast_iFadeStep = 0
+EndFunc
+
+; Name:        _Theme_ToastTick
+; Description: Call from main loop. Handles fade-out and cleanup.
+; Return:      True if toast is active, False if idle
+Func _Theme_ToastTick()
+    If $__g_Toast_hGUI = 0 Then Return False
+
+    Local $iElapsed = TimerDiff($__g_Toast_hTimer)
+
+    ; Visible phase
+    If $iElapsed < $__g_Toast_iDuration Then Return True
+
+    ; Fade-out phase (300ms)
+    Local $iFadeElapsed = $iElapsed - $__g_Toast_iDuration
+    If $iFadeElapsed < 300 Then
+        Local $iNewAlpha = 220 - Int(220 * $iFadeElapsed / 300)
+        If $iNewAlpha < 0 Then $iNewAlpha = 0
+        If $iNewAlpha <> $__g_Toast_iAlpha Then
+            $__g_Toast_iAlpha = $iNewAlpha
+            _WinAPI_SetLayeredWindowAttributes($__g_Toast_hGUI, 0, $__g_Toast_iAlpha, $LWA_ALPHA)
+        EndIf
+        Return True
+    EndIf
+
+    ; Done — destroy
+    _Theme_ToastDestroy()
+    Return False
+EndFunc
+
+; Name:        _Theme_ToastDestroy
+; Description: Destroys the toast if visible
+Func _Theme_ToastDestroy()
+    If $__g_Toast_hGUI <> 0 Then
+        GUIDelete($__g_Toast_hGUI)
+        $__g_Toast_hGUI = 0
+    EndIf
+EndFunc
+
 ; Name:        _Theme_LoadFonts
 ; Description: Loads bundled font files (Fira Code) for this process.
 ;              Uses FR_PRIVATE so fonts are only available to this app.

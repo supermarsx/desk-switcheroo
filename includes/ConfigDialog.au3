@@ -648,9 +648,13 @@ Func __CD_MessageLoop()
             EndIf
         EndIf
 
+        ; Tick toast fade-out while dialog is open
+        _Theme_ToastTick()
+
         Sleep(10)
     WEnd
 
+    _Theme_ToastDestroy()
     _CD_Destroy()
 EndFunc
 
@@ -728,13 +732,22 @@ Func __CD_ApplyChanges()
             _Cfg_DisableStartup()
         EndIf
     EndIf
+
+    ; Toast notification
+    Local $aPos = WinGetPos($__g_CD_hGUI)
+    If Not @error Then
+        _Theme_Toast("Settings saved", $aPos[0], $aPos[1] + $aPos[3] + 4, 1500)
+    EndIf
 EndFunc
 
 Func __CD_ResetDefaults()
-    ; Delete the INI and re-init with defaults
     Local $sPath = _Cfg_GetPath()
     FileDelete($sPath)
     _Cfg_Init($sPath)
-    ; Re-populate all controls from fresh defaults
     __CD_PopulateControls()
+
+    Local $aPos = WinGetPos($__g_CD_hGUI)
+    If Not @error Then
+        _Theme_Toast("Reset to defaults", $aPos[0], $aPos[1] + $aPos[3] + 4, 1500, Default, 0xCC6666)
+    EndIf
 EndFunc

@@ -451,6 +451,9 @@ While 1
         If _RD_IsVisible() And _Theme_IsCursorOverWindow(_RD_GetGUI()) Then _RD_CheckHover()
     EndIf
 
+    ; Toast fade-out tick
+    _Theme_ToastTick()
+
     ; Peek bounce-back
     _Peek_CheckBounce()
 
