@@ -12,6 +12,7 @@
 Global $__g_Labels_IniPath = ""
 Global $__g_Labels_bSyncOS = False
 Global $__g_Labels_iLastCount = 0
+Global $__g_Labels_sLastHash = ""
 
 ; #FUNCTIONS# ===================================================
 
@@ -83,9 +84,21 @@ Func _Labels_SyncFromOS()
         Return True
     EndIf
 
+    ; Build a fingerprint of all OS names to detect changes cheaply
+    Local $sHash = ""
+    Local $aNames[$iCount + 1]
+    For $i = 1 To $iCount
+        $aNames[$i] = _VD_GetName($i)
+        $sHash &= $aNames[$i] & "|"
+    Next
+
+    ; If fingerprint unchanged, skip the INI read/write loop entirely
+    If $sHash = $__g_Labels_sLastHash Then Return False
+    $__g_Labels_sLastHash = $sHash
+
     ; Normal poll — pull non-empty OS names into INI
     For $i = 1 To $iCount
-        Local $sOsName = _VD_GetName($i)
+        Local $sOsName = $aNames[$i]
         ; Skip empty OS reads — don't erase INI labels due to read failures
         ; or race conditions right after SetName
         If $sOsName = "" Then ContinueLoop

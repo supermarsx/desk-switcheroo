@@ -14,6 +14,10 @@
 #include "includes\RenameDialog.au3"
 #include "includes\DesktopList.au3"
 
+; ---- Ensure cleanup on unexpected exit ----
+Global $__g_bShuttingDown = False
+OnAutoItExitRegister("_OnExit")
+
 ; ---- Singleton: kill previous instance on relaunch ----
 Local $sMutexName = "DesktopSwitcherMutex_7F3A"
 Local $hMutex = DllCall("kernel32.dll", "handle", "CreateMutexW", "ptr", 0, "bool", True, "wstr", $sMutexName)
@@ -58,6 +62,7 @@ Global $bHoverLeft = False, $bHoverRight = False
 Global $iRenameTarget = 0
 Global $bDesktopChanged = False
 Global $bNamesChanged = False
+Global $__g_iLastCursorX = -1, $__g_iLastCursorY = -1
 Global Const $WM_VD_NOTIFY = 0x04C8 ; WM_USER + 200
 
 ; ---- Get taskbar dimensions ----
@@ -417,6 +422,14 @@ While 1
         _ApplyDesktopChange()
     EndIf
 
+    ; Lazy hover check: skip when cursor hasn't moved and no state changed
+    Local $aCurPos = MouseGetPos()
+    Local $bCursorMoved = ($aCurPos[0] <> $__g_iLastCursorX Or $aCurPos[1] <> $__g_iLastCursorY)
+    If $bCursorMoved Then
+        $__g_iLastCursorX = $aCurPos[0]
+        $__g_iLastCursorY = $aCurPos[1]
+    EndIf
+
     ; Check if cursor is over any of our windows
     Local $bCursorActive = _Theme_IsCursorOverWindow($gui)
     If Not $bCursorActive And _DL_IsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_DL_GetGUI())
@@ -424,13 +437,13 @@ While 1
     If Not $bCursorActive And _DL_CtxIsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_DL_CtxGetGUI())
     If Not $bCursorActive And _RD_IsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_RD_GetGUI())
 
-    ; Hover effects -- only when cursor is over our windows
-    If $bCursorActive Then
-        _CheckHover()
-        _DL_CheckHover($iDesktop)
-        _CM_CheckHover()
-        _DL_CtxCheckHover()
-        _RD_CheckHover()
+    ; Hover effects -- only when cursor moved or drag active, and only for the window under cursor
+    If $bCursorActive And ($bCursorMoved Or _DL_IsDragging() Or $bDesktopChanged Or $bNamesChanged) Then
+        If _Theme_IsCursorOverWindow($gui) Then _CheckHover()
+        If _DL_IsVisible() And _Theme_IsCursorOverWindow(_DL_GetGUI()) Then _DL_CheckHover($iDesktop)
+        If _CM_IsVisible() And _Theme_IsCursorOverWindow(_CM_GetGUI()) Then _CM_CheckHover()
+        If _DL_CtxIsVisible() And _Theme_IsCursorOverWindow(_DL_CtxGetGUI()) Then _DL_CtxCheckHover()
+        If _RD_IsVisible() And _Theme_IsCursorOverWindow(_RD_GetGUI()) Then _RD_CheckHover()
     EndIf
 
     ; Peek bounce-back
@@ -478,6 +491,7 @@ EndFunc
 ; =============================================
 
 Func _WM_DESKTOPCHANGE($hWnd, $iMsg, $wParam, $lParam)
+    _VD_InvalidateCountCache()
     If Not _Peek_IsActive() Then $bDesktopChanged = True
     Return $GUI_RUNDEFMSG
 EndFunc
@@ -589,37 +603,64 @@ EndFunc
 
 Func _ForceTopMost()
     ; Re-read taskbar dimensions in case screen resized or taskbar moved
+    Local $bTaskbarMoved = False
     Local $hTB = WinGetHandle("[CLASS:Shell_TrayWnd]")
     If $hTB Then
         Local $aTBPos = WinGetPos($hTB)
         If Not @error Then
-            $iTaskbarH = $aTBPos[3]
-            $iTaskbarY = $aTBPos[1]
+            If $aTBPos[1] <> $iTaskbarY Or $aTBPos[3] <> $iTaskbarH Then
+                $iTaskbarY = $aTBPos[1]
+                $iTaskbarH = $aTBPos[3]
+                $bTaskbarMoved = True
+            EndIf
         EndIf
     EndIf
 
-    ; Compute X position based on config
-    Local $iWidgetX = 0
-    Local $sPos = _Cfg_GetWidgetPosition()
-    Local $iOffset = _Cfg_GetWidgetOffsetX()
-    Switch $sPos
-        Case "left"
-            $iWidgetX = $iOffset
-        Case "center"
-            $iWidgetX = (@DesktopWidth / 2) - ($THEME_MAIN_WIDTH / 2) + $iOffset
-        Case "right"
-            $iWidgetX = @DesktopWidth - $THEME_MAIN_WIDTH + $iOffset
-    EndSwitch
-
+    ; Always keep topmost flag (cheap)
     WinSetOnTop($gui, "", 1)
-    DllCall("user32.dll", "bool", "SetWindowPos", _
-        "hwnd", $gui, "hwnd", $HWND_TOPMOST, _
-        "int", $iWidgetX, "int", $iTaskbarY + 2, _
-        "int", $THEME_MAIN_WIDTH, "int", $iTaskbarH - 2, _
-        "uint", BitOR($SWP_NOACTIVATE, $SWP_SHOWWINDOW))
+
+    ; Only reposition if taskbar moved
+    If $bTaskbarMoved Then
+        Local $iWidgetX = 0
+        Local $sPos = _Cfg_GetWidgetPosition()
+        Local $iOffset = _Cfg_GetWidgetOffsetX()
+        Switch $sPos
+            Case "left"
+                $iWidgetX = $iOffset
+            Case "center"
+                $iWidgetX = (@DesktopWidth / 2) - ($THEME_MAIN_WIDTH / 2) + $iOffset
+            Case "right"
+                $iWidgetX = @DesktopWidth - $THEME_MAIN_WIDTH + $iOffset
+        EndSwitch
+
+        DllCall("user32.dll", "bool", "SetWindowPos", _
+            "hwnd", $gui, "hwnd", $HWND_TOPMOST, _
+            "int", $iWidgetX, "int", $iTaskbarY + 2, _
+            "int", $THEME_MAIN_WIDTH, "int", $iTaskbarH - 2, _
+            "uint", BitOR($SWP_NOACTIVATE, $SWP_SHOWWINDOW))
+    EndIf
+
+    ; Always verify TOPMOST style bit - other windows can steal it
     Local $iStyle = _WinAPI_GetWindowLong($gui, $GWL_EXSTYLE)
     If BitAND($iStyle, $WS_EX_TOPMOST) = 0 Then
         _WinAPI_SetWindowLong($gui, $GWL_EXSTYLE, BitOR($iStyle, $WS_EX_TOPMOST))
+        ; Lost topmost - force full reposition to recover
+        Local $iWidgetX2 = 0
+        Local $sPos2 = _Cfg_GetWidgetPosition()
+        Local $iOffset2 = _Cfg_GetWidgetOffsetX()
+        Switch $sPos2
+            Case "left"
+                $iWidgetX2 = $iOffset2
+            Case "center"
+                $iWidgetX2 = (@DesktopWidth / 2) - ($THEME_MAIN_WIDTH / 2) + $iOffset2
+            Case "right"
+                $iWidgetX2 = @DesktopWidth - $THEME_MAIN_WIDTH + $iOffset2
+        EndSwitch
+        DllCall("user32.dll", "bool", "SetWindowPos", _
+            "hwnd", $gui, "hwnd", $HWND_TOPMOST, _
+            "int", $iWidgetX2, "int", $iTaskbarY + 2, _
+            "int", $THEME_MAIN_WIDTH, "int", $iTaskbarH - 2, _
+            "uint", BitOR($SWP_NOACTIVATE, $SWP_SHOWWINDOW))
     EndIf
 EndFunc
 
@@ -874,11 +915,17 @@ EndFunc
 ; CLEANUP
 ; =============================================
 
+Func _OnExit()
+    _Shutdown()
+EndFunc
+
 Func _Shutdown()
+    If $__g_bShuttingDown Then Return
+    $__g_bShuttingDown = True
     _UnregisterHotkeys()
     AdlibUnRegister("_ForceTopMost")
     AdlibUnRegister("_AdlibSyncNames")
-    _VD_UnregisterNotify($gui)
+    If $gui Then _VD_UnregisterNotify($gui)
     _RD_Shutdown()
     _VD_Shutdown()
     _Theme_UnloadFonts()

@@ -1,4 +1,5 @@
 #include-once
+#include <WinAPISysWin.au3>
 
 ; #INDEX# =======================================================
 ; Title .........: VirtualDesktop
@@ -10,6 +11,8 @@
 ; #INTERNAL GLOBALS# ============================================
 Global $__g_VD_hDLL = -1
 Global $__g_VD_bNameSupport = False
+Global $__g_VD_iCachedCount = 0
+Global $__g_VD_hCountTimer = 0
 
 ; #FUNCTIONS# ===================================================
 
@@ -33,9 +36,22 @@ EndFunc
 ; Description: Returns the number of virtual desktops
 ; Return:      Integer >= 1
 Func _VD_GetCount()
+    ; Return cached value if fresh (< 500ms old)
+    If $__g_VD_iCachedCount > 0 Then
+        Local $iElapsed = TimerDiff($__g_VD_hCountTimer)
+        If $iElapsed < 500 Then Return $__g_VD_iCachedCount
+    EndIf
     Local $aResult = DllCall($__g_VD_hDLL, "int", "GetDesktopCount")
     If @error Or $aResult[0] < 1 Then Return 1
+    $__g_VD_iCachedCount = $aResult[0]
+    $__g_VD_hCountTimer = TimerInit()
     Return $aResult[0]
+EndFunc
+
+; Name:        _VD_InvalidateCountCache
+; Description: Forces the next _VD_GetCount() call to query the DLL
+Func _VD_InvalidateCountCache()
+    $__g_VD_iCachedCount = 0
 EndFunc
 
 ; Name:        _VD_GetCurrent
@@ -129,9 +145,16 @@ Func _VD_EnumWindowsOnDesktop($iDesktop)
     For $i = 1 To $aAll[0][0]
         Local $hWnd = $aAll[$i][1]
         If $hWnd = 0 Then ContinueLoop
-        If Not BitAND(WinGetState($hWnd), 2) Then ContinueLoop ; skip invisible
-        Local $iDesk = _VD_GetWindowDesktopNumber($hWnd)
-        If $iDesk = $iDesktop Then
+        ; Pre-filter: skip windows with empty title (phantom/child windows)
+        If $aAll[$i][0] = "" Then ContinueLoop
+        ; Pre-filter: skip windows that are children (have a parent)
+        If _WinAPI_GetParent($hWnd) <> 0 Then ContinueLoop
+        ; Skip invisible windows
+        If Not BitAND(WinGetState($hWnd), 2) Then ContinueLoop
+        ; Direct DllCall instead of wrapper to avoid function-call overhead in tight loop
+        Local $aDesk = DllCall($__g_VD_hDLL, "int", "GetWindowDesktopNumber", "hwnd", $hWnd)
+        If @error Or $aDesk[0] < 0 Then ContinueLoop
+        If $aDesk[0] + 1 = $iDesktop Then
             $aResult[0] += 1
             $aResult[$aResult[0]] = $hWnd
         EndIf
@@ -183,6 +206,7 @@ EndFunc
 Func _VD_CreateDesktop()
     DllCall($__g_VD_hDLL, "int", "CreateDesktop")
     If @error Then Return False
+    _VD_InvalidateCountCache()
     Return True
 EndFunc
 
@@ -202,6 +226,7 @@ Func _VD_RemoveDesktop($iDesktop, $iFallback = Default)
     EndIf
     Local $aResult = DllCall($__g_VD_hDLL, "int", "RemoveDesktop", "int", $iDesktop - 1, "int", $iFallback - 1)
     If @error Then Return False
+    _VD_InvalidateCountCache()
     Return True
 EndFunc
 

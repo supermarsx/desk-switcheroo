@@ -119,6 +119,10 @@ EndFunc
 
 Func __CD_CreateTabGeneral()
     GUICtrlCreateTabItem("General")
+
+    ; Dark background panel FIRST (behind all controls)
+    __CD_CreateTabBackground()
+
     Local $iX = 20, $iY = 40
 
     $__g_CD_idChkStartWin = GUICtrlCreateCheckbox("Start with Windows", $iX, $iY, 260, 22)
@@ -144,7 +148,6 @@ Func __CD_CreateTabGeneral()
     $idLbl = GUICtrlCreateLabel("Widget position:", $iX, $iY + 2, 160, 20)
     __CD_StyleLabel($idLbl)
     $__g_CD_idCmbPosition = GUICtrlCreateCombo("", $iX + 165, $iY, 100, 22, BitOR($CBS_DROPDOWNLIST, $CBS_AUTOHSCROLL))
-    GUICtrlSetData($__g_CD_idCmbPosition, "left|center|right")
     __CD_StyleCombo($__g_CD_idCmbPosition)
     $iY += 30
 
@@ -153,13 +156,11 @@ Func __CD_CreateTabGeneral()
     __CD_StyleLabel($idLbl)
     $__g_CD_idInpOffsetX = GUICtrlCreateInput("", $iX + 165, $iY, 80, 22)
     __CD_StyleInput($__g_CD_idInpOffsetX)
-
-    ; Dark background to cover white tab area
-    __CD_CreateTabBackground()
 EndFunc
 
 Func __CD_CreateTabDisplay()
     GUICtrlCreateTabItem("Display")
+    __CD_CreateTabBackground()
     Local $iX = 20, $iY = 40
 
     $__g_CD_idChkShowCount = GUICtrlCreateCheckbox("Show desktop count (2/5)", $iX, $iY, 260, 22)
@@ -178,12 +179,11 @@ Func __CD_CreateTabDisplay()
     __CD_StyleLabel($idLbl)
     $__g_CD_idInpOpacity = GUICtrlCreateInput("", $iX + 165, $iY, 50, 22, $ES_NUMBER)
     __CD_StyleInput($__g_CD_idInpOpacity)
-
-    __CD_CreateTabBackground()
 EndFunc
 
 Func __CD_CreateTabScroll()
     GUICtrlCreateTabItem("Scroll")
+    __CD_CreateTabBackground()
     Local $iX = 20, $iY = 40
 
     $__g_CD_idChkScroll = GUICtrlCreateCheckbox("Scroll wheel on widget", $iX, $iY, 260, 22)
@@ -194,7 +194,6 @@ Func __CD_CreateTabScroll()
     Local $idLbl = GUICtrlCreateLabel("Direction:", $iX + 20, $iY + 2, 140, 20)
     __CD_StyleLabel($idLbl)
     $__g_CD_idCmbScrollDir = GUICtrlCreateCombo("", $iX + 165, $iY, 100, 22, BitOR($CBS_DROPDOWNLIST, $CBS_AUTOHSCROLL))
-    GUICtrlSetData($__g_CD_idCmbScrollDir, "normal|inverted")
     __CD_StyleCombo($__g_CD_idCmbScrollDir)
     $iY += 28
 
@@ -210,14 +209,12 @@ Func __CD_CreateTabScroll()
     $idLbl = GUICtrlCreateLabel("List action:", $iX + 20, $iY + 2, 140, 20)
     __CD_StyleLabel($idLbl)
     $__g_CD_idCmbListAction = GUICtrlCreateCombo("", $iX + 165, $iY, 100, 22, BitOR($CBS_DROPDOWNLIST, $CBS_AUTOHSCROLL))
-    GUICtrlSetData($__g_CD_idCmbListAction, "switch|scroll")
     __CD_StyleCombo($__g_CD_idCmbListAction)
-
-    __CD_CreateTabBackground()
 EndFunc
 
 Func __CD_CreateTabHotkeys()
     GUICtrlCreateTabItem("Hotkeys")
+    __CD_CreateTabBackground()
     Local $iX = 20, $iY = 40
     Local $iLblW = 100, $iInpW = 140
 
@@ -253,12 +250,11 @@ Func __CD_CreateTabHotkeys()
     ; Help text
     $idLbl = GUICtrlCreateLabel("Format: ^=Ctrl  !=Alt  +=Shift  e.g. ^!{RIGHT}", $iX, $iY, 400, 16)
     __CD_StyleLabel($idLbl)
-
-    __CD_CreateTabBackground()
 EndFunc
 
 Func __CD_CreateTabBehavior()
     GUICtrlCreateTabItem("Behavior")
+    __CD_CreateTabBackground()
     Local $iX = 20, $iY = 40
 
     $__g_CD_idChkConfirmDel = GUICtrlCreateCheckbox("Confirm before delete", $iX, $iY, 260, 22)
@@ -299,8 +295,6 @@ Func __CD_CreateTabBehavior()
     __CD_StyleLabel($idLbl)
     $__g_CD_idInpCmDelay = GUICtrlCreateInput("", $iX + 175, $iY, 80, 22, $ES_NUMBER)
     __CD_StyleInput($__g_CD_idInpCmDelay)
-
-    __CD_CreateTabBackground()
 EndFunc
 
 Func __CD_CreateTabColors()
