@@ -94,9 +94,10 @@ Func _CD_Show()
         $iTabX += $iTabW + 2
     Next
 
-    ; Content area background
-    GUICtrlCreateLabel("", 8, 38, $iW - 16, 352)
-    GUICtrlSetBkColor(-1, $THEME_BG_MAIN)
+    ; Content area background (disabled so it doesn't intercept clicks on controls above)
+    Local $idContentBg = GUICtrlCreateLabel("", 8, 38, $iW - 16, 352)
+    GUICtrlSetBkColor($idContentBg, $THEME_BG_MAIN)
+    GUICtrlSetState($idContentBg, $GUI_DISABLE)
 
     ; Build each tab's controls
     __CD_BuildTabGeneral()
