@@ -56,8 +56,6 @@ Global $__g_CD_aidLblPreview[10]  ; index 1-9
 ; -- Buttons --
 Global $__g_CD_idBtnApply, $__g_CD_idBtnClose
 
-; -- Checkbox state tracking --
-Global $__g_CD_aChkState[20] ; maps checkbox ctrl ID -> True/False (sparse, by ctrl mod 20)
 
 ; #FUNCTIONS# ===================================================
 
@@ -180,40 +178,28 @@ Func __CD_RegCtrl($iTab, $idCtrl)
 EndFunc
 
 ; =============================================
-; CUSTOM CHECKBOX (label-based)
+; NATIVE CHECKBOX (dark-styled)
 ; =============================================
 
 Func __CD_CreateCheckbox($sText, $iX, $iY, $iW, $iTab)
-    Local $id = GUICtrlCreateLabel(ChrW(0x2610) & "  " & $sText, $iX, $iY, $iW, 20, _
-        BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $id = GUICtrlCreateCheckbox($sText, $iX, $iY, $iW, 22)
     GUICtrlSetFont($id, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($id, $THEME_FG_NORMAL)
-    GUICtrlSetBkColor($id, $GUI_BKCOLOR_TRANSPARENT)
-    GUICtrlSetCursor($id, 0)
+    GUICtrlSetBkColor($id, $THEME_BG_MAIN)
     __CD_RegCtrl($iTab, $id)
-    $__g_CD_aChkState[Mod($id, 20)] = False
     Return $id
 EndFunc
 
 Func __CD_SetCheckState($id, $bChecked)
-    $__g_CD_aChkState[Mod($id, 20)] = $bChecked
-    Local $sText = GUICtrlRead($id)
-    $sText = StringMid($sText, 2) ; strip old checkbox char
     If $bChecked Then
-        GUICtrlSetData($id, ChrW(0x2611) & $sText)
-        GUICtrlSetColor($id, $THEME_FG_WHITE)
+        GUICtrlSetState($id, $GUI_CHECKED)
     Else
-        GUICtrlSetData($id, ChrW(0x2610) & $sText)
-        GUICtrlSetColor($id, $THEME_FG_NORMAL)
+        GUICtrlSetState($id, $GUI_UNCHECKED)
     EndIf
 EndFunc
 
-Func __CD_ToggleCheck($id)
-    __CD_SetCheckState($id, Not $__g_CD_aChkState[Mod($id, 20)])
-EndFunc
-
 Func __CD_GetCheckState($id)
-    Return $__g_CD_aChkState[Mod($id, 20)]
+    Return (BitAND(GUICtrlRead($id), $GUI_CHECKED) = $GUI_CHECKED)
 EndFunc
 
 ; =============================================
@@ -575,19 +561,6 @@ Func __CD_MessageLoop()
                     ExitLoop
                 EndIf
             Next
-
-            ; Checkbox toggle clicks
-            If $id = $__g_CD_idChkStartWin Then __CD_ToggleCheck($id)
-            If $id = $__g_CD_idChkWrapNav Then __CD_ToggleCheck($id)
-            If $id = $__g_CD_idChkAutoCreate Then __CD_ToggleCheck($id)
-            If $id = $__g_CD_idChkShowCount Then __CD_ToggleCheck($id)
-            If $id = $__g_CD_idChkScroll Then __CD_ToggleCheck($id)
-            If $id = $__g_CD_idChkScrollWrap Then __CD_ToggleCheck($id)
-            If $id = $__g_CD_idChkListScroll Then __CD_ToggleCheck($id)
-            If $id = $__g_CD_idChkConfirmDel Then __CD_ToggleCheck($id)
-            If $id = $__g_CD_idChkMidClick Then __CD_ToggleCheck($id)
-            If $id = $__g_CD_idChkMoveWin Then __CD_ToggleCheck($id)
-            If $id = $__g_CD_idChkColorsEnabled Then __CD_ToggleCheck($id)
 
             ; Cycle label clicks
             If $id = $__g_CD_idLblPosition Then __CD_CycleValue($id, "left|center|right")
