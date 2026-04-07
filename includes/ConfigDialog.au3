@@ -20,12 +20,12 @@ Global $__g_CD_bVisible = False
 Global $__g_CD_iActiveTab = 0
 
 ; -- Tab button IDs --
-Global $__g_CD_aidTabBtn[7] ; index 1-6
-Global Const $__g_CD_aTabNames = "General,Display,Scroll,Hotkeys,Behavior,Colors"
+Global $__g_CD_aidTabBtn[8] ; index 1-7
+Global Const $__g_CD_aTabNames = "General,Display,Scroll,Hotkeys,Behavior,Colors,Logging"
 
 ; -- Controls per tab (arrays of IDs to show/hide) --
-Global $__g_CD_aidTabCtrls[7][40] ; [tab 1-6][up to 40 controls per tab]
-Global $__g_CD_aiTabCtrlCount[7]  ; how many controls per tab
+Global $__g_CD_aidTabCtrls[8][40] ; [tab 1-7][up to 40 controls per tab]
+Global $__g_CD_aiTabCtrlCount[8]  ; how many controls per tab
 
 ; -- Tab 1: General --
 Global $__g_CD_idChkStartWin, $__g_CD_idChkWrapNav, $__g_CD_idChkAutoCreate
@@ -44,14 +44,21 @@ Global $__g_CD_idLblScrollDir, $__g_CD_idLblListAction
 Global $__g_CD_idInpHkNext, $__g_CD_idInpHkPrev, $__g_CD_idInpHkToggleList
 Global $__g_CD_aidInpHkDesktop[10] ; index 1-9
 
+; -- Tab 1 extras: General --
+Global $__g_CD_idChkWidgetDrag, $__g_CD_idChkTrayMode, $__g_CD_idChkQuickAccess
+
 ; -- Tab 5: Behavior --
 Global $__g_CD_idChkConfirmDel, $__g_CD_idChkMidClick, $__g_CD_idChkMoveWin
 Global $__g_CD_idInpPeekDelay, $__g_CD_idInpAutoHide, $__g_CD_idInpTopmost, $__g_CD_idInpCmDelay
+Global $__g_CD_idChkConfigWatcher, $__g_CD_idInpWatcherInterval
 
 ; -- Tab 6: Colors --
 Global $__g_CD_idChkColorsEnabled
 Global $__g_CD_aidInpColor[10]    ; index 1-9
 Global $__g_CD_aidLblPreview[10]  ; index 1-9
+
+; -- Tab 7: Logging --
+Global $__g_CD_idChkLogging, $__g_CD_idInpLogPath, $__g_CD_idLblLogLevel
 
 ; -- Buttons --
 Global $__g_CD_idBtnApply, $__g_CD_idBtnClose
@@ -77,13 +84,13 @@ Func _CD_Show()
 
     ; Reset state
     $__g_CD_iChkCount = 0
-    For $t = 1 To 6
+    For $t = 1 To 7
         $__g_CD_aiTabCtrlCount[$t] = 0
     Next
 
     ; Create custom tab bar
     Local $aNames = StringSplit($__g_CD_aTabNames, ",")
-    Local $iTabW = 70, $iTabH = 26, $iTabX = 10, $iTabY = 8
+    Local $iTabW = 60, $iTabH = 26, $iTabX = 10, $iTabY = 8
     For $t = 1 To $aNames[0]
         $__g_CD_aidTabBtn[$t] = GUICtrlCreateLabel($aNames[$t], $iTabX, $iTabY, $iTabW, $iTabH, _
             BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
@@ -106,6 +113,7 @@ Func _CD_Show()
     __CD_BuildTabHotkeys()
     __CD_BuildTabBehavior()
     __CD_BuildTabColors()
+    __CD_BuildTabLogging()
 
     ; Apply + Reset + Close buttons
     Local $iBtnW = 80, $iBtnH = 28, $iBtnY = $iH - 38
@@ -168,7 +176,7 @@ EndFunc
 Func __CD_SwitchTab($iTab)
     $__g_CD_iActiveTab = $iTab
     ; Update tab button styles
-    For $t = 1 To 6
+    For $t = 1 To 7
         If $t = $iTab Then
             GUICtrlSetColor($__g_CD_aidTabBtn[$t], $THEME_FG_WHITE)
             GUICtrlSetBkColor($__g_CD_aidTabBtn[$t], $THEME_BG_ACTIVE)
@@ -180,7 +188,7 @@ Func __CD_SwitchTab($iTab)
         EndIf
     Next
     ; Show/hide controls per tab
-    For $t = 1 To 6
+    For $t = 1 To 7
         Local $iState = $GUI_HIDE
         If $t = $iTab Then $iState = $GUI_SHOW
         For $c = 0 To $__g_CD_aiTabCtrlCount[$t] - 1
@@ -329,6 +337,13 @@ Func __CD_BuildTabGeneral()
     GUICtrlSetColor($__g_CD_idInpOffsetX, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpOffsetX, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpOffsetX)
+    $iY += 34
+
+    $__g_CD_idChkWidgetDrag = __CD_CreateCheckbox("Enable widget drag", $iX, $iY, 300, $t)
+    $iY += 26
+    $__g_CD_idChkTrayMode = __CD_CreateCheckbox("Tray icon mode", $iX, $iY, 300, $t)
+    $iY += 26
+    $__g_CD_idChkQuickAccess = __CD_CreateCheckbox("Quick-access number input", $iX, $iY, 300, $t)
 EndFunc
 
 Func __CD_BuildTabDisplay()
@@ -509,6 +524,21 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetColor($__g_CD_idInpCmDelay, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpCmDelay, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpCmDelay)
+    $iY += 34
+
+    $__g_CD_idChkConfigWatcher = __CD_CreateCheckbox("Config file watcher", $iX, $iY, 300, $t)
+    $iY += 28
+
+    $idLbl = GUICtrlCreateLabel("Watcher interval (ms):", $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpWatcherInterval = GUICtrlCreateInput("", $iX + 180, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpWatcherInterval, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpWatcherInterval, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpWatcherInterval, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpWatcherInterval)
 EndFunc
 
 Func __CD_BuildTabColors()
@@ -536,6 +566,27 @@ Func __CD_BuildTabColors()
     Next
 EndFunc
 
+Func __CD_BuildTabLogging()
+    Local $t = 7, $iX = 20, $iY = 50
+
+    $__g_CD_idChkLogging = __CD_CreateCheckbox("Enable logging", $iX, $iY, 300, $t)
+    $iY += 34
+
+    Local $idLbl = GUICtrlCreateLabel("Log file path:", $iX, $iY + 2, 100, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpLogPath = GUICtrlCreateInput("", $iX + 105, $iY, 300, 22)
+    GUICtrlSetFont($__g_CD_idInpLogPath, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpLogPath, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpLogPath, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpLogPath)
+    $iY += 30
+
+    $__g_CD_idLblLogLevel = __CD_CreateCycleLabel("Log level:", $iX, $iY, 100, 90, $t)
+EndFunc
+
 ; =============================================
 ; POPULATE FROM CONFIG
 ; =============================================
@@ -548,6 +599,9 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpPadding, _Cfg_GetNumberPadding())
     GUICtrlSetData($__g_CD_idLblPosition, _Cfg_GetWidgetPosition())
     GUICtrlSetData($__g_CD_idInpOffsetX, _Cfg_GetWidgetOffsetX())
+    __CD_SetCheckState($__g_CD_idChkWidgetDrag, _Cfg_GetWidgetDragEnabled())
+    __CD_SetCheckState($__g_CD_idChkTrayMode, _Cfg_GetTrayIconMode())
+    __CD_SetCheckState($__g_CD_idChkQuickAccess, _Cfg_GetQuickAccessEnabled())
 
     ; Display
     __CD_SetCheckState($__g_CD_idChkShowCount, _Cfg_GetShowCount())
@@ -577,6 +631,8 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpAutoHide, _Cfg_GetAutoHideTimeout())
     GUICtrlSetData($__g_CD_idInpTopmost, _Cfg_GetTopmostInterval())
     GUICtrlSetData($__g_CD_idInpCmDelay, _Cfg_GetCmAutoHideDelay())
+    __CD_SetCheckState($__g_CD_idChkConfigWatcher, _Cfg_GetConfigWatcherEnabled())
+    GUICtrlSetData($__g_CD_idInpWatcherInterval, _Cfg_GetConfigWatcherInterval())
 
     ; Colors
     __CD_SetCheckState($__g_CD_idChkColorsEnabled, _Cfg_GetDesktopColorsEnabled())
@@ -585,6 +641,11 @@ Func __CD_PopulateControls()
         GUICtrlSetData($__g_CD_aidInpColor[$i], $sHex)
         GUICtrlSetBkColor($__g_CD_aidLblPreview[$i], Int("0x" & $sHex))
     Next
+
+    ; Logging
+    __CD_SetCheckState($__g_CD_idChkLogging, _Cfg_GetLoggingEnabled())
+    GUICtrlSetData($__g_CD_idInpLogPath, _Cfg_GetLogFilePath())
+    GUICtrlSetData($__g_CD_idLblLogLevel, _Cfg_GetLogLevel())
 EndFunc
 
 ; =============================================
@@ -610,7 +671,7 @@ Func __CD_MessageLoop()
             EndSwitch
 
             ; Tab button clicks
-            For $t = 1 To 6
+            For $t = 1 To 7
                 If $id = $__g_CD_aidTabBtn[$t] Then
                     __CD_SwitchTab($t)
                     ExitLoop
@@ -624,6 +685,7 @@ Func __CD_MessageLoop()
             If $id = $__g_CD_idLblPosition Then __CD_CycleValue($id, "left|center|right")
             If $id = $__g_CD_idLblScrollDir Then __CD_CycleValue($id, "normal|inverted")
             If $id = $__g_CD_idLblListAction Then __CD_CycleValue($id, "switch|scroll")
+            If $id = $__g_CD_idLblLogLevel Then __CD_CycleValue($id, "error|warn|info|debug")
         EndIf
 
         ; Escape closes
@@ -675,6 +737,9 @@ Func __CD_ApplyChanges()
     _Cfg_SetWidgetPosition(GUICtrlRead($__g_CD_idLblPosition))
     $s = GUICtrlRead($__g_CD_idInpOffsetX)
     If $s <> "" And StringIsInt($s) Then _Cfg_SetWidgetOffsetX(Int($s))
+    _Cfg_SetWidgetDragEnabled(__CD_GetCheckState($__g_CD_idChkWidgetDrag))
+    _Cfg_SetTrayIconMode(__CD_GetCheckState($__g_CD_idChkTrayMode))
+    _Cfg_SetQuickAccessEnabled(__CD_GetCheckState($__g_CD_idChkQuickAccess))
 
     ; Display
     _Cfg_SetShowCount(__CD_GetCheckState($__g_CD_idChkShowCount))
@@ -710,6 +775,9 @@ Func __CD_ApplyChanges()
     If StringIsInt($s) Then _Cfg_SetTopmostInterval(Int($s))
     $s = GUICtrlRead($__g_CD_idInpCmDelay)
     If StringIsInt($s) Then _Cfg_SetCmAutoHideDelay(Int($s))
+    _Cfg_SetConfigWatcherEnabled(__CD_GetCheckState($__g_CD_idChkConfigWatcher))
+    $s = GUICtrlRead($__g_CD_idInpWatcherInterval)
+    If StringIsInt($s) Then _Cfg_SetConfigWatcherInterval(Int($s))
 
     ; Colors
     _Cfg_SetDesktopColorsEnabled(__CD_GetCheckState($__g_CD_idChkColorsEnabled))
@@ -721,6 +789,11 @@ Func __CD_ApplyChanges()
             GUICtrlSetBkColor($__g_CD_aidLblPreview[$i], Int("0x" & $sHex))
         EndIf
     Next
+
+    ; Logging
+    _Cfg_SetLoggingEnabled(__CD_GetCheckState($__g_CD_idChkLogging))
+    _Cfg_SetLogFilePath(GUICtrlRead($__g_CD_idInpLogPath))
+    _Cfg_SetLogLevel(GUICtrlRead($__g_CD_idLblLogLevel))
 
     _Cfg_Save()
 
