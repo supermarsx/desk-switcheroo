@@ -348,7 +348,7 @@ Func _Theme_Toast($sText, $iX, $iY, $iDuration = 2000, $iIconColor = -1)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
     ; Text
-    GUICtrlCreateLabel($sText, $iIconW + 2, 0, $iW - $iIconW - 6, $iH, BitOR($SS_CENTERIMAGE))
+    GUICtrlCreateLabel($sText, $iIconW + 2, 0, $iW - $iIconW - 6, $iH, $SS_CENTERIMAGE)
     GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
