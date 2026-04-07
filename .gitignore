@@ -2,3 +2,8 @@ desktop_labels.ini
 desk_switcheroo.ini
 tests/results/
 !tests/results/.gitkeep
+*.log
+*.log.bak
+build/
+*.exe
+!tools/*.au3
