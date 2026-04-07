@@ -706,7 +706,7 @@ Func _DL_ColorPickerShow($iTarget)
     If $__g_DL_bColorVisible Then _DL_ColorPickerDestroy()
     $__g_DL_iColorTarget = $iTarget
 
-    Local $iPickerW = 90
+    Local $iPickerW = 130
     Local $iPickerH = 280
 
     ; Position to the right of the context menu
@@ -734,12 +734,13 @@ Func _DL_ColorPickerShow($iTarget)
     GUICtrlSetBkColor(-1, $THEME_BG_SEPARATOR)
     $iY += 5
 
-    ; 7 preset colors
+    ; 7 preset colors with names
+    Local $aColorNames[8] = [7, "Blue", "Green", "Orange", "Yellow", "Purple", "Pink", "Teal"]
     $__g_DL_aColorPresetIDs[0] = 7
     For $i = 1 To 7
         Local $iColor = $THEME_PRESET_COLORS[$i]
-        $__g_DL_aColorPresetIDs[$i] = GUICtrlCreateLabel(ChrW(0x25CF), 6, $iY, $iPickerW - 12, 24, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
-        GUICtrlSetFont($__g_DL_aColorPresetIDs[$i], 12, 400, 0, $THEME_FONT_SYMBOL)
+        $__g_DL_aColorPresetIDs[$i] = GUICtrlCreateLabel("  " & ChrW(0x25CF) & "  " & $aColorNames[$i], 6, $iY, $iPickerW - 12, 24, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+        GUICtrlSetFont($__g_DL_aColorPresetIDs[$i], 9, 400, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor($__g_DL_aColorPresetIDs[$i], $iColor)
         GUICtrlSetBkColor($__g_DL_aColorPresetIDs[$i], $GUI_BKCOLOR_TRANSPARENT)
         GUICtrlSetCursor($__g_DL_aColorPresetIDs[$i], 0)
