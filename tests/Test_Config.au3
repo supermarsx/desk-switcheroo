@@ -107,6 +107,58 @@ Func _RunTest_Config()
     _Test_AssertNotEqual("Color 1 has default", _Cfg_GetDesktopColor(1), 0)
     _Test_AssertNotEqual("Color 2 has default", _Cfg_GetDesktopColor(2), 0)
 
+    ; -- New config keys: default values --
+    _Cfg_Init($sTempIni)
+    _Test_AssertFalse("Default: widget_drag_enabled", _Cfg_GetWidgetDragEnabled())
+    _Test_AssertFalse("Default: tray_icon_mode", _Cfg_GetTrayIconMode())
+    _Test_AssertFalse("Default: quick_access_enabled", _Cfg_GetQuickAccessEnabled())
+    _Test_AssertFalse("Default: config_watcher_enabled", _Cfg_GetConfigWatcherEnabled())
+    _Test_AssertEqual("Default: config_watcher_interval", _Cfg_GetConfigWatcherInterval(), 2000)
+    _Test_AssertFalse("Default: logging_enabled", _Cfg_GetLoggingEnabled())
+    _Test_AssertEqual("Default: log_file_path", _Cfg_GetLogFilePath(), "")
+    _Test_AssertEqual("Default: log_level", _Cfg_GetLogLevel(), "error")
+
+    ; -- New config keys: Set+Get round-trips --
+    _Cfg_SetWidgetDragEnabled(True)
+    _Test_AssertTrue("Set+Get: widget_drag_enabled", _Cfg_GetWidgetDragEnabled())
+
+    _Cfg_SetTrayIconMode(True)
+    _Test_AssertTrue("Set+Get: tray_icon_mode", _Cfg_GetTrayIconMode())
+
+    _Cfg_SetQuickAccessEnabled(True)
+    _Test_AssertTrue("Set+Get: quick_access_enabled", _Cfg_GetQuickAccessEnabled())
+
+    _Cfg_SetConfigWatcherEnabled(True)
+    _Test_AssertTrue("Set+Get: config_watcher_enabled", _Cfg_GetConfigWatcherEnabled())
+
+    _Cfg_SetConfigWatcherInterval(5000)
+    _Test_AssertEqual("Set+Get: config_watcher_interval", _Cfg_GetConfigWatcherInterval(), 5000)
+
+    _Cfg_SetLoggingEnabled(True)
+    _Test_AssertTrue("Set+Get: logging_enabled", _Cfg_GetLoggingEnabled())
+
+    _Cfg_SetLogFilePath("C:\logs\test.log")
+    _Test_AssertEqual("Set+Get: log_file_path", _Cfg_GetLogFilePath(), "C:\logs\test.log")
+
+    _Cfg_SetLogLevel("debug")
+    _Test_AssertEqual("Set+Get: log_level", _Cfg_GetLogLevel(), "debug")
+
+    ; -- New config keys: validation --
+    _Cfg_SetConfigWatcherInterval(50)
+    _Test_AssertGreaterEqual("Watcher interval clamped low", _Cfg_GetConfigWatcherInterval(), 100)
+
+    _Cfg_SetConfigWatcherInterval(999999)
+    _Test_AssertLessEqual("Watcher interval clamped high", _Cfg_GetConfigWatcherInterval(), 60000)
+
+    _Cfg_SetLogLevel("invalid")
+    _Test_AssertEqual("Invalid log_level falls back", _Cfg_GetLogLevel(), "error")
+
+    _Cfg_SetLogLevel("warn")
+    _Test_AssertEqual("Valid log_level warn accepted", _Cfg_GetLogLevel(), "warn")
+
+    _Cfg_SetLogLevel("info")
+    _Test_AssertEqual("Valid log_level info accepted", _Cfg_GetLogLevel(), "info")
+
     ; -- Cleanup --
     FileDelete($sTempIni)
 EndFunc

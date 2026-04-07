@@ -20,6 +20,7 @@ Global $__g_Test_sCurrentSuite = ""
 #include "..\includes\ContextMenu.au3"
 #include "..\includes\RenameDialog.au3"
 #include "..\includes\DesktopList.au3"
+#include "..\includes\Logger.au3"
 
 ; ---- Include test files ----
 #include "Test_Theme.au3"
@@ -30,6 +31,7 @@ Global $__g_Test_sCurrentSuite = ""
 #include "Test_ContextMenu.au3"
 #include "Test_RenameDialog.au3"
 #include "Test_Config.au3"
+#include "Test_Logger.au3"
 
 ; ---- Load bundled fonts ----
 _Theme_LoadFonts()
@@ -43,6 +45,7 @@ _RunTest_Peek()
 _RunTest_DesktopList()
 _RunTest_ContextMenu()
 _RunTest_RenameDialog()
+_RunTest_Logger()
 
 ; ---- Cleanup ----
 _VD_Shutdown()
