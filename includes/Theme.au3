@@ -305,37 +305,50 @@ Global $__g_Toast_iDuration = 0
 Global $__g_Toast_iFadeStep = 0
 Global $__g_Toast_iAlpha = 0
 
+; Toast status icon colors
+Global Const $TOAST_SUCCESS = 0x4AFF7E ; green
+Global Const $TOAST_ERROR   = 0xFF5555 ; red
+Global Const $TOAST_WARNING = 0xFFD54A ; yellow
+Global Const $TOAST_INFO    = 0x4A9EFF ; blue
+
 ; Name:        _Theme_Toast
-; Description: Shows a small non-blocking toast notification below the main widget.
+; Description: Shows a small non-blocking toast notification with a colored status icon.
 ;              Call _Theme_ToastTick() from the main loop to handle fade-out.
 ; Parameters:  $sText - message text
-;              $iX - X position (default: 0)
-;              $iY - Y position below widget
+;              $iX - X position
+;              $iY - Y position
 ;              $iDuration - how long to show in ms (default: 2000)
-;              $iBgColor - background color (default: $THEME_BG_POPUP)
-;              $iFgColor - text color (default: $THEME_FG_PRIMARY)
-Func _Theme_Toast($sText, $iX, $iY, $iDuration = 2000, $iBgColor = -1, $iFgColor = -1)
-    If $iBgColor = -1 Then $iBgColor = $THEME_BG_POPUP
-    If $iFgColor = -1 Then $iFgColor = $THEME_FG_PRIMARY
+;              $iIconColor - status icon color ($TOAST_SUCCESS/ERROR/WARNING/INFO, default: $TOAST_INFO)
+Func _Theme_Toast($sText, $iX, $iY, $iDuration = 2000, $iIconColor = -1)
+    If $iIconColor = -1 Then $iIconColor = $TOAST_INFO
 
     ; Destroy previous toast if still showing
     _Theme_ToastDestroy()
 
-    Local $iW = 10 + StringLen($sText) * 7
-    If $iW < 100 Then $iW = 100
-    If $iW > 300 Then $iW = 300
-    Local $iH = 24
+    Local $iIconW = 22
+    Local $iTextW = 10 + StringLen($sText) * 7
+    Local $iW = $iIconW + $iTextW
+    If $iW < 120 Then $iW = 120
+    If $iW > 320 Then $iW = 320
+    Local $iH = 26
 
     $__g_Toast_hGUI = GUICreate("Toast", $iW, $iH, $iX, $iY, $WS_POPUP, _
         BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW, $WS_EX_LAYERED))
-    GUISetBkColor($iBgColor)
+    GUISetBkColor($THEME_BG_POPUP)
 
-    GUICtrlCreateLabel($sText, 0, 0, $iW, $iH, BitOR($SS_CENTER, $SS_CENTERIMAGE))
-    GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor(-1, $iFgColor)
+    ; Status icon (colored circle)
+    GUICtrlCreateLabel(ChrW(0x25CF), 4, 0, $iIconW, $iH, BitOR($SS_CENTER, $SS_CENTERIMAGE))
+    GUICtrlSetFont(-1, 10, 400, 0, $THEME_FONT_SYMBOL)
+    GUICtrlSetColor(-1, $iIconColor)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
-    $__g_Toast_iAlpha = 220
+    ; Text
+    GUICtrlCreateLabel($sText, $iIconW + 2, 0, $iW - $iIconW - 6, $iH, BitOR($SS_CENTERIMAGE))
+    GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
+    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+
+    $__g_Toast_iAlpha = 230
     _WinAPI_SetLayeredWindowAttributes($__g_Toast_hGUI, 0, $__g_Toast_iAlpha, $LWA_ALPHA)
     GUISetState(@SW_SHOWNOACTIVATE, $__g_Toast_hGUI)
 
@@ -358,7 +371,7 @@ Func _Theme_ToastTick()
     ; Fade-out phase (300ms)
     Local $iFadeElapsed = $iElapsed - $__g_Toast_iDuration
     If $iFadeElapsed < 300 Then
-        Local $iNewAlpha = 220 - Int(220 * $iFadeElapsed / 300)
+        Local $iNewAlpha = 230 - Int(230 * $iFadeElapsed / 300)
         If $iNewAlpha < 0 Then $iNewAlpha = 0
         If $iNewAlpha <> $__g_Toast_iAlpha Then
             $__g_Toast_iAlpha = $iNewAlpha

@@ -736,7 +736,7 @@ Func __CD_ApplyChanges()
     ; Toast notification
     Local $aPos = WinGetPos($__g_CD_hGUI)
     If Not @error Then
-        _Theme_Toast("Settings saved", $aPos[0], $aPos[1] + $aPos[3] + 4, 1500)
+        _Theme_Toast("Settings saved", $aPos[0], $aPos[1] + $aPos[3] + 4, 1500, $TOAST_SUCCESS)
     EndIf
 EndFunc
 
@@ -748,6 +748,6 @@ Func __CD_ResetDefaults()
 
     Local $aPos = WinGetPos($__g_CD_hGUI)
     If Not @error Then
-        _Theme_Toast("Reset to defaults", $aPos[0], $aPos[1] + $aPos[3] + 4, 1500, Default, 0xCC6666)
+        _Theme_Toast("Reset to defaults", $aPos[0], $aPos[1] + $aPos[3] + 4, 1500, $TOAST_WARNING)
     EndIf
 EndFunc
