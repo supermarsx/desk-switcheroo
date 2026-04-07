@@ -299,6 +299,7 @@ EndFunc
 
 Func __CD_CreateTabColors()
     GUICtrlCreateTabItem("Colors")
+    __CD_CreateTabBackground()
     Local $iX = 20, $iY = 40
 
     $__g_CD_idChkColorsEnabled = GUICtrlCreateCheckbox("Enable desktop colors", $iX, $iY, 260, 22)
@@ -316,8 +317,6 @@ Func __CD_CreateTabColors()
         $__g_CD_aidLblPreview[$i] = GUICtrlCreateLabel("", $iX + 175, $iY + 2, 16, 16)
         $iY += 24
     Next
-
-    __CD_CreateTabBackground()
 EndFunc
 
 ; =============================================
