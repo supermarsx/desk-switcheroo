@@ -1038,7 +1038,7 @@ Func _ShowAbout()
     GUICtrlSetColor(-1, $THEME_FG_DIM)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
-    Local $idLinkRepo = GUICtrlCreateLabel("github.com/desk-switcheroo", 86, $iLY, 240, 16, $SS_NOTIFY)
+    Local $idLinkRepo = GUICtrlCreateLabel("github.com/supermarsx/desk-switcheroo", 86, $iLY, 240, 16, $SS_NOTIFY)
     GUICtrlSetFont($idLinkRepo, 8, 400, 4, $THEME_FONT_MAIN) ; 4 = underline
     GUICtrlSetColor($idLinkRepo, $THEME_FG_LINK)
     GUICtrlSetBkColor($idLinkRepo, $GUI_BKCOLOR_TRANSPARENT)
@@ -1094,7 +1094,7 @@ Func _ShowAbout()
                 Case $idClose
                     ExitLoop
                 Case $idLinkRepo
-                    ShellExecute("https://github.com/desk-switcheroo")
+                    ShellExecute("https://github.com/supermarsx/desk-switcheroo")
                 Case $idLinkDLL
                     ShellExecute("https://github.com/Ciantic/VirtualDesktopAccessor")
                 Case $idLinkFont

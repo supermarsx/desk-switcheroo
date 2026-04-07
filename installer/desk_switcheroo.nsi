@@ -17,7 +17,7 @@ Unicode True
 ; Version info
 !define PRODUCT_NAME "Desk Switcheroo"
 !define PRODUCT_PUBLISHER "Desk Switcheroo"
-!define PRODUCT_WEB_SITE "https://github.com/desk-switcheroo"
+!define PRODUCT_WEB_SITE "https://github.com/supermarsx/desk-switcheroo"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeskSwitcheroo"
 !define PRODUCT_UNINST_ROOT_KEY "HKLM"
 
