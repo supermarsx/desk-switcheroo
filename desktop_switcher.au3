@@ -1,11 +1,10 @@
-#NoTrayIcon
-
 #include <GUIConstantsEx.au3>
 #include <WindowsConstants.au3>
 #include <WinAPISysWin.au3>
 #include <StaticConstants.au3>
 
 #include "includes\Config.au3"
+#include "includes\Logger.au3"
 #include "includes\Theme.au3"
 #include "includes\Labels.au3"
 #include "includes\VirtualDesktop.au3"
@@ -39,6 +38,22 @@ _Theme_LoadFonts()
 ; ---- Initialize config ----
 _Cfg_Init()
 
+; ---- Tray icon visibility ----
+If Not _Cfg_GetTrayIconMode() Then Opt("TrayIconHide", 1)
+
+; ---- Initialize logging ----
+_Log_Init()
+
+; ---- Startup checks ----
+_RunStartupChecks()
+
+; ---- Log font status ----
+If $__g_Theme_bFiraLoaded Then
+    _Log_Info("Fira Code font loaded successfully")
+Else
+    _Log_Warn("Fira Code font not available, falling back to " & $THEME_FONT_MONO_FB)
+EndIf
+
 ; ---- Parse command-line arguments ----
 Global $bAutoStart = False
 If $CmdLine[0] >= 1 Then
@@ -49,8 +64,16 @@ EndIf
 
 ; ---- Initialize modules ----
 If Not _VD_Init() Then
-    MsgBox(16, "Desk Switcheroo", "Failed to load VirtualDesktopAccessor.dll." & @CRLF & _
-        "Make sure the DLL is in the same folder as this script.")
+    Local $sDllPath = @ScriptDir & "\VirtualDesktopAccessor.dll"
+    Local $sDllExists = FileExists($sDllPath) ? "Yes" : "No"
+    Local $sDllSize = FileExists($sDllPath) ? String(FileGetSize($sDllPath)) & " bytes" : "N/A"
+    Local $sErrDetail = "Failed to load VirtualDesktopAccessor.dll." & @CRLF & @CRLF & _
+        "Path: " & $sDllPath & @CRLF & _
+        "File exists: " & $sDllExists & @CRLF & _
+        "File size: " & $sDllSize & @CRLF & @CRLF & _
+        "Make sure the DLL is in the same folder as this script."
+    _Log_Error("VirtualDesktopAccessor.dll init failed - path=" & $sDllPath & " exists=" & $sDllExists & " size=" & $sDllSize)
+    MsgBox(16, "Desk Switcheroo", $sErrDetail)
     Exit 1
 EndIf
 _Labels_Init()
@@ -66,6 +89,29 @@ Global $bDesktopChanged = False
 Global $bNamesChanged = False
 Global $__g_iLastCursorX = -1, $__g_iLastCursorY = -1
 Global Const $WM_VD_NOTIFY = 0x04C8 ; WM_USER + 200
+
+; -- Triple-click to edit --
+Global $__g_iClickCount = 0
+Global $__g_hClickTimer = 0
+
+; -- Widget drag --
+Global $__g_bWidgetDragging = False
+Global $__g_iWidgetDragOffsetX = 0
+Global $__g_bWidgetDragPending = False
+Global $__g_iWidgetDragStartX = 0
+
+; -- Quick-access number input --
+Global $__g_bQuickAccessActive = False
+Global $__g_hQuickAccessTimer = 0
+
+; ---- Tray icon mode globals ----
+Global $__g_bTrayMode = False
+Global $__g_iTrayToggleList = 0, $__g_iTrayEditLabel = 0
+Global $__g_iTrayAddDesktop = 0, $__g_iTrayDelDesktop = 0
+Global $__g_iTraySettings = 0, $__g_iTrayAbout = 0, $__g_iTrayQuit = 0
+
+; ---- Config file watcher global ----
+Global $__g_sCfgFileTime = ""
 
 ; ---- Get taskbar dimensions ----
 Local $hTaskbar = WinGetHandle("[CLASS:Shell_TrayWnd]")
@@ -133,6 +179,17 @@ AdlibRegister("_AdlibSyncNames", 2000)
 ; ---- Register hotkeys ----
 _RegisterHotkeys()
 
+; ---- Tray icon mode (if enabled) ----
+If _Cfg_GetTrayIconMode() Then _InitTrayMode()
+
+; ---- Config file watcher (if enabled) ----
+If _Cfg_GetConfigWatcherEnabled() Then
+    $__g_sCfgFileTime = FileGetTime(_Cfg_GetPath(), 0, 1)
+    AdlibRegister("_AdlibConfigWatcher", _Cfg_GetConfigWatcherInterval())
+EndIf
+
+_Log_Info("Startup complete")
+
 ; ---- Main loop ----
 Local $bRightWasDown = False
 Local $bLeftWasDown = False
@@ -142,6 +199,9 @@ While 1
     Local $aMsg = GUIGetMsg(1)
     Local $msg = $aMsg[0]
     Local $hFrom = $aMsg[1]
+
+    ; Tray icon messages (if in tray mode)
+    _CheckTrayMessages()
 
     ; Main GUI events
     If $hFrom = $gui Then
@@ -171,7 +231,11 @@ While 1
                 Sleep(50)
                 _RefreshIndex()
             Case $lblNum, $lblName
-                _DL_ShowTemp($iTaskbarY, $iDesktop)
+                If _Cfg_GetQuickAccessEnabled() And $msg = $lblNum And $__g_iClickCount >= 2 Then
+                    _QuickAccess_Show()
+                Else
+                    _DL_ShowTemp($iTaskbarY, $iDesktop)
+                EndIf
         EndSwitch
     EndIf
 
@@ -245,6 +309,8 @@ While 1
             Case "peek"
                 _DL_CtxDestroy()
                 _Peek_Start($iCtxTarget)
+            Case "set_color"
+                _DL_ColorPickerShow($iCtxTarget)
             Case "move_window"
                 _DL_CtxDestroy()
                 Local $hActiveWin = WinGetHandle("[ACTIVE]")
@@ -272,6 +338,27 @@ While 1
                     EndIf
                 EndIf
         EndSwitch
+    EndIf
+
+    ; Color picker events
+    If _DL_ColorPickerIsVisible() And $hFrom = _DL_ColorPickerGetGUI() Then
+        Local $vColorResult = _DL_ColorPickerHandleClick($msg)
+        If $vColorResult <> "" Then
+            Local $iColorTarget = _DL_ColorPickerGetTarget()
+            If $vColorResult = "custom" Then
+                Local $iCustomColor = _DL_ColorPickerCustomDialog()
+                If $iCustomColor >= 0 Then
+                    _Cfg_SetDesktopColor($iColorTarget, $iCustomColor)
+                    _Cfg_Save()
+                EndIf
+            Else
+                _Cfg_SetDesktopColor($iColorTarget, Int($vColorResult))
+                _Cfg_Save()
+            EndIf
+            _DL_ColorPickerDestroy()
+            _DL_CtxDestroy()
+            _DL_Refresh($iTaskbarY, $iDesktop)
+        EndIf
     EndIf
 
     ; Rename dialog events
@@ -380,15 +467,42 @@ While 1
     EndIf
     $bMiddleWasDown = $bMiddleDown
 
-    ; Left-click drag detection for desktop list
+    ; Left-click drag detection for desktop list + triple-click + widget drag
     Local $lBtn = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x01)
     If @error Or Not IsArray($lBtn) Then ContinueLoop
     Local $bLeftDown = (BitAND($lBtn[0], 0x8000) <> 0)
 
     If $bLeftDown And Not $bLeftWasDown Then
+        ; Track click count for triple-click
+        If TimerDiff($__g_hClickTimer) < 500 Then
+            $__g_iClickCount += 1
+        Else
+            $__g_iClickCount = 1
+        EndIf
+        $__g_hClickTimer = TimerInit()
+
+        ; Triple-click to edit: takes priority over drag
+        If $__g_iClickCount >= 3 And _DL_IsVisible() And _Theme_IsCursorOverWindow(_DL_GetGUI()) Then
+            Local $iTripleRow = _DL_GetItemAtPos()
+            If $iTripleRow > 0 Then
+                $__g_iClickCount = 0
+                $iRenameTarget = $iTripleRow
+                _RD_Show($iTripleRow, $iTaskbarY)
+            EndIf
         ; LMB just pressed -- start drag tracking if over desktop list
-        If _DL_IsVisible() And Not _DL_CtxIsVisible() And _Theme_IsCursorOverWindow(_DL_GetGUI()) Then
+        ElseIf _DL_IsVisible() And Not _DL_CtxIsVisible() And _Theme_IsCursorOverWindow(_DL_GetGUI()) Then
             _DL_DragMouseDown()
+        ; Widget drag: LMB on center of widget (not arrows, not when list visible)
+        ElseIf _Cfg_GetWidgetDragEnabled() And Not _DL_IsVisible() And _Theme_IsCursorOverWindow($gui) Then
+            Local $aCurWidget = GUIGetCursorInfo($gui)
+            If Not @error And $aCurWidget[4] <> $lblLeft And $aCurWidget[4] <> $lblRight Then
+                Local $aWPDrag = WinGetPos($gui)
+                Local $aMPDrag = MouseGetPos()
+                $__g_iWidgetDragOffsetX = $aMPDrag[0] - $aWPDrag[0]
+                $__g_iWidgetDragStartX = $aMPDrag[0]
+                $__g_bWidgetDragPending = True
+                $__g_bWidgetDragging = False
+            EndIf
         EndIf
     EndIf
 
@@ -396,12 +510,46 @@ While 1
         _DL_DragMouseMove()
     EndIf
 
-    If Not $bLeftDown And $bLeftWasDown And _DL_IsDragging() Then
-        Local $iNewCurrent = _DL_DragMouseUp($iDesktop, $iTaskbarY)
-        If $iNewCurrent > 0 Then
-            _VD_GoTo($iNewCurrent)
-            Sleep(50)
-            _RefreshIndex()
+    ; Widget drag: check threshold and move
+    If $bLeftDown And $__g_bWidgetDragPending And Not $__g_bWidgetDragging Then
+        Local $aMPWD = MouseGetPos()
+        If Abs($aMPWD[0] - $__g_iWidgetDragStartX) >= 5 Then
+            $__g_bWidgetDragging = True
+        EndIf
+    EndIf
+
+    If $bLeftDown And $__g_bWidgetDragging Then
+        Local $aMPWD2 = MouseGetPos()
+        Local $iNewX = $aMPWD2[0] - $__g_iWidgetDragOffsetX
+        ; Clamp to screen bounds
+        If $iNewX < 0 Then $iNewX = 0
+        If $iNewX + $THEME_MAIN_WIDTH > @DesktopWidth Then $iNewX = @DesktopWidth - $THEME_MAIN_WIDTH
+        WinMove($gui, "", $iNewX, $iTaskbarY + 2)
+    EndIf
+
+    ; LMB released
+    If Not $bLeftDown And $bLeftWasDown Then
+        ; Widget drag end
+        If $__g_bWidgetDragging Then
+            Local $aFinalPos = WinGetPos($gui)
+            _Cfg_SetWidgetPosition("left")
+            _Cfg_SetWidgetOffsetX($aFinalPos[0])
+            _Cfg_Save()
+            $__g_bWidgetDragging = False
+            $__g_bWidgetDragPending = False
+        ElseIf $__g_bWidgetDragPending Then
+            ; Threshold not met — reset, normal click handled by GUIGetMsg
+            $__g_bWidgetDragPending = False
+        EndIf
+
+        ; Desktop list drag end
+        If _DL_IsDragging() Then
+            Local $iNewCurrent = _DL_DragMouseUp($iDesktop, $iTaskbarY)
+            If $iNewCurrent > 0 Then
+                _VD_GoTo($iNewCurrent)
+                Sleep(50)
+                _RefreshIndex()
+            EndIf
         EndIf
     EndIf
 
@@ -414,6 +562,9 @@ While 1
     EndIf
 
     $bLeftWasDown = $bLeftDown
+
+    ; Quick-access number input polling
+    If $__g_bQuickAccessActive Then _QuickAccess_Check()
 
     ; Event-driven desktop change (flag set by _WM_DESKTOPCHANGE)
     If $bDesktopChanged Then
@@ -440,6 +591,7 @@ While 1
     If Not $bCursorActive And _DL_IsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_DL_GetGUI())
     If Not $bCursorActive And _CM_IsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_CM_GetGUI())
     If Not $bCursorActive And _DL_CtxIsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_DL_CtxGetGUI())
+    If Not $bCursorActive And _DL_ColorPickerIsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_DL_ColorPickerGetGUI())
     If Not $bCursorActive And _RD_IsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_RD_GetGUI())
 
     ; Hover effects -- only when cursor moved or drag active, and only for the window under cursor
@@ -486,12 +638,64 @@ Func _ApplyDesktopChange()
     GUICtrlSetData($lblName, _Labels_Load($iDesktop))
     WinSetTitle($gui, "", String($iDesktop))
     _DL_Refresh($iTaskbarY, $iDesktop)
+    If $__g_bTrayMode Then TraySetToolTip("Desk Switcheroo - Desktop " & $iDesktop)
 EndFunc
 
 Func _RefreshIndex()
     $iDesktop = _VD_GetCurrent()
     _ApplyDesktopChange()
     _ForceTopMost()
+EndFunc
+
+; =============================================
+; QUICK-ACCESS NUMBER INPUT
+; =============================================
+
+; Name:        _QuickAccess_Show
+; Description: Activates quick-access mode: replaces desktop number with "_" prompt
+Func _QuickAccess_Show()
+    $__g_bQuickAccessActive = True
+    $__g_hQuickAccessTimer = TimerInit()
+    GUICtrlSetData($lblNum, "_")
+EndFunc
+
+; Name:        _QuickAccess_Check
+; Description: Polls VK_1-VK_9 for quick desktop jump. 3s timeout. Escape cancels.
+Func _QuickAccess_Check()
+    If Not $__g_bQuickAccessActive Then Return
+
+    ; Check for escape
+    Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
+    If Not @error And BitAND($retEsc[0], 0x8000) <> 0 Then
+        _QuickAccess_Cancel()
+        Return
+    EndIf
+
+    ; Check 3s timeout
+    If TimerDiff($__g_hQuickAccessTimer) > 3000 Then
+        _QuickAccess_Cancel()
+        Return
+    EndIf
+
+    ; Poll VK_1 (0x31) through VK_9 (0x39)
+    For $i = 0x31 To 0x39
+        Local $retKey = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $i)
+        If Not @error And BitAND($retKey[0], 0x8000) <> 0 Then
+            Local $iTarget = $i - 0x30 ; 1-9
+            $__g_bQuickAccessActive = False
+            _VD_GoTo($iTarget)
+            Sleep(50)
+            _RefreshIndex()
+            Return
+        EndIf
+    Next
+EndFunc
+
+; Name:        _QuickAccess_Cancel
+; Description: Cancels quick-access mode and restores the display
+Func _QuickAccess_Cancel()
+    $__g_bQuickAccessActive = False
+    _ApplyDesktopChange()
 EndFunc
 
 ; =============================================
@@ -612,6 +816,9 @@ EndFunc
 Func _ForceTopMost()
     ; Don't steal focus from blocking dialogs (Settings, About, Confirm)
     If _CD_IsVisible() Then Return
+
+    ; Skip topmost enforcement in tray mode (no widget to manage)
+    If $__g_bTrayMode Then Return
 
     ; Re-read taskbar dimensions in case screen resized or taskbar moved
     Local $bTaskbarMoved = False
@@ -923,6 +1130,78 @@ Func _ShowAbout()
 EndFunc
 
 ; =============================================
+; TRAY ICON MODE
+; =============================================
+
+Func _InitTrayMode()
+    $__g_bTrayMode = True
+    GUISetState(@SW_HIDE, $gui)
+    Opt("TrayMenuMode", 3) ; no default menu items
+    $__g_iTrayToggleList = TrayCreateItem("Show Desktop List")
+    $__g_iTrayEditLabel = TrayCreateItem("Edit Label")
+    TrayCreateItem("") ; separator
+    $__g_iTrayAddDesktop = TrayCreateItem("Add Desktop")
+    $__g_iTrayDelDesktop = TrayCreateItem("Delete Desktop")
+    TrayCreateItem("")
+    $__g_iTraySettings = TrayCreateItem("Settings")
+    $__g_iTrayAbout = TrayCreateItem("About")
+    TrayCreateItem("")
+    $__g_iTrayQuit = TrayCreateItem("Quit")
+    TraySetToolTip("Desk Switcheroo - Desktop " & $iDesktop)
+    If FileExists(@ScriptDir & "\assets\desk_switcheroo.ico") Then
+        TraySetIcon(@ScriptDir & "\assets\desk_switcheroo.ico")
+    EndIf
+    TraySetState(1)
+EndFunc
+
+Func _CheckTrayMessages()
+    If Not $__g_bTrayMode Then Return
+    Local $iTrayMsg = TrayGetMsg()
+    Switch $iTrayMsg
+        Case $__g_iTrayToggleList
+            _DL_Toggle($iTaskbarY, $iDesktop)
+        Case $__g_iTrayEditLabel
+            $iRenameTarget = $iDesktop
+            _RD_Show($iDesktop, $iTaskbarY)
+        Case $__g_iTrayAddDesktop
+            _VD_CreateDesktop()
+            Sleep(100)
+            _RefreshIndex()
+        Case $__g_iTrayDelDesktop
+            If _VD_GetCount() > 1 Then
+                If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm("Delete Desktop " & $iDesktop & "?", "Windows will be moved to an adjacent desktop.") Then
+                    _VD_RemoveDesktop($iDesktop)
+                    Sleep(100)
+                    _RefreshIndex()
+                EndIf
+            EndIf
+        Case $__g_iTraySettings
+            _CD_Show()
+        Case $__g_iTrayAbout
+            _ShowAbout()
+        Case $__g_iTrayQuit
+            _Shutdown()
+    EndSwitch
+EndFunc
+
+; =============================================
+; CONFIG FILE WATCHER
+; =============================================
+
+Func _AdlibConfigWatcher()
+    Local $sNewTime = FileGetTime(_Cfg_GetPath(), 0, 1)
+    If @error Then Return
+    If $sNewTime = $__g_sCfgFileTime Then Return
+    $__g_sCfgFileTime = $sNewTime
+    _UnregisterHotkeys()
+    _Cfg_Load()
+    _RegisterHotkeys()
+    _ApplyDesktopChange()
+    AdlibUnRegister("_ForceTopMost")
+    AdlibRegister("_ForceTopMost", _Cfg_GetTopmostInterval())
+EndFunc
+
+; =============================================
 ; CLEANUP
 ; =============================================
 
@@ -936,9 +1215,62 @@ Func _Shutdown()
     _UnregisterHotkeys()
     AdlibUnRegister("_ForceTopMost")
     AdlibUnRegister("_AdlibSyncNames")
+    AdlibUnRegister("_AdlibConfigWatcher")
     If $gui Then _VD_UnregisterNotify($gui)
     _RD_Shutdown()
     _VD_Shutdown()
     _Theme_UnloadFonts()
+    _Log_Shutdown()
     Exit
+EndFunc
+
+; Name:        _RunStartupChecks
+; Description: Performs environment validation at startup. Shows errors and exits
+;              if critical checks fail; logs results for all checks.
+Func _RunStartupChecks()
+    ; Check taskbar exists
+    Local $hTaskbarChk = WinGetHandle("[CLASS:Shell_TrayWnd]")
+    If $hTaskbarChk = 0 Then
+        _Log_Error("Startup check failed: taskbar not found (Shell_TrayWnd)")
+        MsgBox(16, "Desk Switcheroo", "Cannot find the Windows taskbar." & @CRLF & _
+            "Desk Switcheroo requires the taskbar to be running.")
+        Exit 1
+    EndIf
+    _Log_Debug("Startup check: taskbar found")
+
+    ; Check taskbar dimensions valid
+    Local $aChkPos = WinGetPos($hTaskbarChk)
+    If Not @error And IsArray($aChkPos) Then
+        If $aChkPos[3] <= 10 Then
+            _Log_Error("Startup check failed: taskbar height too small (" & $aChkPos[3] & "px)")
+            MsgBox(16, "Desk Switcheroo", "Taskbar height is invalid (" & $aChkPos[3] & "px)." & @CRLF & _
+                "Desk Switcheroo requires a visible taskbar.")
+            Exit 1
+        EndIf
+        _Log_Debug("Startup check: taskbar dimensions valid (" & $aChkPos[2] & "x" & $aChkPos[3] & ")")
+    EndIf
+
+    ; Check config writable
+    Local $sTestKey = "__startup_test__"
+    IniWrite(_Cfg_GetPath(), "General", $sTestKey, "1")
+    Local $sReadBack = IniRead(_Cfg_GetPath(), "General", $sTestKey, "")
+    IniDelete(_Cfg_GetPath(), "General", $sTestKey)
+    If $sReadBack <> "1" Then
+        _Log_Error("Startup check failed: config file not writable at " & _Cfg_GetPath())
+        MsgBox(16, "Desk Switcheroo", "Cannot write to config file:" & @CRLF & _Cfg_GetPath() & @CRLF & _
+            "Check file permissions.")
+        Exit 1
+    EndIf
+    _Log_Debug("Startup check: config file writable")
+
+    ; Check not running as SYSTEM user
+    If @UserName = "SYSTEM" Then
+        _Log_Error("Startup check failed: running as SYSTEM user")
+        MsgBox(16, "Desk Switcheroo", "Desk Switcheroo should not run as the SYSTEM user." & @CRLF & _
+            "Please run it as a normal user account.")
+        Exit 1
+    EndIf
+    _Log_Debug("Startup check: running as user " & @UserName)
+
+    _Log_Info("All startup checks passed")
 EndFunc
