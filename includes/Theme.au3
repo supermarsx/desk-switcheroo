@@ -55,6 +55,11 @@ Global Const $THEME_FONT_MONO     = "Fira Code"
 Global Const $THEME_FONT_MONO_FB  = "Consolas"
 Global Const $THEME_FONT_SYMBOL   = "Segoe UI Symbol"
 
+Global $__g_Theme_bFiraLoaded = False
+
+; -- Preset colors for color picker --
+Global Const $THEME_PRESET_COLORS[8] = [7, 0x4A9EFF, 0x4AFF7E, 0xFF7E4A, 0xFFD54A, 0xB44AFF, 0xFF4A9E, 0x4AFFCF]
+
 ; -- Timer intervals (ms) --
 Global Const $THEME_TIMER_TOPMOST  = 300
 Global Const $THEME_TIMER_POLL     = 400
@@ -401,12 +406,24 @@ EndFunc
 Func _Theme_LoadFonts()
     Local $sFontsDir = @ScriptDir & "\fonts"
     Local $aFiles[2] = ["FiraCode-Regular.ttf", "FiraCode-Bold.ttf"]
+    Local $bAnyLoaded = False
     For $i = 0 To UBound($aFiles) - 1
         Local $sPath = $sFontsDir & "\" & $aFiles[$i]
         If FileExists($sPath) Then
-            DllCall("gdi32.dll", "int", "AddFontResourceExW", "wstr", $sPath, "dword", 0x10, "ptr", 0)
+            Local $aRet = DllCall("gdi32.dll", "int", "AddFontResourceExW", "wstr", $sPath, "dword", 0x10, "ptr", 0)
+            If Not @error And IsArray($aRet) And $aRet[0] > 0 Then $bAnyLoaded = True
         EndIf
     Next
+    $__g_Theme_bFiraLoaded = $bAnyLoaded
+EndFunc
+
+; Name:        _Theme_GetMonoFont
+; Description: Returns the best available monospace font name.
+;              Uses Fira Code if loaded, otherwise falls back to Consolas.
+; Return:      Font name string
+Func _Theme_GetMonoFont()
+    If $__g_Theme_bFiraLoaded Then Return $THEME_FONT_MONO
+    Return $THEME_FONT_MONO_FB
 EndFunc
 
 ; Name:        _Theme_UnloadFonts

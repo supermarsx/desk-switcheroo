@@ -17,6 +17,9 @@ Global $__g_Cfg_bAutoCreateDesktop = False
 Global $__g_Cfg_iNumberPadding     = 2
 Global $__g_Cfg_sWidgetPosition    = "left"
 Global $__g_Cfg_iWidgetOffsetX     = 0
+Global $__g_Cfg_bWidgetDragEnabled = False
+Global $__g_Cfg_bTrayIconMode     = False
+Global $__g_Cfg_bQuickAccessEnabled = False
 
 ; [Display]
 Global $__g_Cfg_bShowCount         = False
@@ -48,6 +51,13 @@ Global $__g_Cfg_iPeekBounceDelay   = 500
 Global $__g_Cfg_iAutoHideTimeout   = 3000
 Global $__g_Cfg_iTopmostInterval   = 300
 Global $__g_Cfg_iCmAutoHideDelay   = 500
+Global $__g_Cfg_bConfigWatcherEnabled = False
+Global $__g_Cfg_iConfigWatcherInterval = 60000
+
+; [Logging]
+Global $__g_Cfg_bLoggingEnabled    = False
+Global $__g_Cfg_sLogFilePath       = ""
+Global $__g_Cfg_sLogLevel          = "info"
 
 ; [DesktopColors]
 Global $__g_Cfg_bDesktopColorsEnabled = False
@@ -93,6 +103,9 @@ Func _Cfg_Load()
     $__g_Cfg_iNumberPadding     = __Cfg_ReadInt($f, "General", "number_padding", 2, 1, 4)
     $__g_Cfg_sWidgetPosition    = __Cfg_ReadEnum($f, "General", "widget_position", "left", "left|center|right")
     $__g_Cfg_iWidgetOffsetX     = __Cfg_ReadInt($f, "General", "widget_offset_x", 0, -9999, 9999)
+    $__g_Cfg_bWidgetDragEnabled = __Cfg_ReadBool($f, "General", "widget_drag_enabled", False)
+    $__g_Cfg_bTrayIconMode     = __Cfg_ReadBool($f, "General", "tray_icon_mode", False)
+    $__g_Cfg_bQuickAccessEnabled = __Cfg_ReadBool($f, "General", "quick_access_enabled", False)
 
     ; [Display]
     $__g_Cfg_bShowCount         = __Cfg_ReadBool($f, "Display", "show_count", False)
@@ -122,6 +135,13 @@ Func _Cfg_Load()
     $__g_Cfg_iAutoHideTimeout   = __Cfg_ReadInt($f, "Behavior", "auto_hide_timeout", 3000, 500, 30000)
     $__g_Cfg_iTopmostInterval   = __Cfg_ReadInt($f, "Behavior", "topmost_interval", 300, 100, 5000)
     $__g_Cfg_iCmAutoHideDelay   = __Cfg_ReadInt($f, "Behavior", "cm_auto_hide_delay", 500, 100, 5000)
+    $__g_Cfg_bConfigWatcherEnabled = __Cfg_ReadBool($f, "Behavior", "config_watcher_enabled", False)
+    $__g_Cfg_iConfigWatcherInterval = __Cfg_ReadInt($f, "Behavior", "config_watcher_interval", 60000, 5000, 300000)
+
+    ; [Logging]
+    $__g_Cfg_bLoggingEnabled    = __Cfg_ReadBool($f, "Logging", "logging_enabled", False)
+    $__g_Cfg_sLogFilePath       = IniRead($f, "Logging", "log_file_path", "")
+    $__g_Cfg_sLogLevel          = __Cfg_ReadEnum($f, "Logging", "log_level", "info", "error|warn|info|debug")
 
     ; [DesktopColors]
     $__g_Cfg_bDesktopColorsEnabled = __Cfg_ReadBool($f, "DesktopColors", "desktop_colors_enabled", False)
@@ -148,6 +168,9 @@ Func _Cfg_Save()
     IniWrite($f, "General", "number_padding", $__g_Cfg_iNumberPadding)
     IniWrite($f, "General", "widget_position", $__g_Cfg_sWidgetPosition)
     IniWrite($f, "General", "widget_offset_x", $__g_Cfg_iWidgetOffsetX)
+    __Cfg_WriteBool($f, "General", "widget_drag_enabled", $__g_Cfg_bWidgetDragEnabled)
+    __Cfg_WriteBool($f, "General", "tray_icon_mode", $__g_Cfg_bTrayIconMode)
+    __Cfg_WriteBool($f, "General", "quick_access_enabled", $__g_Cfg_bQuickAccessEnabled)
 
     ; [Display]
     __Cfg_WriteBool($f, "Display", "show_count", $__g_Cfg_bShowCount)
@@ -177,6 +200,13 @@ Func _Cfg_Save()
     IniWrite($f, "Behavior", "auto_hide_timeout", $__g_Cfg_iAutoHideTimeout)
     IniWrite($f, "Behavior", "topmost_interval", $__g_Cfg_iTopmostInterval)
     IniWrite($f, "Behavior", "cm_auto_hide_delay", $__g_Cfg_iCmAutoHideDelay)
+    __Cfg_WriteBool($f, "Behavior", "config_watcher_enabled", $__g_Cfg_bConfigWatcherEnabled)
+    IniWrite($f, "Behavior", "config_watcher_interval", $__g_Cfg_iConfigWatcherInterval)
+
+    ; [Logging]
+    __Cfg_WriteBool($f, "Logging", "logging_enabled", $__g_Cfg_bLoggingEnabled)
+    IniWrite($f, "Logging", "log_file_path", $__g_Cfg_sLogFilePath)
+    IniWrite($f, "Logging", "log_level", $__g_Cfg_sLogLevel)
 
     ; [DesktopColors]
     __Cfg_WriteBool($f, "DesktopColors", "desktop_colors_enabled", $__g_Cfg_bDesktopColorsEnabled)
@@ -196,6 +226,9 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "General", "number_padding", 2)
     __Cfg_DefaultVal($f, "General", "widget_position", "left")
     __Cfg_DefaultVal($f, "General", "widget_offset_x", 0)
+    __Cfg_DefaultBool($f, "General", "widget_drag_enabled", False)
+    __Cfg_DefaultBool($f, "General", "tray_icon_mode", False)
+    __Cfg_DefaultBool($f, "General", "quick_access_enabled", False)
 
     __Cfg_DefaultBool($f, "Display", "show_count", False)
     __Cfg_DefaultVal($f, "Display", "count_font_size", 7)
@@ -221,6 +254,12 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Behavior", "auto_hide_timeout", 3000)
     __Cfg_DefaultVal($f, "Behavior", "topmost_interval", 300)
     __Cfg_DefaultVal($f, "Behavior", "cm_auto_hide_delay", 500)
+    __Cfg_DefaultBool($f, "Behavior", "config_watcher_enabled", False)
+    __Cfg_DefaultVal($f, "Behavior", "config_watcher_interval", 60000)
+
+    __Cfg_DefaultBool($f, "Logging", "logging_enabled", False)
+    __Cfg_DefaultVal($f, "Logging", "log_file_path", "")
+    __Cfg_DefaultVal($f, "Logging", "log_level", "info")
 
     __Cfg_DefaultBool($f, "DesktopColors", "desktop_colors_enabled", False)
     Local $aDefColors[10] = [9, 0x4A9EFF, 0x4AFF7E, 0xFF7E4A, 0xFFD54A, 0xB44AFF, 0xFF4A9E, 0x4AFFCF, 0x9EFF4A, 0xFF4A4A]
@@ -251,6 +290,15 @@ Func _Cfg_GetWidgetPosition()
 EndFunc
 Func _Cfg_GetWidgetOffsetX()
     Return $__g_Cfg_iWidgetOffsetX
+EndFunc
+Func _Cfg_GetWidgetDragEnabled()
+    Return $__g_Cfg_bWidgetDragEnabled
+EndFunc
+Func _Cfg_GetTrayIconMode()
+    Return $__g_Cfg_bTrayIconMode
+EndFunc
+Func _Cfg_GetQuickAccessEnabled()
+    Return $__g_Cfg_bQuickAccessEnabled
 EndFunc
 
 ; [Display]
@@ -318,6 +366,23 @@ EndFunc
 Func _Cfg_GetCmAutoHideDelay()
     Return $__g_Cfg_iCmAutoHideDelay
 EndFunc
+Func _Cfg_GetConfigWatcherEnabled()
+    Return $__g_Cfg_bConfigWatcherEnabled
+EndFunc
+Func _Cfg_GetConfigWatcherInterval()
+    Return $__g_Cfg_iConfigWatcherInterval
+EndFunc
+
+; [Logging]
+Func _Cfg_GetLoggingEnabled()
+    Return $__g_Cfg_bLoggingEnabled
+EndFunc
+Func _Cfg_GetLogFilePath()
+    Return $__g_Cfg_sLogFilePath
+EndFunc
+Func _Cfg_GetLogLevel()
+    Return $__g_Cfg_sLogLevel
+EndFunc
 
 ; [DesktopColors]
 Func _Cfg_GetDesktopColorsEnabled()
@@ -353,6 +418,15 @@ Func _Cfg_SetWidgetPosition($s)
 EndFunc
 Func _Cfg_SetWidgetOffsetX($i)
     $__g_Cfg_iWidgetOffsetX = Int($i)
+EndFunc
+Func _Cfg_SetWidgetDragEnabled($b)
+    $__g_Cfg_bWidgetDragEnabled = $b
+EndFunc
+Func _Cfg_SetTrayIconMode($b)
+    $__g_Cfg_bTrayIconMode = $b
+EndFunc
+Func _Cfg_SetQuickAccessEnabled($b)
+    $__g_Cfg_bQuickAccessEnabled = $b
 EndFunc
 
 ; [Display]
@@ -432,6 +506,26 @@ Func _Cfg_SetCmAutoHideDelay($i)
     If $i < 100 Then $i = 100
     If $i > 5000 Then $i = 5000
     $__g_Cfg_iCmAutoHideDelay = $i
+EndFunc
+Func _Cfg_SetConfigWatcherEnabled($b)
+    $__g_Cfg_bConfigWatcherEnabled = $b
+EndFunc
+Func _Cfg_SetConfigWatcherInterval($i)
+    If $i < 5000 Then $i = 5000
+    If $i > 300000 Then $i = 300000
+    $__g_Cfg_iConfigWatcherInterval = $i
+EndFunc
+
+; [Logging]
+Func _Cfg_SetLoggingEnabled($b)
+    $__g_Cfg_bLoggingEnabled = $b
+EndFunc
+Func _Cfg_SetLogFilePath($s)
+    $__g_Cfg_sLogFilePath = $s
+EndFunc
+Func _Cfg_SetLogLevel($s)
+    If $s <> "error" And $s <> "warn" And $s <> "info" And $s <> "debug" Then $s = "info"
+    $__g_Cfg_sLogLevel = $s
 EndFunc
 
 ; [DesktopColors]
