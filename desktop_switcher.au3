@@ -607,6 +607,9 @@ EndFunc
 ; =============================================
 
 Func _ForceTopMost()
+    ; Don't steal focus from blocking dialogs (Settings, About, Confirm)
+    If _CD_IsVisible() Then Return
+
     ; Re-read taskbar dimensions in case screen resized or taskbar moved
     Local $bTaskbarMoved = False
     Local $hTB = WinGetHandle("[CLASS:Shell_TrayWnd]")
