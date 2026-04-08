@@ -29,6 +29,7 @@ Global Const $DESKTOP_LIMIT = 20
 ; ---- Ensure cleanup on unexpected exit ----
 Global $__g_bShuttingDown = False
 Global $__g_bPeekWasActive = False
+Global $__g_bWasCursorActive = False
 OnAutoItExitRegister("_OnExit")
 
 ; ---- Singleton: kill previous instance on relaunch ----
@@ -697,6 +698,19 @@ While 1
         If _DL_CtxIsVisible() And _Theme_IsCursorOverWindow(_DL_CtxGetGUI()) Then _DL_CtxCheckHover()
         If _RD_IsVisible() And _Theme_IsCursorOverWindow(_RD_GetGUI()) Then _RD_CheckHover()
     EndIf
+
+    ; Clear hover states when cursor leaves all windows (prevents stuck highlights)
+    If $__g_bWasCursorActive And Not $bCursorActive Then
+        If $bHoverLeft Then
+            _Theme_RemoveHover($lblLeft, $THEME_FG_NORMAL)
+            $bHoverLeft = False
+        EndIf
+        If $bHoverRight Then
+            _Theme_RemoveHover($lblRight, $THEME_FG_NORMAL)
+            $bHoverRight = False
+        EndIf
+    EndIf
+    $__g_bWasCursorActive = $bCursorActive
 
     ; Toast fade-out tick
     _Theme_ToastTick()
