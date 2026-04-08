@@ -1,37 +1,73 @@
 # Compile desktop_switcher.au3 to .exe using Aut2Exe
 $ErrorActionPreference = "Stop"
-$root = "$PSScriptRoot\.."
-$buildDir = "$root\build"
-if ($env:AUTOIT_PATH) {
-    $aut2exe = "$env:AUTOIT_PATH\Aut2Exe\Aut2exe.exe"
-} else {
-    $aut2exe = "C:\Program Files (x86)\AutoIt3\Aut2Exe\Aut2exe.exe"
-    if (-not (Test-Path $aut2exe)) {
-        $aut2exe = "C:\Program Files\AutoIt3\Aut2Exe\Aut2exe.exe"
-    }
+
+# Resolve project root
+$root = if ($PSScriptRoot) { Resolve-Path "$PSScriptRoot\.." } else { Get-Location }
+$buildDir = Join-Path $root "build"
+
+# Find Aut2Exe
+$aut2exe = $null
+$searchPaths = @()
+if ($env:AUTOIT_PATH) { $searchPaths += "$env:AUTOIT_PATH\Aut2Exe\Aut2exe.exe" }
+$searchPaths += "C:\Program Files (x86)\AutoIt3\Aut2Exe\Aut2exe.exe"
+$searchPaths += "C:\Program Files\AutoIt3\Aut2Exe\Aut2exe.exe"
+# Also check choco install path
+$searchPaths += "C:\ProgramData\chocolatey\lib\autoit\tools\install\Aut2Exe\Aut2exe.exe"
+
+foreach ($p in $searchPaths) {
+    if (Test-Path $p) { $aut2exe = $p; break }
 }
-if (-not (Test-Path $aut2exe)) {
-    Write-Error "Aut2Exe not found. Install AutoIt first."
+
+if (-not $aut2exe) {
+    # Try finding it via where.exe
+    $found = Get-Command Aut2exe.exe -ErrorAction SilentlyContinue
+    if ($found) { $aut2exe = $found.Source }
+}
+
+if (-not $aut2exe) {
+    Write-Error "Aut2Exe not found. Install AutoIt first. Searched: $($searchPaths -join ', ')"
     exit 1
 }
 
+Write-Host "Using Aut2Exe: $aut2exe" -ForegroundColor Cyan
+
+# Prepare build directory
 New-Item -Path $buildDir -ItemType Directory -Force | Out-Null
 
-$iconArg = @()
-$iconPath = "$root\assets\desk_switcheroo.ico"
+# Build icon argument if icon exists
+$iconArgs = @()
+$iconPath = Join-Path $root "assets\desk_switcheroo.ico"
 if (Test-Path $iconPath) {
-    $iconArg = @("/icon", $iconPath)
+    $iconArgs = @("/icon", $iconPath)
+    Write-Host "Using icon: $iconPath"
 }
 
-Write-Host "Compiling DeskSwitcheroo.exe..." -ForegroundColor Cyan
-& $aut2exe /in "$root\desktop_switcher.au3" /out "$buildDir\DeskSwitcheroo.exe" /x64 @iconArg
-if ($LASTEXITCODE -ne 0) { Write-Error "Compilation failed"; exit 1 }
+# Compile
+$srcPath = Join-Path $root "desktop_switcher.au3"
+$outPath = Join-Path $buildDir "DeskSwitcheroo.exe"
+Write-Host "Compiling $srcPath -> $outPath" -ForegroundColor Cyan
+
+& $aut2exe /in $srcPath /out $outPath /x64 @iconArgs
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Compilation failed with exit code $LASTEXITCODE"
+    exit 1
+}
+
+# Verify output exists
+if (-not (Test-Path $outPath)) {
+    Write-Error "Compilation produced no output file at $outPath"
+    exit 1
+}
 
 # Copy runtime dependencies
-Copy-Item "$root\VirtualDesktopAccessor.dll" "$buildDir\" -Force
-if (Test-Path "$root\fonts") {
-    Copy-Item "$root\fonts" "$buildDir\fonts" -Recurse -Force
+Copy-Item (Join-Path $root "VirtualDesktopAccessor.dll") $buildDir -Force
+$fontsDir = Join-Path $root "fonts"
+if (Test-Path $fontsDir) {
+    Copy-Item $fontsDir (Join-Path $buildDir "fonts") -Recurse -Force
 }
 
-Write-Host "Build complete: $buildDir" -ForegroundColor Green
-Get-ChildItem $buildDir | Format-Table Name, Length
+Write-Host "`nBuild complete:" -ForegroundColor Green
+Get-ChildItem $buildDir -Recurse | ForEach-Object {
+    $rel = $_.FullName.Replace("$buildDir\", "")
+    Write-Host "  $rel ($([math]::Round($_.Length/1KB, 1)) KB)"
+}
