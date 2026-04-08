@@ -126,14 +126,14 @@ Func _CD_Show()
     Local $iRow1TotalW = $iBtnW * 3 + $iGap * 2
     Local $iRow1X = ($iW - $iRow1TotalW) / 2
 
-    $__g_CD_idBtnImport = GUICtrlCreateLabel("Import", $iRow1X, $iRow1Y, $iBtnW, $iBtnH, _
+    $__g_CD_idBtnImport = GUICtrlCreateLabel(ChrW(0x2B07) & " Import", $iRow1X, $iRow1Y, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnImport, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnImport, $THEME_FG_DIM)
     GUICtrlSetBkColor($__g_CD_idBtnImport, $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnImport, 0)
 
-    $__g_CD_idBtnExport = GUICtrlCreateLabel("Export", $iRow1X + $iBtnW + $iGap, $iRow1Y, $iBtnW, $iBtnH, _
+    $__g_CD_idBtnExport = GUICtrlCreateLabel(ChrW(0x2B06) & " Export", $iRow1X + $iBtnW + $iGap, $iRow1Y, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnExport, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnExport, $THEME_FG_DIM)
@@ -152,21 +152,21 @@ Func _CD_Show()
     Local $iTotalW = $iBtnW * 3 + $iGap * 2
     Local $iBtnX = ($iW - $iTotalW) / 2
 
-    $__g_CD_idBtnApply = GUICtrlCreateLabel("Apply", $iBtnX, $iRow2Y, $iBtnW, $iBtnH, _
+    $__g_CD_idBtnApply = GUICtrlCreateLabel(ChrW(0x2713) & " Apply", $iBtnX, $iRow2Y, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnApply, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnApply, $THEME_FG_MENU)
     GUICtrlSetBkColor($__g_CD_idBtnApply, $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnApply, 0)
 
-    $__g_CD_idBtnReset = GUICtrlCreateLabel("Reset", $iBtnX + $iBtnW + $iGap, $iRow2Y, $iBtnW, $iBtnH, _
+    $__g_CD_idBtnReset = GUICtrlCreateLabel(ChrW(0x21BA) & " Reset", $iBtnX + $iBtnW + $iGap, $iRow2Y, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnReset, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnReset, 0xCC6666)
     GUICtrlSetBkColor($__g_CD_idBtnReset, $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnReset, 0)
 
-    $__g_CD_idBtnClose = GUICtrlCreateLabel("Close", $iBtnX + ($iBtnW + $iGap) * 2, $iRow2Y, $iBtnW, $iBtnH, _
+    $__g_CD_idBtnClose = GUICtrlCreateLabel(ChrW(0x2715) & " Close", $iBtnX + ($iBtnW + $iGap) * 2, $iRow2Y, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnClose, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnClose, $THEME_FG_MENU)
