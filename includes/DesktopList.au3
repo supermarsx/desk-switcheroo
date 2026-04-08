@@ -101,6 +101,7 @@ Func _DL_Show($iTaskbarY, $iCurrentDesktop)
     $__g_DL_iHovered = 0
     $__g_DL_iPeekHovered = 0
 
+    Local $i
     For $i = 1 To $iCount
         Local $sName = _Labels_Load($i)
         Local $iPad = _Cfg_GetNumberPadding()
@@ -173,6 +174,7 @@ Func _DL_HandleClick($msg)
     If $__g_DL_iDragState > 0 Then Return 0
     If $msg <= 0 Then Return 0
     If UBound($__g_DL_aItems) < 2 Or $__g_DL_aItems[0] < 1 Then Return 0
+    Local $i
     For $i = 1 To $__g_DL_aItems[0]
         If $msg = $__g_DL_aItems[$i] Or $msg = $__g_DL_aPeekBtns[$i] Then
             If _Peek_IsActive() Then
@@ -208,6 +210,7 @@ Func _DL_CheckHover($iCurrentDesktop)
 
     ; Find hovered text item
     Local $iFound = 0
+    Local $i
     For $i = 1 To $__g_DL_aItems[0]
         If $aCursor[4] = $__g_DL_aItems[$i] Then
             $iFound = $i
@@ -264,6 +267,7 @@ EndFunc
 Func _DL_UpdateHighlight($iCurrentDesktop)
     If Not $__g_DL_bVisible Then Return
     If UBound($__g_DL_aItems) < 2 Or $__g_DL_aItems[0] < 1 Then Return
+    Local $i
     For $i = 1 To $__g_DL_aItems[0]
         If $i = $__g_DL_iHovered And $i <> $iCurrentDesktop Then ContinueLoop
         If $i = $iCurrentDesktop Then
@@ -737,6 +741,7 @@ Func _DL_ColorPickerShow($iTarget)
     ; 7 preset colors with names
     Local $aColorNames[8] = [7, "Blue", "Green", "Orange", "Yellow", "Purple", "Pink", "Teal"]
     $__g_DL_aColorPresetIDs[0] = 7
+    Local $i
     For $i = 1 To 7
         Local $iColor = $THEME_PRESET_COLORS[$i]
         $__g_DL_aColorPresetIDs[$i] = GUICtrlCreateLabel("  " & ChrW(0x25CF) & "  " & $aColorNames[$i], 6, $iY, $iPickerW - 12, 24, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))

@@ -418,6 +418,7 @@ Func _Theme_LoadFonts()
     Local $sFontsDir = @ScriptDir & "\fonts"
     Local $aFiles[2] = ["FiraCode-Regular.ttf", "FiraCode-Bold.ttf"]
     Local $bAnyLoaded = False
+    Local $i
     For $i = 0 To UBound($aFiles) - 1
         Local $sPath = $sFontsDir & "\" & $aFiles[$i]
         If FileExists($sPath) Then
@@ -442,6 +443,7 @@ EndFunc
 Func _Theme_UnloadFonts()
     Local $sFontsDir = @ScriptDir & "\fonts"
     Local $aFiles[2] = ["FiraCode-Regular.ttf", "FiraCode-Bold.ttf"]
+    Local $i
     For $i = 0 To UBound($aFiles) - 1
         Local $sPath = $sFontsDir & "\" & $aFiles[$i]
         If FileExists($sPath) Then

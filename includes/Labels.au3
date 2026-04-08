@@ -125,6 +125,7 @@ EndFunc
 ;              OS names take priority (are not overwritten).
 ; Parameters:  $iCount - number of desktops to sync
 Func _Labels_PushAllToOS($iCount)
+    Local $i
     For $i = 1 To $iCount
         Local $sOsName = _VD_GetName($i)
         Local $sIniName = IniRead($__g_Labels_IniPath, "Labels", "desktop_" & $i, "")

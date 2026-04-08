@@ -150,6 +150,7 @@ Func _VD_EnumWindowsOnDesktop($iDesktop)
     Local $aAll = WinList("")
     Local $aResult[$aAll[0][0] + 1]
     $aResult[0] = 0
+    Local $i
     For $i = 1 To $aAll[0][0]
         Local $hWnd = $aAll[$i][1]
         If $hWnd = 0 Then ContinueLoop
@@ -179,6 +180,7 @@ Func _VD_SwapDesktops($iA, $iB)
     Local $aWinA = _VD_EnumWindowsOnDesktop($iA)
     Local $aWinB = _VD_EnumWindowsOnDesktop($iB)
     ; Move A's windows to B
+    Local $i
     For $i = 1 To $aWinA[0]
         _VD_MoveWindowToDesktop($aWinA[$i], $iB)
     Next
