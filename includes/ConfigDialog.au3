@@ -64,7 +64,7 @@ Global $__g_CD_idChkLogging, $__g_CD_idInpLogPath, $__g_CD_idLblLogLevel
 
 ; -- Buttons --
 Global $__g_CD_idBtnApply, $__g_CD_idBtnClose
-Global $__g_CD_idBtnImport, $__g_CD_idBtnExport
+Global $__g_CD_idBtnImport, $__g_CD_idBtnExport, $__g_CD_idBtnRestart
 
 ; -- Checkbox state tracking --
 Global $__g_CD_aChkIDs[20]     ; control IDs
@@ -119,26 +119,33 @@ Func _CD_Show()
     __CD_BuildTabColors()
     __CD_BuildTabLogging()
 
-    ; Import + Export buttons (top row)
+    ; Import + Export + Restart buttons (top row)
     Local $iBtnW = 80, $iBtnH = 26
     Local $iGap = 10
     Local $iRow1Y = $iH - 70
-    Local $iImpExpW = ($iBtnW * 2 + $iGap)
-    Local $iImpExpX = ($iW - $iImpExpW) / 2
+    Local $iRow1TotalW = $iBtnW * 3 + $iGap * 2
+    Local $iRow1X = ($iW - $iRow1TotalW) / 2
 
-    $__g_CD_idBtnImport = GUICtrlCreateLabel("Import", $iImpExpX, $iRow1Y, $iBtnW, $iBtnH, _
+    $__g_CD_idBtnImport = GUICtrlCreateLabel("Import", $iRow1X, $iRow1Y, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnImport, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnImport, $THEME_FG_DIM)
     GUICtrlSetBkColor($__g_CD_idBtnImport, $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnImport, 0)
 
-    $__g_CD_idBtnExport = GUICtrlCreateLabel("Export", $iImpExpX + $iBtnW + $iGap, $iRow1Y, $iBtnW, $iBtnH, _
+    $__g_CD_idBtnExport = GUICtrlCreateLabel("Export", $iRow1X + $iBtnW + $iGap, $iRow1Y, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnExport, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnExport, $THEME_FG_DIM)
     GUICtrlSetBkColor($__g_CD_idBtnExport, $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnExport, 0)
+
+    $__g_CD_idBtnRestart = GUICtrlCreateLabel(ChrW(0x21BB) & " Restart", $iRow1X + ($iBtnW + $iGap) * 2, $iRow1Y, $iBtnW, $iBtnH, _
+        BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBtnRestart, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBtnRestart, $THEME_FG_LINK)
+    GUICtrlSetBkColor($__g_CD_idBtnRestart, $THEME_BG_HOVER)
+    GUICtrlSetCursor($__g_CD_idBtnRestart, 0)
 
     ; Apply + Reset + Close buttons (bottom row)
     Local $iRow2Y = $iH - 38
@@ -714,6 +721,9 @@ Func __CD_MessageLoop()
                     __CD_ImportSettings()
                 Case $__g_CD_idBtnExport
                     __CD_ExportSettings()
+                Case $__g_CD_idBtnRestart
+                    __CD_RestartApp()
+                    ExitLoop
                 Case $__g_CD_idBtnClose
                     ExitLoop
             EndSwitch
@@ -750,11 +760,13 @@ Func __CD_MessageLoop()
             If $aCursor[4] = $__g_CD_idBtnClose Then $iFound = $__g_CD_idBtnClose
             If $aCursor[4] = $__g_CD_idBtnImport Then $iFound = $__g_CD_idBtnImport
             If $aCursor[4] = $__g_CD_idBtnExport Then $iFound = $__g_CD_idBtnExport
+            If $aCursor[4] = $__g_CD_idBtnRestart Then $iFound = $__g_CD_idBtnRestart
             If $iFound <> $iHovered Then
                 If $iHovered <> 0 Then
                     Local $iFgRestore = $THEME_FG_MENU
                     If $iHovered = $__g_CD_idBtnReset Then $iFgRestore = 0xCC6666
                     If $iHovered = $__g_CD_idBtnImport Or $iHovered = $__g_CD_idBtnExport Then $iFgRestore = $THEME_FG_DIM
+                    If $iHovered = $__g_CD_idBtnRestart Then $iFgRestore = $THEME_FG_LINK
                     _Theme_RemoveHover($iHovered, $iFgRestore, $THEME_BG_HOVER)
                 EndIf
                 $iHovered = $iFound
@@ -941,4 +953,18 @@ Func __CD_ExportSettings()
             _Theme_Toast("Export failed", $aPos2[0], $aPos2[1] + $aPos2[3] + 4, 1500, $TOAST_ERROR)
         EndIf
     EndIf
+EndFunc
+
+; Name:        __CD_RestartApp
+; Description: Relaunches the application and exits the current instance
+Func __CD_RestartApp()
+    _CD_Destroy()
+    Local $sCmd
+    If @Compiled Then
+        $sCmd = '"' & @ScriptFullPath & '"'
+    Else
+        $sCmd = '"' & @AutoItExe & '" "' & @ScriptFullPath & '"'
+    EndIf
+    Run($sCmd)
+    _Shutdown()
 EndFunc
