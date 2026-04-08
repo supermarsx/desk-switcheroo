@@ -101,15 +101,31 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Install tools
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: desk-switcheroo-build
+          path: build/
+      - name: Create source zip (au3 scripts + DLL + fonts)
         run: |
-          choco install autoit nsis -y --no-progress
-      - name: Package
-        run: pwsh scripts/package.ps1
+          $sourceDir = "build\_source"
+          New-Item $sourceDir -ItemType Directory -Force | Out-Null
+          Copy-Item desktop_switcher.au3 $sourceDir\
+          Copy-Item -Path includes -Destination $sourceDir\includes -Recurse
+          Copy-Item VirtualDesktopAccessor.dll $sourceDir\
+          if (Test-Path fonts) { Copy-Item -Path fonts -Destination $sourceDir\fonts -Recurse }
+          if (Test-Path assets) { Copy-Item -Path assets -Destination $sourceDir\assets -Recurse }
+          if (Test-Path license.md) { Copy-Item license.md $sourceDir\ }
+          if (Test-Path README.md) { Copy-Item README.md $sourceDir\ }
+          Compress-Archive -Path "$sourceDir\*" -DestinationPath build\DeskSwitcheroo_Source.zip -Force
+          Remove-Item $sourceDir -Recurse -Force
+          Write-Host "Source zip created" -ForegroundColor Green
+        shell: pwsh
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             build/DeskSwitcheroo_Setup.exe
             build/DeskSwitcheroo_Portable.zip
+            build/DeskSwitcheroo_Source.zip
           generate_release_notes: true
