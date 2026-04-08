@@ -28,6 +28,7 @@ Global Const $DESKTOP_LIMIT = 20
 
 ; ---- Ensure cleanup on unexpected exit ----
 Global $__g_bShuttingDown = False
+Global $__g_bPeekWasActive = False
 OnAutoItExitRegister("_OnExit")
 
 ; ---- Singleton: kill previous instance on relaunch ----
@@ -703,11 +704,15 @@ While 1
     ; Peek bounce-back
     _Peek_CheckBounce()
 
-    ; Peek visual indicator on widget
-    If _Peek_IsActive() Then
-        GUICtrlSetColor($lblNum, $THEME_FG_LINK) ; blue tint when peeking
-    Else
-        GUICtrlSetColor($lblNum, $THEME_FG_PRIMARY) ; normal
+    ; Peek visual indicator on widget (only update on state change to avoid flicker)
+    Local $bPeekNow = _Peek_IsActive()
+    If $bPeekNow <> $__g_bPeekWasActive Then
+        If $bPeekNow Then
+            GUICtrlSetColor($lblNum, $THEME_FG_LINK)
+        Else
+            GUICtrlSetColor($lblNum, $THEME_FG_PRIMARY)
+        EndIf
+        $__g_bPeekWasActive = $bPeekNow
     EndIf
 
     ; Auto-hide temp list and context menus
