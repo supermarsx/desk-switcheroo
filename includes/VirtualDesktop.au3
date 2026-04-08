@@ -115,7 +115,7 @@ Func _VD_SetName($iDesktop, $sName)
     DllStructSetData($tBuf, 1, 0, $iLen + 1)
     Local $aResult = DllCall($__g_VD_hDLL, "int", "SetDesktopName", "int", $iDesktop - 1, _
         "ptr", DllStructGetPtr($tBuf))
-    If @error Or $aResult[0] <> 0 Then Return False
+    If @error Then Return False
     Return True
 EndFunc
 
