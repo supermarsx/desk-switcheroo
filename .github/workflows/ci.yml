@@ -48,11 +48,15 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install AutoIt
         run: choco install autoit -y --no-progress
-      - name: Run tests
+      - name: Run tests (x64 for DLL compatibility)
         run: |
-          $env:Path += ";C:\Program Files (x86)\AutoIt3"
-          & AutoIt3.exe /ErrorStdOut tests\TestRunner.au3 2>&1 | Tee-Object -FilePath test_output.txt
-          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $au3 = "C:\Program Files (x86)\AutoIt3\AutoIt3_x64.exe"
+          if (-not (Test-Path $au3)) { $au3 = "C:\Program Files (x86)\AutoIt3\AutoIt3.exe" }
+          Write-Host "Using: $au3"
+          & $au3 /ErrorStdOut tests\TestRunner.au3 2>&1 | Tee-Object -FilePath test_output.txt
+          $code = $LASTEXITCODE
+          Get-Content test_output.txt
+          exit $code
         shell: pwsh
       - name: Upload test output
         if: always()

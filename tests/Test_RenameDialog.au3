@@ -65,6 +65,20 @@ Func _RunTest_RenameDialog()
     _Test_AssertEqual("HandleEvent(0) = empty", _RD_HandleEvent(0), "")
     _RD_Destroy()
 
+    ; -- Double show is no-op --
+    _RD_Show(1, $iTestTaskbarY)
+    _RD_Show(1, $iTestTaskbarY) ; second call should be ignored
+    _Test_AssertTrue("Double show: still visible", _RD_IsVisible())
+    _RD_Destroy()
+
+    ; -- Submit when cancelled returns empty (dialog stays open, caller destroys) --
+    _RD_Show(1, $iTestTaskbarY)
+    _RD_SetCancelled()
+    Local $sCancelResult = _RD_Submit(1)
+    _Test_AssertEqual("Submit when cancelled returns empty", $sCancelResult, "")
+    _Test_AssertTrue("Still visible after cancelled submit", _RD_IsVisible())
+    _RD_Destroy()
+
     ; -- Cleanup --
     _RD_Shutdown()
     FileDelete($sTempIni)

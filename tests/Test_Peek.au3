@@ -61,6 +61,21 @@ Func _RunTest_Peek()
     _Peek_StartBounceBack()
     _Test_AssertFalse("StartBounceBack when inactive: still inactive", _Peek_IsActive())
 
+    ; -- Multiple starts don't lose origin --
+    _Peek_Start($iOriginal)
+    _Peek_Start($iOriginal)
+    _Peek_Start($iOriginal)
+    _Test_AssertTrue("Triple start: still active", _Peek_IsActive())
+    _Peek_End()
+    _Test_AssertFalse("Triple start: end works", _Peek_IsActive())
+
+    ; -- Commit after end is safe --
+    _Peek_Commit()
+    _Test_AssertFalse("Commit after end: still inactive", _Peek_IsActive())
+
+    ; -- CheckBounce when not bouncing returns False --
+    _Test_AssertFalse("CheckBounce when idle", _Peek_CheckBounce())
+
     ; Restore desktop
     _VD_GoTo($iOriginal)
 EndFunc

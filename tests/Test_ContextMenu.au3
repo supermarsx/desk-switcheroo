@@ -46,6 +46,17 @@ Func _RunTest_ContextMenu()
     _Test_AssertFalse("Destroy: not visible", _CM_IsVisible())
     _Test_AssertEqual("Destroy: GUI = 0", _CM_GetGUI(), 0)
 
+    ; -- HandleClick with settings returns 'settings' --
+    _CM_Show($iTestTaskbarY, False)
+    _Test_AssertEqual("HandleClick(settings) = 'settings'", _CM_HandleClick(_CM_GetSettingsID()), "settings")
+
+    ; -- HandleClick with import returns 'import' --
+    _Test_AssertEqual("HandleClick(import) = 'import'", _CM_HandleClick(_CM_GetImportID()), "import")
+
+    ; -- HandleClick with export returns 'export' --
+    _Test_AssertEqual("HandleClick(export) = 'export'", _CM_HandleClick(_CM_GetExportID()), "export")
+    _CM_Destroy()
+
     ; -- Show with list visible changes toggle text --
     _CM_Show($iTestTaskbarY, True)
     _Test_AssertTrue("Show with list: visible", _CM_IsVisible())

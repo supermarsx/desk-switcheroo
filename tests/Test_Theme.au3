@@ -53,4 +53,42 @@ Func _RunTest_Theme()
     _Test_AssertLessEqual("ALPHA_MENU <= 255", $THEME_ALPHA_MENU, 255)
     _Test_AssertGreaterEqual("ALPHA_DIALOG >= 0", $THEME_ALPHA_DIALOG, 0)
     _Test_AssertLessEqual("ALPHA_DIALOG <= 255", $THEME_ALPHA_DIALOG, 255)
+
+    ; -- Preset colors array --
+    _Test_AssertEqual("Preset colors count", $THEME_PRESET_COLORS[0], 7)
+    _Test_AssertNotEqual("Preset color 1 exists", $THEME_PRESET_COLORS[1], 0)
+    _Test_AssertNotEqual("Preset color 7 exists", $THEME_PRESET_COLORS[7], 0)
+
+    ; -- Toast status color constants --
+    _Test_AssertNotEqual("TOAST_SUCCESS defined", $TOAST_SUCCESS, 0)
+    _Test_AssertNotEqual("TOAST_ERROR defined", $TOAST_ERROR, 0)
+    _Test_AssertNotEqual("TOAST_WARNING defined", $TOAST_WARNING, 0)
+    _Test_AssertNotEqual("TOAST_INFO defined", $TOAST_INFO, 0)
+
+    ; -- Hex color validation --
+    _Test_AssertEqual("Valid hex color", _Theme_ValidateHexColor("FF0000"), 0xFF0000)
+    _Test_AssertEqual("Valid hex lowercase", _Theme_ValidateHexColor("aabbcc"), 0xAABBCC)
+    _Test_AssertEqual("Valid with 0x prefix", _Theme_ValidateHexColor("0xFF0000"), 0xFF0000)
+    _Test_AssertEqual("Valid with 0X prefix", _Theme_ValidateHexColor("0XFF0000"), 0xFF0000)
+    _Test_AssertEqual("Invalid: too short", _Theme_ValidateHexColor("FFF"), -1)
+    _Test_AssertEqual("Invalid: too long", _Theme_ValidateHexColor("FF00001"), -1)
+    _Test_AssertEqual("Invalid: non-hex chars", _Theme_ValidateHexColor("GGHHII"), -1)
+    _Test_AssertEqual("Invalid: empty", _Theme_ValidateHexColor(""), -1)
+
+    ; -- Font fallback --
+    ; _Theme_GetMonoFont should return a non-empty string
+    _Test_AssertNotEqual("Mono font not empty", _Theme_GetMonoFont(), "")
+
+    ; -- Background colors are non-const (mutable for themes) --
+    Local $iBgOrig = $THEME_BG_MAIN
+    _Test_AssertGreaterEqual("BG_MAIN valid", $THEME_BG_MAIN, 0)
+
+    ; -- Link color --
+    _Test_AssertNotEqual("FG_LINK defined", $THEME_FG_LINK, 0)
+
+    ; -- Drop target color --
+    _Test_AssertNotEqual("BG_DROP_TARGET defined", $THEME_BG_DROP_TARGET, 0)
+
+    ; -- Drag dim color --
+    _Test_AssertEqual("FG_DRAG_DIM value", $THEME_FG_DRAG_DIM, 0x555555)
 EndFunc

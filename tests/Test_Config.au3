@@ -165,6 +165,69 @@ Func _RunTest_Config()
     _Cfg_DisableStartup()
     _Test_AssertFalse("Startup disabled in registry", _Cfg_IsStartupEnabled())
 
+    ; -- Start minimized default --
+    _Test_AssertFalse("Default: start_minimized", _Cfg_GetStartMinimized())
+    _Cfg_SetStartMinimized(True)
+    _Test_AssertTrue("Set+Get: start_minimized", _Cfg_GetStartMinimized())
+
+    ; -- Theme default --
+    _Test_AssertEqual("Default: theme", _Cfg_GetTheme(), "dark")
+    _Cfg_SetTheme("midnight")
+    _Test_AssertEqual("Set+Get: theme", _Cfg_GetTheme(), "midnight")
+    _Cfg_SetTheme("invalid")
+    _Test_AssertEqual("Invalid theme falls back", _Cfg_GetTheme(), "dark")
+
+    ; -- List keyboard nav default --
+    _Test_AssertFalse("Default: list_keyboard_nav", _Cfg_GetListKeyboardNav())
+    _Cfg_SetListKeyboardNav(True)
+    _Test_AssertTrue("Set+Get: list_keyboard_nav", _Cfg_GetListKeyboardNav())
+
+    ; -- Import/Export round-trip --
+    Local $sExportPath = @TempDir & "\desk_switcheroo_export_test.ini"
+    If FileExists($sExportPath) Then FileDelete($sExportPath)
+    _Cfg_SetScrollEnabled(True)
+    _Cfg_SetNumberPadding(3)
+    _Cfg_Save()
+    _Test_AssertTrue("Export succeeds", _Cfg_Export($sExportPath))
+    _Test_AssertTrue("Export file exists", FileExists($sExportPath) <> 0)
+    ; Change values in memory
+    _Cfg_SetScrollEnabled(False)
+    _Cfg_SetNumberPadding(1)
+    ; Import back
+    _Test_AssertTrue("Import succeeds", _Cfg_Import($sExportPath))
+    _Test_AssertTrue("Import restored scroll_enabled", _Cfg_GetScrollEnabled())
+    _Test_AssertEqual("Import restored number_padding", _Cfg_GetNumberPadding(), 3)
+    FileDelete($sExportPath)
+
+    ; -- Import non-existent file fails --
+    _Test_AssertFalse("Import nonexistent fails", _Cfg_Import("C:\nonexistent\fake.ini"))
+
+    ; -- Edge case: empty string config values --
+    _Cfg_SetHotkeyNext("")
+    _Cfg_Save()
+    _Cfg_Load()
+    _Test_AssertEqual("Empty hotkey persists", _Cfg_GetHotkeyNext(), "")
+
+    ; -- Edge case: special characters in log path --
+    _Cfg_SetLogFilePath("C:\Users\test dir\my log.log")
+    _Test_AssertEqual("Special chars in log path", _Cfg_GetLogFilePath(), "C:\Users\test dir\my log.log")
+
+    ; -- Edge case: boundary values --
+    _Cfg_SetThemeAlphaMain(50)
+    _Test_AssertEqual("Alpha at min boundary", _Cfg_GetThemeAlphaMain(), 50)
+    _Cfg_SetThemeAlphaMain(255)
+    _Test_AssertEqual("Alpha at max boundary", _Cfg_GetThemeAlphaMain(), 255)
+    _Cfg_SetNumberPadding(1)
+    _Test_AssertEqual("Padding at min", _Cfg_GetNumberPadding(), 1)
+    _Cfg_SetNumberPadding(4)
+    _Test_AssertEqual("Padding at max", _Cfg_GetNumberPadding(), 4)
+
+    ; -- Desktop color set and clear --
+    _Cfg_SetDesktopColor(5, 0xFF0000)
+    _Test_AssertEqual("Set desktop color", _Cfg_GetDesktopColor(5), 0xFF0000)
+    _Cfg_SetDesktopColor(5, 0)
+    _Test_AssertEqual("Clear desktop color to none", _Cfg_GetDesktopColor(5), 0)
+
     ; -- Cleanup --
     FileDelete($sTempIni)
 EndFunc

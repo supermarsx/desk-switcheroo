@@ -49,6 +49,29 @@ Func _RunTest_Labels()
     _Test_AssertEqual("Multi: desktop 4", _Labels_Load(4), "Delta")
     _Test_AssertEqual("Multi: desktop 5", _Labels_Load(5), "Epsilon")
 
+    ; -- Unicode characters in labels --
+    _Labels_Save(1, "Área de Trabalho")
+    _Test_AssertEqual("Unicode label", _Labels_Load(1), "Área de Trabalho")
+
+    ; -- Very long label --
+    Local $sLong = ""
+    Local $j
+    For $j = 1 To 50
+        $sLong &= "A"
+    Next
+    _Labels_Save(1, $sLong)
+    _Test_AssertEqual("Long label length", StringLen(_Labels_Load(1)), 50)
+
+    ; -- Label with equals sign (INI edge case) --
+    _Labels_Save(1, "key=value")
+    _Test_AssertEqual("Label with equals", _Labels_Load(1), "key=value")
+
+    ; -- Sync enabled check --
+    _Test_AssertFalse("Sync disabled in test", _Labels_IsSyncEnabled())
+
+    ; -- SyncFromOS returns false when disabled --
+    _Test_AssertFalse("SyncFromOS false when disabled", _Labels_SyncFromOS())
+
     ; -- Cleanup --
     FileDelete($sTempIni)
 EndFunc
