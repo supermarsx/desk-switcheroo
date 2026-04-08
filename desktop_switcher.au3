@@ -1207,22 +1207,22 @@ EndFunc
 ; Name:        _ShowAbout
 ; Description: About dialog with credit links and 15-second auto-close timeout
 Func _ShowAbout()
-    Local $iDlgW = 350, $iDlgH = 260
+    Local $iDlgW = 350, $iDlgH = 230
     Local $iDlgX = (@DesktopWidth - $iDlgW) / 2
     Local $iDlgY = (@DesktopHeight - $iDlgH) / 2
 
     Local $hDlg = _Theme_CreatePopup("About", $iDlgW, $iDlgH, $iDlgX, $iDlgY, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
 
-    ; Icon
+    ; Icon + Title (side by side)
     Local $sIconPath = @ScriptDir & "\assets\desk_switcheroo.ico"
-    Local $iContentY = 10
+    Local $iTitleX = 14
     If FileExists($sIconPath) Then
-        GUICtrlCreateIcon($sIconPath, -1, ($iDlgW - 32) / 2, 10, 32, 32)
-        $iContentY = 48
+        GUICtrlCreateIcon($sIconPath, -1, 14, 12, 32, 32)
+        $iTitleX = 54
     EndIf
 
     ; Title
-    GUICtrlCreateLabel("Desk Switcheroo", 14, $iContentY, $iDlgW - 28, 22)
+    GUICtrlCreateLabel("Desk Switcheroo", $iTitleX, 10, $iDlgW - $iTitleX - 14, 22)
     GUICtrlSetFont(-1, 11, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
@@ -1230,13 +1230,13 @@ Func _ShowAbout()
     ; Description
     GUICtrlCreateLabel("Lightweight virtual desktop switcher for Windows." & @CRLF & _
         "Navigate, rename, peek, and manage desktops" & @CRLF & _
-        "from a compact taskbar widget. Built with AutoIt.", 14, $iContentY + 26, $iDlgW - 28, 48)
+        "from a compact taskbar widget. Built with AutoIt.", $iTitleX, 36, $iDlgW - $iTitleX - 14, 48)
     GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_NORMAL)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
     ; Repo link
-    Local $iLY = $iContentY + 80
+    Local $iLY = 90
     GUICtrlCreateLabel("Repository:", 14, $iLY, 70, 16)
     GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_DIM)
