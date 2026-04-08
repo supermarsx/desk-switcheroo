@@ -64,6 +64,7 @@ Global $__g_CD_idChkLogging, $__g_CD_idInpLogPath, $__g_CD_idLblLogLevel
 
 ; -- Buttons --
 Global $__g_CD_idBtnApply, $__g_CD_idBtnClose
+Global $__g_CD_idBtnImport, $__g_CD_idBtnExport
 
 ; -- Checkbox state tracking --
 Global $__g_CD_aChkIDs[20]     ; control IDs
@@ -78,7 +79,7 @@ Global $__g_CD_idBtnReset
 ; #FUNCTIONS# ===================================================
 
 Func _CD_Show()
-    Local $iW = 460, $iH = 440
+    Local $iW = 460, $iH = 475
     Local $iX = (@DesktopWidth - $iW) / 2
     Local $iY = (@DesktopHeight - $iH) / 2
 
@@ -118,27 +119,47 @@ Func _CD_Show()
     __CD_BuildTabColors()
     __CD_BuildTabLogging()
 
-    ; Apply + Reset + Close buttons
-    Local $iBtnW = 80, $iBtnH = 28, $iBtnY = $iH - 38
+    ; Import + Export buttons (top row)
+    Local $iBtnW = 80, $iBtnH = 26
     Local $iGap = 10
+    Local $iRow1Y = $iH - 70
+    Local $iImpExpW = ($iBtnW * 2 + $iGap)
+    Local $iImpExpX = ($iW - $iImpExpW) / 2
+
+    $__g_CD_idBtnImport = GUICtrlCreateLabel("Import", $iImpExpX, $iRow1Y, $iBtnW, $iBtnH, _
+        BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBtnImport, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBtnImport, $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idBtnImport, $THEME_BG_HOVER)
+    GUICtrlSetCursor($__g_CD_idBtnImport, 0)
+
+    $__g_CD_idBtnExport = GUICtrlCreateLabel("Export", $iImpExpX + $iBtnW + $iGap, $iRow1Y, $iBtnW, $iBtnH, _
+        BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBtnExport, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBtnExport, $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idBtnExport, $THEME_BG_HOVER)
+    GUICtrlSetCursor($__g_CD_idBtnExport, 0)
+
+    ; Apply + Reset + Close buttons (bottom row)
+    Local $iRow2Y = $iH - 38
     Local $iTotalW = $iBtnW * 3 + $iGap * 2
     Local $iBtnX = ($iW - $iTotalW) / 2
 
-    $__g_CD_idBtnApply = GUICtrlCreateLabel("Apply", $iBtnX, $iBtnY, $iBtnW, $iBtnH, _
+    $__g_CD_idBtnApply = GUICtrlCreateLabel("Apply", $iBtnX, $iRow2Y, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnApply, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnApply, $THEME_FG_MENU)
     GUICtrlSetBkColor($__g_CD_idBtnApply, $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnApply, 0)
 
-    $__g_CD_idBtnReset = GUICtrlCreateLabel("Reset", $iBtnX + $iBtnW + $iGap, $iBtnY, $iBtnW, $iBtnH, _
+    $__g_CD_idBtnReset = GUICtrlCreateLabel("Reset", $iBtnX + $iBtnW + $iGap, $iRow2Y, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnReset, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnReset, 0xCC6666)
     GUICtrlSetBkColor($__g_CD_idBtnReset, $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnReset, 0)
 
-    $__g_CD_idBtnClose = GUICtrlCreateLabel("Close", $iBtnX + ($iBtnW + $iGap) * 2, $iBtnY, $iBtnW, $iBtnH, _
+    $__g_CD_idBtnClose = GUICtrlCreateLabel("Close", $iBtnX + ($iBtnW + $iGap) * 2, $iRow2Y, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnClose, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnClose, $THEME_FG_MENU)
@@ -689,6 +710,10 @@ Func __CD_MessageLoop()
                     __CD_ApplyChanges()
                 Case $__g_CD_idBtnReset
                     __CD_ResetDefaults()
+                Case $__g_CD_idBtnImport
+                    __CD_ImportSettings()
+                Case $__g_CD_idBtnExport
+                    __CD_ExportSettings()
                 Case $__g_CD_idBtnClose
                     ExitLoop
             EndSwitch
@@ -723,10 +748,13 @@ Func __CD_MessageLoop()
             If $aCursor[4] = $__g_CD_idBtnApply Then $iFound = $__g_CD_idBtnApply
             If $aCursor[4] = $__g_CD_idBtnReset Then $iFound = $__g_CD_idBtnReset
             If $aCursor[4] = $__g_CD_idBtnClose Then $iFound = $__g_CD_idBtnClose
+            If $aCursor[4] = $__g_CD_idBtnImport Then $iFound = $__g_CD_idBtnImport
+            If $aCursor[4] = $__g_CD_idBtnExport Then $iFound = $__g_CD_idBtnExport
             If $iFound <> $iHovered Then
                 If $iHovered <> 0 Then
                     Local $iFgRestore = $THEME_FG_MENU
                     If $iHovered = $__g_CD_idBtnReset Then $iFgRestore = 0xCC6666
+                    If $iHovered = $__g_CD_idBtnImport Or $iHovered = $__g_CD_idBtnExport Then $iFgRestore = $THEME_FG_DIM
                     _Theme_RemoveHover($iHovered, $iFgRestore, $THEME_BG_HOVER)
                 EndIf
                 $iHovered = $iFound
@@ -870,5 +898,45 @@ Func __CD_ResetDefaults()
     Local $aPos = WinGetPos($__g_CD_hGUI)
     If Not @error Then
         _Theme_Toast("Reset to defaults", $aPos[0], $aPos[1] + $aPos[3] + 4, 1500, $TOAST_WARNING)
+    EndIf
+EndFunc
+
+; Name:        __CD_ImportSettings
+; Description: Opens a file dialog to import settings from an external INI file
+Func __CD_ImportSettings()
+    Local $sPath = FileOpenDialog("Import Settings", @DesktopDir, "INI Files (*.ini)", 1, "", $__g_CD_hGUI)
+    If $sPath = "" Or @error Then Return
+    If _Cfg_Import($sPath) Then
+        _ApplySettingsLive()
+        __CD_PopulateControls()
+        Local $aPos = WinGetPos($__g_CD_hGUI)
+        If Not @error Then
+            _Theme_Toast("Settings imported", $aPos[0], $aPos[1] + $aPos[3] + 4, 1500, $TOAST_SUCCESS)
+        EndIf
+    Else
+        Local $aPos2 = WinGetPos($__g_CD_hGUI)
+        If Not @error Then
+            _Theme_Toast("Import failed", $aPos2[0], $aPos2[1] + $aPos2[3] + 4, 1500, $TOAST_ERROR)
+        EndIf
+    EndIf
+EndFunc
+
+; Name:        __CD_ExportSettings
+; Description: Opens a file dialog to export current settings to an INI file
+Func __CD_ExportSettings()
+    Local $sPath = FileSaveDialog("Export Settings", @DesktopDir, "INI Files (*.ini)", 16, "desk_switcheroo.ini", $__g_CD_hGUI)
+    If $sPath = "" Or @error Then Return
+    ; Ensure .ini extension
+    If StringRight($sPath, 4) <> ".ini" Then $sPath &= ".ini"
+    If _Cfg_Export($sPath) Then
+        Local $aPos = WinGetPos($__g_CD_hGUI)
+        If Not @error Then
+            _Theme_Toast("Settings exported", $aPos[0], $aPos[1] + $aPos[3] + 4, 1500, $TOAST_SUCCESS)
+        EndIf
+    Else
+        Local $aPos2 = WinGetPos($__g_CD_hGUI)
+        If Not @error Then
+            _Theme_Toast("Export failed", $aPos2[0], $aPos2[1] + $aPos2[3] + 4, 1500, $TOAST_ERROR)
+        EndIf
     EndIf
 EndFunc
