@@ -47,17 +47,15 @@ $srcPath = Join-Path $root "desktop_switcher.au3"
 $outPath = Join-Path $buildDir "DeskSwitcheroo.exe"
 Write-Host "Compiling $srcPath -> $outPath" -ForegroundColor Cyan
 
-& $aut2exe /in $srcPath /out $outPath /x64 @iconArgs
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "Compilation failed with exit code $LASTEXITCODE"
-    exit 1
-}
+& $aut2exe /in $srcPath /out $outPath /x64 @iconArgs 2>&1 | Write-Host
 
-# Verify output exists
+# Verify output exists (Aut2Exe doesn't always set exit codes reliably)
+Start-Sleep -Seconds 2
 if (-not (Test-Path $outPath)) {
-    Write-Error "Compilation produced no output file at $outPath"
+    Write-Error "Compilation failed — no output file at $outPath"
     exit 1
 }
+Write-Host "Compiled successfully: $outPath" -ForegroundColor Green
 
 # Copy runtime dependencies
 Copy-Item (Join-Path $root "VirtualDesktopAccessor.dll") $buildDir -Force
