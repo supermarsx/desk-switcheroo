@@ -34,6 +34,7 @@ Global $__g_CD_idLblPosition ; label that cycles left/center/right
 
 ; -- Tab 2: Display --
 Global $__g_CD_idChkShowCount, $__g_CD_idInpCountFont, $__g_CD_idInpOpacity
+Global $__g_CD_idLblTheme
 
 ; -- Tab 3: Scroll --
 Global $__g_CD_idChkScroll, $__g_CD_idChkScrollWrap
@@ -46,6 +47,7 @@ Global $__g_CD_aidInpHkDesktop[10] ; index 1-9
 
 ; -- Tab 1 extras: General --
 Global $__g_CD_idChkWidgetDrag, $__g_CD_idChkTrayMode, $__g_CD_idChkQuickAccess
+Global $__g_CD_idChkListKeyNav
 
 ; -- Tab 5: Behavior --
 Global $__g_CD_idChkConfirmDel, $__g_CD_idChkMidClick, $__g_CD_idChkMoveWin
@@ -344,6 +346,8 @@ Func __CD_BuildTabGeneral()
     $__g_CD_idChkTrayMode = __CD_CreateCheckbox("Tray icon mode", $iX, $iY, 300, $t)
     $iY += 26
     $__g_CD_idChkQuickAccess = __CD_CreateCheckbox("Quick-access number input", $iX, $iY, 300, $t)
+    $iY += 26
+    $__g_CD_idChkListKeyNav = __CD_CreateCheckbox("Keyboard nav in list", $iX, $iY, 300, $t)
 EndFunc
 
 Func __CD_BuildTabDisplay()
@@ -374,6 +378,16 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpOpacity, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpOpacity, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpOpacity)
+    $iY += 30
+
+    $__g_CD_idLblTheme = __CD_CreateCycleLabel("Theme:", $iX, $iY, 165, 90, $t)
+    $iY += 26
+
+    Local $idThemeHint = GUICtrlCreateLabel("Theme change requires restart", $iX + 20, $iY, 250, 16)
+    GUICtrlSetFont($idThemeHint, 7, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idThemeHint, $THEME_FG_LABEL)
+    GUICtrlSetBkColor($idThemeHint, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idThemeHint)
 EndFunc
 
 Func __CD_BuildTabScroll()
@@ -602,11 +616,13 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkWidgetDrag, _Cfg_GetWidgetDragEnabled())
     __CD_SetCheckState($__g_CD_idChkTrayMode, _Cfg_GetTrayIconMode())
     __CD_SetCheckState($__g_CD_idChkQuickAccess, _Cfg_GetQuickAccessEnabled())
+    __CD_SetCheckState($__g_CD_idChkListKeyNav, _Cfg_GetListKeyboardNav())
 
     ; Display
     __CD_SetCheckState($__g_CD_idChkShowCount, _Cfg_GetShowCount())
     GUICtrlSetData($__g_CD_idInpCountFont, _Cfg_GetCountFontSize())
     GUICtrlSetData($__g_CD_idInpOpacity, _Cfg_GetThemeAlphaMain())
+    GUICtrlSetData($__g_CD_idLblTheme, _Cfg_GetTheme())
 
     ; Scroll
     __CD_SetCheckState($__g_CD_idChkScroll, _Cfg_GetScrollEnabled())
@@ -685,6 +701,7 @@ Func __CD_MessageLoop()
             If $id = $__g_CD_idLblPosition Then __CD_CycleValue($id, "left|center|right")
             If $id = $__g_CD_idLblScrollDir Then __CD_CycleValue($id, "normal|inverted")
             If $id = $__g_CD_idLblListAction Then __CD_CycleValue($id, "switch|scroll")
+            If $id = $__g_CD_idLblTheme Then __CD_CycleValue($id, "dark|darker|midnight")
             If $id = $__g_CD_idLblLogLevel Then __CD_CycleValue($id, "error|warn|info|debug")
         EndIf
 
@@ -740,6 +757,7 @@ Func __CD_ApplyChanges()
     _Cfg_SetWidgetDragEnabled(__CD_GetCheckState($__g_CD_idChkWidgetDrag))
     _Cfg_SetTrayIconMode(__CD_GetCheckState($__g_CD_idChkTrayMode))
     _Cfg_SetQuickAccessEnabled(__CD_GetCheckState($__g_CD_idChkQuickAccess))
+    _Cfg_SetListKeyboardNav(__CD_GetCheckState($__g_CD_idChkListKeyNav))
 
     ; Display
     _Cfg_SetShowCount(__CD_GetCheckState($__g_CD_idChkShowCount))
@@ -747,6 +765,8 @@ Func __CD_ApplyChanges()
     If StringIsInt($s) Then _Cfg_SetCountFontSize(Int($s))
     $s = GUICtrlRead($__g_CD_idInpOpacity)
     If StringIsInt($s) Then _Cfg_SetThemeAlphaMain(Int($s))
+    Local $sOldTheme = _Cfg_GetTheme()
+    _Cfg_SetTheme(GUICtrlRead($__g_CD_idLblTheme))
 
     ; Scroll
     _Cfg_SetScrollEnabled(__CD_GetCheckState($__g_CD_idChkScroll))
@@ -782,11 +802,10 @@ Func __CD_ApplyChanges()
     ; Colors
     _Cfg_SetDesktopColorsEnabled(__CD_GetCheckState($__g_CD_idChkColorsEnabled))
     For $i = 1 To 9
-        Local $sHex = GUICtrlRead($__g_CD_aidInpColor[$i])
-        If StringLeft($sHex, 2) = "0x" Or StringLeft($sHex, 2) = "0X" Then $sHex = StringTrimLeft($sHex, 2)
-        If StringLen($sHex) = 6 And StringIsXDigit($sHex) Then
-            _Cfg_SetDesktopColor($i, Int("0x" & $sHex))
-            GUICtrlSetBkColor($__g_CD_aidLblPreview[$i], Int("0x" & $sHex))
+        Local $iValidColor = _Theme_ValidateHexColor(GUICtrlRead($__g_CD_aidInpColor[$i]))
+        If $iValidColor >= 0 Then
+            _Cfg_SetDesktopColor($i, $iValidColor)
+            GUICtrlSetBkColor($__g_CD_aidLblPreview[$i], $iValidColor)
         EndIf
     Next
 
@@ -819,6 +838,12 @@ Func __CD_ApplyChanges()
                 $iToastIcon = $TOAST_ERROR
             EndIf
         EndIf
+    EndIf
+
+    ; Theme change notification
+    If _Cfg_GetTheme() <> $sOldTheme Then
+        $sToastMsg = "Theme changed — restart required"
+        $iToastIcon = $TOAST_WARNING
     EndIf
 
     ; Toast notification

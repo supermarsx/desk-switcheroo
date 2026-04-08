@@ -14,6 +14,18 @@
 #include "includes\DesktopList.au3"
 #include "includes\ConfigDialog.au3"
 
+; ---- Named constants for virtual key codes and magic numbers ----
+Global Const $VK_LBUTTON = 0x01
+Global Const $VK_RBUTTON = 0x02
+Global Const $VK_MBUTTON = 0x04
+Global Const $VK_RETURN  = 0x0D
+Global Const $VK_ESCAPE  = 0x1B
+Global Const $VK_UP      = 0x26
+Global Const $VK_DOWN    = 0x28
+Global Const $TRIPLE_CLICK_MS = 500
+Global Const $QUICK_ACCESS_TIMEOUT = 3000
+Global Const $DESKTOP_LIMIT = 20
+
 ; ---- Ensure cleanup on unexpected exit ----
 Global $__g_bShuttingDown = False
 OnAutoItExitRegister("_OnExit")
@@ -37,6 +49,9 @@ _Theme_LoadFonts()
 
 ; ---- Initialize config ----
 _Cfg_Init()
+
+; ---- Apply theme scheme ----
+_Theme_ApplyScheme(_Cfg_GetTheme())
 
 ; ---- Tray icon visibility ----
 If Not _Cfg_GetTrayIconMode() Then Opt("TrayIconHide", 1)
@@ -227,9 +242,13 @@ While 1
                 If $iDesktop < $iCount2 Then
                     _VD_GoTo($iDesktop + 1)
                 ElseIf _Cfg_GetAutoCreateDesktop() Then
-                    _VD_CreateDesktop()
-                    Sleep(100)
-                    _VD_GoTo($iDesktop + 1)
+                    If _VD_GetCount() >= $DESKTOP_LIMIT Then
+                        _Theme_Toast("Desktop limit reached", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+                    Else
+                        _VD_CreateDesktop()
+                        Sleep(100)
+                        _VD_GoTo($iDesktop + 1)
+                    EndIf
                 ElseIf _Cfg_GetWrapNavigation() Then
                     _VD_GoTo(1)
                 EndIf
@@ -257,9 +276,13 @@ While 1
                 _DL_Toggle($iTaskbarY, $iDesktop)
             Case "add"
                 _CM_Destroy()
-                _VD_CreateDesktop()
-                Sleep(100)
-                _RefreshIndex()
+                If _VD_GetCount() >= $DESKTOP_LIMIT Then
+                    _Theme_Toast("Desktop limit reached", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+                Else
+                    _VD_CreateDesktop()
+                    Sleep(100)
+                    _RefreshIndex()
+                EndIf
             Case "delete"
                 _CM_Destroy()
                 If _VD_GetCount() <= 1 Then
@@ -273,6 +296,27 @@ While 1
                         _VD_RemoveDesktop($iDesktop)
                         Sleep(100)
                         _RefreshIndex()
+                    EndIf
+                EndIf
+            Case "export"
+                _CM_Destroy()
+                Local $sExportPath = FileSaveDialog("Export Settings", @DesktopDir, "INI Files (*.ini)", 16, "desk_switcheroo.ini")
+                If $sExportPath <> "" Then
+                    If _Cfg_Export($sExportPath) Then
+                        _Theme_Toast("Settings exported", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
+                    Else
+                        _Theme_Toast("Export failed", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_ERROR)
+                    EndIf
+                EndIf
+            Case "import"
+                _CM_Destroy()
+                Local $sImportPath = FileOpenDialog("Import Settings", @DesktopDir, "INI Files (*.ini)", 1)
+                If $sImportPath <> "" Then
+                    If _Cfg_Import($sImportPath) Then
+                        _ApplySettingsLive()
+                        _Theme_Toast("Settings imported", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
+                    Else
+                        _Theme_Toast("Import failed", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_ERROR)
                     EndIf
                 EndIf
             Case "settings"
@@ -324,9 +368,13 @@ While 1
                 EndIf
             Case "add"
                 _DL_CtxDestroy()
-                _VD_CreateDesktop()
-                Sleep(100)
-                _RefreshIndex()
+                If _VD_GetCount() >= $DESKTOP_LIMIT Then
+                    _Theme_Toast("Desktop limit reached", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+                Else
+                    _VD_CreateDesktop()
+                    Sleep(100)
+                    _RefreshIndex()
+                EndIf
             Case "delete"
                 _DL_CtxDestroy()
                 If _VD_GetCount() <= 1 Then
@@ -410,7 +458,7 @@ While 1
     EndIf
 
     ; Right-click detection
-    Local $rBtn = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x02)
+    Local $rBtn = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_RBUTTON)
     If @error Or Not IsArray($rBtn) Then ContinueLoop
     Local $bRightDown = (BitAND($rBtn[0], 0x8000) <> 0)
 
@@ -453,7 +501,7 @@ While 1
     $bRightWasDown = $bRightDown
 
     ; Middle-click detection
-    Local $mBtn = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x04)
+    Local $mBtn = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_MBUTTON)
     If @error Or Not IsArray($mBtn) Then ContinueLoop
     Local $bMiddleDown = (BitAND($mBtn[0], 0x8000) <> 0)
 
@@ -480,13 +528,13 @@ While 1
     $bMiddleWasDown = $bMiddleDown
 
     ; Left-click drag detection for desktop list + triple-click + widget drag
-    Local $lBtn = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x01)
+    Local $lBtn = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_LBUTTON)
     If @error Or Not IsArray($lBtn) Then ContinueLoop
     Local $bLeftDown = (BitAND($lBtn[0], 0x8000) <> 0)
 
     If $bLeftDown And Not $bLeftWasDown Then
         ; Track click count for triple-click
-        If TimerDiff($__g_hClickTimer) < 500 Then
+        If TimerDiff($__g_hClickTimer) < $TRIPLE_CLICK_MS Then
             $__g_iClickCount += 1
         Else
             $__g_iClickCount = 1
@@ -543,9 +591,21 @@ While 1
     If Not $bLeftDown And $bLeftWasDown Then
         ; Widget drag end
         If $__g_bWidgetDragging Then
+            ; On drag release, determine position name from final X
             Local $aFinalPos = WinGetPos($gui)
-            _Cfg_SetWidgetPosition("left")
-            _Cfg_SetWidgetOffsetX($aFinalPos[0])
+            Local $iFinalX = $aFinalPos[0]
+            Local $iScreenW = @DesktopWidth
+            Local $iThird = $iScreenW / 3
+            If $iFinalX < $iThird Then
+                _Cfg_SetWidgetPosition("left")
+                _Cfg_SetWidgetOffsetX($iFinalX)
+            ElseIf $iFinalX > $iThird * 2 Then
+                _Cfg_SetWidgetPosition("right")
+                _Cfg_SetWidgetOffsetX($iFinalX - ($iScreenW - $THEME_MAIN_WIDTH))
+            Else
+                _Cfg_SetWidgetPosition("center")
+                _Cfg_SetWidgetOffsetX($iFinalX - ($iScreenW / 2 - $THEME_MAIN_WIDTH / 2))
+            EndIf
             _Cfg_Save()
             $__g_bWidgetDragging = False
             $__g_bWidgetDragPending = False
@@ -567,13 +627,33 @@ While 1
 
     ; Escape cancels drag
     If _DL_IsDragging() Then
-        Local $retEscDrag = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
+        Local $retEscDrag = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_ESCAPE)
         If Not @error And BitAND($retEscDrag[0], 0x8000) <> 0 Then
             _DL_DragCancel($iDesktop)
         EndIf
     EndIf
 
     $bLeftWasDown = $bLeftDown
+
+    ; Keyboard navigation in desktop list
+    If _Cfg_GetListKeyboardNav() And _DL_IsVisible() And Not _DL_IsDragging() Then
+        Local $retUp = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_UP)
+        If Not @error And IsArray($retUp) And BitAND($retUp[0], 0x0001) <> 0 Then
+            If $iDesktop > 1 Then
+                _VD_GoTo($iDesktop - 1)
+                Sleep(50)
+                _RefreshIndex()
+            EndIf
+        EndIf
+        Local $retDown = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_DOWN)
+        If Not @error And IsArray($retDown) And BitAND($retDown[0], 0x0001) <> 0 Then
+            If $iDesktop < _VD_GetCount() Then
+                _VD_GoTo($iDesktop + 1)
+                Sleep(50)
+                _RefreshIndex()
+            EndIf
+        EndIf
+    EndIf
 
     ; Quick-access number input polling
     If $__g_bQuickAccessActive Then _QuickAccess_Check()
@@ -621,6 +701,13 @@ While 1
     ; Peek bounce-back
     _Peek_CheckBounce()
 
+    ; Peek visual indicator on widget
+    If _Peek_IsActive() Then
+        GUICtrlSetColor($lblNum, $THEME_FG_LINK) ; blue tint when peeking
+    Else
+        GUICtrlSetColor($lblNum, $THEME_FG_PRIMARY) ; normal
+    EndIf
+
     ; Auto-hide temp list and context menus
     _DL_CheckAutoHide($gui)
     _CM_CheckAutoHide($gui)
@@ -638,6 +725,8 @@ WEnd
 ; MAIN HELPERS
 ; =============================================
 
+; Name:        _ApplyDesktopChange
+; Description: Updates widget display labels and list after desktop change
 Func _ApplyDesktopChange()
     If _Cfg_GetShowCount() Then
         Local $iTotal = _VD_GetCount()
@@ -696,6 +785,8 @@ Func _ApplySettingsLive()
     _ForceTopMost()
 EndFunc
 
+; Name:        _RefreshIndex
+; Description: Gets current desktop from OS and updates display
 Func _RefreshIndex()
     $iDesktop = _VD_GetCurrent()
     _ApplyDesktopChange()
@@ -720,14 +811,14 @@ Func _QuickAccess_Check()
     If Not $__g_bQuickAccessActive Then Return
 
     ; Check for escape
-    Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
+    Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_ESCAPE)
     If Not @error And BitAND($retEsc[0], 0x8000) <> 0 Then
         _QuickAccess_Cancel()
         Return
     EndIf
 
     ; Check 3s timeout
-    If TimerDiff($__g_hQuickAccessTimer) > 3000 Then
+    If TimerDiff($__g_hQuickAccessTimer) > $QUICK_ACCESS_TIMEOUT Then
         _QuickAccess_Cancel()
         Return
     EndIf
@@ -757,17 +848,25 @@ EndFunc
 ; EVENT-DRIVEN CALLBACKS
 ; =============================================
 
+; Name:        _WM_DESKTOPCHANGE
+; Description: WM handler for VD desktop change notification
+; Parameters:  $hWnd, $iMsg, $wParam, $lParam - standard Windows message params
+; Return:      $GUI_RUNDEFMSG
 Func _WM_DESKTOPCHANGE($hWnd, $iMsg, $wParam, $lParam)
     _VD_InvalidateCountCache()
     $bDesktopChanged = True  ; Always set flag; main loop checks peek state
     Return $GUI_RUNDEFMSG
 EndFunc
 
+; Name:        _AdlibSyncNames
+; Description: Periodic callback to sync OS desktop names
 Func _AdlibSyncNames()
     If _Peek_IsActive() Then Return
     If _Labels_SyncFromOS() Then $bNamesChanged = True
 EndFunc
 
+; Name:        _CheckHover
+; Description: Updates hover highlighting on widget arrow buttons
 Func _CheckHover()
     Local $aCursor = GUIGetCursorInfo($gui)
     If @error Then Return
@@ -801,6 +900,29 @@ EndFunc
 ; SCROLL WHEEL HANDLER
 ; =============================================
 
+; Name:        __ScrollNavigate
+; Description: Navigate to adjacent desktop with optional wrap
+; Parameters:  $iDirection - +1 for next, -1 for prev
+;              $bWrap - whether to wrap at ends
+Func __ScrollNavigate($iDirection, $bWrap)
+    Local $iCount = _VD_GetCount()
+    Local $iNew = $iDesktop + $iDirection
+    If $iNew < 1 Then
+        If Not $bWrap Then Return
+        $iNew = $iCount
+    ElseIf $iNew > $iCount Then
+        If Not $bWrap Then Return
+        $iNew = 1
+    EndIf
+    _VD_GoTo($iNew)
+    Sleep(50)
+    _RefreshIndex()
+EndFunc
+
+; Name:        _WM_MOUSEWHEEL
+; Description: WM handler for mouse scroll wheel events on widget and list
+; Parameters:  $hWnd, $iMsg, $wParam, $lParam - standard Windows message params
+; Return:      0 if handled, $GUI_RUNDEFMSG otherwise
 Func _WM_MOUSEWHEEL($hWnd, $iMsg, $wParam, $lParam)
     Local $iDelta = BitShift(BitAND($wParam, 0xFFFF0000), 16)
     ; Convert to signed
@@ -810,27 +932,9 @@ Func _WM_MOUSEWHEEL($hWnd, $iMsg, $wParam, $lParam)
     If _DL_IsVisible() And $hWnd = _DL_GetGUI() Then
         If Not _Cfg_GetListScrollEnabled() Then Return $GUI_RUNDEFMSG
 
-        ; List scroll: navigate desktops via scroll on list
         Local $iDir = ($iDelta > 0) ? -1 : 1
         If _Cfg_GetScrollDirection() = "inverted" Then $iDir = -$iDir
-        Local $iCount = _VD_GetCount()
-        Local $iNew = $iDesktop + $iDir
-        If $iNew < 1 Then
-            If _Cfg_GetScrollWrap() Then
-                $iNew = $iCount
-            Else
-                Return $GUI_RUNDEFMSG
-            EndIf
-        ElseIf $iNew > $iCount Then
-            If _Cfg_GetScrollWrap() Then
-                $iNew = 1
-            Else
-                Return $GUI_RUNDEFMSG
-            EndIf
-        EndIf
-        _VD_GoTo($iNew)
-        Sleep(50)
-        _RefreshIndex()
+        __ScrollNavigate($iDir, _Cfg_GetScrollWrap())
         Return 0
     EndIf
 
@@ -840,24 +944,7 @@ Func _WM_MOUSEWHEEL($hWnd, $iMsg, $wParam, $lParam)
 
         Local $iDir2 = ($iDelta > 0) ? -1 : 1
         If _Cfg_GetScrollDirection() = "inverted" Then $iDir2 = -$iDir2
-        Local $iCount2 = _VD_GetCount()
-        Local $iNew2 = $iDesktop + $iDir2
-        If $iNew2 < 1 Then
-            If _Cfg_GetScrollWrap() Then
-                $iNew2 = $iCount2
-            Else
-                Return $GUI_RUNDEFMSG
-            EndIf
-        ElseIf $iNew2 > $iCount2 Then
-            If _Cfg_GetScrollWrap() Then
-                $iNew2 = 1
-            Else
-                Return $GUI_RUNDEFMSG
-            EndIf
-        EndIf
-        _VD_GoTo($iNew2)
-        Sleep(50)
-        _RefreshIndex()
+        __ScrollNavigate($iDir2, _Cfg_GetScrollWrap())
         Return 0
     EndIf
 
@@ -868,6 +955,8 @@ EndFunc
 ; TOPMOST ENFORCEMENT
 ; =============================================
 
+; Name:        _ForceTopMost
+; Description: Taskbar tracking and topmost enforcement for the widget
 Func _ForceTopMost()
     ; Don't steal focus from blocking dialogs (Settings, About, Confirm)
     If _CD_IsVisible() Then Return
@@ -941,17 +1030,29 @@ Func _ForceTopMost()
     EndIf
 EndFunc
 
+; Name:        _WM_ACTIVATE
+; Description: WM handler for window activation; re-enforces topmost
+; Parameters:  $hWnd, $iMsg, $wParam, $lParam - standard Windows message params
+; Return:      $GUI_RUNDEFMSG
 Func _WM_ACTIVATE($hWnd, $iMsg, $wParam, $lParam)
     _ForceTopMost()
     Return $GUI_RUNDEFMSG
 EndFunc
 
+; Name:        _WM_POSCHANGING
+; Description: WM handler for window position changes; forces topmost z-order
+; Parameters:  $hWnd, $iMsg, $wParam, $lParam - standard Windows message params
+; Return:      $GUI_RUNDEFMSG
 Func _WM_POSCHANGING($hWnd, $iMsg, $wParam, $lParam)
     Local $tPos = DllStructCreate("uint;uint;int;int;int;int;uint", $lParam)
     DllStructSetData($tPos, 2, $HWND_TOPMOST)
     Return $GUI_RUNDEFMSG
 EndFunc
 
+; Name:        _WM_CTLCOLOREDIT_Delegate
+; Description: Delegates WM_CTLCOLOREDIT to rename dialog for dark input styling
+; Parameters:  $hWnd, $iMsg, $wParam, $lParam - standard Windows message params
+; Return:      Brush handle from _RD_WM_CTLCOLOREDIT
 Func _WM_CTLCOLOREDIT_Delegate($hWnd, $iMsg, $wParam, $lParam)
     Return _RD_WM_CTLCOLOREDIT($hWnd, $iMsg, $wParam, $lParam)
 EndFunc
@@ -960,6 +1061,8 @@ EndFunc
 ; HOTKEY REGISTRATION
 ; =============================================
 
+; Name:        _RegisterHotkeys
+; Description: Registers all configured global hotkeys
 Func _RegisterHotkeys()
     Local $sKey
     $sKey = _Cfg_GetHotkeyNext()
@@ -974,6 +1077,8 @@ Func _RegisterHotkeys()
     If $sKey <> "" Then HotKeySet($sKey, "_HK_ToggleList")
 EndFunc
 
+; Name:        _UnregisterHotkeys
+; Description: Unregisters all global hotkeys
 Func _UnregisterHotkeys()
     Local $sKey
     $sKey = _Cfg_GetHotkeyNext()
@@ -988,15 +1093,20 @@ Func _UnregisterHotkeys()
     If $sKey <> "" Then HotKeySet($sKey)
 EndFunc
 
-; ---- Hotkey callback functions ----
+; Name:        _HK_Next
+; Description: Hotkey callback to switch to next desktop (with wrap/auto-create)
 Func _HK_Next()
     Local $iCount = _VD_GetCount()
     If $iDesktop < $iCount Then
         _VD_GoTo($iDesktop + 1)
     ElseIf _Cfg_GetAutoCreateDesktop() Then
-        _VD_CreateDesktop()
-        Sleep(100)
-        _VD_GoTo($iDesktop + 1)
+        If _VD_GetCount() >= $DESKTOP_LIMIT Then
+            _Theme_Toast("Desktop limit reached", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+        Else
+            _VD_CreateDesktop()
+            Sleep(100)
+            _VD_GoTo($iDesktop + 1)
+        EndIf
     ElseIf _Cfg_GetWrapNavigation() Then
         _VD_GoTo(1)
     EndIf
@@ -1004,6 +1114,8 @@ Func _HK_Next()
     _RefreshIndex()
 EndFunc
 
+; Name:        _HK_Prev
+; Description: Hotkey callback to switch to previous desktop (with wrap)
 Func _HK_Prev()
     Local $iCount = _VD_GetCount()
     If $iDesktop > 1 Then
@@ -1015,6 +1127,8 @@ Func _HK_Prev()
     _RefreshIndex()
 EndFunc
 
+; Name:        _HK_Desktop1 through _HK_Desktop9
+; Description: Hotkey callbacks to switch directly to desktop 1-9
 Func _HK_Desktop1()
     If 1 <= _VD_GetCount() Then
         _VD_GoTo(1)
@@ -1079,6 +1193,8 @@ Func _HK_Desktop9()
     EndIf
 EndFunc
 
+; Name:        _HK_ToggleList
+; Description: Hotkey callback to toggle the desktop list panel
 Func _HK_ToggleList()
     _DL_Toggle($iTaskbarY, $iDesktop)
 EndFunc
@@ -1087,6 +1203,8 @@ EndFunc
 ; ABOUT DIALOG
 ; =============================================
 
+; Name:        _ShowAbout
+; Description: About dialog with credit links and 15-second auto-close timeout
 Func _ShowAbout()
     Local $iDlgW = 350, $iDlgH = 230
     Local $iDlgX = (@DesktopWidth - $iDlgW) / 2
@@ -1180,9 +1298,9 @@ Func _ShowAbout()
         EndIf
 
         ; Keyboard: Enter or Escape closes
-        Local $retKey = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x0D)
+        Local $retKey = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_RETURN)
         If Not @error And BitAND($retKey[0], 0x8000) <> 0 Then ExitLoop
-        Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
+        Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_ESCAPE)
         If Not @error And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
 
         ; 15 second timeout
@@ -1210,6 +1328,8 @@ EndFunc
 ; TRAY ICON MODE
 ; =============================================
 
+; Name:        _InitTrayMode
+; Description: Initialize system tray icon and menu, hide widget
 Func _InitTrayMode()
     $__g_bTrayMode = True
     GUISetState(@SW_HIDE, $gui)
@@ -1238,6 +1358,8 @@ Func _InitTrayMode()
     TraySetState(1)
 EndFunc
 
+; Name:        _CheckTrayMessages
+; Description: Poll tray menu for clicks and dispatch actions
 Func _CheckTrayMessages()
     If Not $__g_bTrayMode Then Return
     Local $iTrayMsg = TrayGetMsg()
@@ -1248,9 +1370,13 @@ Func _CheckTrayMessages()
             $iRenameTarget = $iDesktop
             _RD_Show($iDesktop, $iTaskbarY)
         Case $__g_iTrayAddDesktop
-            _VD_CreateDesktop()
-            Sleep(100)
-            _RefreshIndex()
+            If _VD_GetCount() >= $DESKTOP_LIMIT Then
+                _Theme_Toast("Desktop limit reached", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+            Else
+                _VD_CreateDesktop()
+                Sleep(100)
+                _RefreshIndex()
+            EndIf
         Case $__g_iTrayDelDesktop
             If _VD_GetCount() > 1 Then
                 If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm("Delete Desktop " & $iDesktop & "?", "Windows will be moved to an adjacent desktop.") Then
@@ -1272,6 +1398,8 @@ EndFunc
 ; CONFIG FILE WATCHER
 ; =============================================
 
+; Name:        _AdlibConfigWatcher
+; Description: Watch config file for external changes and reload if modified
 Func _AdlibConfigWatcher()
     Local $sNewTime = FileGetTime(_Cfg_GetPath(), 0, 1)
     If @error Then Return
@@ -1291,10 +1419,14 @@ EndFunc
 ; CLEANUP
 ; =============================================
 
+; Name:        _OnExit
+; Description: Exit callback registered with OnAutoItExitRegister
 Func _OnExit()
     _Shutdown()
 EndFunc
 
+; Name:        _Shutdown
+; Description: Cleanup and exit with reentrancy guard
 Func _Shutdown()
     If $__g_bShuttingDown Then Return
     $__g_bShuttingDown = True

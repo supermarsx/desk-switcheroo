@@ -149,11 +149,13 @@ EndFunc
 ; Return:      "submit" for Enter, "cancel" for Escape, "" for neither
 Func _RD_CheckKeys()
     If Not $__g_RD_bVisible Or $__g_RD_bCancelled Then Return ""
+    Local Const $VK_RETURN = 0x0D
+    Local Const $VK_ESCAPE = 0x1B
     ; Enter key
-    Local $retEnter = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x0D)
+    Local $retEnter = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_RETURN)
     If Not @error And BitAND($retEnter[0], 0x8000) <> 0 Then Return "submit"
     ; Escape key
-    Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
+    Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_ESCAPE)
     If Not @error And BitAND($retEsc[0], 0x8000) <> 0 Then Return "cancel"
     Return ""
 EndFunc

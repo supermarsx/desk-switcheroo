@@ -21,11 +21,13 @@ Global $__g_Cfg_bWidgetDragEnabled = False
 Global $__g_Cfg_bTrayIconMode     = False
 Global $__g_Cfg_bQuickAccessEnabled = False
 Global $__g_Cfg_bStartMinimized    = False
+Global $__g_Cfg_bListKeyboardNav   = False
 
 ; [Display]
 Global $__g_Cfg_bShowCount         = False
 Global $__g_Cfg_iCountFontSize     = 7
 Global $__g_Cfg_iThemeAlphaMain    = 235
+Global $__g_Cfg_sTheme             = "dark"
 
 ; [Scroll]
 Global $__g_Cfg_bScrollEnabled     = False
@@ -108,11 +110,13 @@ Func _Cfg_Load()
     $__g_Cfg_bTrayIconMode     = __Cfg_ReadBool($f, "General", "tray_icon_mode", False)
     $__g_Cfg_bQuickAccessEnabled = __Cfg_ReadBool($f, "General", "quick_access_enabled", False)
     $__g_Cfg_bStartMinimized    = __Cfg_ReadBool($f, "General", "start_minimized", False)
+    $__g_Cfg_bListKeyboardNav   = __Cfg_ReadBool($f, "General", "list_keyboard_nav", False)
 
     ; [Display]
     $__g_Cfg_bShowCount         = __Cfg_ReadBool($f, "Display", "show_count", False)
     $__g_Cfg_iCountFontSize     = __Cfg_ReadInt($f, "Display", "count_font_size", 7, 4, 20)
     $__g_Cfg_iThemeAlphaMain    = __Cfg_ReadInt($f, "Display", "theme_alpha_main", 235, 50, 255)
+    $__g_Cfg_sTheme             = __Cfg_ReadEnum($f, "Display", "theme", "dark", "dark|darker|midnight")
 
     ; [Scroll]
     $__g_Cfg_bScrollEnabled     = __Cfg_ReadBool($f, "Scroll", "scroll_enabled", False)
@@ -124,6 +128,7 @@ Func _Cfg_Load()
     ; [Hotkeys]
     $__g_Cfg_sHotkeyNext       = IniRead($f, "Hotkeys", "hotkey_next", "")
     $__g_Cfg_sHotkeyPrev       = IniRead($f, "Hotkeys", "hotkey_prev", "")
+    Local $i
     For $i = 1 To 9
         $__g_Cfg_sHotkeyDesktop[$i] = IniRead($f, "Hotkeys", "hotkey_desktop_" & $i, "")
     Next
@@ -174,11 +179,13 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "General", "tray_icon_mode", $__g_Cfg_bTrayIconMode)
     __Cfg_WriteBool($f, "General", "quick_access_enabled", $__g_Cfg_bQuickAccessEnabled)
     __Cfg_WriteBool($f, "General", "start_minimized", $__g_Cfg_bStartMinimized)
+    __Cfg_WriteBool($f, "General", "list_keyboard_nav", $__g_Cfg_bListKeyboardNav)
 
     ; [Display]
     __Cfg_WriteBool($f, "Display", "show_count", $__g_Cfg_bShowCount)
     IniWrite($f, "Display", "count_font_size", $__g_Cfg_iCountFontSize)
     IniWrite($f, "Display", "theme_alpha_main", $__g_Cfg_iThemeAlphaMain)
+    IniWrite($f, "Display", "theme", $__g_Cfg_sTheme)
 
     ; [Scroll]
     __Cfg_WriteBool($f, "Scroll", "scroll_enabled", $__g_Cfg_bScrollEnabled)
@@ -190,6 +197,7 @@ Func _Cfg_Save()
     ; [Hotkeys]
     IniWrite($f, "Hotkeys", "hotkey_next", $__g_Cfg_sHotkeyNext)
     IniWrite($f, "Hotkeys", "hotkey_prev", $__g_Cfg_sHotkeyPrev)
+    Local $i
     For $i = 1 To 9
         IniWrite($f, "Hotkeys", "hotkey_desktop_" & $i, $__g_Cfg_sHotkeyDesktop[$i])
     Next
@@ -233,10 +241,12 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "General", "tray_icon_mode", False)
     __Cfg_DefaultBool($f, "General", "quick_access_enabled", False)
     __Cfg_DefaultBool($f, "General", "start_minimized", False)
+    __Cfg_DefaultBool($f, "General", "list_keyboard_nav", False)
 
     __Cfg_DefaultBool($f, "Display", "show_count", False)
     __Cfg_DefaultVal($f, "Display", "count_font_size", 7)
     __Cfg_DefaultVal($f, "Display", "theme_alpha_main", 235)
+    __Cfg_DefaultVal($f, "Display", "theme", "dark")
 
     __Cfg_DefaultBool($f, "Scroll", "scroll_enabled", False)
     __Cfg_DefaultVal($f, "Scroll", "scroll_direction", "normal")
@@ -246,6 +256,7 @@ Func _Cfg_WriteDefaults()
 
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_next", "")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_prev", "")
+    Local $i
     For $i = 1 To 9
         __Cfg_DefaultVal($f, "Hotkeys", "hotkey_desktop_" & $i, "")
     Next
@@ -307,6 +318,9 @@ EndFunc
 Func _Cfg_GetStartMinimized()
     Return $__g_Cfg_bStartMinimized
 EndFunc
+Func _Cfg_GetListKeyboardNav()
+    Return $__g_Cfg_bListKeyboardNav
+EndFunc
 
 ; [Display]
 Func _Cfg_GetShowCount()
@@ -317,6 +331,9 @@ Func _Cfg_GetCountFontSize()
 EndFunc
 Func _Cfg_GetThemeAlphaMain()
     Return $__g_Cfg_iThemeAlphaMain
+EndFunc
+Func _Cfg_GetTheme()
+    Return $__g_Cfg_sTheme
 EndFunc
 
 ; [Scroll]
@@ -438,6 +455,9 @@ EndFunc
 Func _Cfg_SetStartMinimized($b)
     $__g_Cfg_bStartMinimized = $b
 EndFunc
+Func _Cfg_SetListKeyboardNav($b)
+    $__g_Cfg_bListKeyboardNav = $b
+EndFunc
 
 ; [Display]
 Func _Cfg_SetShowCount($b)
@@ -452,6 +472,10 @@ Func _Cfg_SetThemeAlphaMain($i)
     If $i < 50 Then $i = 50
     If $i > 255 Then $i = 255
     $__g_Cfg_iThemeAlphaMain = $i
+EndFunc
+Func _Cfg_SetTheme($s)
+    If $s <> "dark" And $s <> "darker" And $s <> "midnight" Then $s = "dark"
+    $__g_Cfg_sTheme = $s
 EndFunc
 
 ; [Scroll]
@@ -575,6 +599,30 @@ Func _Cfg_IsStartupEnabled()
 EndFunc
 
 ; =============================================
+; IMPORT / EXPORT
+; =============================================
+
+; Name:        _Cfg_Export
+; Description: Exports current config to a specified INI file path
+; Parameters:  $sDestPath - destination file path
+; Return:      True on success, False on failure
+Func _Cfg_Export($sDestPath)
+    _Cfg_Save() ; ensure in-memory is persisted first
+    Return FileCopy(_Cfg_GetPath(), $sDestPath, 1) ; 1 = overwrite
+EndFunc
+
+; Name:        _Cfg_Import
+; Description: Imports config from a specified INI file, replacing current settings
+; Parameters:  $sSrcPath - source file path
+; Return:      True on success, False on failure
+Func _Cfg_Import($sSrcPath)
+    If Not FileExists($sSrcPath) Then Return False
+    FileCopy($sSrcPath, _Cfg_GetPath(), 1)
+    _Cfg_Load()
+    Return True
+EndFunc
+
+; =============================================
 ; INTERNAL HELPERS
 ; =============================================
 
@@ -597,6 +645,7 @@ EndFunc
 Func __Cfg_ReadEnum($f, $sSection, $sKey, $sDefault, $sAllowed)
     Local $s = StringLower(IniRead($f, $sSection, $sKey, ""))
     Local $aAllowed = StringSplit($sAllowed, "|")
+    Local $i
     For $i = 1 To $aAllowed[0]
         If $s = $aAllowed[$i] Then Return $s
     Next

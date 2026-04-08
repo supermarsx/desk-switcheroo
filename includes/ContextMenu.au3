@@ -18,6 +18,8 @@ Global $__g_CM_iDeleteID  = 0
 Global $__g_CM_iAboutID   = 0
 Global $__g_CM_iSettingsID = 0
 Global $__g_CM_iQuitID    = 0
+Global $__g_CM_iImportID  = 0
+Global $__g_CM_iExportID  = 0
 Global $__g_CM_iHovered   = 0
 Global $__g_CM_hHideTimer = 0
 Global $__g_CM_bHideArmed = False
@@ -31,7 +33,7 @@ Global $__g_CM_bHideArmed = False
 Func _CM_Show($iTaskbarY, $bListVisible)
     Local $iMenuW = 170
     Local $iSepH = 1
-    Local $iMenuH = 7 * $THEME_MENU_ITEM_H + 2 * $iSepH + 20
+    Local $iMenuH = 9 * $THEME_MENU_ITEM_H + 2 * $iSepH + 20
     Local $iMenuX = 0
     Local $iMenuY = $iTaskbarY - $iMenuH
 
@@ -70,6 +72,12 @@ Func _CM_Show($iTaskbarY, $bListVisible)
     $__g_CM_iSettingsID = _Theme_CreateMenuItem("  Settings", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 
+    $__g_CM_iImportID = _Theme_CreateMenuItem("  Import Settings", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $iY += $THEME_MENU_ITEM_H
+
+    $__g_CM_iExportID = _Theme_CreateMenuItem("  Export Settings", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $iY += $THEME_MENU_ITEM_H
+
     $__g_CM_iQuitID = _Theme_CreateMenuItem("  Quit", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
 
     GUISetState(@SW_SHOW, $__g_CM_hGUI)
@@ -90,6 +98,8 @@ Func _CM_Destroy()
     $__g_CM_iDeleteID = 0
     $__g_CM_iAboutID = 0
     $__g_CM_iSettingsID = 0
+    $__g_CM_iImportID = 0
+    $__g_CM_iExportID = 0
     $__g_CM_iQuitID = 0
     $__g_CM_iHovered = 0
     $__g_CM_bHideArmed = False
@@ -115,6 +125,8 @@ Func _CM_CheckHover()
     If $aCursor[4] = $__g_CM_iDeleteID Then $iFound = $__g_CM_iDeleteID
     If $aCursor[4] = $__g_CM_iAboutID Then $iFound = $__g_CM_iAboutID
     If $aCursor[4] = $__g_CM_iSettingsID Then $iFound = $__g_CM_iSettingsID
+    If $aCursor[4] = $__g_CM_iImportID Then $iFound = $__g_CM_iImportID
+    If $aCursor[4] = $__g_CM_iExportID Then $iFound = $__g_CM_iExportID
     If $aCursor[4] = $__g_CM_iQuitID Then $iFound = $__g_CM_iQuitID
 
     If $iFound = $__g_CM_iHovered Then Return
@@ -142,6 +154,8 @@ Func _CM_HandleClick($msg)
     If $msg = $__g_CM_iDeleteID Then Return "delete"
     If $msg = $__g_CM_iAboutID Then Return "about"
     If $msg = $__g_CM_iSettingsID Then Return "settings"
+    If $msg = $__g_CM_iImportID Then Return "import"
+    If $msg = $__g_CM_iExportID Then Return "export"
     If $msg = $__g_CM_iQuitID Then Return "quit"
     Return ""
 EndFunc
@@ -200,6 +214,20 @@ EndFunc
 ; Return:      Control ID or 0
 Func _CM_GetSettingsID()
     Return $__g_CM_iSettingsID
+EndFunc
+
+; Name:        _CM_GetImportID
+; Description: Returns the Import Settings menu item control ID (for testing)
+; Return:      Control ID or 0
+Func _CM_GetImportID()
+    Return $__g_CM_iImportID
+EndFunc
+
+; Name:        _CM_GetExportID
+; Description: Returns the Export Settings menu item control ID (for testing)
+; Return:      Control ID or 0
+Func _CM_GetExportID()
+    Return $__g_CM_iExportID
 EndFunc
 
 ; Name:        _CM_CheckAutoHide

@@ -7,8 +7,22 @@ on:
     branches: [main]
 
 jobs:
+  lint:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install AutoIt
+        run: choco install autoit -y --no-progress
+      - name: Lint
+        run: |
+          $env:Path += ";C:\Program Files (x86)\AutoIt3"
+          & Au3Check.exe desktop_switcher.au3
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+        shell: pwsh
+
   test:
     runs-on: windows-latest
+    needs: lint
     steps:
       - uses: actions/checkout@v4
       - name: Install AutoIt

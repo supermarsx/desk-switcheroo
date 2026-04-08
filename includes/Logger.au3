@@ -97,7 +97,7 @@ EndFunc
 Func __Log_Write($sLevel, $sMsg)
     If $__g_Log_hFile = -1 Then Return
 
-    Local $sTimestamp = @YEAR & "-" & @MON & "-" & @MDAY & " " & @HOUR & ":" & @MIN & ":" & @SEC
+    Local $sTimestamp = StringFormat("%04d-%02d-%02d %02d:%02d:%02d", @YEAR, @MON, @MDAY, @HOUR, @MIN, @SEC)
     Local $sLine = "[" & $sTimestamp & "] [" & $sLevel & "] " & $sMsg
 
     FileWriteLine($__g_Log_hFile, $sLine)

@@ -87,6 +87,7 @@ Func _Labels_SyncFromOS()
     ; Build a fingerprint of all OS names to detect changes cheaply
     Local $sHash = ""
     Local $aNames[$iCount + 1]
+    Local $i
     For $i = 1 To $iCount
         $aNames[$i] = _VD_GetName($i)
         $sHash &= $aNames[$i] & "|"

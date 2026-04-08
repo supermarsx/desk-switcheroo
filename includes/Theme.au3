@@ -12,11 +12,11 @@
 
 ; #CONSTANTS# ===================================================
 
-; -- Background colors --
-Global Const $THEME_BG_MAIN       = 0x191919
-Global Const $THEME_BG_POPUP      = 0x1E1E1E
-Global Const $THEME_BG_INPUT      = 0x2A2A2A
-Global Const $THEME_BG_HOVER      = 0x333333
+; -- Background colors (non-const to allow theme switching at startup) --
+Global $THEME_BG_MAIN       = 0x191919
+Global $THEME_BG_POPUP      = 0x1E1E1E
+Global $THEME_BG_INPUT      = 0x2A2A2A
+Global $THEME_BG_HOVER      = 0x333333
 Global Const $THEME_BG_ACTIVE     = 0x484848
 Global Const $THEME_BG_ARROW_HOV  = 0x3A3A4A
 Global Const $THEME_BG_BORDER     = 0x444444
@@ -399,6 +399,17 @@ Func _Theme_ToastDestroy()
     EndIf
 EndFunc
 
+; Name:        _Theme_ValidateHexColor
+; Description: Validates and parses a hex color string
+; Parameters:  $sHex - hex string (with or without "0x" prefix)
+; Return:      Color as integer, or -1 if invalid
+Func _Theme_ValidateHexColor($sHex)
+    $sHex = StringStripWS($sHex, 3)
+    If StringLeft($sHex, 2) = "0x" Or StringLeft($sHex, 2) = "0X" Then $sHex = StringTrimLeft($sHex, 2)
+    If StringLen($sHex) <> 6 Or Not StringIsXDigit($sHex) Then Return -1
+    Return Int("0x" & $sHex)
+EndFunc
+
 ; Name:        _Theme_LoadFonts
 ; Description: Loads bundled font files (Fira Code) for this process.
 ;              Uses FR_PRIVATE so fonts are only available to this app.
@@ -437,4 +448,29 @@ Func _Theme_UnloadFonts()
             DllCall("gdi32.dll", "bool", "RemoveFontResourceExW", "wstr", $sPath, "dword", 0x10, "ptr", 0)
         EndIf
     Next
+EndFunc
+
+; Name:        _Theme_ApplyScheme
+; Description: Sets the main background color globals based on the theme name.
+;              Must be called at startup after config loads, before any GUI is created.
+;              Supported themes: "dark" (default), "darker", "midnight"
+; Parameters:  $sTheme - theme name string
+Func _Theme_ApplyScheme($sTheme)
+    Switch $sTheme
+        Case "darker"
+            $THEME_BG_MAIN  = 0x0F0F0F
+            $THEME_BG_POPUP = 0x141414
+            $THEME_BG_INPUT = 0x202020
+            $THEME_BG_HOVER = 0x292929
+        Case "midnight"
+            $THEME_BG_MAIN  = 0x141824
+            $THEME_BG_POPUP = 0x1A1E2E
+            $THEME_BG_INPUT = 0x242838
+            $THEME_BG_HOVER = 0x2E3348
+        Case Else ; "dark" — keep defaults
+            $THEME_BG_MAIN  = 0x191919
+            $THEME_BG_POPUP = 0x1E1E1E
+            $THEME_BG_INPUT = 0x2A2A2A
+            $THEME_BG_HOVER = 0x333333
+    EndSwitch
 EndFunc

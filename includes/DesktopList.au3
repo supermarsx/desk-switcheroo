@@ -861,12 +861,8 @@ Func _DL_ColorPickerCustomDialog()
                 Case $GUI_EVENT_CLOSE
                     ExitLoop
                 Case $idOK
-                    Local $sHex = GUICtrlRead($idInput)
-                    $sHex = StringStripWS($sHex, 3)
-                    If StringLeft($sHex, 2) = "0x" Or StringLeft($sHex, 2) = "0X" Then $sHex = StringMid($sHex, 3)
-                    If StringLen($sHex) = 6 And StringIsXDigit($sHex) Then
-                        $iResult = Int("0x" & $sHex)
-                    EndIf
+                    Local $iValidated = _Theme_ValidateHexColor(GUICtrlRead($idInput))
+                    If $iValidated >= 0 Then $iResult = $iValidated
                     ExitLoop
                 Case $idCancel
                     ExitLoop
@@ -874,17 +870,15 @@ Func _DL_ColorPickerCustomDialog()
         EndIf
 
         ; Keyboard: Enter = OK, Escape = Cancel
-        Local $retEnter = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x0D)
+        Local Const $VK_RETURN = 0x0D
+        Local Const $VK_ESCAPE = 0x1B
+        Local $retEnter = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_RETURN)
         If Not @error And BitAND($retEnter[0], 0x8000) <> 0 Then
-            Local $sHex2 = GUICtrlRead($idInput)
-            $sHex2 = StringStripWS($sHex2, 3)
-            If StringLeft($sHex2, 2) = "0x" Or StringLeft($sHex2, 2) = "0X" Then $sHex2 = StringMid($sHex2, 3)
-            If StringLen($sHex2) = 6 And StringIsXDigit($sHex2) Then
-                $iResult = Int("0x" & $sHex2)
-            EndIf
+            Local $iValidated2 = _Theme_ValidateHexColor(GUICtrlRead($idInput))
+            If $iValidated2 >= 0 Then $iResult = $iValidated2
             ExitLoop
         EndIf
-        Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
+        Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_ESCAPE)
         If Not @error And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
 
         ; Hover effects on buttons
