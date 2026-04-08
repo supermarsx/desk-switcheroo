@@ -85,15 +85,8 @@ jobs:
         run: pwsh scripts/build.ps1
       - name: Install NSIS
         run: choco install nsis -y --no-progress
-      - name: Validate NSIS script
-        run: |
-          $makensis = "C:\Program Files (x86)\NSIS\makensis.exe"
-          if (-not (Test-Path $makensis)) { $makensis = "C:\Program Files\NSIS\makensis.exe" }
-          if (-not (Test-Path $makensis)) { Write-Warning "NSIS not found, skipping"; exit 0 }
-          & $makensis /V1 installer\desk_switcheroo.nsi
-          if ($LASTEXITCODE -ne 0) { Write-Error "NSIS script validation failed"; exit 1 }
-          Write-Host "NSIS script compiled successfully" -ForegroundColor Green
-        shell: pwsh
+      - name: Package (installer + portable zip)
+        run: pwsh scripts/package.ps1
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
