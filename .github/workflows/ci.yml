@@ -20,9 +20,30 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit 1 }
         shell: pwsh
 
+  format:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check formatting
+        run: |
+          $files = Get-ChildItem -Path . -Filter "*.au3" -Recurse | Where-Object { $_.FullName -notmatch "\\build\\" }
+          $bad = 0
+          foreach ($f in $files) {
+            $content = [System.IO.File]::ReadAllText($f.FullName)
+            $normalized = $content -replace "`r?`n", "`r`n"
+            $normalized = ($normalized -split "`r`n" | ForEach-Object { $_.TrimEnd() }) -join "`r`n"
+            if (-not $normalized.EndsWith("`r`n")) { $normalized += "`r`n" }
+            if ($content -ne $normalized) {
+              Write-Host "FAIL: $($f.Name) has formatting issues" -ForegroundColor Red
+              $bad++
+            }
+          }
+          if ($bad -gt 0) { Write-Error "$bad file(s) need formatting (run scripts/format.ps1)"; exit 1 }
+          Write-Host "All files formatted correctly." -ForegroundColor Green
+        shell: pwsh
+
   test:
     runs-on: windows-latest
-    needs: lint
     steps:
       - uses: actions/checkout@v4
       - name: Install AutoIt
@@ -33,10 +54,16 @@ jobs:
           & AutoIt3.exe /ErrorStdOut tests\TestRunner.au3 2>&1 | Tee-Object -FilePath test_output.txt
           if ($LASTEXITCODE -ne 0) { exit 1 }
         shell: pwsh
+      - name: Upload test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: test_output.txt
 
   build:
     runs-on: windows-latest
-    needs: test
+    needs: [lint, format, test]
     steps:
       - uses: actions/checkout@v4
       - name: Install AutoIt
