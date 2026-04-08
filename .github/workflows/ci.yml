@@ -10,7 +10,7 @@ jobs:
   lint:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
       - name: Install AutoIt
         run: choco install autoit -y --no-progress
       - name: Lint
@@ -23,7 +23,7 @@ jobs:
   format:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
       - name: Check formatting
         run: |
           $files = Get-ChildItem -Path . -Filter "*.au3" -Recurse | Where-Object { $_.FullName -notmatch "\\build\\" }
@@ -45,7 +45,7 @@ jobs:
   test:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
       - name: Install AutoIt
         run: choco install autoit -y --no-progress
       - name: Run tests (x64 for DLL compatibility)
@@ -60,7 +60,7 @@ jobs:
         shell: pwsh
       - name: Upload test output
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
           name: test-output
           path: test_output.txt
@@ -69,13 +69,13 @@ jobs:
     runs-on: windows-latest
     needs: [lint, format, test]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
       - name: Install AutoIt
         run: choco install autoit -y --no-progress
       - name: Build
         run: pwsh scripts/build.ps1
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
           name: desk-switcheroo-build
           path: build/
@@ -87,7 +87,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
       - name: Install tools
         run: |
           choco install autoit nsis -y --no-progress
