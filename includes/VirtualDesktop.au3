@@ -109,7 +109,9 @@ Func _VD_SetName($iDesktop, $sName)
     Local $bUtf8 = StringToBinary($sName, 4)
     Local $iLen = BinaryLen($bUtf8)
     Local $tBuf = DllStructCreate("byte[" & ($iLen + 1) & "]")
+    If @error Then Return False
     DllStructSetData($tBuf, 1, $bUtf8)
+    If @error Then Return False
     DllStructSetData($tBuf, 1, 0, $iLen + 1)
     Local $aResult = DllCall($__g_VD_hDLL, "int", "SetDesktopName", "int", $iDesktop - 1, _
         "ptr", DllStructGetPtr($tBuf))

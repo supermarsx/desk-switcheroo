@@ -160,6 +160,11 @@ GUICtrlSetCursor($lblRight, 0)
 
 GUISetState(@SW_SHOW)
 
+; Start minimized if autostart flag or config says so
+If $bAutoStart Or _Cfg_GetStartMinimized() Then
+    GUISetState(@SW_HIDE, $gui)
+EndIf
+
 ; ---- Register messages ----
 GUIRegisterMsg($WM_ACTIVATE, "_WM_ACTIVATE")
 GUIRegisterMsg($WM_WINDOWPOSCHANGING, "_WM_POSCHANGING")
@@ -574,7 +579,7 @@ While 1
     If $__g_bQuickAccessActive Then _QuickAccess_Check()
 
     ; Event-driven desktop change (flag set by _WM_DESKTOPCHANGE)
-    If $bDesktopChanged Then
+    If $bDesktopChanged And Not _Peek_IsActive() Then
         $bDesktopChanged = False
         _RefreshIndex()
     EndIf
@@ -665,6 +670,18 @@ Func _ApplySettingsLive()
         AdlibRegister("_ForceTopMost", _Cfg_GetTopmostInterval())
     EndIf
 
+    ; Handle tray mode toggle
+    Local $bNewTrayMode = _Cfg_GetTrayIconMode()
+    If $bNewTrayMode And Not $__g_bTrayMode Then
+        _InitTrayMode()
+    ElseIf Not $bNewTrayMode And $__g_bTrayMode Then
+        ; Disable tray mode: show widget, hide tray
+        $__g_bTrayMode = False
+        Opt("TrayIconHide", 1)
+        GUISetState(@SW_SHOW, $gui)
+        AdlibRegister("_ForceTopMost", _Cfg_GetTopmostInterval())
+    EndIf
+
     ; Update config watcher
     AdlibUnRegister("_AdlibConfigWatcher")
     If _Cfg_GetConfigWatcherEnabled() Then
@@ -742,7 +759,7 @@ EndFunc
 
 Func _WM_DESKTOPCHANGE($hWnd, $iMsg, $wParam, $lParam)
     _VD_InvalidateCountCache()
-    If Not _Peek_IsActive() Then $bDesktopChanged = True
+    $bDesktopChanged = True  ; Always set flag; main loop checks peek state
     Return $GUI_RUNDEFMSG
 EndFunc
 
@@ -887,6 +904,8 @@ Func _ForceTopMost()
                 $iWidgetX = (@DesktopWidth / 2) - ($THEME_MAIN_WIDTH / 2) + $iOffset
             Case "right"
                 $iWidgetX = @DesktopWidth - $THEME_MAIN_WIDTH + $iOffset
+            Case Else
+                $iWidgetX = $iOffset
         EndSwitch
 
         DllCall("user32.dll", "bool", "SetWindowPos", _
@@ -911,6 +930,8 @@ Func _ForceTopMost()
                 $iWidgetX2 = (@DesktopWidth / 2) - ($THEME_MAIN_WIDTH / 2) + $iOffset2
             Case "right"
                 $iWidgetX2 = @DesktopWidth - $THEME_MAIN_WIDTH + $iOffset2
+            Case Else
+                $iWidgetX2 = $iOffset2
         EndSwitch
         DllCall("user32.dll", "bool", "SetWindowPos", _
             "hwnd", $gui, "hwnd", $HWND_TOPMOST, _
@@ -995,49 +1016,67 @@ Func _HK_Prev()
 EndFunc
 
 Func _HK_Desktop1()
-    _VD_GoTo(1)
-    Sleep(50)
-    _RefreshIndex()
+    If 1 <= _VD_GetCount() Then
+        _VD_GoTo(1)
+        Sleep(50)
+        _RefreshIndex()
+    EndIf
 EndFunc
 Func _HK_Desktop2()
-    _VD_GoTo(2)
-    Sleep(50)
-    _RefreshIndex()
+    If 2 <= _VD_GetCount() Then
+        _VD_GoTo(2)
+        Sleep(50)
+        _RefreshIndex()
+    EndIf
 EndFunc
 Func _HK_Desktop3()
-    _VD_GoTo(3)
-    Sleep(50)
-    _RefreshIndex()
+    If 3 <= _VD_GetCount() Then
+        _VD_GoTo(3)
+        Sleep(50)
+        _RefreshIndex()
+    EndIf
 EndFunc
 Func _HK_Desktop4()
-    _VD_GoTo(4)
-    Sleep(50)
-    _RefreshIndex()
+    If 4 <= _VD_GetCount() Then
+        _VD_GoTo(4)
+        Sleep(50)
+        _RefreshIndex()
+    EndIf
 EndFunc
 Func _HK_Desktop5()
-    _VD_GoTo(5)
-    Sleep(50)
-    _RefreshIndex()
+    If 5 <= _VD_GetCount() Then
+        _VD_GoTo(5)
+        Sleep(50)
+        _RefreshIndex()
+    EndIf
 EndFunc
 Func _HK_Desktop6()
-    _VD_GoTo(6)
-    Sleep(50)
-    _RefreshIndex()
+    If 6 <= _VD_GetCount() Then
+        _VD_GoTo(6)
+        Sleep(50)
+        _RefreshIndex()
+    EndIf
 EndFunc
 Func _HK_Desktop7()
-    _VD_GoTo(7)
-    Sleep(50)
-    _RefreshIndex()
+    If 7 <= _VD_GetCount() Then
+        _VD_GoTo(7)
+        Sleep(50)
+        _RefreshIndex()
+    EndIf
 EndFunc
 Func _HK_Desktop8()
-    _VD_GoTo(8)
-    Sleep(50)
-    _RefreshIndex()
+    If 8 <= _VD_GetCount() Then
+        _VD_GoTo(8)
+        Sleep(50)
+        _RefreshIndex()
+    EndIf
 EndFunc
 Func _HK_Desktop9()
-    _VD_GoTo(9)
-    Sleep(50)
-    _RefreshIndex()
+    If 9 <= _VD_GetCount() Then
+        _VD_GoTo(9)
+        Sleep(50)
+        _RefreshIndex()
+    EndIf
 EndFunc
 
 Func _HK_ToggleList()
@@ -1185,6 +1224,13 @@ Func _InitTrayMode()
     $__g_iTrayAbout = TrayCreateItem("About")
     TrayCreateItem("")
     $__g_iTrayQuit = TrayCreateItem("Quit")
+    ; Validate tray menu creation
+    If $__g_iTrayToggleList = 0 Or $__g_iTrayQuit = 0 Then
+        _Log_Error("Tray menu creation failed")
+        $__g_bTrayMode = False
+        GUISetState(@SW_SHOW, $gui)
+        Return
+    EndIf
     TraySetToolTip("Desk Switcheroo - Desktop " & $iDesktop)
     If FileExists(@ScriptDir & "\assets\desk_switcheroo.ico") Then
         TraySetIcon(@ScriptDir & "\assets\desk_switcheroo.ico")
@@ -1231,8 +1277,10 @@ Func _AdlibConfigWatcher()
     If @error Then Return
     If $sNewTime = $__g_sCfgFileTime Then Return
     $__g_sCfgFileTime = $sNewTime
+    _Log_Info("Config file changed externally, reloading")
     _UnregisterHotkeys()
     _Cfg_Load()
+    _Log_Info("Config reloaded from file watcher")
     _RegisterHotkeys()
     _ApplyDesktopChange()
     AdlibUnRegister("_ForceTopMost")

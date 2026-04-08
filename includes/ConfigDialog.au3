@@ -726,7 +726,7 @@ EndFunc
 
 Func __CD_ApplyChanges()
     If $__g_CD_hGUI = 0 Then Return
-    Local $bOldStartup = _Cfg_GetStartWithWindows()
+    Local $bOldStartup = _Cfg_IsStartupEnabled()
 
     ; General
     _Cfg_SetStartWithWindows(__CD_GetCheckState($__g_CD_idChkStartWin))

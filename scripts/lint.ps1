@@ -1,8 +1,12 @@
 # Lint all AutoIt source files with au3check
 $ErrorActionPreference = "Stop"
-$au3check = "C:\Program Files (x86)\AutoIt3\Au3Check.exe"
-if (-not (Test-Path $au3check)) {
-    $au3check = "C:\Program Files\AutoIt3\Au3Check.exe"
+if ($env:AUTOIT_PATH) {
+    $au3check = "$env:AUTOIT_PATH\Au3Check.exe"
+} else {
+    $au3check = "C:\Program Files (x86)\AutoIt3\Au3Check.exe"
+    if (-not (Test-Path $au3check)) {
+        $au3check = "C:\Program Files\AutoIt3\Au3Check.exe"
+    }
 }
 if (-not (Test-Path $au3check)) {
     Write-Warning "Au3Check.exe not found. Skipping lint."

@@ -2,9 +2,13 @@
 $ErrorActionPreference = "Stop"
 $root = "$PSScriptRoot\.."
 $buildDir = "$root\build"
-$aut2exe = "C:\Program Files (x86)\AutoIt3\Aut2Exe\Aut2exe.exe"
-if (-not (Test-Path $aut2exe)) {
-    $aut2exe = "C:\Program Files\AutoIt3\Aut2Exe\Aut2exe.exe"
+if ($env:AUTOIT_PATH) {
+    $aut2exe = "$env:AUTOIT_PATH\Aut2Exe\Aut2exe.exe"
+} else {
+    $aut2exe = "C:\Program Files (x86)\AutoIt3\Aut2Exe\Aut2exe.exe"
+    if (-not (Test-Path $aut2exe)) {
+        $aut2exe = "C:\Program Files\AutoIt3\Aut2Exe\Aut2exe.exe"
+    }
 }
 if (-not (Test-Path $aut2exe)) {
     Write-Error "Aut2Exe not found. Install AutoIt first."

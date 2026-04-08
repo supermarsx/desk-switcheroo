@@ -20,6 +20,7 @@ Global $__g_Cfg_iWidgetOffsetX     = 0
 Global $__g_Cfg_bWidgetDragEnabled = False
 Global $__g_Cfg_bTrayIconMode     = False
 Global $__g_Cfg_bQuickAccessEnabled = False
+Global $__g_Cfg_bStartMinimized    = False
 
 ; [Display]
 Global $__g_Cfg_bShowCount         = False
@@ -106,6 +107,7 @@ Func _Cfg_Load()
     $__g_Cfg_bWidgetDragEnabled = __Cfg_ReadBool($f, "General", "widget_drag_enabled", False)
     $__g_Cfg_bTrayIconMode     = __Cfg_ReadBool($f, "General", "tray_icon_mode", False)
     $__g_Cfg_bQuickAccessEnabled = __Cfg_ReadBool($f, "General", "quick_access_enabled", False)
+    $__g_Cfg_bStartMinimized    = __Cfg_ReadBool($f, "General", "start_minimized", False)
 
     ; [Display]
     $__g_Cfg_bShowCount         = __Cfg_ReadBool($f, "Display", "show_count", False)
@@ -171,6 +173,7 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "General", "widget_drag_enabled", $__g_Cfg_bWidgetDragEnabled)
     __Cfg_WriteBool($f, "General", "tray_icon_mode", $__g_Cfg_bTrayIconMode)
     __Cfg_WriteBool($f, "General", "quick_access_enabled", $__g_Cfg_bQuickAccessEnabled)
+    __Cfg_WriteBool($f, "General", "start_minimized", $__g_Cfg_bStartMinimized)
 
     ; [Display]
     __Cfg_WriteBool($f, "Display", "show_count", $__g_Cfg_bShowCount)
@@ -229,6 +232,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "General", "widget_drag_enabled", False)
     __Cfg_DefaultBool($f, "General", "tray_icon_mode", False)
     __Cfg_DefaultBool($f, "General", "quick_access_enabled", False)
+    __Cfg_DefaultBool($f, "General", "start_minimized", False)
 
     __Cfg_DefaultBool($f, "Display", "show_count", False)
     __Cfg_DefaultVal($f, "Display", "count_font_size", 7)
@@ -299,6 +303,9 @@ Func _Cfg_GetTrayIconMode()
 EndFunc
 Func _Cfg_GetQuickAccessEnabled()
     Return $__g_Cfg_bQuickAccessEnabled
+EndFunc
+Func _Cfg_GetStartMinimized()
+    Return $__g_Cfg_bStartMinimized
 EndFunc
 
 ; [Display]
@@ -427,6 +434,9 @@ Func _Cfg_SetTrayIconMode($b)
 EndFunc
 Func _Cfg_SetQuickAccessEnabled($b)
     $__g_Cfg_bQuickAccessEnabled = $b
+EndFunc
+Func _Cfg_SetStartMinimized($b)
+    $__g_Cfg_bStartMinimized = $b
 EndFunc
 
 ; [Display]

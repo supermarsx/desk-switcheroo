@@ -402,7 +402,7 @@ Func _DL_DragMouseMove()
         If $iRow = $__g_DL_iDragTarget Then Return ; no change
 
         ; Remove old target highlight
-        If $__g_DL_iDragTarget > 0 And $__g_DL_iDragTarget <= $__g_DL_aItems[0] And $__g_DL_iDragTarget <> $__g_DL_iDragSource Then
+        If $__g_DL_iDragTarget > 0 And $__g_DL_iDragTarget <= $__g_DL_iCount And $__g_DL_iDragTarget <> $__g_DL_iDragSource Then
             GUICtrlSetColor($__g_DL_aItems[$__g_DL_iDragTarget], $THEME_FG_DIM)
             GUICtrlSetBkColor($__g_DL_aItems[$__g_DL_iDragTarget], $GUI_BKCOLOR_TRANSPARENT)
         EndIf
@@ -410,7 +410,7 @@ Func _DL_DragMouseMove()
         $__g_DL_iDragTarget = $iRow
 
         ; Apply new target highlight
-        If $__g_DL_iDragTarget > 0 And $__g_DL_iDragTarget <= $__g_DL_aItems[0] And $__g_DL_iDragTarget <> $__g_DL_iDragSource Then
+        If $__g_DL_iDragTarget > 0 And $__g_DL_iDragTarget <= $__g_DL_iCount And $__g_DL_iDragTarget <> $__g_DL_iDragSource Then
             GUICtrlSetColor($__g_DL_aItems[$__g_DL_iDragTarget], $THEME_FG_WHITE)
             GUICtrlSetBkColor($__g_DL_aItems[$__g_DL_iDragTarget], $THEME_BG_DROP_TARGET)
         EndIf
@@ -863,7 +863,7 @@ Func _DL_ColorPickerCustomDialog()
                 Case $idOK
                     Local $sHex = GUICtrlRead($idInput)
                     $sHex = StringStripWS($sHex, 3)
-                    If StringLeft($sHex, 2) = "0x" Then $sHex = StringMid($sHex, 3)
+                    If StringLeft($sHex, 2) = "0x" Or StringLeft($sHex, 2) = "0X" Then $sHex = StringMid($sHex, 3)
                     If StringLen($sHex) = 6 And StringIsXDigit($sHex) Then
                         $iResult = Int("0x" & $sHex)
                     EndIf
@@ -878,7 +878,7 @@ Func _DL_ColorPickerCustomDialog()
         If Not @error And BitAND($retEnter[0], 0x8000) <> 0 Then
             Local $sHex2 = GUICtrlRead($idInput)
             $sHex2 = StringStripWS($sHex2, 3)
-            If StringLeft($sHex2, 2) = "0x" Then $sHex2 = StringMid($sHex2, 3)
+            If StringLeft($sHex2, 2) = "0x" Or StringLeft($sHex2, 2) = "0X" Then $sHex2 = StringMid($sHex2, 3)
             If StringLen($sHex2) = 6 And StringIsXDigit($sHex2) Then
                 $iResult = Int("0x" & $sHex2)
             EndIf

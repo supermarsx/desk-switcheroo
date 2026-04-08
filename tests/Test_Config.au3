@@ -94,18 +94,18 @@ Func _RunTest_Config()
     _Test_AssertGreaterEqual("Alpha clamped to 50", _Cfg_GetThemeAlphaMain(), 50)
 
     ; -- Out-of-range desktop index --
-    _Test_AssertEqual("Desktop color out of range", _Cfg_GetDesktopColor(0), 0xFFFFFF)
-    _Test_AssertEqual("Desktop color out of range high", _Cfg_GetDesktopColor(10), 0xFFFFFF)
+    _Test_AssertEqual("Desktop color out of range", _Cfg_GetDesktopColor(0), 0)
+    _Test_AssertEqual("Desktop color out of range high", _Cfg_GetDesktopColor(10), 0)
     _Test_AssertEqual("Hotkey desktop out of range", _Cfg_GetHotkeyDesktop(0), "")
 
     ; -- Hotkey clear --
     _Cfg_SetHotkeyNext("")
     _Test_AssertEqual("Hotkey cleared", _Cfg_GetHotkeyNext(), "")
 
-    ; -- Desktop color defaults exist --
+    ; -- Desktop colors default to none (0) --
     _Cfg_Load()
-    _Test_AssertNotEqual("Color 1 has default", _Cfg_GetDesktopColor(1), 0)
-    _Test_AssertNotEqual("Color 2 has default", _Cfg_GetDesktopColor(2), 0)
+    _Test_AssertEqual("Color 1 defaults to none", _Cfg_GetDesktopColor(1), 0)
+    _Test_AssertEqual("Color 2 defaults to none", _Cfg_GetDesktopColor(2), 0)
 
     ; -- New config keys: default values --
     _Cfg_Init($sTempIni)
@@ -158,6 +158,12 @@ Func _RunTest_Config()
 
     _Cfg_SetLogLevel("info")
     _Test_AssertEqual("Valid log_level info accepted", _Cfg_GetLogLevel(), "info")
+
+    ; -- Startup registry round-trip --
+    _Cfg_EnableStartup()
+    _Test_AssertTrue("Startup enabled in registry", _Cfg_IsStartupEnabled())
+    _Cfg_DisableStartup()
+    _Test_AssertFalse("Startup disabled in registry", _Cfg_IsStartupEnabled())
 
     ; -- Cleanup --
     FileDelete($sTempIni)

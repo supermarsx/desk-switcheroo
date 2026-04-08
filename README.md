@@ -10,7 +10,7 @@ A lightweight Windows virtual desktop switcher that sits in your taskbar. Built 
 - **Per-desktop context menu** — right-click any desktop in the list to switch, rename, peek, or delete it (delete requires confirmation)
 - **Persistent list toggle** — right-click menu option to keep the desktop list pinned open
 - **Desktop peek** — hover over the eye icon next to any desktop in the list to temporarily preview it; move away and it snaps back after 500ms
-- **Custom labels with OS sync** — name your desktops (e.g. "Work", "Music", "Chat") via the right-click > Edit Label dialog. On Windows 11, names sync bidirectionally with the OS — renaming in Desk Switcheroo updates Task View, and renaming in Task View updates the widget. Falls back to local `desktop_labels.ini` storage on Windows 10
+- **Custom labels with OS sync** — name your desktops (e.g. "Work", "Music", "Chat") via the right-click > Edit Label dialog. On Windows 11, names sync with the OS — renaming in Desk Switcheroo updates Task View, and Task View changes are detected within a few seconds. Falls back to local `desktop_labels.ini` storage on Windows 10
 - **Dark themed UI** — all popups, menus, dialogs, and hover states use a consistent dark color scheme
 - **Always on top** — the widget aggressively stays above other windows, including fullscreen apps
 - **Singleton enforcement** — relaunching the script kills the previous instance automatically
