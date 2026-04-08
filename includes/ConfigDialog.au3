@@ -890,6 +890,8 @@ Func __CD_ApplyChanges()
 EndFunc
 
 Func __CD_ResetDefaults()
+    If Not _Theme_Confirm("Reset Settings", "Reset all settings to defaults?") Then Return
+
     Local $sPath = _Cfg_GetPath()
     FileDelete($sPath)
     _Cfg_Init($sPath)
