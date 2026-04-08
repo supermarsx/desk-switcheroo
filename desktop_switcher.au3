@@ -302,27 +302,6 @@ While 1
                         _RefreshIndex()
                     EndIf
                 EndIf
-            Case "export"
-                _CM_Destroy()
-                Local $sExportPath = FileSaveDialog("Export Settings", @DesktopDir, "INI Files (*.ini)", 16, "desk_switcheroo.ini")
-                If $sExportPath <> "" Then
-                    If _Cfg_Export($sExportPath) Then
-                        _Theme_Toast("Settings exported", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
-                    Else
-                        _Theme_Toast("Export failed", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_ERROR)
-                    EndIf
-                EndIf
-            Case "import"
-                _CM_Destroy()
-                Local $sImportPath = FileOpenDialog("Import Settings", @DesktopDir, "INI Files (*.ini)", 1)
-                If $sImportPath <> "" Then
-                    If _Cfg_Import($sImportPath) Then
-                        _ApplySettingsLive()
-                        _Theme_Toast("Settings imported", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
-                    Else
-                        _Theme_Toast("Import failed", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_ERROR)
-                    EndIf
-                EndIf
             Case "settings"
                 _CM_Destroy()
                 _CD_Show()

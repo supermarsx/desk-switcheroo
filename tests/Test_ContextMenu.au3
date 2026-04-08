@@ -49,12 +49,6 @@ Func _RunTest_ContextMenu()
     ; -- HandleClick with settings returns 'settings' --
     _CM_Show($iTestTaskbarY, False)
     _Test_AssertEqual("HandleClick(settings) = 'settings'", _CM_HandleClick(_CM_GetSettingsID()), "settings")
-
-    ; -- HandleClick with import returns 'import' --
-    _Test_AssertEqual("HandleClick(import) = 'import'", _CM_HandleClick(_CM_GetImportID()), "import")
-
-    ; -- HandleClick with export returns 'export' --
-    _Test_AssertEqual("HandleClick(export) = 'export'", _CM_HandleClick(_CM_GetExportID()), "export")
     _CM_Destroy()
 
     ; -- Show with list visible changes toggle text --
