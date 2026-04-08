@@ -36,6 +36,7 @@ Local $hMutex = DllCall("kernel32.dll", "handle", "CreateMutexW", "ptr", 0, "boo
 Local $aLastErr = DllCall("kernel32.dll", "dword", "GetLastError")
 If Not @error And IsArray($aLastErr) And $aLastErr[0] = 183 Then
     Local $aProcs = ProcessList(@AutoItExe)
+    Local $p
     For $p = 1 To $aProcs[0][0]
         If $aProcs[$p][1] <> @AutoItPID Then
             ProcessClose($aProcs[$p][1])
@@ -72,6 +73,7 @@ EndIf
 ; ---- Parse command-line arguments ----
 Global $bAutoStart = False
 If $CmdLine[0] >= 1 Then
+    Local $c
     For $c = 1 To $CmdLine[0]
         If $CmdLine[$c] = "-autostart" Then $bAutoStart = True
     Next
@@ -824,6 +826,7 @@ Func _QuickAccess_Check()
     EndIf
 
     ; Poll VK_1 (0x31) through VK_9 (0x39)
+    Local $i
     For $i = 0x31 To 0x39
         Local $retKey = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $i)
         If Not @error And BitAND($retKey[0], 0x8000) <> 0 Then
@@ -1064,7 +1067,7 @@ EndFunc
 ; Name:        _RegisterHotkeys
 ; Description: Registers all configured global hotkeys
 Func _RegisterHotkeys()
-    Local $sKey
+    Local $sKey, $i
     $sKey = _Cfg_GetHotkeyNext()
     If $sKey <> "" Then HotKeySet($sKey, "_HK_Next")
     $sKey = _Cfg_GetHotkeyPrev()
@@ -1080,7 +1083,7 @@ EndFunc
 ; Name:        _UnregisterHotkeys
 ; Description: Unregisters all global hotkeys
 Func _UnregisterHotkeys()
-    Local $sKey
+    Local $sKey, $i
     $sKey = _Cfg_GetHotkeyNext()
     If $sKey <> "" Then HotKeySet($sKey)
     $sKey = _Cfg_GetHotkeyPrev()

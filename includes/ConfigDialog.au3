@@ -86,6 +86,7 @@ Func _CD_Show()
 
     ; Reset state
     $__g_CD_iChkCount = 0
+    Local $t
     For $t = 1 To 7
         $__g_CD_aiTabCtrlCount[$t] = 0
     Next
@@ -178,6 +179,7 @@ EndFunc
 Func __CD_SwitchTab($iTab)
     $__g_CD_iActiveTab = $iTab
     ; Update tab button styles
+    Local $t, $c
     For $t = 1 To 7
         If $t = $iTab Then
             GUICtrlSetColor($__g_CD_aidTabBtn[$t], $THEME_FG_WHITE)
@@ -226,6 +228,7 @@ Func __CD_CreateCheckbox($sText, $iX, $iY, $iW, $iTab)
 EndFunc
 
 Func __CD_SetCheckState($id, $bChecked)
+    Local $i
     For $i = 1 To $__g_CD_iChkCount
         If $__g_CD_aChkIDs[$i] = $id Then
             $__g_CD_aChkStates[$i] = $bChecked
@@ -242,6 +245,7 @@ Func __CD_SetCheckState($id, $bChecked)
 EndFunc
 
 Func __CD_GetCheckState($id)
+    Local $i
     For $i = 1 To $__g_CD_iChkCount
         If $__g_CD_aChkIDs[$i] = $id Then Return $__g_CD_aChkStates[$i]
     Next
@@ -249,6 +253,7 @@ Func __CD_GetCheckState($id)
 EndFunc
 
 Func __CD_HandleCheckboxClick($msg)
+    Local $i
     For $i = 1 To $__g_CD_iChkCount
         If $__g_CD_aChkIDs[$i] = $msg Then
             $__g_CD_aChkStates[$i] = Not $__g_CD_aChkStates[$i]
@@ -290,6 +295,7 @@ EndFunc
 Func __CD_CycleValue($id, $sOptions)
     Local $aCur = GUICtrlRead($id)
     Local $aOpts = StringSplit($sOptions, "|")
+    Local $i
     For $i = 1 To $aOpts[0]
         If $aOpts[$i] = $aCur Then
             Local $iNext = Mod($i, $aOpts[0]) + 1
@@ -406,7 +412,7 @@ EndFunc
 
 Func __CD_BuildTabHotkeys()
     Local $t = 4, $iX = 20, $iY = 50
-    Local $iLblW = 100, $iInpW = 150
+    Local $iLblW = 100, $iInpW = 150, $i
 
     Local $aLabels[13] = [12, "Next:", "Prev:", "Desktop 1:", "Desktop 2:", "Desktop 3:", _
         "Desktop 4:", "Desktop 5:", "Desktop 6:", "Desktop 7:", "Desktop 8:", "Desktop 9:", "Toggle List:"]
@@ -556,7 +562,7 @@ Func __CD_BuildTabBehavior()
 EndFunc
 
 Func __CD_BuildTabColors()
-    Local $t = 6, $iX = 20, $iY = 50
+    Local $t = 6, $iX = 20, $iY = 50, $i
 
     $__g_CD_idChkColorsEnabled = __CD_CreateCheckbox("Enable desktop colors", $iX, $iY, 300, $t)
     $iY += 30
@@ -606,6 +612,7 @@ EndFunc
 ; =============================================
 
 Func __CD_PopulateControls()
+    Local $i
     ; General
     __CD_SetCheckState($__g_CD_idChkStartWin, _Cfg_GetStartWithWindows())
     __CD_SetCheckState($__g_CD_idChkWrapNav, _Cfg_GetWrapNavigation())
@@ -669,7 +676,7 @@ EndFunc
 ; =============================================
 
 Func __CD_MessageLoop()
-    Local $iHovered = 0
+    Local $iHovered = 0, $t
 
     While 1
         Local $aMsg = GUIGetMsg(1)
@@ -743,6 +750,7 @@ EndFunc
 
 Func __CD_ApplyChanges()
     If $__g_CD_hGUI = 0 Then Return
+    Local $i
     Local $bOldStartup = _Cfg_IsStartupEnabled()
 
     ; General
