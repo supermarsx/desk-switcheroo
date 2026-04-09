@@ -764,7 +764,7 @@ Func _ProcessHoverAndVisuals()
     ; Hover effects -- only when cursor moved or drag active, and only for the window under cursor
     If $bCursorActive And ($bCursorMoved Or _DL_IsDragging() Or $bDesktopChanged Or $bNamesChanged) Then
         If _Theme_IsCursorOverWindow($gui) Then _CheckHover()
-        If _DL_IsVisible() And _Theme_IsCursorOverWindow(_DL_GetGUI()) Then _DL_CheckHover($iDesktop)
+        If _DL_IsVisible() Then _DL_CheckHover($iDesktop) ; always call — clears hover via @error when cursor not over list
         If _CM_IsVisible() And _Theme_IsCursorOverWindow(_CM_GetGUI()) Then _CM_CheckHover()
         If _DL_CtxIsVisible() And _Theme_IsCursorOverWindow(_DL_CtxGetGUI()) Then _DL_CtxCheckHover()
         If _DL_ColorPickerIsVisible() And _Theme_IsCursorOverWindow(_DL_ColorPickerGetGUI()) Then _DL_ColorPickerCheckHover()
@@ -781,6 +781,7 @@ Func _ProcessHoverAndVisuals()
             _Theme_RemoveHover($lblRight, $THEME_FG_NORMAL)
             $bHoverRight = False
         EndIf
+        If _DL_IsVisible() Then _DL_CheckHover($iDesktop)
     EndIf
     $__g_bWasCursorActive = $bCursorActive
 
