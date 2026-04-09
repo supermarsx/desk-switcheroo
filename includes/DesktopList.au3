@@ -733,17 +733,16 @@ Func _DL_DragPerformReorder($iFrom, $iTo, $iCurrentDesktop)
     Local $iStep = 1
     If $iFrom > $iTo Then $iStep = -1
 
-    ; Adjacent swap chain
+    ; Adjacent swap chain — _VD_SwapDesktops handles windows, OS names, and colors
     Local $iPos = $iFrom
     While $iPos <> $iTo
         Local $iNext = $iPos + $iStep
-        ; Swap windows
         _VD_SwapDesktops($iPos, $iNext)
-        ; Swap labels
-        Local $sLabelA = _Labels_Load($iPos)
-        Local $sLabelB = _Labels_Load($iNext)
-        _Labels_Save($iPos, $sLabelB)
-        _Labels_Save($iNext, $sLabelA)
+        ; Swap INI labels (OS names already swapped inside _VD_SwapDesktops)
+        Local $sIniA = IniRead($__g_Labels_IniPath, "Labels", "desktop_" & $iPos, "")
+        Local $sIniB = IniRead($__g_Labels_IniPath, "Labels", "desktop_" & $iNext, "")
+        IniWrite($__g_Labels_IniPath, "Labels", "desktop_" & $iPos, $sIniB)
+        IniWrite($__g_Labels_IniPath, "Labels", "desktop_" & $iNext, $sIniA)
         $iPos = $iNext
     WEnd
 
