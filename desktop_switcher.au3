@@ -1924,11 +1924,82 @@ EndFunc
 ; Description: Triggers a test crash — writes crash log first, then causes a COM error
 ;              which fires _OnAutoItError and shows the crash dialog
 Func __TriggerTestCrash()
-    _Log_Warn("DEBUG: Intentional crash triggered by user")
-    ; Trigger COM error — this is caught by _OnAutoItError, writes crash
-    ; log with full state, and shows the custom crash dialog
-    Local $oCrash = ObjCreate("__DeskSwitcheroo.IntentionalCrash.Debug")
-    $oCrash.CrashNow()
+    Local $iW = 300, $iH = 230
+    Local $hDlg = GUICreate("Trigger Crash", $iW, $iH, _
+        (@DesktopWidth - $iW) / 2, (@DesktopHeight - $iH) / 2, $WS_POPUP, _
+        BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW))
+    GUISetBkColor(0x1E1E1E)
+
+    GUICtrlCreateLabel(ChrW(0x26A0) & "  Select crash type:", 14, 10, $iW - 28, 22)
+    GUICtrlSetFont(-1, 10, 700, 0, "Segoe UI")
+    GUICtrlSetColor(-1, 0xFF5555)
+    GUICtrlSetBkColor(-1, 0x1E1E1E)
+
+    Local $idCOM = GUICtrlCreateLabel("  COM Error (shows crash dialog)", 14, 42, $iW - 28, 28, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idCOM, 8, 400, 0, "Segoe UI")
+    GUICtrlSetColor($idCOM, 0xCCCCCC)
+    GUICtrlSetBkColor($idCOM, 0x333333)
+    GUICtrlSetCursor($idCOM, 0)
+
+    Local $idArray = GUICtrlCreateLabel("  Array bounds (fatal, writes log)", 14, 76, $iW - 28, 28, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idArray, 8, 400, 0, "Segoe UI")
+    GUICtrlSetColor($idArray, 0xCCCCCC)
+    GUICtrlSetBkColor($idArray, 0x333333)
+    GUICtrlSetCursor($idArray, 0)
+
+    Local $idDivZero = GUICtrlCreateLabel("  Division by zero (fatal, writes log)", 14, 110, $iW - 28, 28, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idDivZero, 8, 400, 0, "Segoe UI")
+    GUICtrlSetColor($idDivZero, 0xCCCCCC)
+    GUICtrlSetBkColor($idDivZero, 0x333333)
+    GUICtrlSetCursor($idDivZero, 0)
+
+    Local $idExit = GUICtrlCreateLabel("  Forced Exit code 99 (writes log)", 14, 144, $iW - 28, 28, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idExit, 8, 400, 0, "Segoe UI")
+    GUICtrlSetColor($idExit, 0xCCCCCC)
+    GUICtrlSetBkColor($idExit, 0x333333)
+    GUICtrlSetCursor($idExit, 0)
+
+    Local $idCancel = GUICtrlCreateLabel("Cancel", ($iW - 80) / 2, $iH - 36, 80, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idCancel, 9, 400, 0, "Segoe UI")
+    GUICtrlSetColor($idCancel, 0xDDDDDD)
+    GUICtrlSetBkColor($idCancel, 0x333333)
+    GUICtrlSetCursor($idCancel, 0)
+
+    GUISetState(@SW_SHOW, $hDlg)
+
+    While 1
+        Local $aMsg = GUIGetMsg(1)
+        If $aMsg[1] = $hDlg Then
+            Switch $aMsg[0]
+                Case $GUI_EVENT_CLOSE, $idCancel
+                    GUIDelete($hDlg)
+                    Return
+                Case $idCOM
+                    GUIDelete($hDlg)
+                    _Log_Warn("DEBUG: COM error crash triggered")
+                    Local $oCrash = ObjCreate("__DeskSwitcheroo.IntentionalCrash")
+                    $oCrash.CrashNow()
+                    Return
+                Case $idArray
+                    GUIDelete($hDlg)
+                    _Log_Warn("DEBUG: Array bounds crash triggered")
+                    Local $aCrash[1]
+                    $aCrash[999] = "crash"
+                    Return
+                Case $idDivZero
+                    GUIDelete($hDlg)
+                    _Log_Warn("DEBUG: Division by zero crash triggered")
+                    Local $iZero = 0
+                    Local $iCrash = 1 / $iZero
+                    Return
+                Case $idExit
+                    GUIDelete($hDlg)
+                    _Log_Warn("DEBUG: Forced exit crash triggered")
+                    Exit 99
+            EndSwitch
+        EndIf
+        Sleep(10)
+    WEnd
 EndFunc
 
 Func __WriteCrashLog($sReason, $sDetails)
