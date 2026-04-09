@@ -52,6 +52,14 @@ Global $__g_DL_iColorCustomID = 0
 Global $__g_DL_iColorTarget = 0
 Global $__g_DL_iColorHovered = 0
 
+; -- Scroll offset for large desktop lists --
+Global $__g_DL_iScrollOffset = 0
+Global Const $__g_DL_iMaxVisible = 10 ; max items visible at once
+
+; -- Scroll arrow control IDs --
+Global $__g_DL_idScrollUp = 0
+Global $__g_DL_idScrollDown = 0
+
 ; -- Thumbnail preview state --
 Global $__g_DL_hThumbGUI = 0
 Global $__g_DL_bThumbVisible = False
@@ -94,21 +102,59 @@ Func _DL_Show($iTaskbarY, $iCurrentDesktop)
     Local $iCount = _VD_GetCount()
     If $iCount < 1 Then $iCount = 1
 
+    ; Clamp scroll offset to valid range
+    If $__g_DL_iScrollOffset < 0 Then $__g_DL_iScrollOffset = 0
+    If $iCount > $__g_DL_iMaxVisible And $__g_DL_iScrollOffset > $iCount - $__g_DL_iMaxVisible Then
+        $__g_DL_iScrollOffset = $iCount - $__g_DL_iMaxVisible
+    EndIf
+    If $iCount <= $__g_DL_iMaxVisible Then $__g_DL_iScrollOffset = 0
+
+    ; Calculate visible range
+    Local $bScrollable = ($iCount > $__g_DL_iMaxVisible)
+    Local $iVisibleCount = $iCount
+    If $bScrollable Then $iVisibleCount = $__g_DL_iMaxVisible
+    Local $iStart = $__g_DL_iScrollOffset + 1
+    Local $iEnd = $__g_DL_iScrollOffset + $iVisibleCount
+    If $iEnd > $iCount Then $iEnd = $iCount
+
+    ; Calculate height: visible items + optional scroll arrows
+    Local $iArrowH = 16
+    Local $iExtraH = 0
+    If $bScrollable Then $iExtraH = $iArrowH * 2
+
     Local $iListW = $THEME_MAIN_WIDTH + $THEME_PEEK_ZONE_W
-    Local $iListH = $iCount * $THEME_ITEM_HEIGHT + 6
+    Local $iListH = $iVisibleCount * $THEME_ITEM_HEIGHT + 6 + $iExtraH
     Local $iListY = $iTaskbarY + 2 - $iListH - 2
 
     $__g_DL_hGUI = _Theme_CreatePopup("DesktopList", $iListW, $iListH, 0, $iListY)
 
-    ReDim $__g_DL_aItems[$iCount + 1]
-    ReDim $__g_DL_aPeekBtns[$iCount + 1]
-    $__g_DL_aItems[0] = $iCount
-    $__g_DL_aPeekBtns[0] = $iCount
+    ReDim $__g_DL_aItems[$iVisibleCount + 1]
+    ReDim $__g_DL_aPeekBtns[$iVisibleCount + 1]
+    $__g_DL_aItems[0] = $iVisibleCount
+    $__g_DL_aPeekBtns[0] = $iVisibleCount
     $__g_DL_iHovered = 0
     $__g_DL_iPeekHovered = 0
+    $__g_DL_idScrollUp = 0
+    $__g_DL_idScrollDown = 0
 
-    Local $i
-    For $i = 1 To $iCount
+    Local $iContentY = 3
+
+    ; Up scroll arrow
+    If $bScrollable Then
+        Local $sUpArrow = ""
+        If $__g_DL_iScrollOffset > 0 Then $sUpArrow = ChrW(0x25B2)
+        $__g_DL_idScrollUp = GUICtrlCreateLabel($sUpArrow, 4, $iContentY, $iListW - 8, $iArrowH, _
+            BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+        GUICtrlSetFont($__g_DL_idScrollUp, 7, 400, 0, $THEME_FONT_SYMBOL)
+        GUICtrlSetColor($__g_DL_idScrollUp, $THEME_FG_DIM)
+        GUICtrlSetBkColor($__g_DL_idScrollUp, $GUI_BKCOLOR_TRANSPARENT)
+        GUICtrlSetCursor($__g_DL_idScrollUp, 0)
+        $iContentY += $iArrowH
+    EndIf
+
+    Local $i, $iSlot
+    For $iSlot = 1 To $iVisibleCount
+        $i = $__g_DL_iScrollOffset + $iSlot
         Local $sName = _Labels_Load($i)
         Local $iPad = _Cfg_GetNumberPadding()
         Local $sNum = String($i)
@@ -117,7 +163,7 @@ Func _DL_Show($iTaskbarY, $iCurrentDesktop)
         WEnd
         Local $sText = " " & $sNum
         If $sName <> "" Then $sText &= "  " & $sName
-        Local $iY = 3 + ($i - 1) * $THEME_ITEM_HEIGHT
+        Local $iY = $iContentY + ($iSlot - 1) * $THEME_ITEM_HEIGHT
         Local $iBold = 400
         Local $iColor = $THEME_FG_DIM
         Local $iBg = $GUI_BKCOLOR_TRANSPARENT
@@ -128,18 +174,21 @@ Func _DL_Show($iTaskbarY, $iCurrentDesktop)
         EndIf
 
         ; Peek zone icon
-        $__g_DL_aPeekBtns[$i] = GUICtrlCreateLabel(ChrW(0x25C9), 4, $iY, $THEME_PEEK_ZONE_W, $THEME_ITEM_HEIGHT - 2, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-        GUICtrlSetFont($__g_DL_aPeekBtns[$i], 7, 400, 0, $THEME_FONT_SYMBOL)
-        GUICtrlSetColor($__g_DL_aPeekBtns[$i], $THEME_FG_PEEK_DIM)
-        GUICtrlSetBkColor($__g_DL_aPeekBtns[$i], $GUI_BKCOLOR_TRANSPARENT)
-        GUICtrlSetCursor($__g_DL_aPeekBtns[$i], 0)
+        $__g_DL_aPeekBtns[$iSlot] = GUICtrlCreateLabel(ChrW(0x25C9), 4, $iY, $THEME_PEEK_ZONE_W, $THEME_ITEM_HEIGHT - 2, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+        GUICtrlSetFont($__g_DL_aPeekBtns[$iSlot], 7, 400, 0, $THEME_FONT_SYMBOL)
+        GUICtrlSetColor($__g_DL_aPeekBtns[$iSlot], $THEME_FG_PEEK_DIM)
+        GUICtrlSetBkColor($__g_DL_aPeekBtns[$iSlot], $GUI_BKCOLOR_TRANSPARENT)
+        GUICtrlSetCursor($__g_DL_aPeekBtns[$iSlot], 0)
 
         ; Text label
-        $__g_DL_aItems[$i] = GUICtrlCreateLabel($sText, 4 + $THEME_PEEK_ZONE_W, $iY, $iListW - 8 - $THEME_PEEK_ZONE_W, $THEME_ITEM_HEIGHT - 2, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
-        GUICtrlSetFont($__g_DL_aItems[$i], 8, $iBold, 0, $THEME_FONT_MONO)
-        GUICtrlSetColor($__g_DL_aItems[$i], $iColor)
-        GUICtrlSetBkColor($__g_DL_aItems[$i], $iBg)
-        GUICtrlSetCursor($__g_DL_aItems[$i], 0)
+        Local $sFont = _Cfg_GetListFontName()
+        If $sFont = "" Then $sFont = _Theme_GetMonoFont()
+        Local $iFontSize = _Cfg_GetListFontSize()
+        $__g_DL_aItems[$iSlot] = GUICtrlCreateLabel($sText, 4 + $THEME_PEEK_ZONE_W, $iY, $iListW - 8 - $THEME_PEEK_ZONE_W, $THEME_ITEM_HEIGHT - 2, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+        GUICtrlSetFont($__g_DL_aItems[$iSlot], $iFontSize, $iBold, 0, $sFont)
+        GUICtrlSetColor($__g_DL_aItems[$iSlot], $iColor)
+        GUICtrlSetBkColor($__g_DL_aItems[$iSlot], $iBg)
+        GUICtrlSetCursor($__g_DL_aItems[$iSlot], 0)
 
         ; Desktop color indicator (skip if colors disabled or color is 0/none)
         If _Cfg_GetDesktopColorsEnabled() And $i <= 9 Then
@@ -150,6 +199,19 @@ Func _DL_Show($iTaskbarY, $iCurrentDesktop)
             EndIf
         EndIf
     Next
+
+    ; Down scroll arrow
+    If $bScrollable Then
+        Local $iDownY = $iContentY + $iVisibleCount * $THEME_ITEM_HEIGHT
+        Local $sDownArrow = ""
+        If $iEnd < $iCount Then $sDownArrow = ChrW(0x25BC)
+        $__g_DL_idScrollDown = GUICtrlCreateLabel($sDownArrow, 4, $iDownY, $iListW - 8, $iArrowH, _
+            BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+        GUICtrlSetFont($__g_DL_idScrollDown, 7, 400, 0, $THEME_FONT_SYMBOL)
+        GUICtrlSetColor($__g_DL_idScrollDown, $THEME_FG_DIM)
+        GUICtrlSetBkColor($__g_DL_idScrollDown, $GUI_BKCOLOR_TRANSPARENT)
+        GUICtrlSetCursor($__g_DL_idScrollDown, 0)
+    EndIf
 
     GUISetState(@SW_SHOW, $__g_DL_hGUI)
     $__g_DL_bVisible = True
@@ -171,6 +233,8 @@ Func _DL_Destroy()
     $__g_DL_iHovered = 0
     $__g_DL_iPeekHovered = 0
     $__g_DL_iCount = 0
+    $__g_DL_idScrollUp = 0
+    $__g_DL_idScrollDown = 0
 EndFunc
 
 ; Name:        _DL_HandleClick
@@ -180,6 +244,9 @@ EndFunc
 Func _DL_HandleClick($msg)
     If $__g_DL_iDragState > 0 Then Return 0
     If $msg <= 0 Then Return 0
+    ; Handle scroll arrow clicks
+    If $__g_DL_idScrollUp <> 0 And $msg = $__g_DL_idScrollUp Then Return -1
+    If $__g_DL_idScrollDown <> 0 And $msg = $__g_DL_idScrollDown Then Return -2
     If UBound($__g_DL_aItems) < 2 Or $__g_DL_aItems[0] < 1 Then Return 0
     Local $i
     For $i = 1 To $__g_DL_aItems[0]
@@ -187,7 +254,8 @@ Func _DL_HandleClick($msg)
             If _Peek_IsActive() Then
                 _Peek_Commit()
             EndIf
-            Return $i
+            ; Convert visual slot to actual desktop index
+            Return $i + $__g_DL_iScrollOffset
         EndIf
     Next
     Return 0
@@ -200,10 +268,15 @@ Func _DL_CheckHover($iCurrentDesktop)
     If Not $__g_DL_bVisible Or $__g_DL_hGUI = 0 Then Return
     If $__g_DL_iDragState = 2 Then Return ; drag controls visuals during active drag
     If UBound($__g_DL_aItems) < 2 Or $__g_DL_aItems[0] < 1 Then Return
+
+    ; Convert current desktop to visual slot (0 if not visible)
+    Local $iCurSlot = $iCurrentDesktop - $__g_DL_iScrollOffset
+    If $iCurSlot < 1 Or $iCurSlot > $__g_DL_aItems[0] Then $iCurSlot = 0
+
     Local $aCursor = GUIGetCursorInfo($__g_DL_hGUI)
     If @error Then
         ; Cursor left the list
-        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <= $__g_DL_aItems[0] And $__g_DL_iHovered <> $iCurrentDesktop Then
+        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <= $__g_DL_aItems[0] And $__g_DL_iHovered <> $iCurSlot Then
             _Theme_RemoveHover($__g_DL_aItems[$__g_DL_iHovered], $THEME_FG_DIM)
         EndIf
         If $__g_DL_iPeekHovered > 0 And $__g_DL_iPeekHovered <= $__g_DL_aPeekBtns[0] Then
@@ -216,7 +289,7 @@ Func _DL_CheckHover($iCurrentDesktop)
         Return
     EndIf
 
-    ; Find hovered text item
+    ; Find hovered text item (slot index)
     Local $iFound = 0
     Local $i
     For $i = 1 To $__g_DL_aItems[0]
@@ -226,7 +299,7 @@ Func _DL_CheckHover($iCurrentDesktop)
         EndIf
     Next
 
-    ; Find hovered peek button
+    ; Find hovered peek button (slot index)
     Local $iPeekFound = 0
     For $i = 1 To $__g_DL_aPeekBtns[0]
         If $aCursor[4] = $__g_DL_aPeekBtns[$i] Then
@@ -239,21 +312,21 @@ Func _DL_CheckHover($iCurrentDesktop)
     Local $iEffective = $iFound
     If $iEffective = 0 Then $iEffective = $iPeekFound
 
-    ; Update text hover highlight
+    ; Update text hover highlight (using slot indices for array access)
     If $iEffective <> $__g_DL_iHovered Then
-        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <= $__g_DL_aItems[0] And $__g_DL_iHovered <> $iCurrentDesktop Then
+        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <= $__g_DL_aItems[0] And $__g_DL_iHovered <> $iCurSlot Then
             _Theme_RemoveHover($__g_DL_aItems[$__g_DL_iHovered], $THEME_FG_DIM)
         EndIf
         $__g_DL_iHovered = $iEffective
-        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <= $__g_DL_aItems[0] And $__g_DL_iHovered <> $iCurrentDesktop Then
+        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <= $__g_DL_aItems[0] And $__g_DL_iHovered <> $iCurSlot Then
             _Theme_ApplyHover($__g_DL_aItems[$__g_DL_iHovered], $THEME_FG_WHITE, $THEME_BG_HOVER)
         EndIf
     EndIf
 
-    ; Show/hide thumbnail preview on hover
+    ; Show/hide thumbnail preview on hover (convert slot to actual desktop index)
     If _Cfg_GetThumbnailsEnabled() Then
         If $iEffective > 0 Then
-            _DL_ThumbShow($iEffective)
+            _DL_ThumbShow($iEffective + $__g_DL_iScrollOffset)
         Else
             _DL_ThumbDestroy()
         EndIf
@@ -269,9 +342,10 @@ Func _DL_CheckHover($iCurrentDesktop)
             GUICtrlSetColor($__g_DL_aPeekBtns[$__g_DL_iPeekHovered], $THEME_FG_WHITE)
         EndIf
 
-        ; Peek logic
-        If $__g_DL_iPeekHovered > 0 And $__g_DL_iPeekHovered <> $iCurrentDesktop Then
-            _Peek_Start($__g_DL_iPeekHovered)
+        ; Peek logic (convert slot to actual desktop index)
+        Local $iActualPeek = $__g_DL_iPeekHovered + $__g_DL_iScrollOffset
+        If $__g_DL_iPeekHovered > 0 And $iActualPeek <> $iCurrentDesktop Then
+            _Peek_Start($iActualPeek)
         Else
             _Peek_StartBounceBack()
         EndIf
@@ -284,15 +358,21 @@ EndFunc
 Func _DL_UpdateHighlight($iCurrentDesktop)
     If Not $__g_DL_bVisible Then Return
     If UBound($__g_DL_aItems) < 2 Or $__g_DL_aItems[0] < 1 Then Return
+    Local $sFont = _Cfg_GetListFontName()
+    If $sFont = "" Then $sFont = _Theme_GetMonoFont()
+    Local $iFontSize = _Cfg_GetListFontSize()
+    ; Convert current desktop to visual slot
+    Local $iCurSlot = $iCurrentDesktop - $__g_DL_iScrollOffset
+    If $iCurSlot < 1 Or $iCurSlot > $__g_DL_aItems[0] Then $iCurSlot = 0
     Local $i
     For $i = 1 To $__g_DL_aItems[0]
-        If $i = $__g_DL_iHovered And $i <> $iCurrentDesktop Then ContinueLoop
-        If $i = $iCurrentDesktop Then
-            GUICtrlSetFont($__g_DL_aItems[$i], 8, 700, 0, $THEME_FONT_MONO)
+        If $i = $__g_DL_iHovered And $i <> $iCurSlot Then ContinueLoop
+        If $i = $iCurSlot Then
+            GUICtrlSetFont($__g_DL_aItems[$i], $iFontSize, 700, 0, $sFont)
             GUICtrlSetColor($__g_DL_aItems[$i], $THEME_FG_WHITE)
             GUICtrlSetBkColor($__g_DL_aItems[$i], $THEME_BG_ACTIVE)
         Else
-            GUICtrlSetFont($__g_DL_aItems[$i], 8, 400, 0, $THEME_FONT_MONO)
+            GUICtrlSetFont($__g_DL_aItems[$i], $iFontSize, 400, 0, $sFont)
             GUICtrlSetColor($__g_DL_aItems[$i], $THEME_FG_DIM)
             GUICtrlSetBkColor($__g_DL_aItems[$i], $GUI_BKCOLOR_TRANSPARENT)
         EndIf
@@ -336,7 +416,9 @@ EndFunc
 ;              $sLabel - new label text
 Func _DL_UpdateItemText($iIndex, $sLabel)
     If Not $__g_DL_bVisible Then Return
-    If $iIndex < 1 Or $iIndex > $__g_DL_aItems[0] Then Return
+    ; Convert actual desktop index to visual slot
+    Local $iSlot = $iIndex - $__g_DL_iScrollOffset
+    If $iSlot < 1 Or $iSlot > $__g_DL_aItems[0] Then Return
     Local $iPad = _Cfg_GetNumberPadding()
     Local $sNum = String($iIndex)
     While StringLen($sNum) < $iPad
@@ -344,7 +426,7 @@ Func _DL_UpdateItemText($iIndex, $sLabel)
     WEnd
     Local $sText = " " & $sNum
     If $sLabel <> "" Then $sText &= "  " & $sLabel
-    GUICtrlSetData($__g_DL_aItems[$iIndex], $sText)
+    GUICtrlSetData($__g_DL_aItems[$iSlot], $sText)
 EndFunc
 
 ; Name:        _DL_IsVisible
@@ -366,6 +448,43 @@ EndFunc
 ; Return:      Integer
 Func _DL_GetCount()
     Return $__g_DL_iCount
+EndFunc
+
+; Name:        _DL_GetScrollOffset
+; Description: Returns the current scroll offset
+; Return:      Integer (0-based offset)
+Func _DL_GetScrollOffset()
+    Return $__g_DL_iScrollOffset
+EndFunc
+
+; Name:        _DL_ScrollUp
+; Description: Scrolls the desktop list up by one row and rebuilds
+; Parameters:  $iTaskbarY - Y position of the taskbar
+;              $iCurrentDesktop - currently active desktop (1-based)
+Func _DL_ScrollUp($iTaskbarY, $iCurrentDesktop)
+    If $__g_DL_iScrollOffset > 0 Then
+        $__g_DL_iScrollOffset -= 1
+        _DL_Destroy()
+        _DL_Show($iTaskbarY, $iCurrentDesktop)
+    EndIf
+EndFunc
+
+; Name:        _DL_ScrollDown
+; Description: Scrolls the desktop list down by one row and rebuilds
+; Parameters:  $iTaskbarY - Y position of the taskbar
+;              $iCurrentDesktop - currently active desktop (1-based)
+Func _DL_ScrollDown($iTaskbarY, $iCurrentDesktop)
+    If $__g_DL_iScrollOffset + $__g_DL_iMaxVisible < $__g_DL_iCount Then
+        $__g_DL_iScrollOffset += 1
+        _DL_Destroy()
+        _DL_Show($iTaskbarY, $iCurrentDesktop)
+    EndIf
+EndFunc
+
+; Name:        _DL_ResetScroll
+; Description: Resets the scroll offset to zero (e.g., when desktop count changes)
+Func _DL_ResetScroll()
+    $__g_DL_iScrollOffset = 0
 EndFunc
 
 ; =============================================
@@ -545,11 +664,19 @@ Func _DL_GetItemAtPos()
     If @error Then Return 0
     If $aMP[0] < $aWP[0] Or $aMP[0] >= $aWP[0] + $aWP[2] Then Return 0
     If $aMP[1] < $aWP[1] Or $aMP[1] >= $aWP[1] + $aWP[3] Then Return 0
-    ; Items start at Y=3 within the list, each $THEME_ITEM_HEIGHT tall
-    Local $iRelY = $aMP[1] - $aWP[1] - 3
+    ; Account for scroll arrow height at top
+    Local $iArrowH = 0
+    If $__g_DL_iCount > $__g_DL_iMaxVisible Then $iArrowH = 16
+    ; Items start at Y=3+arrowH within the list, each $THEME_ITEM_HEIGHT tall
+    Local $iRelY = $aMP[1] - $aWP[1] - 3 - $iArrowH
     If $iRelY < 0 Then Return 0
-    Local $iRow = Int($iRelY / $THEME_ITEM_HEIGHT) + 1
-    If $iRow < 1 Or $iRow > $__g_DL_iCount Then Return 0
+    Local $iSlot = Int($iRelY / $THEME_ITEM_HEIGHT) + 1
+    Local $iVisibleCount = $__g_DL_iCount
+    If $iVisibleCount > $__g_DL_iMaxVisible Then $iVisibleCount = $__g_DL_iMaxVisible
+    If $iSlot < 1 Or $iSlot > $iVisibleCount Then Return 0
+    ; Convert slot to actual desktop index
+    Local $iRow = $iSlot + $__g_DL_iScrollOffset
+    If $iRow > $__g_DL_iCount Then Return 0
     Return $iRow
 EndFunc
 
@@ -1006,7 +1133,10 @@ Func _DL_ThumbShow($iDesktop)
     Local $aListPos = WinGetPos($__g_DL_hGUI)
     If @error Then Return
     Local $iX = $aListPos[0] + $aListPos[2] + 4
-    Local $iRow = ($iDesktop - 1) * $THEME_ITEM_HEIGHT + 3
+    ; Calculate Y relative to visible slot, accounting for scroll offset and arrow
+    Local $iArrowH = 0
+    If $__g_DL_iCount > $__g_DL_iMaxVisible Then $iArrowH = 16
+    Local $iRow = ($iDesktop - 1 - $__g_DL_iScrollOffset) * $THEME_ITEM_HEIGHT + 3 + $iArrowH
     Local $iY = $aListPos[1] + $iRow
     ; Keep on screen
     If $iX + $iW > @DesktopWidth Then $iX = $aListPos[0] - $iW - 4

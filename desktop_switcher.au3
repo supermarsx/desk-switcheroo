@@ -335,7 +335,13 @@ Func _ProcessGUIEvents($msg, $hFrom)
     ; Desktop list events
     If _DL_IsVisible() And $hFrom = _DL_GetGUI() Then
         Local $iTarget = _DL_HandleClick($msg)
-        If $iTarget > 0 Then
+        If $iTarget = -1 Then
+            ; Scroll up arrow clicked
+            _DL_ScrollUp($iTaskbarY, $iDesktop)
+        ElseIf $iTarget = -2 Then
+            ; Scroll down arrow clicked
+            _DL_ScrollDown($iTaskbarY, $iDesktop)
+        ElseIf $iTarget > 0 Then
             _DL_CtxDestroy()
             _VD_GoTo($iTarget)
             Sleep(50)
@@ -984,23 +990,108 @@ Func _CheckUpdateResult()
 EndFunc
 
 ; Name:        _CheckUpdateNow
-; Description: Manually triggers an update check and shows result via toast
+; Description: Manually triggers an update check with a progress dialog and version comparison
 Func _CheckUpdateNow()
     _Log_Info("Manual update check triggered")
-    Local $sUrl = "https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest"
-    Local $bData = InetRead($sUrl, 1) ; blocking is OK for manual check
+
+    ; Show a small "Checking..." dialog
+    Local $iW = 280, $iH = 120
+    Local $hDlg = _Theme_CreatePopup("Update Check", $iW, $iH, (@DesktopWidth - $iW) / 2, (@DesktopHeight - $iH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+
+    GUICtrlCreateLabel("Checking for updates...", 14, 14, $iW - 28, 20)
+    GUICtrlSetFont(-1, 10, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
+    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+
+    Local $idStatus = GUICtrlCreateLabel("Connecting to GitHub...", 14, 40, $iW - 28, 16)
+    GUICtrlSetFont($idStatus, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idStatus, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idStatus, $GUI_BKCOLOR_TRANSPARENT)
+
+    GUISetState(@SW_SHOW, $hDlg)
+    Sleep(100) ; let the dialog render
+
+    ; Download
+    Local $bData = InetRead("https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest", 1)
     If @error Then
-        _Theme_Toast("Update check failed", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
+        GUICtrlSetData($idStatus, "Connection failed")
+        GUICtrlSetColor($idStatus, 0xFF5555)
+        Sleep(2000)
+        GUIDelete($hDlg)
         Return
     EndIf
+
     Local $sJson = BinaryToString($bData)
     Local $aMatch = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
     If @error Or UBound($aMatch) < 1 Then
-        _Theme_Toast("Could not parse release info", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_WARNING)
+        GUICtrlSetData($idStatus, "Could not parse release info")
+        GUICtrlSetColor($idStatus, 0xFFD54A)
+        Sleep(2000)
+        GUIDelete($hDlg)
         Return
     EndIf
+
     Local $sLatest = $aMatch[0]
-    _Theme_Toast("Latest: v" & $sLatest, 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_SUCCESS)
+    ; Extract download URL for the installer
+    Local $aUrlMatch = StringRegExp($sJson, '"browser_download_url"\s*:\s*"([^"]*Setup[^"]*)"', 1)
+    Local $sDownloadUrl = ""
+    If Not @error And UBound($aUrlMatch) >= 1 Then $sDownloadUrl = $aUrlMatch[0]
+
+    ; Show result
+    GUIDelete($hDlg)
+
+    ; Show result dialog with version info
+    $hDlg = _Theme_CreatePopup("Update Check", $iW, $iH, (@DesktopWidth - $iW) / 2, (@DesktopHeight - $iH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+
+    GUICtrlCreateLabel(ChrW(0x2713) & " Latest version: v" & $sLatest, 14, 14, $iW - 28, 20)
+    GUICtrlSetFont(-1, 10, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor(-1, $TOAST_SUCCESS)
+    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+
+    ; Download button (if URL found)
+    Local $idDownload = 0
+    If $sDownloadUrl <> "" Then
+        $idDownload = GUICtrlCreateLabel(ChrW(0x2B07) & " Download", 14, 50, 120, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+        GUICtrlSetFont($idDownload, 9, 400, 0, $THEME_FONT_MAIN)
+        GUICtrlSetColor($idDownload, $THEME_FG_LINK)
+        GUICtrlSetBkColor($idDownload, $THEME_BG_HOVER)
+        GUICtrlSetCursor($idDownload, 0)
+    EndIf
+
+    Local $idClose = GUICtrlCreateLabel(ChrW(0x2715) & " Close", $iW - 94, $iH - 36, 80, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idClose, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idClose, $THEME_FG_MENU)
+    GUICtrlSetBkColor($idClose, $THEME_BG_HOVER)
+    GUICtrlSetCursor($idClose, 0)
+
+    GUISetState(@SW_SHOW, $hDlg)
+
+    ; Mini message loop
+    While 1
+        Local $aMsg = GUIGetMsg(1)
+        If $aMsg[1] = $hDlg Then
+            If $aMsg[0] = $GUI_EVENT_CLOSE Or $aMsg[0] = $idClose Then ExitLoop
+            If $idDownload <> 0 And $aMsg[0] = $idDownload Then
+                ; Download to user's Downloads folder
+                Local $sDestDir = @UserProfileDir & "\Downloads"
+                Local $sDestFile = $sDestDir & "\DeskSwitcheroo_Setup_v" & $sLatest & ".exe"
+                GUICtrlSetData($idDownload, "Downloading...")
+                InetGet($sDownloadUrl, $sDestFile, 1)
+                If @error Then
+                    GUICtrlSetData($idDownload, "Download failed")
+                    GUICtrlSetColor($idDownload, 0xFF5555)
+                Else
+                    GUICtrlSetData($idDownload, "Downloaded!")
+                    GUICtrlSetColor($idDownload, $TOAST_SUCCESS)
+                    _Theme_Toast("Saved to Downloads", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_SUCCESS)
+                EndIf
+            EndIf
+        EndIf
+        Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_ESCAPE)
+        If Not @error And IsArray($retEsc) And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
+        Sleep(10)
+    WEnd
+    GUIDelete($hDlg)
 EndFunc
 
 ; Name:        _CheckHover
@@ -1069,6 +1160,16 @@ Func _WM_MOUSEWHEEL($hWnd, $iMsg, $wParam, $lParam)
     ; Check if scroll is over the desktop list
     If _DL_IsVisible() And $hWnd = _DL_GetGUI() Then
         If Not _Cfg_GetListScrollEnabled() Then Return $GUI_RUNDEFMSG
+
+        ; "scroll" action scrolls the list view, "switch" switches desktops
+        If _Cfg_GetListScrollAction() = "scroll" Then
+            If $iDelta > 0 Then
+                _DL_ScrollUp($iTaskbarY, $iDesktop)
+            Else
+                _DL_ScrollDown($iTaskbarY, $iDesktop)
+            EndIf
+            Return 0
+        EndIf
 
         Local $iDir = ($iDelta > 0) ? -1 : 1
         If _Cfg_GetScrollDirection() = "inverted" Then $iDir = -$iDir

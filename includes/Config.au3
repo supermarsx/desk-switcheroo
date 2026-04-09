@@ -24,7 +24,7 @@ Global $__g_Cfg_bQuickAccessEnabled = False
 Global $__g_Cfg_bStartMinimized    = False
 Global $__g_Cfg_bListKeyboardNav   = False
 Global $__g_Cfg_bAutoUpdateEnabled = False
-Global $__g_Cfg_iAutoUpdateInterval = 604800000
+Global $__g_Cfg_iAutoUpdateInterval = 168
 
 ; [Display]
 Global $__g_Cfg_bShowCount         = False
@@ -64,10 +64,15 @@ Global $__g_Cfg_bConfigWatcherEnabled = False
 Global $__g_Cfg_iConfigWatcherInterval = 60000
 Global $__g_Cfg_iCountCacheTTL = 1000
 
+; [Display] - List font
+Global $__g_Cfg_sListFontName      = ""
+Global $__g_Cfg_iListFontSize      = 8
+
 ; [Logging]
 Global $__g_Cfg_bLoggingEnabled    = False
 Global $__g_Cfg_sLogFilePath       = ""
 Global $__g_Cfg_sLogLevel          = "info"
+Global $__g_Cfg_iLogMaxSizeMB      = 5
 
 ; [DesktopColors]
 Global $__g_Cfg_bDesktopColorsEnabled = False
@@ -91,6 +96,15 @@ $__g_Cfg_aDesktopColors[9] = 0
 Func _Cfg_Init($sPath = Default)
     If $sPath = Default Then $sPath = @ScriptDir & "\desk_switcheroo.ini"
     $__g_Cfg_sIniPath = $sPath
+
+    ; First run: copy prod example if available
+    If Not FileExists($sPath) Then
+        Local $sExample = @ScriptDir & "\examples\desk_switcheroo.prod.ini"
+        If FileExists($sExample) Then
+            FileCopy($sExample, $sPath)
+        EndIf
+    EndIf
+
     _Cfg_WriteDefaults()
     _Cfg_Load()
 EndFunc
@@ -123,7 +137,7 @@ Func _Cfg_Load()
     $__g_Cfg_bStartMinimized    = __Cfg_ReadBool($f, "General", "start_minimized", False)
     $__g_Cfg_bListKeyboardNav   = __Cfg_ReadBool($f, "General", "list_keyboard_nav", False)
     $__g_Cfg_bAutoUpdateEnabled = __Cfg_ReadBool($f, "General", "auto_update_enabled", False)
-    $__g_Cfg_iAutoUpdateInterval = __Cfg_ReadInt($f, "General", "auto_update_interval", 604800000, 3600000, 2592000000)
+    $__g_Cfg_iAutoUpdateInterval = __Cfg_ReadInt($f, "General", "auto_update_interval", 168, 1, 720)
 
     ; [Display]
     $__g_Cfg_bShowCount         = __Cfg_ReadBool($f, "Display", "show_count", False)
@@ -133,6 +147,8 @@ Func _Cfg_Load()
     $__g_Cfg_bThumbnailsEnabled = __Cfg_ReadBool($f, "Display", "thumbnails_enabled", False)
     $__g_Cfg_iThumbnailWidth    = __Cfg_ReadInt($f, "Display", "thumbnail_width", 160, 80, 320)
     $__g_Cfg_iThumbnailHeight   = __Cfg_ReadInt($f, "Display", "thumbnail_height", 90, 45, 180)
+    $__g_Cfg_sListFontName      = IniRead($f, "Display", "list_font_name", "")
+    $__g_Cfg_iListFontSize      = __Cfg_ReadInt($f, "Display", "list_font_size", 8, 6, 14)
 
     ; [Scroll]
     $__g_Cfg_bScrollEnabled     = __Cfg_ReadBool($f, "Scroll", "scroll_enabled", False)
@@ -166,6 +182,7 @@ Func _Cfg_Load()
     $__g_Cfg_bLoggingEnabled    = __Cfg_ReadBool($f, "Logging", "logging_enabled", False)
     $__g_Cfg_sLogFilePath       = IniRead($f, "Logging", "log_file_path", "")
     $__g_Cfg_sLogLevel          = __Cfg_ReadEnum($f, "Logging", "log_level", "info", "error|warn|info|debug")
+    $__g_Cfg_iLogMaxSizeMB      = __Cfg_ReadInt($f, "Logging", "log_max_size_mb", 5, 1, 50)
 
     ; [DesktopColors]
     $__g_Cfg_bDesktopColorsEnabled = __Cfg_ReadBool($f, "DesktopColors", "desktop_colors_enabled", False)
@@ -208,6 +225,8 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "Display", "thumbnails_enabled", $__g_Cfg_bThumbnailsEnabled)
     IniWrite($f, "Display", "thumbnail_width", $__g_Cfg_iThumbnailWidth)
     IniWrite($f, "Display", "thumbnail_height", $__g_Cfg_iThumbnailHeight)
+    IniWrite($f, "Display", "list_font_name", $__g_Cfg_sListFontName)
+    IniWrite($f, "Display", "list_font_size", $__g_Cfg_iListFontSize)
 
     ; [Scroll]
     __Cfg_WriteBool($f, "Scroll", "scroll_enabled", $__g_Cfg_bScrollEnabled)
@@ -241,6 +260,7 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "Logging", "logging_enabled", $__g_Cfg_bLoggingEnabled)
     IniWrite($f, "Logging", "log_file_path", $__g_Cfg_sLogFilePath)
     IniWrite($f, "Logging", "log_level", $__g_Cfg_sLogLevel)
+    IniWrite($f, "Logging", "log_max_size_mb", $__g_Cfg_iLogMaxSizeMB)
 
     ; [DesktopColors]
     __Cfg_WriteBool($f, "DesktopColors", "desktop_colors_enabled", $__g_Cfg_bDesktopColorsEnabled)
@@ -271,7 +291,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "General", "start_minimized", False)
     __Cfg_DefaultBool($f, "General", "list_keyboard_nav", False)
     __Cfg_DefaultBool($f, "General", "auto_update_enabled", False)
-    __Cfg_DefaultVal($f, "General", "auto_update_interval", 604800000)
+    __Cfg_DefaultVal($f, "General", "auto_update_interval", 168)
 
     __Cfg_DefaultBool($f, "Display", "show_count", False)
     __Cfg_DefaultVal($f, "Display", "count_font_size", 7)
@@ -280,6 +300,8 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "Display", "thumbnails_enabled", False)
     __Cfg_DefaultVal($f, "Display", "thumbnail_width", 160)
     __Cfg_DefaultVal($f, "Display", "thumbnail_height", 90)
+    __Cfg_DefaultVal($f, "Display", "list_font_name", "")
+    __Cfg_DefaultVal($f, "Display", "list_font_size", 8)
 
     __Cfg_DefaultBool($f, "Scroll", "scroll_enabled", False)
     __Cfg_DefaultVal($f, "Scroll", "scroll_direction", "normal")
@@ -309,6 +331,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "Logging", "logging_enabled", False)
     __Cfg_DefaultVal($f, "Logging", "log_file_path", "")
     __Cfg_DefaultVal($f, "Logging", "log_level", "info")
+    __Cfg_DefaultVal($f, "Logging", "log_max_size_mb", 5)
 
     __Cfg_DefaultBool($f, "DesktopColors", "desktop_colors_enabled", False)
     Local $aDefColors[10] = [9, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -359,6 +382,9 @@ Func _Cfg_GetAutoUpdateEnabled()
     Return $__g_Cfg_bAutoUpdateEnabled
 EndFunc
 Func _Cfg_GetAutoUpdateInterval()
+    Return $__g_Cfg_iAutoUpdateInterval * 3600000
+EndFunc
+Func _Cfg_GetAutoUpdateIntervalHours()
     Return $__g_Cfg_iAutoUpdateInterval
 EndFunc
 
@@ -383,6 +409,12 @@ Func _Cfg_GetThumbnailWidth()
 EndFunc
 Func _Cfg_GetThumbnailHeight()
     Return $__g_Cfg_iThumbnailHeight
+EndFunc
+Func _Cfg_GetListFontName()
+    Return $__g_Cfg_sListFontName
+EndFunc
+Func _Cfg_GetListFontSize()
+    Return $__g_Cfg_iListFontSize
 EndFunc
 
 ; [Scroll]
@@ -459,6 +491,9 @@ EndFunc
 Func _Cfg_GetLogLevel()
     Return $__g_Cfg_sLogLevel
 EndFunc
+Func _Cfg_GetLogMaxSizeMB()
+    Return $__g_Cfg_iLogMaxSizeMB
+EndFunc
 
 ; [DesktopColors]
 Func _Cfg_GetDesktopColorsEnabled()
@@ -513,10 +548,10 @@ EndFunc
 Func _Cfg_SetAutoUpdateEnabled($b)
     $__g_Cfg_bAutoUpdateEnabled = $b
 EndFunc
-Func _Cfg_SetAutoUpdateInterval($i)
-    If $i < 3600000 Then $i = 3600000
-    If $i > 2592000000 Then $i = 2592000000
-    $__g_Cfg_iAutoUpdateInterval = $i
+Func _Cfg_SetAutoUpdateInterval($iHours)
+    If $iHours < 1 Then $iHours = 1
+    If $iHours > 720 Then $iHours = 720
+    $__g_Cfg_iAutoUpdateInterval = $iHours
 EndFunc
 
 ; [Display]
@@ -549,6 +584,14 @@ Func _Cfg_SetThumbnailHeight($i)
     If $i < 45 Then $i = 45
     If $i > 180 Then $i = 180
     $__g_Cfg_iThumbnailHeight = $i
+EndFunc
+Func _Cfg_SetListFontName($s)
+    $__g_Cfg_sListFontName = $s
+EndFunc
+Func _Cfg_SetListFontSize($i)
+    If $i < 6 Then $i = 6
+    If $i > 14 Then $i = 14
+    $__g_Cfg_iListFontSize = $i
 EndFunc
 
 ; [Scroll]
@@ -638,6 +681,11 @@ EndFunc
 Func _Cfg_SetLogLevel($s)
     If $s <> "error" And $s <> "warn" And $s <> "info" And $s <> "debug" Then $s = "info"
     $__g_Cfg_sLogLevel = $s
+EndFunc
+Func _Cfg_SetLogMaxSizeMB($i)
+    If $i < 1 Then $i = 1
+    If $i > 50 Then $i = 50
+    $__g_Cfg_iLogMaxSizeMB = $i
 EndFunc
 
 ; [DesktopColors]

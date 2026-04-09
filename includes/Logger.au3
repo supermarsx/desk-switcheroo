@@ -13,7 +13,7 @@ Global $__g_Log_bEnabled  = False
 Global $__g_Log_sFilePath = ""
 Global $__g_Log_iLevel    = 3        ; 1=error, 2=warn, 3=info, 4=debug
 Global $__g_Log_hFile     = -1       ; file handle (-1 = closed)
-Global $__g_Log_iMaxSize  = 5 * 1024 * 1024  ; 5 MB
+Global $__g_Log_iMaxSize  = 5 * 1024 * 1024  ; default 5 MB, updated from config in _Log_Init
 
 ; #FUNCTIONS# ===================================================
 
@@ -23,6 +23,9 @@ Global $__g_Log_iMaxSize  = 5 * 1024 * 1024  ; 5 MB
 Func _Log_Init()
     $__g_Log_bEnabled = _Cfg_GetLoggingEnabled()
     If Not $__g_Log_bEnabled Then Return
+
+    ; Apply configured max log size
+    $__g_Log_iMaxSize = _Cfg_GetLogMaxSizeMB() * 1024 * 1024
 
     ; Determine log file path
     $__g_Log_sFilePath = _Cfg_GetLogFilePath()

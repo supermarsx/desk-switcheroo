@@ -1,6 +1,7 @@
 #include-once
 #include "Config.au3"
 #include "Theme.au3"
+#include "DesktopList.au3"
 #include <GUIConstantsEx.au3>
 #include <WindowsConstants.au3>
 #include <StaticConstants.au3>
@@ -45,6 +46,7 @@ Global $__g_CD_idLblScrollDir, $__g_CD_idLblListAction
 ; -- Tab 4: Hotkeys --
 Global $__g_CD_idInpHkNext, $__g_CD_idInpHkPrev, $__g_CD_idInpHkToggleList
 Global $__g_CD_aidInpHkDesktop[10] ; index 1-9
+Global $__g_CD_idBtnHkBuild[13]    ; index 0-11 for each hotkey row "..." button
 
 ; -- Tab 1 extras: General --
 Global $__g_CD_idChkWidgetDrag, $__g_CD_idChkTrayMode, $__g_CD_idChkQuickAccess
@@ -65,8 +67,12 @@ Global $__g_CD_idChkColorsEnabled
 Global $__g_CD_aidInpColor[10]    ; index 1-9
 Global $__g_CD_aidLblPreview[10]  ; index 1-9
 
+; -- Tab 2: Display extras --
+Global $__g_CD_idInpListFont, $__g_CD_idInpListFontSize
+
 ; -- Tab 7: Logging --
 Global $__g_CD_idChkLogging, $__g_CD_idInpLogPath, $__g_CD_idLblLogLevel
+Global $__g_CD_idInpLogMaxSize
 
 ; -- Buttons --
 Global $__g_CD_idBtnApply, $__g_CD_idBtnClose
@@ -456,6 +462,30 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpThumbH, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpThumbH, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpThumbH)
+    $iY += 30
+
+    $idLbl = GUICtrlCreateLabel("List font name:", $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpListFont = GUICtrlCreateInput("", $iX + 170, $iY, 200, 22)
+    GUICtrlSetFont($__g_CD_idInpListFont, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpListFont, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpListFont, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpListFont)
+    $iY += 30
+
+    $idLbl = GUICtrlCreateLabel("List font size (6-14):", $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpListFontSize = GUICtrlCreateInput("", $iX + 170, $iY, 50, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpListFontSize, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpListFontSize, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpListFontSize, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpListFontSize)
 EndFunc
 
 Func __CD_BuildTabScroll()
@@ -474,12 +504,12 @@ EndFunc
 
 Func __CD_BuildTabHotkeys()
     Local $t = 4, $iX = 20, $iY = 50
-    Local $iLblW = 100, $iInpW = 150, $i
+    Local $iLblW = 100, $iInpW = 130, $iBtnBuildW = 24, $i
 
     Local $aLabels[13] = [12, "Next:", "Prev:", "Desktop 1:", "Desktop 2:", "Desktop 3:", _
         "Desktop 4:", "Desktop 5:", "Desktop 6:", "Desktop 7:", "Desktop 8:", "Desktop 9:", "Toggle List:"]
 
-    ; Next
+    ; Next (build index 0)
     Local $idLbl = GUICtrlCreateLabel($aLabels[1], $iX, $iY + 2, $iLblW, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
@@ -490,9 +520,16 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetColor($__g_CD_idInpHkNext, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHkNext, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpHkNext)
+    $__g_CD_idBtnHkBuild[0] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
+        BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBtnHkBuild[0], 8, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBtnHkBuild[0], $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[0], $THEME_BG_HOVER)
+    GUICtrlSetCursor($__g_CD_idBtnHkBuild[0], 0)
+    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[0])
     $iY += 24
 
-    ; Prev
+    ; Prev (build index 1)
     $idLbl = GUICtrlCreateLabel($aLabels[2], $iX, $iY + 2, $iLblW, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
@@ -503,9 +540,16 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetColor($__g_CD_idInpHkPrev, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHkPrev, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpHkPrev)
+    $__g_CD_idBtnHkBuild[1] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
+        BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBtnHkBuild[1], 8, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBtnHkBuild[1], $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[1], $THEME_BG_HOVER)
+    GUICtrlSetCursor($__g_CD_idBtnHkBuild[1], 0)
+    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[1])
     $iY += 24
 
-    ; Desktop 1-9
+    ; Desktop 1-9 (build index 2-10)
     For $i = 1 To 9
         $idLbl = GUICtrlCreateLabel($aLabels[$i + 2], $iX, $iY + 2, $iLblW, 18)
         GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
@@ -517,10 +561,17 @@ Func __CD_BuildTabHotkeys()
         GUICtrlSetColor($__g_CD_aidInpHkDesktop[$i], $THEME_FG_TEXT)
         GUICtrlSetBkColor($__g_CD_aidInpHkDesktop[$i], $THEME_BG_INPUT)
         __CD_RegCtrl($t, $__g_CD_aidInpHkDesktop[$i])
+        $__g_CD_idBtnHkBuild[$i + 1] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
+            BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+        GUICtrlSetFont($__g_CD_idBtnHkBuild[$i + 1], 8, 700, 0, $THEME_FONT_MAIN)
+        GUICtrlSetColor($__g_CD_idBtnHkBuild[$i + 1], $THEME_FG_DIM)
+        GUICtrlSetBkColor($__g_CD_idBtnHkBuild[$i + 1], $THEME_BG_HOVER)
+        GUICtrlSetCursor($__g_CD_idBtnHkBuild[$i + 1], 0)
+        __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[$i + 1])
         $iY += 24
     Next
 
-    ; Toggle List
+    ; Toggle List (build index 11)
     $idLbl = GUICtrlCreateLabel($aLabels[12], $iX, $iY + 2, $iLblW, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
@@ -531,10 +582,17 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetColor($__g_CD_idInpHkToggleList, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHkToggleList, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpHkToggleList)
+    $__g_CD_idBtnHkBuild[11] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
+        BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBtnHkBuild[11], 8, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBtnHkBuild[11], $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[11], $THEME_BG_HOVER)
+    GUICtrlSetCursor($__g_CD_idBtnHkBuild[11], 0)
+    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[11])
     $iY += 28
 
     ; Help
-    $idLbl = GUICtrlCreateLabel("^=Ctrl  !=Alt  +=Shift  e.g. ^!{RIGHT}", $iX, $iY, 380, 16)
+    $idLbl = GUICtrlCreateLabel("^=Ctrl  !=Alt  +=Shift  #=Win  e.g. ^!{RIGHT}", $iX, $iY, 380, 16)
     GUICtrlSetFont($idLbl, 7, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_LABEL)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -679,6 +737,18 @@ Func __CD_BuildTabLogging()
     $iY += 30
 
     $__g_CD_idLblLogLevel = __CD_CreateCycleLabel("Log level:", $iX, $iY, 100, 90, $t)
+    $iY += 30
+
+    $idLbl = GUICtrlCreateLabel("Max log size (MB):", $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpLogMaxSize = GUICtrlCreateInput("", $iX + 170, $iY, 50, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpLogMaxSize, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpLogMaxSize, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpLogMaxSize, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpLogMaxSize)
 EndFunc
 
 Func __CD_BuildTabUpdates()
@@ -687,7 +757,7 @@ Func __CD_BuildTabUpdates()
     $__g_CD_idChkAutoUpdate = __CD_CreateCheckbox("Auto-check for updates", $iX, $iY, 300, $t)
     $iY += 34
 
-    Local $idLbl = GUICtrlCreateLabel("Check interval (ms):", $iX, $iY + 2, 165, 18)
+    Local $idLbl = GUICtrlCreateLabel("Check interval (hours):", $iX, $iY + 2, 165, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -733,6 +803,8 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkThumbnails, _Cfg_GetThumbnailsEnabled())
     GUICtrlSetData($__g_CD_idInpThumbW, _Cfg_GetThumbnailWidth())
     GUICtrlSetData($__g_CD_idInpThumbH, _Cfg_GetThumbnailHeight())
+    GUICtrlSetData($__g_CD_idInpListFont, _Cfg_GetListFontName())
+    GUICtrlSetData($__g_CD_idInpListFontSize, _Cfg_GetListFontSize())
 
     ; Scroll
     __CD_SetCheckState($__g_CD_idChkScroll, _Cfg_GetScrollEnabled())
@@ -773,10 +845,11 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkLogging, _Cfg_GetLoggingEnabled())
     GUICtrlSetData($__g_CD_idInpLogPath, _Cfg_GetLogFilePath())
     GUICtrlSetData($__g_CD_idLblLogLevel, _Cfg_GetLogLevel())
+    GUICtrlSetData($__g_CD_idInpLogMaxSize, _Cfg_GetLogMaxSizeMB())
 
     ; Updates
     __CD_SetCheckState($__g_CD_idChkAutoUpdate, _Cfg_GetAutoUpdateEnabled())
-    GUICtrlSetData($__g_CD_idInpUpdateInterval, _Cfg_GetAutoUpdateInterval())
+    GUICtrlSetData($__g_CD_idInpUpdateInterval, _Cfg_GetAutoUpdateIntervalHours())
 EndFunc
 
 ; =============================================
@@ -820,6 +893,9 @@ Func __CD_MessageLoop()
 
             ; Checkbox clicks (label-based, handle box + text clicks)
             __CD_HandleCheckboxClick($id)
+
+            ; Hotkey builder "..." button clicks
+            __CD_HandleHotkeyBuildClick($id)
 
             ; Cycle label clicks
             If $id = $__g_CD_idLblPosition Then __CD_CycleValue($id, "left|center|right")
@@ -904,6 +980,9 @@ Func __CD_ApplyChanges()
     If StringIsInt($s) Then _Cfg_SetThumbnailWidth(Int($s))
     $s = GUICtrlRead($__g_CD_idInpThumbH)
     If StringIsInt($s) Then _Cfg_SetThumbnailHeight(Int($s))
+    _Cfg_SetListFontName(GUICtrlRead($__g_CD_idInpListFont))
+    $s = GUICtrlRead($__g_CD_idInpListFontSize)
+    If StringIsInt($s) Then _Cfg_SetListFontSize(Int($s))
 
     ; Scroll
     _Cfg_SetScrollEnabled(__CD_GetCheckState($__g_CD_idChkScroll))
@@ -952,6 +1031,8 @@ Func __CD_ApplyChanges()
     _Cfg_SetLoggingEnabled(__CD_GetCheckState($__g_CD_idChkLogging))
     _Cfg_SetLogFilePath(GUICtrlRead($__g_CD_idInpLogPath))
     _Cfg_SetLogLevel(GUICtrlRead($__g_CD_idLblLogLevel))
+    $s = GUICtrlRead($__g_CD_idInpLogMaxSize)
+    If StringIsInt($s) Then _Cfg_SetLogMaxSizeMB(Int($s))
 
     ; Updates
     _Cfg_SetAutoUpdateEnabled(__CD_GetCheckState($__g_CD_idChkAutoUpdate))
@@ -968,6 +1049,12 @@ Func __CD_ApplyChanges()
 
     ; Apply changes live to the running app
     _ApplySettingsLive()
+
+    ; Rebuild desktop list to reflect font/color changes
+    If _DL_IsVisible() Then
+        _DL_Destroy()
+        _DL_Show($iTaskbarY, $iDesktop)
+    EndIf
 
     ; Startup toggle with verification
     Local $sToastMsg = "Settings saved"
@@ -1055,6 +1142,231 @@ Func __CD_ExportSettings()
             _Theme_Toast("Export failed", $aPos2[0], $aPos2[1] + $aPos2[3] + 4, 1500, $TOAST_ERROR)
         EndIf
     EndIf
+EndFunc
+
+; =============================================
+; HOTKEY BUILDER
+; =============================================
+
+; Name:        __CD_HandleHotkeyBuildClick
+; Description: Checks if a hotkey build "..." button was clicked and opens the builder
+; Parameters:  $id - control ID from GUIGetMsg
+Func __CD_HandleHotkeyBuildClick($id)
+    ; Map build button index to corresponding input control
+    ; Index 0=Next, 1=Prev, 2-10=Desktop 1-9, 11=Toggle List
+    Local $idInput = 0
+    If $id = $__g_CD_idBtnHkBuild[0] Then
+        $idInput = $__g_CD_idInpHkNext
+    ElseIf $id = $__g_CD_idBtnHkBuild[1] Then
+        $idInput = $__g_CD_idInpHkPrev
+    ElseIf $id = $__g_CD_idBtnHkBuild[11] Then
+        $idInput = $__g_CD_idInpHkToggleList
+    Else
+        Local $i
+        For $i = 1 To 9
+            If $id = $__g_CD_idBtnHkBuild[$i + 1] Then
+                $idInput = $__g_CD_aidInpHkDesktop[$i]
+                ExitLoop
+            EndIf
+        Next
+    EndIf
+    If $idInput = 0 Then Return
+
+    Local $sResult = __CD_ShowHotkeyBuilder()
+    If $sResult <> "" Then GUICtrlSetData($idInput, $sResult)
+EndFunc
+
+; Name:        __CD_ShowHotkeyBuilder
+; Description: Shows a dialog to visually build a hotkey string
+; Return:      AutoIt hotkey string (e.g. "^!{RIGHT}") or "" if cancelled
+Func __CD_ShowHotkeyBuilder()
+    Local $iDlgW = 280, $iDlgH = 220
+    Local $iDlgX = (@DesktopWidth - $iDlgW) / 2
+    Local $iDlgY = (@DesktopHeight - $iDlgH) / 2
+
+    Local $hDlg = _Theme_CreatePopup("HotkeyBuilder", $iDlgW, $iDlgH, $iDlgX, $iDlgY, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+
+    ; Title label
+    Local $idTitle = GUICtrlCreateLabel("Hotkey Builder", 10, 8, $iDlgW - 20, 18)
+    GUICtrlSetFont($idTitle, 9, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idTitle, $THEME_FG_WHITE)
+    GUICtrlSetBkColor($idTitle, $GUI_BKCOLOR_TRANSPARENT)
+
+    ; Modifier checkboxes (label-based toggle)
+    Local $iChkY = 34
+    Local $idChkCtrl = GUICtrlCreateLabel("  [ ]  Ctrl", 16, $iChkY, 110, 22, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idChkCtrl, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idChkCtrl, $THEME_FG_PRIMARY)
+    GUICtrlSetBkColor($idChkCtrl, $GUI_BKCOLOR_TRANSPARENT)
+    GUICtrlSetCursor($idChkCtrl, 0)
+
+    Local $idChkAlt = GUICtrlCreateLabel("  [ ]  Alt", 146, $iChkY, 110, 22, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idChkAlt, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idChkAlt, $THEME_FG_PRIMARY)
+    GUICtrlSetBkColor($idChkAlt, $GUI_BKCOLOR_TRANSPARENT)
+    GUICtrlSetCursor($idChkAlt, 0)
+
+    $iChkY += 26
+    Local $idChkShift = GUICtrlCreateLabel("  [ ]  Shift", 16, $iChkY, 110, 22, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idChkShift, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idChkShift, $THEME_FG_PRIMARY)
+    GUICtrlSetBkColor($idChkShift, $GUI_BKCOLOR_TRANSPARENT)
+    GUICtrlSetCursor($idChkShift, 0)
+
+    Local $idChkWin = GUICtrlCreateLabel("  [ ]  Win", 146, $iChkY, 110, 22, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idChkWin, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idChkWin, $THEME_FG_PRIMARY)
+    GUICtrlSetBkColor($idChkWin, $GUI_BKCOLOR_TRANSPARENT)
+    GUICtrlSetCursor($idChkWin, 0)
+
+    ; Key input
+    Local $iKeyY = $iChkY + 32
+    Local $idKeyLbl = GUICtrlCreateLabel("Key:", 16, $iKeyY + 2, 35, 18)
+    GUICtrlSetFont($idKeyLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idKeyLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idKeyLbl, $GUI_BKCOLOR_TRANSPARENT)
+
+    Local $idKeyInput = GUICtrlCreateInput("", 55, $iKeyY, 140, 22)
+    GUICtrlSetFont($idKeyInput, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($idKeyInput, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($idKeyInput, $THEME_BG_INPUT)
+
+    ; Hint
+    Local $idHint = GUICtrlCreateLabel("e.g.: LEFT, RIGHT, F1-F12, 1-9, A-Z", 16, $iKeyY + 26, 250, 14)
+    GUICtrlSetFont($idHint, 7, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idHint, $THEME_FG_LABEL)
+    GUICtrlSetBkColor($idHint, $GUI_BKCOLOR_TRANSPARENT)
+
+    ; Preview
+    Local $iPreviewY = $iKeyY + 48
+    Local $idPreviewLbl = GUICtrlCreateLabel("Preview:", 16, $iPreviewY + 2, 50, 18)
+    GUICtrlSetFont($idPreviewLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idPreviewLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idPreviewLbl, $GUI_BKCOLOR_TRANSPARENT)
+
+    Local $idPreview = GUICtrlCreateLabel("", 70, $iPreviewY, 190, 22, $SS_CENTERIMAGE)
+    GUICtrlSetFont($idPreview, 10, 700, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($idPreview, $THEME_FG_WHITE)
+    GUICtrlSetBkColor($idPreview, $THEME_BG_INPUT)
+
+    ; OK / Cancel buttons
+    Local $iBtnW = 60, $iBtnH = 26
+    Local $iBtnY = $iDlgH - 38
+    Local $idOK = GUICtrlCreateLabel("OK", ($iDlgW / 2) - $iBtnW - 8, $iBtnY, $iBtnW, $iBtnH, _
+        BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idOK, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idOK, $THEME_FG_MENU)
+    GUICtrlSetBkColor($idOK, $THEME_BG_HOVER)
+    GUICtrlSetCursor($idOK, 0)
+
+    Local $idCancel = GUICtrlCreateLabel("Cancel", ($iDlgW / 2) + 8, $iBtnY, $iBtnW, $iBtnH, _
+        BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idCancel, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idCancel, $THEME_FG_MENU)
+    GUICtrlSetBkColor($idCancel, $THEME_BG_HOVER)
+    GUICtrlSetCursor($idCancel, 0)
+
+    GUISetState(@SW_SHOW, $hDlg)
+
+    ; Checkbox states
+    Local $bCtrl = False, $bAlt = False, $bShift = False, $bWin = False
+    Local $sLastKey = "", $sResult = ""
+    Local $iHovered = 0
+
+    ; Blocking loop
+    While 1
+        Local $aMsg = GUIGetMsg(1)
+        If $aMsg[1] = $hDlg Then
+            Switch $aMsg[0]
+                Case $GUI_EVENT_CLOSE
+                    ExitLoop
+                Case $idOK
+                    $sResult = __CD_BuildHotkeyString($bCtrl, $bAlt, $bShift, $bWin, GUICtrlRead($idKeyInput))
+                    ExitLoop
+                Case $idCancel
+                    ExitLoop
+                Case $idChkCtrl
+                    $bCtrl = Not $bCtrl
+                    GUICtrlSetData($idChkCtrl, $bCtrl ? "  [x]  Ctrl" : "  [ ]  Ctrl")
+                    GUICtrlSetColor($idChkCtrl, $bCtrl ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
+                Case $idChkAlt
+                    $bAlt = Not $bAlt
+                    GUICtrlSetData($idChkAlt, $bAlt ? "  [x]  Alt" : "  [ ]  Alt")
+                    GUICtrlSetColor($idChkAlt, $bAlt ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
+                Case $idChkShift
+                    $bShift = Not $bShift
+                    GUICtrlSetData($idChkShift, $bShift ? "  [x]  Shift" : "  [ ]  Shift")
+                    GUICtrlSetColor($idChkShift, $bShift ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
+                Case $idChkWin
+                    $bWin = Not $bWin
+                    GUICtrlSetData($idChkWin, $bWin ? "  [x]  Win" : "  [ ]  Win")
+                    GUICtrlSetColor($idChkWin, $bWin ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
+            EndSwitch
+        EndIf
+
+        ; Update preview when key input changes
+        Local $sCurKey = GUICtrlRead($idKeyInput)
+        If $sCurKey <> $sLastKey Or $aMsg[0] = $idChkCtrl Or $aMsg[0] = $idChkAlt Or $aMsg[0] = $idChkShift Or $aMsg[0] = $idChkWin Then
+            $sLastKey = $sCurKey
+            GUICtrlSetData($idPreview, " " & __CD_BuildHotkeyString($bCtrl, $bAlt, $bShift, $bWin, $sCurKey))
+        EndIf
+
+        ; Escape closes, Enter confirms
+        Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
+        If Not @error And IsArray($retEsc) And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
+        Local $retEnter = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x0D)
+        If Not @error And IsArray($retEnter) And BitAND($retEnter[0], 0x8000) <> 0 Then
+            $sResult = __CD_BuildHotkeyString($bCtrl, $bAlt, $bShift, $bWin, GUICtrlRead($idKeyInput))
+            ExitLoop
+        EndIf
+
+        ; Button hover
+        Local $aCursor = GUIGetCursorInfo($hDlg)
+        If Not @error Then
+            Local $iFound = 0
+            If $aCursor[4] = $idOK Then $iFound = $idOK
+            If $aCursor[4] = $idCancel Then $iFound = $idCancel
+            If $iFound <> $iHovered Then
+                If $iHovered <> 0 Then _Theme_RemoveHover($iHovered, $THEME_FG_MENU, $THEME_BG_HOVER)
+                $iHovered = $iFound
+                If $iHovered <> 0 Then _Theme_ApplyHover($iHovered, $THEME_FG_WHITE, $THEME_BG_BTN_HOV)
+            EndIf
+        EndIf
+
+        Sleep(10)
+    WEnd
+
+    GUIDelete($hDlg)
+    Return $sResult
+EndFunc
+
+; Name:        __CD_BuildHotkeyString
+; Description: Constructs an AutoIt hotkey string from modifier flags and key name
+; Parameters:  $bCtrl  - True if Ctrl modifier
+;              $bAlt   - True if Alt modifier
+;              $bShift - True if Shift modifier
+;              $bWin   - True if Win modifier
+;              $sKey   - key name (e.g. "RIGHT", "F1", "A")
+; Return:      Hotkey string (e.g. "^!{RIGHT}")
+Func __CD_BuildHotkeyString($bCtrl, $bAlt, $bShift, $bWin, $sKey)
+    Local $s = ""
+    If $bCtrl Then $s &= "^"
+    If $bAlt Then $s &= "!"
+    If $bShift Then $s &= "+"
+    If $bWin Then $s &= "#"
+
+    $sKey = StringStripWS($sKey, 3) ; trim leading+trailing
+    If $sKey = "" Then Return $s
+
+    ; Single character keys don't need braces
+    If StringLen($sKey) = 1 Then
+        $s &= $sKey
+    Else
+        ; Multi-char keys get wrapped in braces (e.g. LEFT -> {LEFT})
+        $s &= "{" & StringUpper($sKey) & "}"
+    EndIf
+
+    Return $s
 EndFunc
 
 ; Name:        __CD_RestartApp
