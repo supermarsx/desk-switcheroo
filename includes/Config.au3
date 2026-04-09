@@ -19,6 +19,8 @@ Global $__g_Cfg_iNumberPadding     = 2
 Global $__g_Cfg_sWidgetPosition    = "left"
 Global $__g_Cfg_iWidgetOffsetX     = 0
 Global $__g_Cfg_bWidgetDragEnabled = False
+Global $__g_Cfg_bWidgetColorBar   = False
+Global $__g_Cfg_iWidgetColorBarH  = 2
 Global $__g_Cfg_bTrayIconMode     = False
 Global $__g_Cfg_bQuickAccessEnabled = False
 Global $__g_Cfg_bStartMinimized    = False
@@ -83,12 +85,11 @@ Global $__g_Cfg_iListFontSize      = 8
 
 ; [Logging]
 Global $__g_Cfg_bLoggingEnabled    = False
-Global $__g_Cfg_sLogFilePath       = ""
+Global $__g_Cfg_sLogFolder          = ""
 Global $__g_Cfg_sLogLevel          = "info"
 Global $__g_Cfg_iLogMaxSizeMB      = 5
 Global $__g_Cfg_iLogRotateCount    = 3
 Global $__g_Cfg_bLogCompressOld    = False
-Global $__g_Cfg_sLogDefaultPath    = ""
 Global $__g_Cfg_bLogIncludePID     = False
 Global $__g_Cfg_bLogIncludeFunc    = False
 Global $__g_Cfg_sLogDateFormat     = "iso"
@@ -152,6 +153,8 @@ Func _Cfg_Load()
     $__g_Cfg_sWidgetPosition    = __Cfg_ReadEnum($f, "General", "widget_position", "left", "left|center|right")
     $__g_Cfg_iWidgetOffsetX     = __Cfg_ReadInt($f, "General", "widget_offset_x", 0, -9999, 9999)
     $__g_Cfg_bWidgetDragEnabled = __Cfg_ReadBool($f, "General", "widget_drag_enabled", False)
+    $__g_Cfg_bWidgetColorBar   = __Cfg_ReadBool($f, "General", "widget_color_bar", False)
+    $__g_Cfg_iWidgetColorBarH  = __Cfg_ReadInt($f, "General", "widget_color_bar_height", 2, 1, 10)
     $__g_Cfg_bTrayIconMode     = __Cfg_ReadBool($f, "General", "tray_icon_mode", False)
     $__g_Cfg_bQuickAccessEnabled = __Cfg_ReadBool($f, "General", "quick_access_enabled", False)
     $__g_Cfg_bStartMinimized    = __Cfg_ReadBool($f, "General", "start_minimized", False)
@@ -213,12 +216,11 @@ Func _Cfg_Load()
 
     ; [Logging]
     $__g_Cfg_bLoggingEnabled    = __Cfg_ReadBool($f, "Logging", "logging_enabled", False)
-    $__g_Cfg_sLogFilePath       = IniRead($f, "Logging", "log_file_path", "")
+    $__g_Cfg_sLogFolder         = IniRead($f, "Logging", "log_folder", "")
     $__g_Cfg_sLogLevel          = __Cfg_ReadEnum($f, "Logging", "log_level", "info", "error|warn|info|debug")
     $__g_Cfg_iLogMaxSizeMB      = __Cfg_ReadInt($f, "Logging", "log_max_size_mb", 5, 1, 50)
     $__g_Cfg_iLogRotateCount    = __Cfg_ReadInt($f, "Logging", "log_rotate_count", 3, 1, 10)
     $__g_Cfg_bLogCompressOld    = __Cfg_ReadBool($f, "Logging", "log_compress_old", False)
-    $__g_Cfg_sLogDefaultPath    = IniRead($f, "Logging", "log_default_path", "")
     $__g_Cfg_bLogIncludePID     = __Cfg_ReadBool($f, "Logging", "log_include_pid", False)
     $__g_Cfg_bLogIncludeFunc    = __Cfg_ReadBool($f, "Logging", "log_include_func", False)
     $__g_Cfg_sLogDateFormat     = __Cfg_ReadEnum($f, "Logging", "log_date_format", "iso", "iso|us|eu")
@@ -250,6 +252,8 @@ Func _Cfg_Save()
     IniWrite($f, "General", "widget_position", $__g_Cfg_sWidgetPosition)
     IniWrite($f, "General", "widget_offset_x", $__g_Cfg_iWidgetOffsetX)
     __Cfg_WriteBool($f, "General", "widget_drag_enabled", $__g_Cfg_bWidgetDragEnabled)
+    __Cfg_WriteBool($f, "General", "widget_color_bar", $__g_Cfg_bWidgetColorBar)
+    IniWrite($f, "General", "widget_color_bar_height", $__g_Cfg_iWidgetColorBarH)
     __Cfg_WriteBool($f, "General", "tray_icon_mode", $__g_Cfg_bTrayIconMode)
     __Cfg_WriteBool($f, "General", "quick_access_enabled", $__g_Cfg_bQuickAccessEnabled)
     __Cfg_WriteBool($f, "General", "start_minimized", $__g_Cfg_bStartMinimized)
@@ -311,12 +315,11 @@ Func _Cfg_Save()
 
     ; [Logging]
     __Cfg_WriteBool($f, "Logging", "logging_enabled", $__g_Cfg_bLoggingEnabled)
-    IniWrite($f, "Logging", "log_file_path", $__g_Cfg_sLogFilePath)
+    IniWrite($f, "Logging", "log_folder", $__g_Cfg_sLogFolder)
     IniWrite($f, "Logging", "log_level", $__g_Cfg_sLogLevel)
     IniWrite($f, "Logging", "log_max_size_mb", $__g_Cfg_iLogMaxSizeMB)
     IniWrite($f, "Logging", "log_rotate_count", $__g_Cfg_iLogRotateCount)
     __Cfg_WriteBool($f, "Logging", "log_compress_old", $__g_Cfg_bLogCompressOld)
-    IniWrite($f, "Logging", "log_default_path", $__g_Cfg_sLogDefaultPath)
     __Cfg_WriteBool($f, "Logging", "log_include_pid", $__g_Cfg_bLogIncludePID)
     __Cfg_WriteBool($f, "Logging", "log_include_func", $__g_Cfg_bLogIncludeFunc)
     IniWrite($f, "Logging", "log_date_format", $__g_Cfg_sLogDateFormat)
@@ -346,6 +349,8 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "General", "widget_position", "left")
     __Cfg_DefaultVal($f, "General", "widget_offset_x", 0)
     __Cfg_DefaultBool($f, "General", "widget_drag_enabled", False)
+    __Cfg_DefaultBool($f, "General", "widget_color_bar", False)
+    __Cfg_DefaultVal($f, "General", "widget_color_bar_height", 2)
     __Cfg_DefaultBool($f, "General", "tray_icon_mode", False)
     __Cfg_DefaultBool($f, "General", "quick_access_enabled", False)
     __Cfg_DefaultBool($f, "General", "start_minimized", False)
@@ -401,12 +406,11 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "Behavior", "debug_mode", False)
 
     __Cfg_DefaultBool($f, "Logging", "logging_enabled", False)
-    __Cfg_DefaultVal($f, "Logging", "log_file_path", "")
+    __Cfg_DefaultVal($f, "Logging", "log_folder", "")
     __Cfg_DefaultVal($f, "Logging", "log_level", "info")
     __Cfg_DefaultVal($f, "Logging", "log_max_size_mb", 5)
     __Cfg_DefaultVal($f, "Logging", "log_rotate_count", 3)
     __Cfg_DefaultBool($f, "Logging", "log_compress_old", False)
-    __Cfg_DefaultVal($f, "Logging", "log_default_path", "")
     __Cfg_DefaultBool($f, "Logging", "log_include_pid", False)
     __Cfg_DefaultBool($f, "Logging", "log_include_func", False)
     __Cfg_DefaultVal($f, "Logging", "log_date_format", "iso")
@@ -444,6 +448,12 @@ Func _Cfg_GetWidgetOffsetX()
 EndFunc
 Func _Cfg_GetWidgetDragEnabled()
     Return $__g_Cfg_bWidgetDragEnabled
+EndFunc
+Func _Cfg_GetWidgetColorBar()
+    Return $__g_Cfg_bWidgetColorBar
+EndFunc
+Func _Cfg_GetWidgetColorBarHeight()
+    Return $__g_Cfg_iWidgetColorBarH
 EndFunc
 Func _Cfg_GetTrayIconMode()
     Return $__g_Cfg_bTrayIconMode
@@ -604,8 +614,8 @@ EndFunc
 Func _Cfg_GetLoggingEnabled()
     Return $__g_Cfg_bLoggingEnabled
 EndFunc
-Func _Cfg_GetLogFilePath()
-    Return $__g_Cfg_sLogFilePath
+Func _Cfg_GetLogFolder()
+    Return $__g_Cfg_sLogFolder
 EndFunc
 Func _Cfg_GetLogLevel()
     Return $__g_Cfg_sLogLevel
@@ -619,8 +629,15 @@ EndFunc
 Func _Cfg_GetLogCompressOld()
     Return $__g_Cfg_bLogCompressOld
 EndFunc
-Func _Cfg_GetLogDefaultPath()
-    Return $__g_Cfg_sLogDefaultPath
+Func _Cfg_GetLogFilePath()
+    Local $sFolder = $__g_Cfg_sLogFolder
+    If $sFolder = "" Then Return @ScriptDir & "\desk_switcheroo.log"
+    $sFolder = StringReplace($sFolder, "%APPDATA%", @AppDataDir)
+    $sFolder = StringReplace($sFolder, "%TEMP%", @TempDir)
+    $sFolder = StringReplace($sFolder, "%SCRIPTDIR%", @ScriptDir)
+    ; Strip trailing backslash
+    If StringRight($sFolder, 1) = "\" Then $sFolder = StringTrimRight($sFolder, 1)
+    Return $sFolder & "\desk_switcheroo.log"
 EndFunc
 Func _Cfg_GetLogIncludePID()
     Return $__g_Cfg_bLogIncludePID
@@ -672,6 +689,14 @@ Func _Cfg_SetWidgetOffsetX($i)
 EndFunc
 Func _Cfg_SetWidgetDragEnabled($b)
     $__g_Cfg_bWidgetDragEnabled = $b
+EndFunc
+Func _Cfg_SetWidgetColorBar($b)
+    $__g_Cfg_bWidgetColorBar = $b
+EndFunc
+Func _Cfg_SetWidgetColorBarHeight($i)
+    If $i < 1 Then $i = 1
+    If $i > 10 Then $i = 10
+    $__g_Cfg_iWidgetColorBarH = $i
 EndFunc
 Func _Cfg_SetTrayIconMode($b)
     $__g_Cfg_bTrayIconMode = $b
@@ -857,8 +882,8 @@ EndFunc
 Func _Cfg_SetLoggingEnabled($b)
     $__g_Cfg_bLoggingEnabled = $b
 EndFunc
-Func _Cfg_SetLogFilePath($s)
-    $__g_Cfg_sLogFilePath = $s
+Func _Cfg_SetLogFolder($s)
+    $__g_Cfg_sLogFolder = $s
 EndFunc
 Func _Cfg_SetLogLevel($s)
     If $s <> "error" And $s <> "warn" And $s <> "info" And $s <> "debug" Then $s = "info"
@@ -876,9 +901,6 @@ Func _Cfg_SetLogRotateCount($i)
 EndFunc
 Func _Cfg_SetLogCompressOld($b)
     $__g_Cfg_bLogCompressOld = $b
-EndFunc
-Func _Cfg_SetLogDefaultPath($s)
-    $__g_Cfg_sLogDefaultPath = $s
 EndFunc
 Func _Cfg_SetLogIncludePID($b)
     $__g_Cfg_bLogIncludePID = $b

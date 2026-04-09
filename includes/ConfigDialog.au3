@@ -50,7 +50,7 @@ Global $__g_CD_aidInpHkDesktop[10] ; index 1-9
 Global $__g_CD_idBtnHkBuild[13]    ; index 0-11 for each hotkey row "..." button
 
 ; -- Tab 1 extras: General --
-Global $__g_CD_idChkWidgetDrag, $__g_CD_idChkTrayMode, $__g_CD_idChkQuickAccess
+Global $__g_CD_idChkWidgetDrag, $__g_CD_idChkWidgetColorBar, $__g_CD_idChkTrayMode, $__g_CD_idChkQuickAccess
 Global $__g_CD_idChkListKeyNav
 
 ; -- Tab 8: Updates --
@@ -73,7 +73,7 @@ Global $__g_CD_idInpListFont, $__g_CD_idInpListFontSize, $__g_CD_idInpTooltipFon
 Global $__g_CD_idChkListScrollable, $__g_CD_idInpListMaxVisible, $__g_CD_idInpListScrollSpeed
 
 ; -- Tab 7: Logging --
-Global $__g_CD_idChkLogging, $__g_CD_idInpLogPath, $__g_CD_idLblLogLevel
+Global $__g_CD_idChkLogging, $__g_CD_idInpLogPath, $__g_CD_idBtnLogBrowse, $__g_CD_idLblLogLevel
 Global $__g_CD_idInpLogMaxSize
 Global $__g_CD_idInpLogRotateCount, $__g_CD_idChkLogCompress
 Global $__g_CD_idChkLogPID, $__g_CD_idLblLogDateFormat, $__g_CD_idChkLogFlush
@@ -423,6 +423,9 @@ Func __CD_BuildTabGeneral()
 
     $__g_CD_idChkWidgetDrag = __CD_CreateCheckbox("Enable widget drag", $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkWidgetDrag, "Hold and drag the widget to reposition it on the taskbar")
+    $iY += 26
+    $__g_CD_idChkWidgetColorBar = __CD_CreateCheckbox("Widget color bar", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkWidgetColorBar, "Show a colored accent on the widget matching the current desktop color")
     $iY += 26
     $__g_CD_idChkTrayMode = __CD_CreateCheckbox("Tray icon mode", $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkTrayMode, "Run as system tray icon instead of taskbar widget (requires restart)")
@@ -838,17 +841,23 @@ Func __CD_BuildTabLogging()
     _Theme_SetTooltip($__g_CD_idChkLogging, "Write debug information to a log file for troubleshooting")
     $iY += 34
 
-    Local $idLbl = GUICtrlCreateLabel("Log file path:", $iX, $iY + 2, 100, 18)
+    Local $idLbl = GUICtrlCreateLabel("Log folder:", $iX, $iY + 2, 100, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $idLbl)
-    $__g_CD_idInpLogPath = GUICtrlCreateInput("", $iX + 105, $iY, 300, 22)
+    $__g_CD_idInpLogPath = GUICtrlCreateInput("", $iX + 105, $iY, 248, 22)
     GUICtrlSetFont($__g_CD_idInpLogPath, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpLogPath, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpLogPath, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpLogPath)
-    _Theme_SetTooltip($__g_CD_idInpLogPath, "Full path to log file (empty = desk_switcheroo.log in script folder)")
+    _Theme_SetTooltip($__g_CD_idInpLogPath, "Folder for log files (empty = script folder). Supports %APPDATA%, %TEMP%, %SCRIPTDIR%")
+    $__g_CD_idBtnLogBrowse = GUICtrlCreateLabel("Browse", $iX + 105 + 252, $iY, 48, 22, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBtnLogBrowse, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBtnLogBrowse, $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idBtnLogBrowse, $THEME_BG_HOVER)
+    GUICtrlSetCursor($__g_CD_idBtnLogBrowse, 0)
+    __CD_RegCtrl($t, $__g_CD_idBtnLogBrowse)
     $iY += 30
 
     $__g_CD_idLblLogLevel = __CD_CreateCycleLabel("Log level:", $iX, $iY, 100, 90, $t)
@@ -1028,6 +1037,7 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idLblPosition, _Cfg_GetWidgetPosition())
     GUICtrlSetData($__g_CD_idInpOffsetX, _Cfg_GetWidgetOffsetX())
     __CD_SetCheckState($__g_CD_idChkWidgetDrag, _Cfg_GetWidgetDragEnabled())
+    __CD_SetCheckState($__g_CD_idChkWidgetColorBar, _Cfg_GetWidgetColorBar())
     __CD_SetCheckState($__g_CD_idChkTrayMode, _Cfg_GetTrayIconMode())
     __CD_SetCheckState($__g_CD_idChkQuickAccess, _Cfg_GetQuickAccessEnabled())
     __CD_SetCheckState($__g_CD_idChkListKeyNav, _Cfg_GetListKeyboardNav())
@@ -1080,7 +1090,7 @@ Func __CD_PopulateControls()
 
     ; Logging
     __CD_SetCheckState($__g_CD_idChkLogging, _Cfg_GetLoggingEnabled())
-    GUICtrlSetData($__g_CD_idInpLogPath, _Cfg_GetLogFilePath())
+    GUICtrlSetData($__g_CD_idInpLogPath, _Cfg_GetLogFolder())
     GUICtrlSetData($__g_CD_idLblLogLevel, _Cfg_GetLogLevel())
     GUICtrlSetData($__g_CD_idInpLogMaxSize, _Cfg_GetLogMaxSizeMB())
     GUICtrlSetData($__g_CD_idInpLogRotateCount, _Cfg_GetLogRotateCount())
@@ -1140,6 +1150,9 @@ Func __CD_MessageLoop()
                     _CheckUpdateNow()
                 Case $__g_CD_idBtnDownloadLatest
                     _DownloadLatestPortable()
+                Case $__g_CD_idBtnLogBrowse
+                    Local $sFolder = FileSelectFolder("Select log folder", "", 7, GUICtrlRead($__g_CD_idInpLogPath), $__g_CD_hGUI)
+                    If $sFolder <> "" Then GUICtrlSetData($__g_CD_idInpLogPath, $sFolder)
             EndSwitch
 
             ; Tab button clicks
@@ -1181,6 +1194,7 @@ Func __CD_MessageLoop()
             If $aCursor[4] = $__g_CD_idBtnRestart Then $iFound = $__g_CD_idBtnRestart
             If $aCursor[4] = $__g_CD_idBtnCheckNow Then $iFound = $__g_CD_idBtnCheckNow
             If $aCursor[4] = $__g_CD_idBtnDownloadLatest Then $iFound = $__g_CD_idBtnDownloadLatest
+            If $aCursor[4] = $__g_CD_idBtnLogBrowse Then $iFound = $__g_CD_idBtnLogBrowse
             If $iFound <> $iHovered Then
                 If $iHovered <> 0 Then
                     Local $iFgRestore = $THEME_FG_MENU
@@ -1189,6 +1203,7 @@ Func __CD_MessageLoop()
                     If $iHovered = $__g_CD_idBtnRestart Then $iFgRestore = $THEME_FG_LINK
                     If $iHovered = $__g_CD_idBtnCheckNow Then $iFgRestore = $THEME_FG_MENU
                     If $iHovered = $__g_CD_idBtnDownloadLatest Then $iFgRestore = $THEME_FG_LINK
+                    If $iHovered = $__g_CD_idBtnLogBrowse Then $iFgRestore = $THEME_FG_DIM
                     _Theme_RemoveHover($iHovered, $iFgRestore, $THEME_BG_HOVER)
                 EndIf
                 $iHovered = $iFound
@@ -1232,6 +1247,7 @@ Func __CD_ApplyChanges()
     $s = GUICtrlRead($__g_CD_idInpOffsetX)
     If $s <> "" And StringIsInt($s) Then _Cfg_SetWidgetOffsetX(Int($s))
     _Cfg_SetWidgetDragEnabled(__CD_GetCheckState($__g_CD_idChkWidgetDrag))
+    _Cfg_SetWidgetColorBar(__CD_GetCheckState($__g_CD_idChkWidgetColorBar))
     _Cfg_SetTrayIconMode(__CD_GetCheckState($__g_CD_idChkTrayMode))
     _Cfg_SetQuickAccessEnabled(__CD_GetCheckState($__g_CD_idChkQuickAccess))
     _Cfg_SetListKeyboardNav(__CD_GetCheckState($__g_CD_idChkListKeyNav))
@@ -1300,7 +1316,7 @@ Func __CD_ApplyChanges()
 
     ; Logging
     _Cfg_SetLoggingEnabled(__CD_GetCheckState($__g_CD_idChkLogging))
-    _Cfg_SetLogFilePath(GUICtrlRead($__g_CD_idInpLogPath))
+    _Cfg_SetLogFolder(GUICtrlRead($__g_CD_idInpLogPath))
     _Cfg_SetLogLevel(GUICtrlRead($__g_CD_idLblLogLevel))
     $s = GUICtrlRead($__g_CD_idInpLogMaxSize)
     If StringIsInt($s) Then _Cfg_SetLogMaxSizeMB(Int($s))

@@ -109,7 +109,7 @@ _RD_Init()
 
 ; ---- Globals ----
 Global $iDesktop = _VD_GetCurrent()
-Global $gui, $lblNum, $lblName, $lblLeft, $lblRight
+Global $gui, $lblNum, $lblName, $lblLeft, $lblRight, $lblColorBar
 Global $iTaskbarH, $iTaskbarY
 Global $bHoverLeft = False, $bHoverRight = False
 Global $iRenameTarget = 0
@@ -192,6 +192,11 @@ GUICtrlSetFont($lblRight, 9, 400, 0, $THEME_FONT_SYMBOL)
 GUICtrlSetColor($lblRight, $THEME_FG_NORMAL)
 GUICtrlSetBkColor($lblRight, $GUI_BKCOLOR_TRANSPARENT)
 GUICtrlSetCursor($lblRight, 0)
+
+; Color bar — thin accent at bottom showing the current desktop's color
+Local $iBarH = _Cfg_GetWidgetColorBarHeight()
+$lblColorBar = GUICtrlCreateLabel("", 0, $iInnerH - $iBarH, $THEME_MAIN_WIDTH, $iBarH)
+_UpdateWidgetColorBar()
 
 GUISetState(@SW_SHOW)
 
@@ -826,6 +831,21 @@ EndFunc
 ; MAIN HELPERS
 ; =============================================
 
+; Name:        _UpdateWidgetColorBar
+; Description: Shows/hides the thin color accent at the bottom of the widget
+Func _UpdateWidgetColorBar()
+    If Not _Cfg_GetWidgetColorBar() Or Not _Cfg_GetDesktopColorsEnabled() Then
+        GUICtrlSetBkColor($lblColorBar, $THEME_BG_MAIN)
+        Return
+    EndIf
+    Local $iColor = _Cfg_GetDesktopColor($iDesktop)
+    If $iColor = 0 Then
+        GUICtrlSetBkColor($lblColorBar, $THEME_BG_MAIN)
+    Else
+        GUICtrlSetBkColor($lblColorBar, $iColor)
+    EndIf
+EndFunc
+
 ; Name:        _ApplyDesktopChange
 ; Description: Updates widget display labels and list after desktop change
 Func _ApplyDesktopChange()
@@ -838,6 +858,7 @@ Func _ApplyDesktopChange()
         GUICtrlSetFont($lblNum, 13, 700, 0, $THEME_FONT_MAIN)
     EndIf
     GUICtrlSetData($lblName, _Labels_Load($iDesktop))
+    _UpdateWidgetColorBar()
     WinSetTitle($gui, "", String($iDesktop))
     _DL_Refresh($iTaskbarY, $iDesktop)
     If $__g_bTrayMode Then TraySetToolTip("Desk Switcheroo - Desktop " & $iDesktop)
