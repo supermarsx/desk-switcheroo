@@ -26,6 +26,10 @@ Global $__g_Cfg_bListKeyboardNav   = False
 Global $__g_Cfg_bAutoUpdateEnabled = False
 Global $__g_Cfg_iAutoUpdateInterval = 168
 
+; [Updates]
+Global $__g_Cfg_bUpdateCheckOnStartup = False
+Global $__g_Cfg_iUpdateCheckDays      = 7
+
 ; [Display]
 Global $__g_Cfg_bShowCount         = False
 Global $__g_Cfg_iCountFontSize     = 7
@@ -68,6 +72,7 @@ Global $__g_Cfg_iCmAutoHideDelay   = 500
 Global $__g_Cfg_bConfigWatcherEnabled = False
 Global $__g_Cfg_iConfigWatcherInterval = 60000
 Global $__g_Cfg_iCountCacheTTL = 1000
+Global $__g_Cfg_bConfirmQuit       = False
 
 ; [Display] - List font
 Global $__g_Cfg_sListFontName      = ""
@@ -78,6 +83,9 @@ Global $__g_Cfg_bLoggingEnabled    = False
 Global $__g_Cfg_sLogFilePath       = ""
 Global $__g_Cfg_sLogLevel          = "info"
 Global $__g_Cfg_iLogMaxSizeMB      = 5
+Global $__g_Cfg_iLogRotateCount    = 3
+Global $__g_Cfg_bLogCompressOld    = False
+Global $__g_Cfg_sLogDefaultPath    = ""
 
 ; [DesktopColors]
 Global $__g_Cfg_bDesktopColorsEnabled = False
@@ -144,6 +152,10 @@ Func _Cfg_Load()
     $__g_Cfg_bAutoUpdateEnabled = __Cfg_ReadBool($f, "General", "auto_update_enabled", False)
     $__g_Cfg_iAutoUpdateInterval = __Cfg_ReadInt($f, "General", "auto_update_interval", 168, 1, 720)
 
+    ; [Updates]
+    $__g_Cfg_bUpdateCheckOnStartup = __Cfg_ReadBool($f, "Updates", "update_check_on_startup", False)
+    $__g_Cfg_iUpdateCheckDays      = __Cfg_ReadInt($f, "Updates", "update_check_days", 7, 1, 90)
+
     ; [Display]
     $__g_Cfg_bShowCount         = __Cfg_ReadBool($f, "Display", "show_count", False)
     $__g_Cfg_iCountFontSize     = __Cfg_ReadInt($f, "Display", "count_font_size", 7, 4, 20)
@@ -187,12 +199,16 @@ Func _Cfg_Load()
     $__g_Cfg_bConfigWatcherEnabled = __Cfg_ReadBool($f, "Behavior", "config_watcher_enabled", False)
     $__g_Cfg_iConfigWatcherInterval = __Cfg_ReadInt($f, "Behavior", "config_watcher_interval", 60000, 5000, 300000)
     $__g_Cfg_iCountCacheTTL = __Cfg_ReadInt($f, "Behavior", "count_cache_ttl", 1000, 100, 10000)
+    $__g_Cfg_bConfirmQuit       = __Cfg_ReadBool($f, "Behavior", "confirm_quit", False)
 
     ; [Logging]
     $__g_Cfg_bLoggingEnabled    = __Cfg_ReadBool($f, "Logging", "logging_enabled", False)
     $__g_Cfg_sLogFilePath       = IniRead($f, "Logging", "log_file_path", "")
     $__g_Cfg_sLogLevel          = __Cfg_ReadEnum($f, "Logging", "log_level", "info", "error|warn|info|debug")
     $__g_Cfg_iLogMaxSizeMB      = __Cfg_ReadInt($f, "Logging", "log_max_size_mb", 5, 1, 50)
+    $__g_Cfg_iLogRotateCount    = __Cfg_ReadInt($f, "Logging", "log_rotate_count", 3, 1, 10)
+    $__g_Cfg_bLogCompressOld    = __Cfg_ReadBool($f, "Logging", "log_compress_old", False)
+    $__g_Cfg_sLogDefaultPath    = IniRead($f, "Logging", "log_default_path", "")
 
     ; [DesktopColors]
     $__g_Cfg_bDesktopColorsEnabled = __Cfg_ReadBool($f, "DesktopColors", "desktop_colors_enabled", False)
@@ -226,6 +242,10 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "General", "list_keyboard_nav", $__g_Cfg_bListKeyboardNav)
     __Cfg_WriteBool($f, "General", "auto_update_enabled", $__g_Cfg_bAutoUpdateEnabled)
     IniWrite($f, "General", "auto_update_interval", $__g_Cfg_iAutoUpdateInterval)
+
+    ; [Updates]
+    __Cfg_WriteBool($f, "Updates", "update_check_on_startup", $__g_Cfg_bUpdateCheckOnStartup)
+    IniWrite($f, "Updates", "update_check_days", $__g_Cfg_iUpdateCheckDays)
 
     ; [Display]
     __Cfg_WriteBool($f, "Display", "show_count", $__g_Cfg_bShowCount)
@@ -270,12 +290,16 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "Behavior", "config_watcher_enabled", $__g_Cfg_bConfigWatcherEnabled)
     IniWrite($f, "Behavior", "config_watcher_interval", $__g_Cfg_iConfigWatcherInterval)
     IniWrite($f, "Behavior", "count_cache_ttl", $__g_Cfg_iCountCacheTTL)
+    __Cfg_WriteBool($f, "Behavior", "confirm_quit", $__g_Cfg_bConfirmQuit)
 
     ; [Logging]
     __Cfg_WriteBool($f, "Logging", "logging_enabled", $__g_Cfg_bLoggingEnabled)
     IniWrite($f, "Logging", "log_file_path", $__g_Cfg_sLogFilePath)
     IniWrite($f, "Logging", "log_level", $__g_Cfg_sLogLevel)
     IniWrite($f, "Logging", "log_max_size_mb", $__g_Cfg_iLogMaxSizeMB)
+    IniWrite($f, "Logging", "log_rotate_count", $__g_Cfg_iLogRotateCount)
+    __Cfg_WriteBool($f, "Logging", "log_compress_old", $__g_Cfg_bLogCompressOld)
+    IniWrite($f, "Logging", "log_default_path", $__g_Cfg_sLogDefaultPath)
 
     ; [DesktopColors]
     __Cfg_WriteBool($f, "DesktopColors", "desktop_colors_enabled", $__g_Cfg_bDesktopColorsEnabled)
@@ -307,6 +331,9 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "General", "list_keyboard_nav", False)
     __Cfg_DefaultBool($f, "General", "auto_update_enabled", False)
     __Cfg_DefaultVal($f, "General", "auto_update_interval", 168)
+
+    __Cfg_DefaultBool($f, "Updates", "update_check_on_startup", False)
+    __Cfg_DefaultVal($f, "Updates", "update_check_days", 7)
 
     __Cfg_DefaultBool($f, "Display", "show_count", False)
     __Cfg_DefaultVal($f, "Display", "count_font_size", 7)
@@ -347,11 +374,15 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "Behavior", "config_watcher_enabled", False)
     __Cfg_DefaultVal($f, "Behavior", "config_watcher_interval", 60000)
     __Cfg_DefaultVal($f, "Behavior", "count_cache_ttl", 1000)
+    __Cfg_DefaultBool($f, "Behavior", "confirm_quit", False)
 
     __Cfg_DefaultBool($f, "Logging", "logging_enabled", False)
     __Cfg_DefaultVal($f, "Logging", "log_file_path", "")
     __Cfg_DefaultVal($f, "Logging", "log_level", "info")
     __Cfg_DefaultVal($f, "Logging", "log_max_size_mb", 5)
+    __Cfg_DefaultVal($f, "Logging", "log_rotate_count", 3)
+    __Cfg_DefaultBool($f, "Logging", "log_compress_old", False)
+    __Cfg_DefaultVal($f, "Logging", "log_default_path", "")
 
     __Cfg_DefaultBool($f, "DesktopColors", "desktop_colors_enabled", False)
     Local $aDefColors[10] = [9, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -406,6 +437,14 @@ Func _Cfg_GetAutoUpdateInterval()
 EndFunc
 Func _Cfg_GetAutoUpdateIntervalHours()
     Return $__g_Cfg_iAutoUpdateInterval
+EndFunc
+
+; [Updates]
+Func _Cfg_GetUpdateCheckOnStartup()
+    Return $__g_Cfg_bUpdateCheckOnStartup
+EndFunc
+Func _Cfg_GetUpdateCheckDays()
+    Return $__g_Cfg_iUpdateCheckDays
 EndFunc
 
 ; [Display]
@@ -520,6 +559,9 @@ EndFunc
 Func _Cfg_GetCountCacheTTL()
     Return $__g_Cfg_iCountCacheTTL
 EndFunc
+Func _Cfg_GetConfirmQuit()
+    Return $__g_Cfg_bConfirmQuit
+EndFunc
 
 ; [Logging]
 Func _Cfg_GetLoggingEnabled()
@@ -533,6 +575,15 @@ Func _Cfg_GetLogLevel()
 EndFunc
 Func _Cfg_GetLogMaxSizeMB()
     Return $__g_Cfg_iLogMaxSizeMB
+EndFunc
+Func _Cfg_GetLogRotateCount()
+    Return $__g_Cfg_iLogRotateCount
+EndFunc
+Func _Cfg_GetLogCompressOld()
+    Return $__g_Cfg_bLogCompressOld
+EndFunc
+Func _Cfg_GetLogDefaultPath()
+    Return $__g_Cfg_sLogDefaultPath
 EndFunc
 
 ; [DesktopColors]
@@ -592,6 +643,16 @@ Func _Cfg_SetAutoUpdateInterval($iHours)
     If $iHours < 1 Then $iHours = 1
     If $iHours > 720 Then $iHours = 720
     $__g_Cfg_iAutoUpdateInterval = $iHours
+EndFunc
+
+; [Updates]
+Func _Cfg_SetUpdateCheckOnStartup($b)
+    $__g_Cfg_bUpdateCheckOnStartup = $b
+EndFunc
+Func _Cfg_SetUpdateCheckDays($i)
+    If $i < 1 Then $i = 1
+    If $i > 90 Then $i = 90
+    $__g_Cfg_iUpdateCheckDays = $i
 EndFunc
 
 ; [Display]
@@ -728,6 +789,9 @@ Func _Cfg_SetCountCacheTTL($i)
     If $i > 10000 Then $i = 10000
     $__g_Cfg_iCountCacheTTL = $i
 EndFunc
+Func _Cfg_SetConfirmQuit($b)
+    $__g_Cfg_bConfirmQuit = $b
+EndFunc
 
 ; [Logging]
 Func _Cfg_SetLoggingEnabled($b)
@@ -744,6 +808,17 @@ Func _Cfg_SetLogMaxSizeMB($i)
     If $i < 1 Then $i = 1
     If $i > 50 Then $i = 50
     $__g_Cfg_iLogMaxSizeMB = $i
+EndFunc
+Func _Cfg_SetLogRotateCount($i)
+    If $i < 1 Then $i = 1
+    If $i > 10 Then $i = 10
+    $__g_Cfg_iLogRotateCount = $i
+EndFunc
+Func _Cfg_SetLogCompressOld($b)
+    $__g_Cfg_bLogCompressOld = $b
+EndFunc
+Func _Cfg_SetLogDefaultPath($s)
+    $__g_Cfg_sLogDefaultPath = $s
 EndFunc
 
 ; [DesktopColors]

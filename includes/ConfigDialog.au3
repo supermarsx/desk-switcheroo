@@ -54,6 +54,7 @@ Global $__g_CD_idChkListKeyNav
 
 ; -- Tab 8: Updates --
 Global $__g_CD_idChkAutoUpdate, $__g_CD_idInpUpdateInterval
+Global $__g_CD_idChkUpdateOnStartup, $__g_CD_idInpUpdateCheckDays
 Global $__g_CD_idBtnCheckNow
 
 ; -- Tab 5: Behavior --
@@ -74,15 +75,19 @@ Global $__g_CD_idChkListScrollable, $__g_CD_idInpListMaxVisible, $__g_CD_idInpLi
 ; -- Tab 7: Logging --
 Global $__g_CD_idChkLogging, $__g_CD_idInpLogPath, $__g_CD_idLblLogLevel
 Global $__g_CD_idInpLogMaxSize
+Global $__g_CD_idInpLogRotateCount, $__g_CD_idChkLogCompress
+
+; -- Tab 5: Behavior extras --
+Global $__g_CD_idChkConfirmQuit
 
 ; -- Buttons --
 Global $__g_CD_idBtnApply, $__g_CD_idBtnClose
 Global $__g_CD_idBtnImport, $__g_CD_idBtnExport, $__g_CD_idBtnRestart
 
 ; -- Checkbox state tracking --
-Global $__g_CD_aChkIDs[21]     ; control IDs
-Global $__g_CD_aChkStates[21]  ; boolean states
-Global $__g_CD_aChkTexts[21]   ; original text per checkbox
+Global $__g_CD_aChkIDs[23]     ; control IDs
+Global $__g_CD_aChkStates[23]  ; boolean states
+Global $__g_CD_aChkTexts[23]   ; original text per checkbox
 Global $__g_CD_iChkCount = 0
 
 ; -- Reset button --
@@ -778,6 +783,10 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetBkColor($__g_CD_idInpCountCacheTTL, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpCountCacheTTL)
     _Theme_SetTooltip($__g_CD_idInpCountCacheTTL, "How long to cache desktop count before re-querying (ms)")
+    $iY += 30
+
+    $__g_CD_idChkConfirmQuit = __CD_CreateCheckbox("Confirm before quitting", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkConfirmQuit, "Show a confirmation dialog before exiting Desk Switcheroo")
 EndFunc
 
 Func __CD_BuildTabColors()
@@ -842,6 +851,23 @@ Func __CD_BuildTabLogging()
     GUICtrlSetBkColor($__g_CD_idInpLogMaxSize, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpLogMaxSize)
     _Theme_SetTooltip($__g_CD_idInpLogMaxSize, "Rotate log file when it exceeds this size")
+    $iY += 30
+
+    $idLbl = GUICtrlCreateLabel("Rotate count (1-10):", $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpLogRotateCount = GUICtrlCreateInput("", $iX + 170, $iY, 50, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpLogRotateCount, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpLogRotateCount, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpLogRotateCount, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpLogRotateCount)
+    _Theme_SetTooltip($__g_CD_idInpLogRotateCount, "Number of rotated log files to keep (1-10)")
+    $iY += 30
+
+    $__g_CD_idChkLogCompress = __CD_CreateCheckbox("Compress old logs", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkLogCompress, "Zip old log files when rotating (uses PowerShell)")
 EndFunc
 
 Func __CD_BuildTabUpdates()
@@ -862,6 +888,23 @@ Func __CD_BuildTabUpdates()
     GUICtrlSetBkColor($__g_CD_idInpUpdateInterval, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpUpdateInterval)
     _Theme_SetTooltip($__g_CD_idInpUpdateInterval, "How often to check for updates (in hours)")
+    $iY += 34
+
+    $__g_CD_idChkUpdateOnStartup = __CD_CreateCheckbox("Check on startup", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkUpdateOnStartup, "Check for updates when the application starts (respects day interval)")
+    $iY += 34
+
+    Local $idLblDays = GUICtrlCreateLabel("Check every (days):", $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLblDays, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblDays, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblDays, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblDays)
+    $__g_CD_idInpUpdateCheckDays = GUICtrlCreateInput("", $iX + 170, $iY, 100, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpUpdateCheckDays, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpUpdateCheckDays, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpUpdateCheckDays, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpUpdateCheckDays)
+    _Theme_SetTooltip($__g_CD_idInpUpdateCheckDays, "Minimum days between startup update checks (1-90)")
     $iY += 34
 
     $__g_CD_idBtnCheckNow = GUICtrlCreateLabel(ChrW(0x21BB) & " Check Now", $iX, $iY, 120, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
@@ -932,6 +975,7 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkConfigWatcher, _Cfg_GetConfigWatcherEnabled())
     GUICtrlSetData($__g_CD_idInpWatcherInterval, _Cfg_GetConfigWatcherInterval())
     GUICtrlSetData($__g_CD_idInpCountCacheTTL, _Cfg_GetCountCacheTTL())
+    __CD_SetCheckState($__g_CD_idChkConfirmQuit, _Cfg_GetConfirmQuit())
 
     ; Colors
     __CD_SetCheckState($__g_CD_idChkColorsEnabled, _Cfg_GetDesktopColorsEnabled())
@@ -946,10 +990,14 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpLogPath, _Cfg_GetLogFilePath())
     GUICtrlSetData($__g_CD_idLblLogLevel, _Cfg_GetLogLevel())
     GUICtrlSetData($__g_CD_idInpLogMaxSize, _Cfg_GetLogMaxSizeMB())
+    GUICtrlSetData($__g_CD_idInpLogRotateCount, _Cfg_GetLogRotateCount())
+    __CD_SetCheckState($__g_CD_idChkLogCompress, _Cfg_GetLogCompressOld())
 
     ; Updates
     __CD_SetCheckState($__g_CD_idChkAutoUpdate, _Cfg_GetAutoUpdateEnabled())
     GUICtrlSetData($__g_CD_idInpUpdateInterval, _Cfg_GetAutoUpdateIntervalHours())
+    __CD_SetCheckState($__g_CD_idChkUpdateOnStartup, _Cfg_GetUpdateCheckOnStartup())
+    GUICtrlSetData($__g_CD_idInpUpdateCheckDays, _Cfg_GetUpdateCheckDays())
 EndFunc
 
 ; =============================================
@@ -1130,6 +1178,7 @@ Func __CD_ApplyChanges()
     If StringIsInt($s) Then _Cfg_SetConfigWatcherInterval(Int($s))
     $s = GUICtrlRead($__g_CD_idInpCountCacheTTL)
     If StringIsInt($s) Then _Cfg_SetCountCacheTTL(Int($s))
+    _Cfg_SetConfirmQuit(__CD_GetCheckState($__g_CD_idChkConfirmQuit))
 
     ; Colors
     _Cfg_SetDesktopColorsEnabled(__CD_GetCheckState($__g_CD_idChkColorsEnabled))
@@ -1152,6 +1201,9 @@ Func __CD_ApplyChanges()
     _Cfg_SetAutoUpdateEnabled(__CD_GetCheckState($__g_CD_idChkAutoUpdate))
     $s = GUICtrlRead($__g_CD_idInpUpdateInterval)
     If StringIsInt($s) Then _Cfg_SetAutoUpdateInterval(Int($s))
+    _Cfg_SetUpdateCheckOnStartup(__CD_GetCheckState($__g_CD_idChkUpdateOnStartup))
+    $s = GUICtrlRead($__g_CD_idInpUpdateCheckDays)
+    If StringIsInt($s) Then _Cfg_SetUpdateCheckDays(Int($s))
 
     If Not _Cfg_Save() Then
         Local $aErrPos = WinGetPos($__g_CD_hGUI)

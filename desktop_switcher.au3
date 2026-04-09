@@ -226,6 +226,18 @@ EndIf
 
 _Log_Info("Startup complete")
 
+; ---- Startup update check (if enabled and enough days have passed) ----
+If _Cfg_GetUpdateCheckOnStartup() Then
+    Local $sLastCheck = IniRead(_Cfg_GetPath(), "Updates", "_last_check_date", "0")
+    Local $iToday = Int(@YEAR & @MON & @MDAY)
+    Local $iLast = Int($sLastCheck)
+    If $iToday - $iLast >= _Cfg_GetUpdateCheckDays() Then
+        IniWrite(_Cfg_GetPath(), "Updates", "_last_check_date", String($iToday))
+        _AdlibCheckUpdate()
+        _Log_Info("Startup update check triggered")
+    EndIf
+EndIf
+
 ; ---- Main loop ----
 Global $bRightWasDown = False
 Global $bLeftWasDown = False

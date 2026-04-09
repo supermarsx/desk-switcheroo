@@ -28,8 +28,19 @@ Func _Log_Init()
     $__g_Log_iMaxSize = _Cfg_GetLogMaxSizeMB() * 1024 * 1024
 
     ; Determine log file path
-    $__g_Log_sFilePath = _Cfg_GetLogFilePath()
-    If $__g_Log_sFilePath = "" Then $__g_Log_sFilePath = @ScriptDir & "\desk_switcheroo.log"
+    Local $sPath = _Cfg_GetLogFilePath()
+    If $sPath = "" Then
+        Local $sDefaultPath = _Cfg_GetLogDefaultPath()
+        If $sDefaultPath <> "" Then
+            $sDefaultPath = StringReplace($sDefaultPath, "%APPDATA%", @AppDataDir)
+            $sDefaultPath = StringReplace($sDefaultPath, "%TEMP%", @TempDir)
+            $sDefaultPath = StringReplace($sDefaultPath, "%SCRIPTDIR%", @ScriptDir)
+            $sPath = $sDefaultPath & "\desk_switcheroo.log"
+        Else
+            $sPath = @ScriptDir & "\desk_switcheroo.log"
+        EndIf
+    EndIf
+    $__g_Log_sFilePath = $sPath
 
     ; Determine log level
     $__g_Log_iLevel = __Log_LevelToInt(_Cfg_GetLogLevel())
@@ -113,25 +124,41 @@ EndFunc
 ; Description: If the log file exceeds max size, rotates it by closing,
 ;              moving to .bak, and reopening.
 Func __Log_CheckRotation()
-    If $__g_Log_sFilePath = "" Then Return
+    If Not $__g_Log_bEnabled Or $__g_Log_hFile = -1 Then Return
+    If FileGetSize($__g_Log_sFilePath) <= $__g_Log_iMaxSize Then Return
 
-    Local $iSize = FileGetSize($__g_Log_sFilePath)
-    If $iSize <= $__g_Log_iMaxSize Then Return
+    ; Close current file
+    FileClose($__g_Log_hFile)
+    $__g_Log_hFile = -1
 
-    ; Close current handle if open
-    If $__g_Log_hFile <> -1 Then
-        FileClose($__g_Log_hFile)
-        $__g_Log_hFile = -1
+    Local $iKeep = _Cfg_GetLogRotateCount()
+    Local $bCompress = _Cfg_GetLogCompressOld()
+
+    ; Delete oldest
+    Local $sOldest = $__g_Log_sFilePath & "." & $iKeep
+    If FileExists($sOldest) Then FileDelete($sOldest)
+    If FileExists($sOldest & ".zip") Then FileDelete($sOldest & ".zip")
+
+    ; Shift files: .log.N-1 -> .log.N, ..., .log.1 -> .log.2
+    Local $i
+    For $i = $iKeep - 1 To 1 Step -1
+        Local $sSrc = $__g_Log_sFilePath & "." & $i
+        Local $sDst = $__g_Log_sFilePath & "." & ($i + 1)
+        If FileExists($sSrc) Then FileMove($sSrc, $sDst, 1)
+        If FileExists($sSrc & ".zip") Then FileMove($sSrc & ".zip", $sDst & ".zip", 1)
+    Next
+
+    ; Current -> .log.1
+    FileMove($__g_Log_sFilePath, $__g_Log_sFilePath & ".1", 1)
+
+    ; Compress .log.1 if enabled (use PowerShell)
+    If $bCompress Then
+        RunWait('powershell.exe -NoProfile -Command "Compress-Archive -Path ''' & $__g_Log_sFilePath & '.1'' -DestinationPath ''' & $__g_Log_sFilePath & '.1.zip'' -Force"', "", @SW_HIDE)
+        If FileExists($__g_Log_sFilePath & ".1.zip") Then FileDelete($__g_Log_sFilePath & ".1")
     EndIf
-
-    ; Rotate: move current log to .bak (overwrite existing .bak)
-    FileMove($__g_Log_sFilePath, $__g_Log_sFilePath & ".bak", 1)
 
     ; Reopen fresh log file
-    $__g_Log_hFile = FileOpen($__g_Log_sFilePath, 1) ; 1 = append mode
-    If $__g_Log_hFile = -1 Then
-        $__g_Log_bEnabled = False
-    EndIf
+    $__g_Log_hFile = FileOpen($__g_Log_sFilePath, 1) ; 1 = append
 EndFunc
 
 ; Name:        __Log_LevelToInt
