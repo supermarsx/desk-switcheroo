@@ -1471,7 +1471,8 @@ Func _ShowAbout()
     ; Description
     GUICtrlCreateLabel("Lightweight virtual desktop switcher for Windows." & @CRLF & _
         "Navigate, rename, peek, and manage desktops" & @CRLF & _
-        "from a compact taskbar widget. Built with AutoIt.", $iTitleX, 36, $iDlgW - $iTitleX - 14, 48)
+        "from a compact taskbar widget." & @CRLF & _
+        "Created by supermarsx. Built with AutoIt.", $iTitleX, 36, $iDlgW - $iTitleX - 14, 56)
     GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_NORMAL)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)

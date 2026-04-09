@@ -18,12 +18,12 @@ Global $THEME_BG_POPUP      = 0x1E1E1E
 Global $THEME_BG_INPUT      = 0x2A2A2A
 Global $THEME_BG_HOVER      = 0x333333
 
-; Theme scheme definitions [BG_MAIN, BG_POPUP, BG_INPUT, BG_HOVER]
-Global Const $__g_Theme_aSchemeDark[4]     = [0x191919, 0x1E1E1E, 0x2A2A2A, 0x333333]
-Global Const $__g_Theme_aSchemeDarker[4]   = [0x0F0F0F, 0x141414, 0x202020, 0x292929]
-Global Const $__g_Theme_aSchemeMidnight[4] = [0x141824, 0x1A1E2E, 0x242838, 0x2E3348]
-Global Const $__g_Theme_aSchemeMidday[4]   = [0x2C2C2C, 0x323232, 0x3E3E3E, 0x484848]
-Global Const $__g_Theme_aSchemeSunset[4]   = [0x1E1418, 0x261A20, 0x3A262E, 0x4A3240]
+; Theme scheme definitions [BG_MAIN, BG_POPUP, BG_INPUT, BG_HOVER, FG_PRIMARY, FG_TEXT, FG_MENU, FG_NORMAL, FG_DIM, FG_LABEL]
+Global Const $__g_Theme_aSchemeDark[10]     = [0x191919, 0x1E1E1E, 0x2A2A2A, 0x333333, 0xE8E8E8, 0xE0E0E0, 0xDDDDDD, 0xCCCCCC, 0xAAAAAA, 0x888888]
+Global Const $__g_Theme_aSchemeDarker[10]   = [0x0F0F0F, 0x141414, 0x202020, 0x292929, 0xE8E8E8, 0xE0E0E0, 0xDDDDDD, 0xCCCCCC, 0xAAAAAA, 0x888888]
+Global Const $__g_Theme_aSchemeMidnight[10] = [0x141824, 0x1A1E2E, 0x242838, 0x2E3348, 0xE8E8E8, 0xE0E0E0, 0xDDDDDD, 0xCCCCCC, 0xAAAAAA, 0x888888]
+Global Const $__g_Theme_aSchemeMidday[10]   = [0xD8D8D8, 0xE4E4E4, 0xF0F0F0, 0xC8C8C8, 0x1A1A1A, 0x222222, 0x2A2A2A, 0x333333, 0x666666, 0x888888]
+Global Const $__g_Theme_aSchemeSunset[10]   = [0x2D1B2E, 0x3D2040, 0x552850, 0x6E3568, 0xF0D0E8, 0xE8C8E0, 0xE0C0D8, 0xD8B0C8, 0xB088A0, 0x886880]
 
 Global Const $THEME_BG_ACTIVE     = 0x484848
 Global Const $THEME_BG_ARROW_HOV  = 0x3A3A4A
@@ -32,13 +32,13 @@ Global Const $THEME_BG_BTN_HOV    = 0x4A4A4A
 Global Const $THEME_BG_SEPARATOR  = 0x3A3A3A
 Global Const $THEME_BG_DROP_TARGET = 0x2A3A5A
 
-; -- Foreground colors --
-Global Const $THEME_FG_PRIMARY    = 0xE8E8E8
-Global Const $THEME_FG_TEXT       = 0xE0E0E0
-Global Const $THEME_FG_MENU       = 0xDDDDDD
-Global Const $THEME_FG_NORMAL     = 0xCCCCCC
-Global Const $THEME_FG_DIM        = 0xAAAAAA
-Global Const $THEME_FG_LABEL      = 0x888888
+; -- Foreground colors (non-const: theme-switched at startup) --
+Global $THEME_FG_PRIMARY    = 0xE8E8E8
+Global $THEME_FG_TEXT       = 0xE0E0E0
+Global $THEME_FG_MENU       = 0xDDDDDD
+Global $THEME_FG_NORMAL     = 0xCCCCCC
+Global $THEME_FG_DIM        = 0xAAAAAA
+Global $THEME_FG_LABEL      = 0x888888
 Global Const $THEME_FG_PEEK_DIM   = 0x555555
 Global Const $THEME_FG_DRAG_DIM   = 0x555555
 Global Const $THEME_FG_LINK       = 0x6699CC
@@ -563,10 +563,16 @@ Func _Theme_ApplyScheme($sTheme)
         Case Else ; "dark" is default
             $aScheme = $__g_Theme_aSchemeDark
     EndSwitch
-    $THEME_BG_MAIN  = $aScheme[0]
-    $THEME_BG_POPUP = $aScheme[1]
-    $THEME_BG_INPUT = $aScheme[2]
-    $THEME_BG_HOVER = $aScheme[3]
+    $THEME_BG_MAIN   = $aScheme[0]
+    $THEME_BG_POPUP  = $aScheme[1]
+    $THEME_BG_INPUT  = $aScheme[2]
+    $THEME_BG_HOVER  = $aScheme[3]
+    $THEME_FG_PRIMARY = $aScheme[4]
+    $THEME_FG_TEXT    = $aScheme[5]
+    $THEME_FG_MENU    = $aScheme[6]
+    $THEME_FG_NORMAL  = $aScheme[7]
+    $THEME_FG_DIM     = $aScheme[8]
+    $THEME_FG_LABEL   = $aScheme[9]
 EndFunc
 
 ; Name:        _Theme_GetAvailableSchemes
