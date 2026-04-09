@@ -201,12 +201,8 @@ Func _VD_EnumWindowsOnDesktop($iDesktop)
     For $i = 1 To $aAll[0][0]
         Local $hWnd = $aAll[$i][1]
         If $hWnd = 0 Then ContinueLoop
-        ; Pre-filter: skip windows with empty title (phantom/child windows)
-        If $aAll[$i][0] = "" Then ContinueLoop
-        ; Pre-filter: skip windows that are children (have a parent)
+        ; Pre-filter: skip child windows (have an owner/parent)
         If _WinAPI_GetParent($hWnd) <> 0 Then ContinueLoop
-        ; Skip invisible windows
-        If Not BitAND(WinGetState($hWnd), 2) Then ContinueLoop
         ; Direct DllCall instead of wrapper to avoid function-call overhead in tight loop
         Local $aDesk = DllCall($__g_VD_hDLL, "int", "GetWindowDesktopNumber", "hwnd", $hWnd)
         If @error Or $aDesk[0] < 0 Then ContinueLoop
@@ -224,17 +220,38 @@ EndFunc
 ; Parameters:  $iA, $iB - desktop indices (1-based)
 ; Return:      True on success
 Func _VD_SwapDesktops($iA, $iB)
+    _Log_Debug("SwapDesktops: swapping desktop " & $iA & " <-> " & $iB)
     Local $aWinA = _VD_EnumWindowsOnDesktop($iA)
     Local $aWinB = _VD_EnumWindowsOnDesktop($iB)
+    _Log_Debug("SwapDesktops: " & $aWinA[0] & " windows on " & $iA & ", " & $aWinB[0] & " windows on " & $iB)
+
     ; Move A's windows to B
-    Local $i
+    Local $i, $iMoved = 0
     For $i = 1 To $aWinA[0]
-        _VD_MoveWindowToDesktop($aWinA[$i], $iB)
+        If _VD_MoveWindowToDesktop($aWinA[$i], $iB) Then $iMoved += 1
     Next
     ; Move B's windows to A
     For $i = 1 To $aWinB[0]
-        _VD_MoveWindowToDesktop($aWinB[$i], $iA)
+        If _VD_MoveWindowToDesktop($aWinB[$i], $iA) Then $iMoved += 1
     Next
+
+    ; Swap OS desktop names
+    If _VD_HasNameSupport() Then
+        Local $sNameA = _VD_GetName($iA)
+        Local $sNameB = _VD_GetName($iB)
+        _VD_SetName($iA, $sNameB)
+        _VD_SetName($iB, $sNameA)
+    EndIf
+
+    ; Swap desktop colors
+    Local $iColorA = _Cfg_GetDesktopColor($iA)
+    Local $iColorB = _Cfg_GetDesktopColor($iB)
+    If $iColorA <> $iColorB Then
+        _Cfg_SetDesktopColor($iA, $iColorB)
+        _Cfg_SetDesktopColor($iB, $iColorA)
+    EndIf
+
+    _Log_Debug("SwapDesktops: moved " & $iMoved & " windows total")
     Return True
 EndFunc
 
