@@ -42,6 +42,8 @@ Global $__g_Cfg_bListScrollable    = False
 Global $__g_Cfg_iListMaxVisible    = 10
 Global $__g_Cfg_iListScrollSpeed   = 1
 Global $__g_Cfg_iTooltipFontSize   = 8
+Global $__g_Cfg_bThumbnailUseScreenshot = False
+Global $__g_Cfg_iThumbnailCacheTTL = 30
 Global $__g_Cfg_iHotkeyDesktopCount = 9
 
 ; [Scroll]
@@ -170,6 +172,8 @@ Func _Cfg_Load()
     $__g_Cfg_iListMaxVisible    = __Cfg_ReadInt($f, "Display", "list_max_visible", 10, 3, 30)
     $__g_Cfg_iListScrollSpeed   = __Cfg_ReadInt($f, "Display", "list_scroll_speed", 1, 1, 5)
     $__g_Cfg_iTooltipFontSize   = __Cfg_ReadInt($f, "Display", "tooltip_font_size", 8, 6, 12)
+    $__g_Cfg_bThumbnailUseScreenshot = __Cfg_ReadBool($f, "Display", "thumbnail_use_screenshot", False)
+    $__g_Cfg_iThumbnailCacheTTL = __Cfg_ReadInt($f, "Display", "thumbnail_cache_ttl", 30, 5, 300)
 
     ; [Scroll]
     $__g_Cfg_bScrollEnabled     = __Cfg_ReadBool($f, "Scroll", "scroll_enabled", False)
@@ -261,6 +265,8 @@ Func _Cfg_Save()
     IniWrite($f, "Display", "list_max_visible", $__g_Cfg_iListMaxVisible)
     IniWrite($f, "Display", "list_scroll_speed", $__g_Cfg_iListScrollSpeed)
     IniWrite($f, "Display", "tooltip_font_size", $__g_Cfg_iTooltipFontSize)
+    __Cfg_WriteBool($f, "Display", "thumbnail_use_screenshot", $__g_Cfg_bThumbnailUseScreenshot)
+    IniWrite($f, "Display", "thumbnail_cache_ttl", $__g_Cfg_iThumbnailCacheTTL)
 
     ; [Scroll]
     __Cfg_WriteBool($f, "Scroll", "scroll_enabled", $__g_Cfg_bScrollEnabled)
@@ -348,6 +354,8 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Display", "list_max_visible", 10)
     __Cfg_DefaultVal($f, "Display", "list_scroll_speed", 1)
     __Cfg_DefaultVal($f, "Display", "tooltip_font_size", 8)
+    __Cfg_DefaultBool($f, "Display", "thumbnail_use_screenshot", False)
+    __Cfg_DefaultVal($f, "Display", "thumbnail_cache_ttl", 30)
 
     __Cfg_DefaultBool($f, "Scroll", "scroll_enabled", False)
     __Cfg_DefaultVal($f, "Scroll", "scroll_direction", "normal")
@@ -486,6 +494,12 @@ Func _Cfg_GetListScrollSpeed()
 EndFunc
 Func _Cfg_GetTooltipFontSize()
     Return $__g_Cfg_iTooltipFontSize
+EndFunc
+Func _Cfg_GetThumbnailUseScreenshot()
+    Return $__g_Cfg_bThumbnailUseScreenshot
+EndFunc
+Func _Cfg_GetThumbnailCacheTTL()
+    Return $__g_Cfg_iThumbnailCacheTTL
 EndFunc
 
 ; [Scroll]
@@ -711,6 +725,14 @@ Func _Cfg_SetTooltipFontSize($i)
     If $i < 6 Then $i = 6
     If $i > 12 Then $i = 12
     $__g_Cfg_iTooltipFontSize = $i
+EndFunc
+Func _Cfg_SetThumbnailUseScreenshot($b)
+    $__g_Cfg_bThumbnailUseScreenshot = $b
+EndFunc
+Func _Cfg_SetThumbnailCacheTTL($i)
+    If $i < 5 Then $i = 5
+    If $i > 300 Then $i = 300
+    $__g_Cfg_iThumbnailCacheTTL = $i
 EndFunc
 
 ; [Scroll]

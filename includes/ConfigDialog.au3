@@ -37,6 +37,7 @@ Global $__g_CD_idLblPosition ; label that cycles left/center/right
 Global $__g_CD_idChkShowCount, $__g_CD_idInpCountFont, $__g_CD_idInpOpacity
 Global $__g_CD_idLblTheme
 Global $__g_CD_idChkThumbnails, $__g_CD_idInpThumbW, $__g_CD_idInpThumbH
+Global $__g_CD_idChkThumbScreenshot, $__g_CD_idInpThumbCacheTTL
 
 ; -- Tab 3: Scroll --
 Global $__g_CD_idChkScroll, $__g_CD_idChkScrollWrap
@@ -489,6 +490,23 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetBkColor($__g_CD_idInpThumbH, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpThumbH)
     _Theme_SetTooltip($__g_CD_idInpThumbH, "Size of the thumbnail preview popup in pixels")
+    $iY += 30
+
+    $__g_CD_idChkThumbScreenshot = __CD_CreateCheckbox("Use real desktop screenshots", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkThumbScreenshot, "Capture actual desktop screenshots instead of text preview (briefly switches desktops)")
+    $iY += 34
+
+    $idLbl = GUICtrlCreateLabel("Screenshot cache TTL (s):", $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpThumbCacheTTL = GUICtrlCreateInput("", $iX + 170, $iY, 50, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpThumbCacheTTL, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpThumbCacheTTL, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpThumbCacheTTL, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpThumbCacheTTL)
+    _Theme_SetTooltip($__g_CD_idInpThumbCacheTTL, "How many seconds before cached screenshots expire (5-300)")
     $iY += 30
 
     $idLbl = GUICtrlCreateLabel("List font name:", $iX, $iY + 2, 165, 18)
@@ -988,6 +1006,8 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkThumbnails, _Cfg_GetThumbnailsEnabled())
     GUICtrlSetData($__g_CD_idInpThumbW, _Cfg_GetThumbnailWidth())
     GUICtrlSetData($__g_CD_idInpThumbH, _Cfg_GetThumbnailHeight())
+    __CD_SetCheckState($__g_CD_idChkThumbScreenshot, _Cfg_GetThumbnailUseScreenshot())
+    GUICtrlSetData($__g_CD_idInpThumbCacheTTL, _Cfg_GetThumbnailCacheTTL())
     GUICtrlSetData($__g_CD_idInpListFont, _Cfg_GetListFontName())
     GUICtrlSetData($__g_CD_idInpListFontSize, _Cfg_GetListFontSize())
     GUICtrlSetData($__g_CD_idInpTooltipFontSize, _Cfg_GetTooltipFontSize())
@@ -1190,6 +1210,9 @@ Func __CD_ApplyChanges()
     If StringIsInt($s) Then _Cfg_SetThumbnailWidth(Int($s))
     $s = GUICtrlRead($__g_CD_idInpThumbH)
     If StringIsInt($s) Then _Cfg_SetThumbnailHeight(Int($s))
+    _Cfg_SetThumbnailUseScreenshot(__CD_GetCheckState($__g_CD_idChkThumbScreenshot))
+    $s = GUICtrlRead($__g_CD_idInpThumbCacheTTL)
+    If StringIsInt($s) Then _Cfg_SetThumbnailCacheTTL(Int($s))
     _Cfg_SetListFontName(GUICtrlRead($__g_CD_idInpListFont))
     $s = GUICtrlRead($__g_CD_idInpListFontSize)
     If StringIsInt($s) Then _Cfg_SetListFontSize(Int($s))

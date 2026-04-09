@@ -1,4 +1,6 @@
 #include-once
+#include <ScreenCapture.au3>
+#include <GDIPlus.au3>
 #include "Theme.au3"
 #include "Labels.au3"
 #include "VirtualDesktop.au3"
@@ -71,6 +73,14 @@ Global $__g_DL_iScrollAutoDir = 0 ; -1=up, 0=none, 1=down
 Global $__g_DL_hThumbGUI = 0
 Global $__g_DL_bThumbVisible = False
 Global $__g_DL_iThumbTarget = 0
+
+; -- Screenshot thumbnail cache --
+Global $__g_DL_aThumbCache[21]       ; cached file paths, index 1-20
+Global $__g_DL_aThumbCacheTime[21]   ; TimerInit handle when cached, index 1-20
+For $__DL_i = 0 To 20
+    $__g_DL_aThumbCache[$__DL_i] = ""
+    $__g_DL_aThumbCacheTime[$__DL_i] = 0
+Next
 
 ; #FUNCTIONS# ===================================================
 
@@ -1243,8 +1253,45 @@ Func _DL_ThumbShow($iDesktop)
     GUICtrlCreateLabel("", 0, 0, $iW + 4, $iH + 4)
     GUICtrlSetBkColor(-1, $THEME_BG_BORDER)
 
-    ; Show desktop info as a text-based thumbnail preview
-    ; (Real screenshot requires DWM Thumbnail API which is complex in AutoIt)
+    If _Cfg_GetThumbnailUseScreenshot() Then
+        ; Screenshot-based thumbnail
+        Local $sFile = ""
+        Local $iTTL = _Cfg_GetThumbnailCacheTTL() * 1000
+
+        ; Check cache validity
+        If $iDesktop >= 1 And $iDesktop <= 20 Then
+            If $__g_DL_aThumbCache[$iDesktop] <> "" And FileExists($__g_DL_aThumbCache[$iDesktop]) Then
+                If TimerDiff($__g_DL_aThumbCacheTime[$iDesktop]) < $iTTL Then
+                    $sFile = $__g_DL_aThumbCache[$iDesktop]
+                EndIf
+            EndIf
+
+            If $sFile = "" Then
+                $sFile = _DL_ThumbCaptureDesktop($iDesktop)
+            EndIf
+        EndIf
+
+        If $sFile <> "" And FileExists($sFile) Then
+            GUICtrlCreatePic($sFile, 2, 2, $iW, $iH)
+        Else
+            ; Fallback to text preview when screenshot fails
+            __DL_ThumbShowText($iDesktop, $iW, $iH)
+        EndIf
+    Else
+        ; Text-based thumbnail preview (default)
+        __DL_ThumbShowText($iDesktop, $iW, $iH)
+    EndIf
+
+    GUISetState(@SW_SHOWNOACTIVATE, $__g_DL_hThumbGUI)
+    $__g_DL_bThumbVisible = True
+EndFunc
+
+; Name:        __DL_ThumbShowText
+; Description: Renders the text-based thumbnail preview content (window list)
+; Parameters:  $iDesktop - desktop index (1-based)
+;              $iW - thumbnail width
+;              $iH - thumbnail height
+Func __DL_ThumbShowText($iDesktop, $iW, $iH)
     Local $sName = _Labels_Load($iDesktop)
     Local $sInfo = "Desktop " & $iDesktop
     If $sName <> "" Then $sInfo &= @CRLF & $sName
@@ -1268,9 +1315,82 @@ Func _DL_ThumbShow($iDesktop)
     GUICtrlSetFont(-1, 7, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_NORMAL)
     GUICtrlSetBkColor(-1, $THEME_BG_MAIN)
+EndFunc
 
-    GUISetState(@SW_SHOWNOACTIVATE, $__g_DL_hThumbGUI)
-    $__g_DL_bThumbVisible = True
+; Name:        _DL_ThumbCaptureDesktop
+; Description: Captures a screenshot of a desktop and caches it as a scaled JPG file
+; Parameters:  $iDesktop - desktop index (1-based)
+; Return:      File path to scaled thumbnail JPG, or "" on failure
+Func _DL_ThumbCaptureDesktop($iDesktop)
+    Local $iCurrent = _VD_GetCurrent()
+    Local $bSwitched = False
+
+    If $iDesktop <> $iCurrent Then
+        _VD_GoTo($iDesktop)
+        Sleep(150)
+        $bSwitched = True
+    EndIf
+
+    ; Capture full screen to temp file
+    Local $sTempFile = @TempDir & "\desk_switcheroo_thumb_" & $iDesktop & ".bmp"
+    _ScreenCapture_Capture($sTempFile, 0, 0, -1, -1, False)
+
+    If $bSwitched Then _VD_GoTo($iCurrent)
+
+    If Not FileExists($sTempFile) Then Return ""
+
+    ; Scale using GDI+
+    Local $iW = _Cfg_GetThumbnailWidth()
+    Local $iH = _Cfg_GetThumbnailHeight()
+
+    _GDIPlus_Startup()
+    Local $hImage = _GDIPlus_ImageLoadFromFile($sTempFile)
+    If $hImage = 0 Then
+        _GDIPlus_Shutdown()
+        FileDelete($sTempFile)
+        Return ""
+    EndIf
+
+    ; Create scaled bitmap
+    Local $hThumb = _GDIPlus_BitmapCreateFromScan0($iW, $iH)
+    Local $hGraphics = _GDIPlus_ImageGetGraphicsContext($hThumb)
+    _GDIPlus_GraphicsSetInterpolationMode($hGraphics, 7) ; high quality bicubic
+    _GDIPlus_GraphicsDrawImageRect($hGraphics, $hImage, 0, 0, $iW, $iH)
+    _GDIPlus_GraphicsDispose($hGraphics)
+    _GDIPlus_ImageDispose($hImage)
+
+    ; Save scaled thumbnail as JPG
+    Local $sThumbFile = @TempDir & "\desk_switcheroo_thumb_" & $iDesktop & "_scaled.jpg"
+    Local $sCLSID = _GDIPlus_EncodersGetCLSID("JPG")
+    _GDIPlus_ImageSaveToFileEx($hThumb, $sThumbFile, $sCLSID)
+    _GDIPlus_ImageDispose($hThumb)
+    _GDIPlus_Shutdown()
+
+    ; Clean up full-size temp
+    FileDelete($sTempFile)
+
+    If Not FileExists($sThumbFile) Then Return ""
+
+    ; Cache the file path and time
+    If $iDesktop >= 1 And $iDesktop <= 20 Then
+        $__g_DL_aThumbCache[$iDesktop] = $sThumbFile
+        $__g_DL_aThumbCacheTime[$iDesktop] = TimerInit()
+    EndIf
+
+    Return $sThumbFile
+EndFunc
+
+; Name:        _DL_ThumbClearCache
+; Description: Deletes all cached screenshot thumbnail files and resets cache state
+Func _DL_ThumbClearCache()
+    Local $i
+    For $i = 1 To 20
+        If $__g_DL_aThumbCache[$i] <> "" And FileExists($__g_DL_aThumbCache[$i]) Then
+            FileDelete($__g_DL_aThumbCache[$i])
+        EndIf
+        $__g_DL_aThumbCache[$i] = ""
+        $__g_DL_aThumbCacheTime[$i] = 0
+    Next
 EndFunc
 
 ; Name:        _DL_ThumbDestroy
