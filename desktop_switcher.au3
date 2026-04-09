@@ -104,6 +104,7 @@ Global $gui, $lblNum, $lblName, $lblLeft, $lblRight
 Global $iTaskbarH, $iTaskbarY
 Global $bHoverLeft = False, $bHoverRight = False
 Global $iRenameTarget = 0
+Global $hMoveWindowTarget = 0 ; foreground window captured before context menu opens
 Global $bDesktopChanged = False
 Global $bNamesChanged = False
 Global $__g_iLastCursorX = -1, $__g_iLastCursorY = -1
@@ -353,9 +354,9 @@ While 1
                 _DL_ColorPickerShow($iCtxTarget)
             Case "move_window"
                 _DL_CtxDestroy()
-                Local $hActiveWin = WinGetHandle("[ACTIVE]")
-                If $hActiveWin <> 0 And $hActiveWin <> $gui Then
-                    _VD_MoveWindowToDesktop($hActiveWin, $iCtxTarget)
+                If $hMoveWindowTarget <> 0 Then
+                    _VD_MoveWindowToDesktop($hMoveWindowTarget, $iCtxTarget)
+                    $hMoveWindowTarget = 0
                 EndIf
             Case "add"
                 _DL_CtxDestroy()
@@ -481,6 +482,9 @@ While 1
                     If _DL_CtxIsVisible() Then
                         _DL_CtxDestroy()
                     Else
+                        ; Capture foreground window BEFORE context menu steals focus
+                        $hMoveWindowTarget = WinGetHandle("[ACTIVE]")
+                        If $hMoveWindowTarget = $gui Then $hMoveWindowTarget = 0
                         _DL_CtxShow($iRightClickRow)
                     EndIf
                 EndIf
