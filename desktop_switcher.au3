@@ -1966,6 +1966,89 @@ Func __WriteCrashLog($sReason, $sDetails)
 
     ; Also try to log via Logger (may fail if Logger is broken)
     _Log_Error("CRASH: " & $sReason & " | " & StringReplace($sDetails, @CRLF, " | "))
+
+    ; Show custom crash dialog (standalone — doesn't depend on any app state)
+    __ShowCrashDialog($sReason, $sDetails, $sCrashFile)
+EndFunc
+
+; Name:        __ShowCrashDialog
+; Description: Shows a standalone dark-themed crash dialog. Uses raw GUICreate
+;              (not _Theme_CreatePopup) to avoid depending on Theme module state.
+; Parameters:  $sReason - crash reason, $sDetails - details, $sCrashFile - log path
+Func __ShowCrashDialog($sReason, $sDetails, $sCrashFile)
+    Local $iW = 420, $iH = 280
+    Local $hDlg = GUICreate("Desk Switcheroo — Error", $iW, $iH, _
+        (@DesktopWidth - $iW) / 2, (@DesktopHeight - $iH) / 2, $WS_POPUP, _
+        BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW))
+    GUISetBkColor(0x1E1E1E)
+
+    ; Red warning icon + title
+    GUICtrlCreateLabel(ChrW(0x26A0) & "  Desk Switcheroo has crashed", 14, 12, $iW - 28, 24)
+    GUICtrlSetFont(-1, 11, 700, 0, "Segoe UI")
+    GUICtrlSetColor(-1, 0xFF5555)
+    GUICtrlSetBkColor(-1, 0x1E1E1E)
+
+    ; Reason
+    GUICtrlCreateLabel($sReason, 14, 42, $iW - 28, 18)
+    GUICtrlSetFont(-1, 9, 400, 0, "Segoe UI")
+    GUICtrlSetColor(-1, 0xE8E8E8)
+    GUICtrlSetBkColor(-1, 0x1E1E1E)
+
+    ; Details (scrollable-ish — just show first few lines)
+    Local $sShort = $sDetails
+    If StringLen($sShort) > 300 Then $sShort = StringLeft($sShort, 300) & "..."
+    GUICtrlCreateLabel($sShort, 14, 66, $iW - 28, 90)
+    GUICtrlSetFont(-1, 7, 400, 0, "Consolas")
+    GUICtrlSetColor(-1, 0xCCCCCC)
+    GUICtrlSetBkColor(-1, 0x2A2A2A)
+
+    ; Crash log path
+    GUICtrlCreateLabel("Crash log: " & $sCrashFile, 14, 164, $iW - 28, 14)
+    GUICtrlSetFont(-1, 7, 400, 0, "Segoe UI")
+    GUICtrlSetColor(-1, 0x888888)
+    GUICtrlSetBkColor(-1, 0x1E1E1E)
+
+    ; Buttons
+    Local $iBtnY = $iH - 44
+    Local $idCopy = GUICtrlCreateLabel("Copy Report", 14, $iBtnY, 100, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idCopy, 9, 400, 0, "Segoe UI")
+    GUICtrlSetColor($idCopy, 0xDDDDDD)
+    GUICtrlSetBkColor($idCopy, 0x333333)
+    GUICtrlSetCursor($idCopy, 0)
+
+    Local $idOpen = GUICtrlCreateLabel("Open Log", 124, $iBtnY, 100, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idOpen, 9, 400, 0, "Segoe UI")
+    GUICtrlSetColor($idOpen, 0x6699CC)
+    GUICtrlSetBkColor($idOpen, 0x333333)
+    GUICtrlSetCursor($idOpen, 0)
+
+    Local $idClose = GUICtrlCreateLabel("Close", $iW - 114, $iBtnY, 100, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idClose, 9, 400, 0, "Segoe UI")
+    GUICtrlSetColor($idClose, 0xDDDDDD)
+    GUICtrlSetBkColor($idClose, 0x333333)
+    GUICtrlSetCursor($idClose, 0)
+
+    GUISetState(@SW_SHOW, $hDlg)
+
+    While 1
+        Local $aMsg = GUIGetMsg(1)
+        If $aMsg[1] = $hDlg Then
+            Switch $aMsg[0]
+                Case $GUI_EVENT_CLOSE
+                    ExitLoop
+                Case $idClose
+                    ExitLoop
+                Case $idCopy
+                    ClipPut(FileRead($sCrashFile))
+                    GUICtrlSetData($idCopy, "Copied!")
+                    GUICtrlSetColor($idCopy, 0x4AFF7E)
+                Case $idOpen
+                    ShellExecute($sCrashFile)
+            EndSwitch
+        EndIf
+        Sleep(10)
+    WEnd
+    GUIDelete($hDlg)
 EndFunc
 
 ; Name:        _OnAutoItError
