@@ -63,6 +63,17 @@ $fontsDir = Join-Path $root "fonts"
 if (Test-Path $fontsDir) {
     Copy-Item $fontsDir (Join-Path $buildDir "fonts") -Recurse -Force
 }
+# Copy VERSION file
+$versionFile = Join-Path $root "VERSION"
+if (Test-Path $versionFile) {
+    Copy-Item $versionFile $buildDir -Force
+    Write-Host "Version: $(Get-Content $versionFile)" -ForegroundColor Cyan
+}
+# Copy examples
+$examplesDir = Join-Path $root "examples"
+if (Test-Path $examplesDir) {
+    Copy-Item $examplesDir (Join-Path $buildDir "examples") -Recurse -Force
+}
 
 Write-Host "`nBuild complete:" -ForegroundColor Green
 Get-ChildItem $buildDir -Recurse | ForEach-Object {

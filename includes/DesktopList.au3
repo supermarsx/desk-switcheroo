@@ -6,7 +6,7 @@
 #include "Config.au3"
 
 ; Extern globals from main script (declared here to suppress Au3Check warnings)
-Global $iTaskbarY, $iDesktop
+Global $iTaskbarY, $iDesktop, $APP_VERSION
 
 ; #INDEX# =======================================================
 ; Title .........: DesktopList

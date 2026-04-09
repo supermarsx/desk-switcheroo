@@ -14,6 +14,14 @@
 #include "includes\DesktopList.au3"
 #include "includes\ConfigDialog.au3"
 
+; ---- App version (read from VERSION file or fallback) ----
+Global $APP_VERSION = "dev"
+Local $__sVerFile = @ScriptDir & "\VERSION"
+If FileExists($__sVerFile) Then
+    $APP_VERSION = StringStripWS(FileRead($__sVerFile), 3)
+    If $APP_VERSION = "" Then $APP_VERSION = "dev"
+EndIf
+
 ; ---- Named constants for virtual key codes and magic numbers ----
 Global Const $VK_LBUTTON = 0x01
 Global Const $VK_RBUTTON = 0x02
@@ -1059,9 +1067,19 @@ Func _CheckUpdateNow()
     ; Show result dialog with version info
     $hDlg = _Theme_CreatePopup("Update Check", $iW, $iH, (@DesktopWidth - $iW) / 2, (@DesktopHeight - $iH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
 
-    GUICtrlCreateLabel(ChrW(0x2713) & " Latest version: v" & $sLatest, 14, 14, $iW - 28, 20)
-    GUICtrlSetFont(-1, 10, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor(-1, $TOAST_SUCCESS)
+    Local $sStatusIcon = ChrW(0x2713)
+    Local $iStatusColor = $TOAST_SUCCESS
+    Local $sStatusText = "Latest: v" & $sLatest & "  |  Current: v" & $APP_VERSION
+    If $sLatest <> $APP_VERSION Then
+        $sStatusIcon = ChrW(0x2B06)
+        $sStatusText = "Update available: v" & $sLatest & " (you have v" & $APP_VERSION & ")"
+    Else
+        $sStatusText = "You're up to date! v" & $APP_VERSION
+    EndIf
+
+    GUICtrlCreateLabel($sStatusIcon & " " & $sStatusText, 14, 14, $iW - 28, 20)
+    GUICtrlSetFont(-1, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor(-1, $iStatusColor)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
     ; Download button (if URL found)
@@ -1681,7 +1699,7 @@ Func _ShowAbout()
     EndIf
 
     ; Title
-    GUICtrlCreateLabel("Desk Switcheroo", $iTitleX, 10, $iDlgW - $iTitleX - 14, 22)
+    GUICtrlCreateLabel("Desk Switcheroo v" & $APP_VERSION, $iTitleX, 10, $iDlgW - $iTitleX - 14, 22)
     GUICtrlSetFont(-1, 11, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)

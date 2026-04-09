@@ -851,6 +851,14 @@ EndFunc
 Func __CD_BuildTabUpdates()
     Local $t = 7, $iX = 20, $iY = 50
 
+    ; Current version display
+    Local $idVerLbl = GUICtrlCreateLabel("Current version: v" & $APP_VERSION, $iX, $iY, 300, 18)
+    GUICtrlSetFont($idVerLbl, 9, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idVerLbl, $THEME_FG_PRIMARY)
+    GUICtrlSetBkColor($idVerLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idVerLbl)
+    $iY += 26
+
     $__g_CD_idChkAutoUpdate = __CD_CreateCheckbox("Auto-check for updates", $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkAutoUpdate, "Periodically check GitHub for new releases")
     $iY += 34
