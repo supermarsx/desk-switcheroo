@@ -37,6 +37,7 @@ Global $__g_Cfg_iThumbnailHeight   = 90
 Global $__g_Cfg_bListScrollable    = False
 Global $__g_Cfg_iListMaxVisible    = 10
 Global $__g_Cfg_iListScrollSpeed   = 1
+Global $__g_Cfg_iTooltipFontSize   = 8
 
 ; [Scroll]
 Global $__g_Cfg_bScrollEnabled     = False
@@ -155,6 +156,7 @@ Func _Cfg_Load()
     $__g_Cfg_bListScrollable    = __Cfg_ReadBool($f, "Display", "list_scrollable", False)
     $__g_Cfg_iListMaxVisible    = __Cfg_ReadInt($f, "Display", "list_max_visible", 10, 3, 30)
     $__g_Cfg_iListScrollSpeed   = __Cfg_ReadInt($f, "Display", "list_scroll_speed", 1, 1, 5)
+    $__g_Cfg_iTooltipFontSize   = __Cfg_ReadInt($f, "Display", "tooltip_font_size", 8, 6, 12)
 
     ; [Scroll]
     $__g_Cfg_bScrollEnabled     = __Cfg_ReadBool($f, "Scroll", "scroll_enabled", False)
@@ -236,6 +238,7 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "Display", "list_scrollable", $__g_Cfg_bListScrollable)
     IniWrite($f, "Display", "list_max_visible", $__g_Cfg_iListMaxVisible)
     IniWrite($f, "Display", "list_scroll_speed", $__g_Cfg_iListScrollSpeed)
+    IniWrite($f, "Display", "tooltip_font_size", $__g_Cfg_iTooltipFontSize)
 
     ; [Scroll]
     __Cfg_WriteBool($f, "Scroll", "scroll_enabled", $__g_Cfg_bScrollEnabled)
@@ -314,6 +317,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "Display", "list_scrollable", False)
     __Cfg_DefaultVal($f, "Display", "list_max_visible", 10)
     __Cfg_DefaultVal($f, "Display", "list_scroll_speed", 1)
+    __Cfg_DefaultVal($f, "Display", "tooltip_font_size", 8)
 
     __Cfg_DefaultBool($f, "Scroll", "scroll_enabled", False)
     __Cfg_DefaultVal($f, "Scroll", "scroll_direction", "normal")
@@ -436,6 +440,9 @@ Func _Cfg_GetListMaxVisible()
 EndFunc
 Func _Cfg_GetListScrollSpeed()
     Return $__g_Cfg_iListScrollSpeed
+EndFunc
+Func _Cfg_GetTooltipFontSize()
+    Return $__g_Cfg_iTooltipFontSize
 EndFunc
 
 ; [Scroll]
@@ -626,6 +633,11 @@ Func _Cfg_SetListScrollSpeed($i)
     If $i < 1 Then $i = 1
     If $i > 5 Then $i = 5
     $__g_Cfg_iListScrollSpeed = $i
+EndFunc
+Func _Cfg_SetTooltipFontSize($i)
+    If $i < 6 Then $i = 6
+    If $i > 12 Then $i = 12
+    $__g_Cfg_iTooltipFontSize = $i
 EndFunc
 
 ; [Scroll]

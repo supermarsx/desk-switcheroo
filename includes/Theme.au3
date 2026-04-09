@@ -498,11 +498,14 @@ Func _Theme_ShowTooltip($sText, $iX = -1, $iY = -1)
     For $i = 1 To $aLines[0]
         If StringLen($aLines[$i]) > $iMaxLen Then $iMaxLen = StringLen($aLines[$i])
     Next
-    Local $iW = $iMaxLen * 6 + 16
+    Local $iFontSz = _Cfg_GetTooltipFontSize()
+    Local $iCharW = Int($iFontSz * 0.75) + 1
+    Local $iLineH = $iFontSz + 6
+    Local $iW = $iMaxLen * $iCharW + 16
     If $iW < 80 Then $iW = 80
-    If $iW > 350 Then $iW = 350
-    Local $iH = $aLines[0] * 14 + 10
-    If $iH < 22 Then $iH = 22
+    If $iW > 400 Then $iW = 400
+    Local $iH = $aLines[0] * $iLineH + 10
+    If $iH < $iLineH + 6 Then $iH = $iLineH + 6
 
     ; Keep on screen
     If $iX + $iW > @DesktopWidth Then $iX = @DesktopWidth - $iW - 4
@@ -514,7 +517,7 @@ Func _Theme_ShowTooltip($sText, $iX = -1, $iY = -1)
     _WinAPI_SetLayeredWindowAttributes($__g_Tooltip_hGUI, 0, 240, $LWA_ALPHA)
 
     GUICtrlCreateLabel($sText, 6, 4, $iW - 12, $iH - 8)
-    GUICtrlSetFont(-1, 7, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetFont(-1, _Cfg_GetTooltipFontSize(), 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_NORMAL)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 

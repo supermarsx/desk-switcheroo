@@ -68,7 +68,7 @@ Global $__g_CD_aidInpColor[10]    ; index 1-9
 Global $__g_CD_aidLblPreview[10]  ; index 1-9
 
 ; -- Tab 2: Display extras --
-Global $__g_CD_idInpListFont, $__g_CD_idInpListFontSize
+Global $__g_CD_idInpListFont, $__g_CD_idInpListFontSize, $__g_CD_idInpTooltipFontSize
 Global $__g_CD_idChkListScrollable, $__g_CD_idInpListMaxVisible, $__g_CD_idInpListScrollSpeed
 
 ; -- Tab 7: Logging --
@@ -536,6 +536,19 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetBkColor($__g_CD_idInpListScrollSpeed, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpListScrollSpeed)
     _Theme_SetTooltip($__g_CD_idInpListScrollSpeed, "Number of items to scroll per step")
+    $iY += 30
+
+    $idLbl = GUICtrlCreateLabel("Tooltip font size (6-12):", $iX, $iY + 2, 185, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpTooltipFontSize = GUICtrlCreateInput("", $iX + 190, $iY, 50, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpTooltipFontSize, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpTooltipFontSize, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpTooltipFontSize, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpTooltipFontSize)
+    _Theme_SetTooltip($__g_CD_idInpTooltipFontSize, "Font size for dark-themed tooltips")
 EndFunc
 
 Func __CD_BuildTabScroll()
@@ -887,6 +900,7 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpThumbH, _Cfg_GetThumbnailHeight())
     GUICtrlSetData($__g_CD_idInpListFont, _Cfg_GetListFontName())
     GUICtrlSetData($__g_CD_idInpListFontSize, _Cfg_GetListFontSize())
+    GUICtrlSetData($__g_CD_idInpTooltipFontSize, _Cfg_GetTooltipFontSize())
     __CD_SetCheckState($__g_CD_idChkListScrollable, _Cfg_GetListScrollable())
     GUICtrlSetData($__g_CD_idInpListMaxVisible, _Cfg_GetListMaxVisible())
     GUICtrlSetData($__g_CD_idInpListScrollSpeed, _Cfg_GetListScrollSpeed())
@@ -1075,6 +1089,8 @@ Func __CD_ApplyChanges()
     _Cfg_SetListFontName(GUICtrlRead($__g_CD_idInpListFont))
     $s = GUICtrlRead($__g_CD_idInpListFontSize)
     If StringIsInt($s) Then _Cfg_SetListFontSize(Int($s))
+    $s = GUICtrlRead($__g_CD_idInpTooltipFontSize)
+    If StringIsInt($s) Then _Cfg_SetTooltipFontSize(Int($s))
     _Cfg_SetListScrollable(__CD_GetCheckState($__g_CD_idChkListScrollable))
     $s = GUICtrlRead($__g_CD_idInpListMaxVisible)
     If StringIsInt($s) Then _Cfg_SetListMaxVisible(Int($s))
