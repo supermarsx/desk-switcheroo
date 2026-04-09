@@ -54,11 +54,15 @@ Global $__g_DL_iColorHovered = 0
 
 ; -- Scroll offset for large desktop lists --
 Global $__g_DL_iScrollOffset = 0
-Global Const $__g_DL_iMaxVisible = 10 ; max items visible at once
+Global $__g_DL_iMaxVisible = 10 ; max items visible at once (updated from config)
 
 ; -- Scroll arrow control IDs --
 Global $__g_DL_idScrollUp = 0
 Global $__g_DL_idScrollDown = 0
+
+; -- Auto-scroll on arrow hover --
+Global $__g_DL_hScrollAutoTimer = 0
+Global $__g_DL_iScrollAutoDir = 0 ; -1=up, 0=none, 1=down
 
 ; -- Thumbnail preview state --
 Global $__g_DL_hThumbGUI = 0
@@ -102,15 +106,20 @@ Func _DL_Show($iTaskbarY, $iCurrentDesktop)
     Local $iCount = _VD_GetCount()
     If $iCount < 1 Then $iCount = 1
 
+    ; Read max visible from config
+    $__g_DL_iMaxVisible = _Cfg_GetListMaxVisible()
+
+    ; Determine if scroll mode is active: only when config enables it AND items exceed max
+    Local $bScrollable = (_Cfg_GetListScrollable() And $iCount > $__g_DL_iMaxVisible)
+
     ; Clamp scroll offset to valid range
     If $__g_DL_iScrollOffset < 0 Then $__g_DL_iScrollOffset = 0
-    If $iCount > $__g_DL_iMaxVisible And $__g_DL_iScrollOffset > $iCount - $__g_DL_iMaxVisible Then
+    If $bScrollable And $__g_DL_iScrollOffset > $iCount - $__g_DL_iMaxVisible Then
         $__g_DL_iScrollOffset = $iCount - $__g_DL_iMaxVisible
     EndIf
-    If $iCount <= $__g_DL_iMaxVisible Then $__g_DL_iScrollOffset = 0
+    If Not $bScrollable Then $__g_DL_iScrollOffset = 0
 
     ; Calculate visible range
-    Local $bScrollable = ($iCount > $__g_DL_iMaxVisible)
     Local $iVisibleCount = $iCount
     If $bScrollable Then $iVisibleCount = $__g_DL_iMaxVisible
     Local $iStart = $__g_DL_iScrollOffset + 1
@@ -350,6 +359,27 @@ Func _DL_CheckHover($iCurrentDesktop)
             _Peek_StartBounceBack()
         EndIf
     EndIf
+
+    ; Auto-scroll on arrow hover
+    If $__g_DL_idScrollUp <> 0 And $aCursor[4] = $__g_DL_idScrollUp Then
+        If $__g_DL_iScrollAutoDir <> -1 Then
+            $__g_DL_iScrollAutoDir = -1
+            $__g_DL_hScrollAutoTimer = TimerInit()
+        ElseIf TimerDiff($__g_DL_hScrollAutoTimer) > 200 Then
+            _DL_ScrollUp($iTaskbarY, $iCurrentDesktop)
+            $__g_DL_hScrollAutoTimer = TimerInit()
+        EndIf
+    ElseIf $__g_DL_idScrollDown <> 0 And $aCursor[4] = $__g_DL_idScrollDown Then
+        If $__g_DL_iScrollAutoDir <> 1 Then
+            $__g_DL_iScrollAutoDir = 1
+            $__g_DL_hScrollAutoTimer = TimerInit()
+        ElseIf TimerDiff($__g_DL_hScrollAutoTimer) > 200 Then
+            _DL_ScrollDown($iTaskbarY, $iCurrentDesktop)
+            $__g_DL_hScrollAutoTimer = TimerInit()
+        EndIf
+    Else
+        $__g_DL_iScrollAutoDir = 0
+    EndIf
 EndFunc
 
 ; Name:        _DL_UpdateHighlight
@@ -458,27 +488,92 @@ Func _DL_GetScrollOffset()
 EndFunc
 
 ; Name:        _DL_ScrollUp
-; Description: Scrolls the desktop list up by one row and rebuilds
+; Description: Scrolls the desktop list up by scroll speed and refreshes in-place
 ; Parameters:  $iTaskbarY - Y position of the taskbar
 ;              $iCurrentDesktop - currently active desktop (1-based)
 Func _DL_ScrollUp($iTaskbarY, $iCurrentDesktop)
     If $__g_DL_iScrollOffset > 0 Then
-        $__g_DL_iScrollOffset -= 1
-        _DL_Destroy()
-        _DL_Show($iTaskbarY, $iCurrentDesktop)
+        Local $iStep = _Cfg_GetListScrollSpeed()
+        $__g_DL_iScrollOffset -= $iStep
+        If $__g_DL_iScrollOffset < 0 Then $__g_DL_iScrollOffset = 0
+        _DL_RefreshScrollView($iCurrentDesktop)
     EndIf
 EndFunc
 
 ; Name:        _DL_ScrollDown
-; Description: Scrolls the desktop list down by one row and rebuilds
+; Description: Scrolls the desktop list down by scroll speed and refreshes in-place
 ; Parameters:  $iTaskbarY - Y position of the taskbar
 ;              $iCurrentDesktop - currently active desktop (1-based)
 Func _DL_ScrollDown($iTaskbarY, $iCurrentDesktop)
     If $__g_DL_iScrollOffset + $__g_DL_iMaxVisible < $__g_DL_iCount Then
-        $__g_DL_iScrollOffset += 1
-        _DL_Destroy()
-        _DL_Show($iTaskbarY, $iCurrentDesktop)
+        Local $iStep = _Cfg_GetListScrollSpeed()
+        $__g_DL_iScrollOffset += $iStep
+        If $__g_DL_iScrollOffset > $__g_DL_iCount - $__g_DL_iMaxVisible Then
+            $__g_DL_iScrollOffset = $__g_DL_iCount - $__g_DL_iMaxVisible
+        EndIf
+        _DL_RefreshScrollView($iCurrentDesktop)
     EndIf
+EndFunc
+
+; Name:        _DL_RefreshScrollView
+; Description: Updates existing list controls in-place after scroll offset changes.
+;              Avoids flicker by not destroying/recreating the GUI.
+; Parameters:  $iCurrentDesktop - currently active desktop (1-based)
+Func _DL_RefreshScrollView($iCurrentDesktop)
+    If Not $__g_DL_bVisible Or $__g_DL_hGUI = 0 Then Return
+    If UBound($__g_DL_aItems) < 2 Or $__g_DL_aItems[0] < 1 Then Return
+
+    Local $sFont = _Cfg_GetListFontName()
+    If $sFont = "" Then $sFont = _Theme_GetMonoFont()
+    Local $iFontSize = _Cfg_GetListFontSize()
+    Local $iPad = _Cfg_GetNumberPadding()
+
+    Local $iSlot, $i
+    For $iSlot = 1 To $__g_DL_aItems[0]
+        $i = $__g_DL_iScrollOffset + $iSlot
+        ; Build display text
+        Local $sName = _Labels_Load($i)
+        Local $sNum = String($i)
+        While StringLen($sNum) < $iPad
+            $sNum = "0" & $sNum
+        WEnd
+        Local $sText = " " & $sNum
+        If $sName <> "" Then $sText &= "  " & $sName
+
+        ; Update label text
+        GUICtrlSetData($__g_DL_aItems[$iSlot], $sText)
+
+        ; Update font/color for active vs inactive
+        If $i = $iCurrentDesktop Then
+            GUICtrlSetFont($__g_DL_aItems[$iSlot], $iFontSize, 700, 0, $sFont)
+            GUICtrlSetColor($__g_DL_aItems[$iSlot], $THEME_FG_WHITE)
+            GUICtrlSetBkColor($__g_DL_aItems[$iSlot], $THEME_BG_ACTIVE)
+        Else
+            GUICtrlSetFont($__g_DL_aItems[$iSlot], $iFontSize, 400, 0, $sFont)
+            GUICtrlSetColor($__g_DL_aItems[$iSlot], $THEME_FG_DIM)
+            GUICtrlSetBkColor($__g_DL_aItems[$iSlot], $GUI_BKCOLOR_TRANSPARENT)
+        EndIf
+    Next
+
+    ; Update scroll arrow text (filled vs outline)
+    If $__g_DL_idScrollUp <> 0 Then
+        If $__g_DL_iScrollOffset > 0 Then
+            GUICtrlSetData($__g_DL_idScrollUp, ChrW(0x25B2))
+        Else
+            GUICtrlSetData($__g_DL_idScrollUp, ChrW(0x25B3))
+        EndIf
+    EndIf
+    If $__g_DL_idScrollDown <> 0 Then
+        If $__g_DL_iScrollOffset + $__g_DL_iMaxVisible < $__g_DL_iCount Then
+            GUICtrlSetData($__g_DL_idScrollDown, ChrW(0x25BC))
+        Else
+            GUICtrlSetData($__g_DL_idScrollDown, ChrW(0x25BD))
+        EndIf
+    EndIf
+
+    ; Reset hover state since items shifted
+    $__g_DL_iHovered = 0
+    $__g_DL_iPeekHovered = 0
 EndFunc
 
 ; Name:        _DL_ResetScroll
@@ -664,15 +759,14 @@ Func _DL_GetItemAtPos()
     If @error Then Return 0
     If $aMP[0] < $aWP[0] Or $aMP[0] >= $aWP[0] + $aWP[2] Then Return 0
     If $aMP[1] < $aWP[1] Or $aMP[1] >= $aWP[1] + $aWP[3] Then Return 0
-    ; Account for scroll arrow height at top
+    ; Account for scroll arrow height at top (arrows only present when scroll mode is active)
     Local $iArrowH = 0
-    If $__g_DL_iCount > $__g_DL_iMaxVisible Then $iArrowH = 16
+    If $__g_DL_idScrollUp <> 0 Then $iArrowH = 16
     ; Items start at Y=3+arrowH within the list, each $THEME_ITEM_HEIGHT tall
     Local $iRelY = $aMP[1] - $aWP[1] - 3 - $iArrowH
     If $iRelY < 0 Then Return 0
     Local $iSlot = Int($iRelY / $THEME_ITEM_HEIGHT) + 1
-    Local $iVisibleCount = $__g_DL_iCount
-    If $iVisibleCount > $__g_DL_iMaxVisible Then $iVisibleCount = $__g_DL_iMaxVisible
+    Local $iVisibleCount = $__g_DL_aItems[0]
     If $iSlot < 1 Or $iSlot > $iVisibleCount Then Return 0
     ; Convert slot to actual desktop index
     Local $iRow = $iSlot + $__g_DL_iScrollOffset
@@ -1086,15 +1180,13 @@ Func _DL_ColorPickerCustomDialog()
         EndIf
 
         ; Keyboard: Enter = OK, Escape = Cancel
-        Local Const $VK_RETURN = 0x0D
-        Local Const $VK_ESCAPE = 0x1B
-        Local $retEnter = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_RETURN)
+        Local $retEnter = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x0D)
         If Not @error And BitAND($retEnter[0], 0x8000) <> 0 Then
             Local $iValidated2 = _Theme_ValidateHexColor(GUICtrlRead($idInput))
             If $iValidated2 >= 0 Then $iResult = $iValidated2
             ExitLoop
         EndIf
-        Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_ESCAPE)
+        Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
         If Not @error And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
 
         ; Hover effects on buttons
@@ -1135,7 +1227,7 @@ Func _DL_ThumbShow($iDesktop)
     Local $iX = $aListPos[0] + $aListPos[2] + 4
     ; Calculate Y relative to visible slot, accounting for scroll offset and arrow
     Local $iArrowH = 0
-    If $__g_DL_iCount > $__g_DL_iMaxVisible Then $iArrowH = 16
+    If $__g_DL_idScrollUp <> 0 Then $iArrowH = 16
     Local $iRow = ($iDesktop - 1 - $__g_DL_iScrollOffset) * $THEME_ITEM_HEIGHT + 3 + $iArrowH
     Local $iY = $aListPos[1] + $iRow
     ; Keep on screen

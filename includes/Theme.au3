@@ -22,6 +22,8 @@ Global $THEME_BG_HOVER      = 0x333333
 Global Const $__g_Theme_aSchemeDark[4]     = [0x191919, 0x1E1E1E, 0x2A2A2A, 0x333333]
 Global Const $__g_Theme_aSchemeDarker[4]   = [0x0F0F0F, 0x141414, 0x202020, 0x292929]
 Global Const $__g_Theme_aSchemeMidnight[4] = [0x141824, 0x1A1E2E, 0x242838, 0x2E3348]
+Global Const $__g_Theme_aSchemeMidday[4]   = [0x2C2C2C, 0x323232, 0x3E3E3E, 0x484848]
+Global Const $__g_Theme_aSchemeSunset[4]   = [0x1E1418, 0x261A20, 0x3A262E, 0x4A3240]
 
 Global Const $THEME_BG_ACTIVE     = 0x484848
 Global Const $THEME_BG_ARROW_HOV  = 0x3A3A4A
@@ -73,6 +75,14 @@ Global Const $THEME_TIMER_BOUNCE   = 500
 Global Const $THEME_TIMER_TEMPLIST = 3000
 
 ; #FUNCTIONS# ===================================================
+
+; Name:        _Theme_SetTooltip
+; Description: Sets a tooltip on a control using GUICtrlSetTip
+; Parameters:  $idCtrl - control ID
+;              $sText - tooltip text
+Func _Theme_SetTooltip($idCtrl, $sText)
+    GUICtrlSetTip($idCtrl, $sText)
+EndFunc
 
 ; Name:        _Theme_CreatePopup
 ; Description: Creates a dark-themed popup window (WS_POPUP, topmost, layered)
@@ -470,6 +480,10 @@ Func _Theme_ApplyScheme($sTheme)
             $aScheme = $__g_Theme_aSchemeDarker
         Case "midnight"
             $aScheme = $__g_Theme_aSchemeMidnight
+        Case "midday"
+            $aScheme = $__g_Theme_aSchemeMidday
+        Case "sunset"
+            $aScheme = $__g_Theme_aSchemeSunset
         Case Else ; "dark" is default
             $aScheme = $__g_Theme_aSchemeDark
     EndSwitch
@@ -483,7 +497,7 @@ EndFunc
 ; Description: Returns a pipe-delimited string of available theme names
 ; Return:      String e.g. "dark|darker|midnight"
 Func _Theme_GetAvailableSchemes()
-    Return "dark|darker|midnight"
+    Return "dark|darker|midnight|midday|sunset"
 EndFunc
 
 ; Name:        _Theme_GetSchemeColors
@@ -496,6 +510,10 @@ Func _Theme_GetSchemeColors($sTheme)
             Return $__g_Theme_aSchemeDarker
         Case "midnight"
             Return $__g_Theme_aSchemeMidnight
+        Case "midday"
+            Return $__g_Theme_aSchemeMidday
+        Case "sunset"
+            Return $__g_Theme_aSchemeSunset
         Case Else
             Return $__g_Theme_aSchemeDark
     EndSwitch

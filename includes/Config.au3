@@ -34,6 +34,9 @@ Global $__g_Cfg_sTheme             = "dark"
 Global $__g_Cfg_bThumbnailsEnabled = False
 Global $__g_Cfg_iThumbnailWidth    = 160
 Global $__g_Cfg_iThumbnailHeight   = 90
+Global $__g_Cfg_bListScrollable    = False
+Global $__g_Cfg_iListMaxVisible    = 10
+Global $__g_Cfg_iListScrollSpeed   = 1
 
 ; [Scroll]
 Global $__g_Cfg_bScrollEnabled     = False
@@ -143,12 +146,15 @@ Func _Cfg_Load()
     $__g_Cfg_bShowCount         = __Cfg_ReadBool($f, "Display", "show_count", False)
     $__g_Cfg_iCountFontSize     = __Cfg_ReadInt($f, "Display", "count_font_size", 7, 4, 20)
     $__g_Cfg_iThemeAlphaMain    = __Cfg_ReadInt($f, "Display", "theme_alpha_main", 235, 50, 255)
-    $__g_Cfg_sTheme             = __Cfg_ReadEnum($f, "Display", "theme", "dark", "dark|darker|midnight")
+    $__g_Cfg_sTheme             = __Cfg_ReadEnum($f, "Display", "theme", "dark", "dark|darker|midnight|midday|sunset")
     $__g_Cfg_bThumbnailsEnabled = __Cfg_ReadBool($f, "Display", "thumbnails_enabled", False)
     $__g_Cfg_iThumbnailWidth    = __Cfg_ReadInt($f, "Display", "thumbnail_width", 160, 80, 320)
     $__g_Cfg_iThumbnailHeight   = __Cfg_ReadInt($f, "Display", "thumbnail_height", 90, 45, 180)
     $__g_Cfg_sListFontName      = IniRead($f, "Display", "list_font_name", "")
     $__g_Cfg_iListFontSize      = __Cfg_ReadInt($f, "Display", "list_font_size", 8, 6, 14)
+    $__g_Cfg_bListScrollable    = __Cfg_ReadBool($f, "Display", "list_scrollable", False)
+    $__g_Cfg_iListMaxVisible    = __Cfg_ReadInt($f, "Display", "list_max_visible", 10, 3, 30)
+    $__g_Cfg_iListScrollSpeed   = __Cfg_ReadInt($f, "Display", "list_scroll_speed", 1, 1, 5)
 
     ; [Scroll]
     $__g_Cfg_bScrollEnabled     = __Cfg_ReadBool($f, "Scroll", "scroll_enabled", False)
@@ -227,6 +233,9 @@ Func _Cfg_Save()
     IniWrite($f, "Display", "thumbnail_height", $__g_Cfg_iThumbnailHeight)
     IniWrite($f, "Display", "list_font_name", $__g_Cfg_sListFontName)
     IniWrite($f, "Display", "list_font_size", $__g_Cfg_iListFontSize)
+    __Cfg_WriteBool($f, "Display", "list_scrollable", $__g_Cfg_bListScrollable)
+    IniWrite($f, "Display", "list_max_visible", $__g_Cfg_iListMaxVisible)
+    IniWrite($f, "Display", "list_scroll_speed", $__g_Cfg_iListScrollSpeed)
 
     ; [Scroll]
     __Cfg_WriteBool($f, "Scroll", "scroll_enabled", $__g_Cfg_bScrollEnabled)
@@ -302,6 +311,9 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Display", "thumbnail_height", 90)
     __Cfg_DefaultVal($f, "Display", "list_font_name", "")
     __Cfg_DefaultVal($f, "Display", "list_font_size", 8)
+    __Cfg_DefaultBool($f, "Display", "list_scrollable", False)
+    __Cfg_DefaultVal($f, "Display", "list_max_visible", 10)
+    __Cfg_DefaultVal($f, "Display", "list_scroll_speed", 1)
 
     __Cfg_DefaultBool($f, "Scroll", "scroll_enabled", False)
     __Cfg_DefaultVal($f, "Scroll", "scroll_direction", "normal")
@@ -415,6 +427,15 @@ Func _Cfg_GetListFontName()
 EndFunc
 Func _Cfg_GetListFontSize()
     Return $__g_Cfg_iListFontSize
+EndFunc
+Func _Cfg_GetListScrollable()
+    Return $__g_Cfg_bListScrollable
+EndFunc
+Func _Cfg_GetListMaxVisible()
+    Return $__g_Cfg_iListMaxVisible
+EndFunc
+Func _Cfg_GetListScrollSpeed()
+    Return $__g_Cfg_iListScrollSpeed
 EndFunc
 
 ; [Scroll]
@@ -569,7 +590,7 @@ Func _Cfg_SetThemeAlphaMain($i)
     $__g_Cfg_iThemeAlphaMain = $i
 EndFunc
 Func _Cfg_SetTheme($s)
-    If $s <> "dark" And $s <> "darker" And $s <> "midnight" Then $s = "dark"
+    If $s <> "dark" And $s <> "darker" And $s <> "midnight" And $s <> "midday" And $s <> "sunset" Then $s = "dark"
     $__g_Cfg_sTheme = $s
 EndFunc
 Func _Cfg_SetThumbnailsEnabled($b)
@@ -592,6 +613,19 @@ Func _Cfg_SetListFontSize($i)
     If $i < 6 Then $i = 6
     If $i > 14 Then $i = 14
     $__g_Cfg_iListFontSize = $i
+EndFunc
+Func _Cfg_SetListScrollable($b)
+    $__g_Cfg_bListScrollable = $b
+EndFunc
+Func _Cfg_SetListMaxVisible($i)
+    If $i < 3 Then $i = 3
+    If $i > 30 Then $i = 30
+    $__g_Cfg_iListMaxVisible = $i
+EndFunc
+Func _Cfg_SetListScrollSpeed($i)
+    If $i < 1 Then $i = 1
+    If $i > 5 Then $i = 5
+    $__g_Cfg_iListScrollSpeed = $i
 EndFunc
 
 ; [Scroll]
