@@ -1,8 +1,12 @@
 # Desk Switcheroo
 
+<img width="881" height="256" alt="image" src="https://github.com/user-attachments/assets/f6b2545a-554d-4e8a-8d93-0fd0e0430662" />
+
+
 [![CI](https://img.shields.io/github/actions/workflow/status/supermarsx/desk-switcheroo/ci.yml?style=flat-square&label=CI)](https://github.com/supermarsx/desk-switcheroo/actions/workflows/ci.yml)
 [![Latest Release](https://img.shields.io/github/v/release/supermarsx/desk-switcheroo?style=flat-square&label=latest)](https://github.com/supermarsx/desk-switcheroo/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/supermarsx/desk-switcheroo/total?style=flat-square)](https://github.com/supermarsx/desk-switcheroo/releases)
+
 
 A lightweight Windows virtual desktop switcher that sits in your taskbar. Built with AutoIt.
 
