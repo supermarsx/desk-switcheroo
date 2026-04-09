@@ -75,6 +75,7 @@ Global $__g_Cfg_bConfigWatcherEnabled = False
 Global $__g_Cfg_iConfigWatcherInterval = 60000
 Global $__g_Cfg_iCountCacheTTL = 1000
 Global $__g_Cfg_bConfirmQuit       = False
+Global $__g_Cfg_bDebugMode         = False
 
 ; [Display] - List font
 Global $__g_Cfg_sListFontName      = ""
@@ -208,6 +209,7 @@ Func _Cfg_Load()
     $__g_Cfg_iConfigWatcherInterval = __Cfg_ReadInt($f, "Behavior", "config_watcher_interval", 60000, 5000, 300000)
     $__g_Cfg_iCountCacheTTL = __Cfg_ReadInt($f, "Behavior", "count_cache_ttl", 1000, 100, 10000)
     $__g_Cfg_bConfirmQuit       = __Cfg_ReadBool($f, "Behavior", "confirm_quit", False)
+    $__g_Cfg_bDebugMode         = __Cfg_ReadBool($f, "Behavior", "debug_mode", False)
 
     ; [Logging]
     $__g_Cfg_bLoggingEnabled    = __Cfg_ReadBool($f, "Logging", "logging_enabled", False)
@@ -305,6 +307,7 @@ Func _Cfg_Save()
     IniWrite($f, "Behavior", "config_watcher_interval", $__g_Cfg_iConfigWatcherInterval)
     IniWrite($f, "Behavior", "count_cache_ttl", $__g_Cfg_iCountCacheTTL)
     __Cfg_WriteBool($f, "Behavior", "confirm_quit", $__g_Cfg_bConfirmQuit)
+    __Cfg_WriteBool($f, "Behavior", "debug_mode", $__g_Cfg_bDebugMode)
 
     ; [Logging]
     __Cfg_WriteBool($f, "Logging", "logging_enabled", $__g_Cfg_bLoggingEnabled)
@@ -395,6 +398,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Behavior", "config_watcher_interval", 60000)
     __Cfg_DefaultVal($f, "Behavior", "count_cache_ttl", 1000)
     __Cfg_DefaultBool($f, "Behavior", "confirm_quit", False)
+    __Cfg_DefaultBool($f, "Behavior", "debug_mode", False)
 
     __Cfg_DefaultBool($f, "Logging", "logging_enabled", False)
     __Cfg_DefaultVal($f, "Logging", "log_file_path", "")
@@ -591,6 +595,9 @@ Func _Cfg_GetCountCacheTTL()
 EndFunc
 Func _Cfg_GetConfirmQuit()
     Return $__g_Cfg_bConfirmQuit
+EndFunc
+Func _Cfg_GetDebugMode()
+    Return $__g_Cfg_bDebugMode
 EndFunc
 
 ; [Logging]
@@ -841,6 +848,9 @@ Func _Cfg_SetCountCacheTTL($i)
 EndFunc
 Func _Cfg_SetConfirmQuit($b)
     $__g_Cfg_bConfirmQuit = $b
+EndFunc
+Func _Cfg_SetDebugMode($b)
+    $__g_Cfg_bDebugMode = $b
 EndFunc
 
 ; [Logging]

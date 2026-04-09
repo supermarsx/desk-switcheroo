@@ -79,7 +79,7 @@ Global $__g_CD_idInpLogRotateCount, $__g_CD_idChkLogCompress
 Global $__g_CD_idChkLogPID, $__g_CD_idLblLogDateFormat, $__g_CD_idChkLogFlush
 
 ; -- Tab 5: Behavior extras --
-Global $__g_CD_idChkConfirmQuit
+Global $__g_CD_idChkConfirmQuit, $__g_CD_idChkDebugMode
 
 ; -- Buttons --
 Global $__g_CD_idBtnApply, $__g_CD_idBtnClose
@@ -825,6 +825,9 @@ Func __CD_BuildTabBehavior()
 
     $__g_CD_idChkConfirmQuit = __CD_CreateCheckbox("Confirm before quitting", $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkConfirmQuit, "Show a confirmation dialog before exiting Desk Switcheroo")
+    $iY += 26
+    $__g_CD_idChkDebugMode = __CD_CreateCheckbox("Debug mode", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkDebugMode, "Enables debug features: Trigger Crash in context menu, verbose logging")
 EndFunc
 
 
@@ -1073,6 +1076,7 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpWatcherInterval, _Cfg_GetConfigWatcherInterval())
     GUICtrlSetData($__g_CD_idInpCountCacheTTL, _Cfg_GetCountCacheTTL())
     __CD_SetCheckState($__g_CD_idChkConfirmQuit, _Cfg_GetConfirmQuit())
+    __CD_SetCheckState($__g_CD_idChkDebugMode, _Cfg_GetDebugMode())
 
     ; Logging
     __CD_SetCheckState($__g_CD_idChkLogging, _Cfg_GetLoggingEnabled())
@@ -1292,6 +1296,7 @@ Func __CD_ApplyChanges()
     $s = GUICtrlRead($__g_CD_idInpCountCacheTTL)
     If StringIsInt($s) Then _Cfg_SetCountCacheTTL(Int($s))
     _Cfg_SetConfirmQuit(__CD_GetCheckState($__g_CD_idChkConfirmQuit))
+    _Cfg_SetDebugMode(__CD_GetCheckState($__g_CD_idChkDebugMode))
 
     ; Logging
     _Cfg_SetLoggingEnabled(__CD_GetCheckState($__g_CD_idChkLogging))

@@ -19,6 +19,7 @@ Global $__g_CM_iDeleteID  = 0
 Global $__g_CM_iAboutID   = 0
 Global $__g_CM_iSettingsID = 0
 Global $__g_CM_iQuitID    = 0
+Global $__g_CM_iCrashID   = 0
 Global $__g_CM_iHovered   = 0
 Global $__g_CM_hHideTimer = 0
 Global $__g_CM_bHideArmed = False
@@ -34,6 +35,7 @@ Func _CM_Show($iTaskbarY, $bListVisible)
     Local $iSepH = 1
     Local $iItemCount = 7
     If _Cfg_GetDesktopColorsEnabled() Then $iItemCount += 1
+    If _Cfg_GetDebugMode() Then $iItemCount += 1
     Local $iMenuH = $iItemCount * $THEME_MENU_ITEM_H + 2 * $iSepH + 20
     Local $iMenuX = 0
     Local $iMenuY = $iTaskbarY - $iMenuH
@@ -78,6 +80,12 @@ Func _CM_Show($iTaskbarY, $bListVisible)
     $__g_CM_iSettingsID = _Theme_CreateMenuItem("  Settings", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 
+    If _Cfg_GetDebugMode() Then
+        $__g_CM_iCrashID = _Theme_CreateMenuItem("  " & ChrW(0x26A0) & " Trigger Crash", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+        GUICtrlSetColor($__g_CM_iCrashID, 0xFF5555)
+        $iY += $THEME_MENU_ITEM_H
+    EndIf
+
     $__g_CM_iQuitID = _Theme_CreateMenuItem("  Quit", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
 
     GUISetState(@SW_SHOW, $__g_CM_hGUI)
@@ -100,6 +108,7 @@ Func _CM_Destroy()
     $__g_CM_iAboutID = 0
     $__g_CM_iSettingsID = 0
     $__g_CM_iQuitID = 0
+    $__g_CM_iCrashID = 0
     $__g_CM_iHovered = 0
     $__g_CM_bHideArmed = False
 EndFunc
@@ -125,6 +134,7 @@ Func _CM_CheckHover()
     If $aCursor[4] = $__g_CM_iDeleteID Then $iFound = $__g_CM_iDeleteID
     If $aCursor[4] = $__g_CM_iAboutID Then $iFound = $__g_CM_iAboutID
     If $aCursor[4] = $__g_CM_iSettingsID Then $iFound = $__g_CM_iSettingsID
+    If $__g_CM_iCrashID <> 0 And $aCursor[4] = $__g_CM_iCrashID Then $iFound = $__g_CM_iCrashID
     If $aCursor[4] = $__g_CM_iQuitID Then $iFound = $__g_CM_iQuitID
 
     If $iFound = $__g_CM_iHovered Then Return
@@ -132,6 +142,7 @@ Func _CM_CheckHover()
     If $__g_CM_iHovered <> 0 Then
         Local $iFg = $THEME_FG_MENU
         If $__g_CM_iHovered = $__g_CM_iDeleteID Then $iFg = 0xCC6666
+        If $__g_CM_iHovered = $__g_CM_iCrashID Then $iFg = 0xFF5555
         _Theme_RemoveHover($__g_CM_iHovered, $iFg)
     EndIf
 
@@ -153,6 +164,7 @@ Func _CM_HandleClick($msg)
     If $msg = $__g_CM_iDeleteID Then Return "delete"
     If $msg = $__g_CM_iAboutID Then Return "about"
     If $msg = $__g_CM_iSettingsID Then Return "settings"
+    If $__g_CM_iCrashID <> 0 And $msg = $__g_CM_iCrashID Then Return "crash"
     If $msg = $__g_CM_iQuitID Then Return "quit"
     Return ""
 EndFunc

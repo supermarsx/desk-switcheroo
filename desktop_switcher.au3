@@ -350,6 +350,11 @@ Func _ProcessGUIEvents($msg, $hFrom)
             Case "about"
                 _CM_Destroy()
                 _ShowAbout()
+            Case "crash"
+                _CM_Destroy()
+                ; Intentional crash for testing the crash handler
+                Local $oCrashTest = ObjCreate("NonExistent.Object.ForCrashTest")
+                $oCrashTest.NonExistentMethod()
             Case "quit"
                 _Shutdown()
         EndSwitch
