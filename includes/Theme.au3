@@ -17,6 +17,12 @@ Global $THEME_BG_MAIN       = 0x191919
 Global $THEME_BG_POPUP      = 0x1E1E1E
 Global $THEME_BG_INPUT      = 0x2A2A2A
 Global $THEME_BG_HOVER      = 0x333333
+
+; Theme scheme definitions [BG_MAIN, BG_POPUP, BG_INPUT, BG_HOVER]
+Global Const $__g_Theme_aSchemeDark[4]     = [0x191919, 0x1E1E1E, 0x2A2A2A, 0x333333]
+Global Const $__g_Theme_aSchemeDarker[4]   = [0x0F0F0F, 0x141414, 0x202020, 0x292929]
+Global Const $__g_Theme_aSchemeMidnight[4] = [0x141824, 0x1A1E2E, 0x242838, 0x2E3348]
+
 Global Const $THEME_BG_ACTIVE     = 0x484848
 Global Const $THEME_BG_ARROW_HOV  = 0x3A3A4A
 Global Const $THEME_BG_BORDER     = 0x444444
@@ -458,21 +464,39 @@ EndFunc
 ;              Supported themes: "dark" (default), "darker", "midnight"
 ; Parameters:  $sTheme - theme name string
 Func _Theme_ApplyScheme($sTheme)
+    Local $aScheme
     Switch $sTheme
         Case "darker"
-            $THEME_BG_MAIN  = 0x0F0F0F
-            $THEME_BG_POPUP = 0x141414
-            $THEME_BG_INPUT = 0x202020
-            $THEME_BG_HOVER = 0x292929
+            $aScheme = $__g_Theme_aSchemeDarker
         Case "midnight"
-            $THEME_BG_MAIN  = 0x141824
-            $THEME_BG_POPUP = 0x1A1E2E
-            $THEME_BG_INPUT = 0x242838
-            $THEME_BG_HOVER = 0x2E3348
-        Case Else ; "dark" — keep defaults
-            $THEME_BG_MAIN  = 0x191919
-            $THEME_BG_POPUP = 0x1E1E1E
-            $THEME_BG_INPUT = 0x2A2A2A
-            $THEME_BG_HOVER = 0x333333
+            $aScheme = $__g_Theme_aSchemeMidnight
+        Case Else ; "dark" is default
+            $aScheme = $__g_Theme_aSchemeDark
+    EndSwitch
+    $THEME_BG_MAIN  = $aScheme[0]
+    $THEME_BG_POPUP = $aScheme[1]
+    $THEME_BG_INPUT = $aScheme[2]
+    $THEME_BG_HOVER = $aScheme[3]
+EndFunc
+
+; Name:        _Theme_GetAvailableSchemes
+; Description: Returns a pipe-delimited string of available theme names
+; Return:      String e.g. "dark|darker|midnight"
+Func _Theme_GetAvailableSchemes()
+    Return "dark|darker|midnight"
+EndFunc
+
+; Name:        _Theme_GetSchemeColors
+; Description: Returns the color array for a given theme name
+; Parameters:  $sTheme - theme name
+; Return:      Array [BG_MAIN, BG_POPUP, BG_INPUT, BG_HOVER] or default scheme if invalid
+Func _Theme_GetSchemeColors($sTheme)
+    Switch $sTheme
+        Case "darker"
+            Return $__g_Theme_aSchemeDarker
+        Case "midnight"
+            Return $__g_Theme_aSchemeMidnight
+        Case Else
+            Return $__g_Theme_aSchemeDark
     EndSwitch
 EndFunc

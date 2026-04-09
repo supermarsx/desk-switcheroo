@@ -52,6 +52,11 @@ Global $__g_DL_iColorCustomID = 0
 Global $__g_DL_iColorTarget = 0
 Global $__g_DL_iColorHovered = 0
 
+; -- Thumbnail preview state --
+Global $__g_DL_hThumbGUI = 0
+Global $__g_DL_bThumbVisible = False
+Global $__g_DL_iThumbTarget = 0
+
 ; #FUNCTIONS# ===================================================
 
 ; Name:        _DL_ShowTemp
@@ -154,6 +159,7 @@ EndFunc
 ; Name:        _DL_Destroy
 ; Description: Destroys the list GUI and ends any active peek
 Func _DL_Destroy()
+    _DL_ThumbDestroy()
     _DL_DragReset()
     _DL_CtxDestroy()
     _Peek_End()
@@ -205,6 +211,7 @@ Func _DL_CheckHover($iCurrentDesktop)
             $__g_DL_iPeekHovered = 0
         EndIf
         $__g_DL_iHovered = 0
+        _DL_ThumbDestroy()
         _Peek_StartBounceBack()
         Return
     EndIf
@@ -240,6 +247,15 @@ Func _DL_CheckHover($iCurrentDesktop)
         $__g_DL_iHovered = $iEffective
         If $__g_DL_iHovered > 0 And $__g_DL_iHovered <= $__g_DL_aItems[0] And $__g_DL_iHovered <> $iCurrentDesktop Then
             _Theme_ApplyHover($__g_DL_aItems[$__g_DL_iHovered], $THEME_FG_WHITE, $THEME_BG_HOVER)
+        EndIf
+    EndIf
+
+    ; Show/hide thumbnail preview on hover
+    If _Cfg_GetThumbnailsEnabled() Then
+        If $iEffective > 0 Then
+            _DL_ThumbShow($iEffective)
+        Else
+            _DL_ThumbDestroy()
         EndIf
     EndIf
 
@@ -972,4 +988,85 @@ Func _DL_ColorPickerCustomDialog()
 
     GUIDelete($hDlg)
     Return $iResult
+EndFunc
+
+; Name:        _DL_ThumbShow
+; Description: Shows a thumbnail preview popup for a desktop
+; Parameters:  $iDesktop - desktop index (1-based)
+Func _DL_ThumbShow($iDesktop)
+    If Not _Cfg_GetThumbnailsEnabled() Then Return
+    If $__g_DL_bThumbVisible And $__g_DL_iThumbTarget = $iDesktop Then Return
+    _DL_ThumbDestroy()
+
+    $__g_DL_iThumbTarget = $iDesktop
+    Local $iW = _Cfg_GetThumbnailWidth()
+    Local $iH = _Cfg_GetThumbnailHeight()
+
+    ; Position to the right of the desktop list
+    Local $aListPos = WinGetPos($__g_DL_hGUI)
+    If @error Then Return
+    Local $iX = $aListPos[0] + $aListPos[2] + 4
+    Local $iRow = ($iDesktop - 1) * $THEME_ITEM_HEIGHT + 3
+    Local $iY = $aListPos[1] + $iRow
+    ; Keep on screen
+    If $iX + $iW > @DesktopWidth Then $iX = $aListPos[0] - $iW - 4
+    If $iY + $iH > @DesktopHeight Then $iY = @DesktopHeight - $iH
+
+    $__g_DL_hThumbGUI = _Theme_CreatePopup("Thumb", $iW + 4, $iH + 4, $iX, $iY, $THEME_BG_POPUP, $THEME_ALPHA_POPUP)
+
+    ; Create a dark border frame
+    GUICtrlCreateLabel("", 0, 0, $iW + 4, $iH + 4)
+    GUICtrlSetBkColor(-1, $THEME_BG_BORDER)
+
+    ; Show desktop info as a text-based thumbnail preview
+    ; (Real screenshot requires DWM Thumbnail API which is complex in AutoIt)
+    Local $sName = _Labels_Load($iDesktop)
+    Local $sInfo = "Desktop " & $iDesktop
+    If $sName <> "" Then $sInfo &= @CRLF & $sName
+
+    ; Count windows on this desktop
+    Local $aWins = _VD_EnumWindowsOnDesktop($iDesktop)
+    $sInfo &= @CRLF & @CRLF & $aWins[0] & " window(s)"
+
+    ; List first few window titles
+    Local $iMax = 5
+    If $aWins[0] < $iMax Then $iMax = $aWins[0]
+    Local $i
+    For $i = 1 To $iMax
+        Local $sTitle = WinGetTitle($aWins[$i])
+        If StringLen($sTitle) > 25 Then $sTitle = StringLeft($sTitle, 22) & "..."
+        If $sTitle <> "" Then $sInfo &= @CRLF & "  " & $sTitle
+    Next
+    If $aWins[0] > 5 Then $sInfo &= @CRLF & "  +" & ($aWins[0] - 5) & " more"
+
+    GUICtrlCreateLabel($sInfo, 4, 4, $iW - 4, $iH - 4)
+    GUICtrlSetFont(-1, 7, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor(-1, $THEME_FG_NORMAL)
+    GUICtrlSetBkColor(-1, $THEME_BG_MAIN)
+
+    GUISetState(@SW_SHOWNOACTIVATE, $__g_DL_hThumbGUI)
+    $__g_DL_bThumbVisible = True
+EndFunc
+
+; Name:        _DL_ThumbDestroy
+; Description: Destroys the thumbnail preview popup
+Func _DL_ThumbDestroy()
+    If $__g_DL_hThumbGUI <> 0 Then
+        GUIDelete($__g_DL_hThumbGUI)
+        $__g_DL_hThumbGUI = 0
+    EndIf
+    $__g_DL_bThumbVisible = False
+    $__g_DL_iThumbTarget = 0
+EndFunc
+
+; Name:        _DL_ThumbIsVisible
+; Description: Returns whether the thumbnail popup is currently visible
+Func _DL_ThumbIsVisible()
+    Return $__g_DL_bThumbVisible
+EndFunc
+
+; Name:        _DL_ThumbGetGUI
+; Description: Returns the thumbnail popup GUI handle
+Func _DL_ThumbGetGUI()
+    Return $__g_DL_hThumbGUI
 EndFunc

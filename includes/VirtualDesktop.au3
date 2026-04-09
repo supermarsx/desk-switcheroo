@@ -1,4 +1,5 @@
 #include-once
+#include "Config.au3"
 #include <WinAPISysWin.au3>
 
 ; #INDEX# =======================================================
@@ -36,10 +37,10 @@ EndFunc
 ; Description: Returns the number of virtual desktops
 ; Return:      Integer >= 1
 Func _VD_GetCount()
-    ; Return cached value if fresh (< 500ms old)
+    ; Return cached value if fresh (within configured TTL)
     If $__g_VD_iCachedCount > 0 Then
         Local $iElapsed = TimerDiff($__g_VD_hCountTimer)
-        If $iElapsed < 500 Then Return $__g_VD_iCachedCount
+        If $iElapsed < _Cfg_GetCountCacheTTL() Then Return $__g_VD_iCachedCount
     EndIf
     If $__g_VD_hDLL = -1 Then Return 1
     Local $aResult = DllCall($__g_VD_hDLL, "int", "GetDesktopCount")

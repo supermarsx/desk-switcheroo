@@ -682,6 +682,7 @@ While 1
     If Not $bCursorActive And _DL_CtxIsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_DL_CtxGetGUI())
     If Not $bCursorActive And _DL_ColorPickerIsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_DL_ColorPickerGetGUI())
     If Not $bCursorActive And _RD_IsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_RD_GetGUI())
+    If Not $bCursorActive And _DL_ThumbIsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_DL_ThumbGetGUI())
 
     ; Hover effects -- only when cursor moved or drag active, and only for the window under cursor
     If $bCursorActive And ($bCursorMoved Or _DL_IsDragging() Or $bDesktopChanged Or $bNamesChanged) Then
@@ -708,6 +709,9 @@ While 1
 
     ; Toast fade-out tick
     _Theme_ToastTick()
+
+    ; Check non-blocking update download result
+    _CheckUpdateResult()
 
     ; Peek bounce-back
     _Peek_CheckBounce()
@@ -887,27 +891,73 @@ Func _AdlibSyncNames()
     If _Labels_SyncFromOS() Then $bNamesChanged = True
 EndFunc
 
-; Name:        _AdlibCheckUpdate
-; Description: Checks GitHub releases API for newer version. Shows toast if update available.
-Func _AdlibCheckUpdate()
-    Local $sUrl = "https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest"
-    Local $sResponse = InetRead($sUrl, 1) ; 1 = force reload
-    If @error Then Return
-    Local $sJson = BinaryToString($sResponse)
+Global $__g_hInetDownload = 0
+Global $__g_sInetTempFile = ""
 
-    ; Extract tag_name from JSON (simple pattern match, no JSON parser needed)
+; Name:        _AdlibCheckUpdate
+; Description: Starts a non-blocking download of the GitHub releases API
+Func _AdlibCheckUpdate()
+    If $__g_hInetDownload <> 0 Then Return ; already in progress
+    $__g_sInetTempFile = @TempDir & "\desk_switcheroo_update_check.tmp"
+    $__g_hInetDownload = InetGet("https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest", _
+        $__g_sInetTempFile, 1, 1) ; 1=force reload, 1=background
+    If @error Then
+        $__g_hInetDownload = 0
+        _Log_Warn("Update check: failed to start download")
+    EndIf
+EndFunc
+
+; Name:        _CheckUpdateResult
+; Description: Called from main loop to check if background download completed
+Func _CheckUpdateResult()
+    If $__g_hInetDownload = 0 Then Return
+    If Not InetGetInfo($__g_hInetDownload, 2) Then Return ; 2 = complete flag, not done yet
+
+    Local $bSuccess = InetGetInfo($__g_hInetDownload, 3) ; 3 = success flag
+    InetClose($__g_hInetDownload)
+    $__g_hInetDownload = 0
+
+    If Not $bSuccess Then
+        _Log_Warn("Update check: download failed")
+        If FileExists($__g_sInetTempFile) Then FileDelete($__g_sInetTempFile)
+        Return
+    EndIf
+
+    Local $sJson = FileRead($__g_sInetTempFile)
+    FileDelete($__g_sInetTempFile)
+    If $sJson = "" Then Return
+
     Local $aMatch = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
     If @error Or UBound($aMatch) < 1 Then Return
 
     Local $sLatest = $aMatch[0]
     _Log_Info("Update check: latest release is v" & $sLatest)
 
-    ; Show toast if different from last shown (avoid spamming)
     Static $sLastShown = ""
     If $sLatest <> $sLastShown Then
         $sLastShown = $sLatest
         _Theme_Toast("Update available: v" & $sLatest, 0, $iTaskbarY + $iTaskbarH + 4, 3000, $TOAST_INFO)
     EndIf
+EndFunc
+
+; Name:        _CheckUpdateNow
+; Description: Manually triggers an update check and shows result via toast
+Func _CheckUpdateNow()
+    _Log_Info("Manual update check triggered")
+    Local $sUrl = "https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest"
+    Local $bData = InetRead($sUrl, 1) ; blocking is OK for manual check
+    If @error Then
+        _Theme_Toast("Update check failed", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
+        Return
+    EndIf
+    Local $sJson = BinaryToString($bData)
+    Local $aMatch = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
+    If @error Or UBound($aMatch) < 1 Then
+        _Theme_Toast("Could not parse release info", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_WARNING)
+        Return
+    EndIf
+    Local $sLatest = $aMatch[0]
+    _Theme_Toast("Latest: v" & $sLatest, 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_SUCCESS)
 EndFunc
 
 ; Name:        _CheckHover

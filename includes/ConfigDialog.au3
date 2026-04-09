@@ -20,12 +20,12 @@ Global $__g_CD_bVisible = False
 Global $__g_CD_iActiveTab = 0
 
 ; -- Tab button IDs --
-Global $__g_CD_aidTabBtn[8] ; index 1-7
-Global Const $__g_CD_aTabNames = "General,Display,Scroll,Hotkeys,Behavior,Colors,Logging"
+Global $__g_CD_aidTabBtn[9] ; index 1-8
+Global Const $__g_CD_aTabNames = "General,Display,Scroll,Hotkeys,Behavior,Colors,Logging,Updates"
 
 ; -- Controls per tab (arrays of IDs to show/hide) --
-Global $__g_CD_aidTabCtrls[8][40] ; [tab 1-7][up to 40 controls per tab]
-Global $__g_CD_aiTabCtrlCount[8]  ; how many controls per tab
+Global $__g_CD_aidTabCtrls[9][40] ; [tab 1-8][up to 40 controls per tab]
+Global $__g_CD_aiTabCtrlCount[9]  ; how many controls per tab
 
 ; -- Tab 1: General --
 Global $__g_CD_idChkStartWin, $__g_CD_idChkWrapNav, $__g_CD_idChkAutoCreate
@@ -35,6 +35,7 @@ Global $__g_CD_idLblPosition ; label that cycles left/center/right
 ; -- Tab 2: Display --
 Global $__g_CD_idChkShowCount, $__g_CD_idInpCountFont, $__g_CD_idInpOpacity
 Global $__g_CD_idLblTheme
+Global $__g_CD_idChkThumbnails, $__g_CD_idInpThumbW, $__g_CD_idInpThumbH
 
 ; -- Tab 3: Scroll --
 Global $__g_CD_idChkScroll, $__g_CD_idChkScrollWrap
@@ -48,12 +49,16 @@ Global $__g_CD_aidInpHkDesktop[10] ; index 1-9
 ; -- Tab 1 extras: General --
 Global $__g_CD_idChkWidgetDrag, $__g_CD_idChkTrayMode, $__g_CD_idChkQuickAccess
 Global $__g_CD_idChkListKeyNav
+
+; -- Tab 8: Updates --
 Global $__g_CD_idChkAutoUpdate, $__g_CD_idInpUpdateInterval
+Global $__g_CD_idBtnCheckNow
 
 ; -- Tab 5: Behavior --
 Global $__g_CD_idChkConfirmDel, $__g_CD_idChkMidClick, $__g_CD_idChkMoveWin
 Global $__g_CD_idInpPeekDelay, $__g_CD_idInpAutoHide, $__g_CD_idInpTopmost, $__g_CD_idInpCmDelay
 Global $__g_CD_idChkConfigWatcher, $__g_CD_idInpWatcherInterval
+Global $__g_CD_idInpCountCacheTTL
 
 ; -- Tab 6: Colors --
 Global $__g_CD_idChkColorsEnabled
@@ -89,13 +94,13 @@ Func _CD_Show()
     ; Reset state
     $__g_CD_iChkCount = 0
     Local $t
-    For $t = 1 To 7
+    For $t = 1 To 8
         $__g_CD_aiTabCtrlCount[$t] = 0
     Next
 
     ; Create custom tab bar
     Local $aNames = StringSplit($__g_CD_aTabNames, ",")
-    Local $iTabW = 60, $iTabH = 26, $iTabX = 10, $iTabY = 8
+    Local $iTabW = 52, $iTabH = 26, $iTabX = 10, $iTabY = 8
     For $t = 1 To $aNames[0]
         $__g_CD_aidTabBtn[$t] = GUICtrlCreateLabel($aNames[$t], $iTabX, $iTabY, $iTabW, $iTabH, _
             BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
@@ -119,6 +124,7 @@ Func _CD_Show()
     __CD_BuildTabBehavior()
     __CD_BuildTabColors()
     __CD_BuildTabLogging()
+    __CD_BuildTabUpdates()
 
     ; Import + Export + Restart buttons (top row)
     Local $iBtnW = 80, $iBtnH = 26
@@ -209,7 +215,7 @@ Func __CD_SwitchTab($iTab)
     $__g_CD_iActiveTab = $iTab
     ; Update tab button styles
     Local $t, $c
-    For $t = 1 To 7
+    For $t = 1 To 8
         If $t = $iTab Then
             GUICtrlSetColor($__g_CD_aidTabBtn[$t], $THEME_FG_WHITE)
             GUICtrlSetBkColor($__g_CD_aidTabBtn[$t], $THEME_BG_ACTIVE)
@@ -221,7 +227,7 @@ Func __CD_SwitchTab($iTab)
         EndIf
     Next
     ; Show/hide controls per tab
-    For $t = 1 To 7
+    For $t = 1 To 8
         Local $iState = $GUI_HIDE
         If $t = $iTab Then $iState = $GUI_SHOW
         For $c = 0 To $__g_CD_aiTabCtrlCount[$t] - 1
@@ -383,21 +389,6 @@ Func __CD_BuildTabGeneral()
     $__g_CD_idChkQuickAccess = __CD_CreateCheckbox("Quick-access number input", $iX, $iY, 300, $t)
     $iY += 26
     $__g_CD_idChkListKeyNav = __CD_CreateCheckbox("Keyboard nav in list", $iX, $iY, 300, $t)
-    $iY += 34
-
-    $__g_CD_idChkAutoUpdate = __CD_CreateCheckbox("Auto-update check", $iX, $iY, 300, $t)
-    $iY += 28
-
-    $idLbl = GUICtrlCreateLabel("Update interval (ms):", $iX, $iY + 2, 165, 18)
-    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
-    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
-    __CD_RegCtrl($t, $idLbl)
-    $__g_CD_idInpUpdateInterval = GUICtrlCreateInput("", $iX + 170, $iY, 100, 22, $ES_NUMBER)
-    GUICtrlSetFont($__g_CD_idInpUpdateInterval, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idInpUpdateInterval, $THEME_FG_TEXT)
-    GUICtrlSetBkColor($__g_CD_idInpUpdateInterval, $THEME_BG_INPUT)
-    __CD_RegCtrl($t, $__g_CD_idInpUpdateInterval)
 EndFunc
 
 Func __CD_BuildTabDisplay()
@@ -438,6 +429,33 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($idThemeHint, $THEME_FG_LABEL)
     GUICtrlSetBkColor($idThemeHint, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $idThemeHint)
+    $iY += 30
+
+    $__g_CD_idChkThumbnails = __CD_CreateCheckbox("Show desktop thumbnails on hover", $iX, $iY, 300, $t)
+    $iY += 34
+
+    $idLbl = GUICtrlCreateLabel("Thumbnail width (px):", $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpThumbW = GUICtrlCreateInput("", $iX + 170, $iY, 50, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpThumbW, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpThumbW, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpThumbW, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpThumbW)
+    $iY += 30
+
+    $idLbl = GUICtrlCreateLabel("Thumbnail height (px):", $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpThumbH = GUICtrlCreateInput("", $iX + 170, $iY, 50, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpThumbH, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpThumbH, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpThumbH, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpThumbH)
 EndFunc
 
 Func __CD_BuildTabScroll()
@@ -603,6 +621,18 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetColor($__g_CD_idInpWatcherInterval, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpWatcherInterval, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpWatcherInterval)
+    $iY += 28
+
+    $idLbl = GUICtrlCreateLabel("Count cache TTL (ms):", $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpCountCacheTTL = GUICtrlCreateInput("", $iX + 180, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpCountCacheTTL, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpCountCacheTTL, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpCountCacheTTL, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpCountCacheTTL)
 EndFunc
 
 Func __CD_BuildTabColors()
@@ -651,6 +681,32 @@ Func __CD_BuildTabLogging()
     $__g_CD_idLblLogLevel = __CD_CreateCycleLabel("Log level:", $iX, $iY, 100, 90, $t)
 EndFunc
 
+Func __CD_BuildTabUpdates()
+    Local $t = 8, $iX = 20, $iY = 50
+
+    $__g_CD_idChkAutoUpdate = __CD_CreateCheckbox("Auto-check for updates", $iX, $iY, 300, $t)
+    $iY += 34
+
+    Local $idLbl = GUICtrlCreateLabel("Check interval (ms):", $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpUpdateInterval = GUICtrlCreateInput("", $iX + 170, $iY, 100, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpUpdateInterval, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpUpdateInterval, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpUpdateInterval, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpUpdateInterval)
+    $iY += 34
+
+    $__g_CD_idBtnCheckNow = GUICtrlCreateLabel(ChrW(0x21BB) & " Check Now", $iX, $iY, 120, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBtnCheckNow, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBtnCheckNow, $THEME_FG_MENU)
+    GUICtrlSetBkColor($__g_CD_idBtnCheckNow, $THEME_BG_HOVER)
+    GUICtrlSetCursor($__g_CD_idBtnCheckNow, 0)
+    __CD_RegCtrl($t, $__g_CD_idBtnCheckNow)
+EndFunc
+
 ; =============================================
 ; POPULATE FROM CONFIG
 ; =============================================
@@ -668,14 +724,15 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkTrayMode, _Cfg_GetTrayIconMode())
     __CD_SetCheckState($__g_CD_idChkQuickAccess, _Cfg_GetQuickAccessEnabled())
     __CD_SetCheckState($__g_CD_idChkListKeyNav, _Cfg_GetListKeyboardNav())
-    __CD_SetCheckState($__g_CD_idChkAutoUpdate, _Cfg_GetAutoUpdateEnabled())
-    GUICtrlSetData($__g_CD_idInpUpdateInterval, _Cfg_GetAutoUpdateInterval())
 
     ; Display
     __CD_SetCheckState($__g_CD_idChkShowCount, _Cfg_GetShowCount())
     GUICtrlSetData($__g_CD_idInpCountFont, _Cfg_GetCountFontSize())
     GUICtrlSetData($__g_CD_idInpOpacity, _Cfg_GetThemeAlphaMain())
     GUICtrlSetData($__g_CD_idLblTheme, _Cfg_GetTheme())
+    __CD_SetCheckState($__g_CD_idChkThumbnails, _Cfg_GetThumbnailsEnabled())
+    GUICtrlSetData($__g_CD_idInpThumbW, _Cfg_GetThumbnailWidth())
+    GUICtrlSetData($__g_CD_idInpThumbH, _Cfg_GetThumbnailHeight())
 
     ; Scroll
     __CD_SetCheckState($__g_CD_idChkScroll, _Cfg_GetScrollEnabled())
@@ -702,6 +759,7 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpCmDelay, _Cfg_GetCmAutoHideDelay())
     __CD_SetCheckState($__g_CD_idChkConfigWatcher, _Cfg_GetConfigWatcherEnabled())
     GUICtrlSetData($__g_CD_idInpWatcherInterval, _Cfg_GetConfigWatcherInterval())
+    GUICtrlSetData($__g_CD_idInpCountCacheTTL, _Cfg_GetCountCacheTTL())
 
     ; Colors
     __CD_SetCheckState($__g_CD_idChkColorsEnabled, _Cfg_GetDesktopColorsEnabled())
@@ -715,6 +773,10 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkLogging, _Cfg_GetLoggingEnabled())
     GUICtrlSetData($__g_CD_idInpLogPath, _Cfg_GetLogFilePath())
     GUICtrlSetData($__g_CD_idLblLogLevel, _Cfg_GetLogLevel())
+
+    ; Updates
+    __CD_SetCheckState($__g_CD_idChkAutoUpdate, _Cfg_GetAutoUpdateEnabled())
+    GUICtrlSetData($__g_CD_idInpUpdateInterval, _Cfg_GetAutoUpdateInterval())
 EndFunc
 
 ; =============================================
@@ -744,10 +806,12 @@ Func __CD_MessageLoop()
                     ExitLoop
                 Case $__g_CD_idBtnClose
                     ExitLoop
+                Case $__g_CD_idBtnCheckNow
+                    _CheckUpdateNow()
             EndSwitch
 
             ; Tab button clicks
-            For $t = 1 To 7
+            For $t = 1 To 8
                 If $id = $__g_CD_aidTabBtn[$t] Then
                     __CD_SwitchTab($t)
                     ExitLoop
@@ -761,7 +825,7 @@ Func __CD_MessageLoop()
             If $id = $__g_CD_idLblPosition Then __CD_CycleValue($id, "left|center|right")
             If $id = $__g_CD_idLblScrollDir Then __CD_CycleValue($id, "normal|inverted")
             If $id = $__g_CD_idLblListAction Then __CD_CycleValue($id, "switch|scroll")
-            If $id = $__g_CD_idLblTheme Then __CD_CycleValue($id, "dark|darker|midnight")
+            If $id = $__g_CD_idLblTheme Then __CD_CycleValue($id, _Theme_GetAvailableSchemes())
             If $id = $__g_CD_idLblLogLevel Then __CD_CycleValue($id, "error|warn|info|debug")
         EndIf
 
@@ -779,12 +843,14 @@ Func __CD_MessageLoop()
             If $aCursor[4] = $__g_CD_idBtnImport Then $iFound = $__g_CD_idBtnImport
             If $aCursor[4] = $__g_CD_idBtnExport Then $iFound = $__g_CD_idBtnExport
             If $aCursor[4] = $__g_CD_idBtnRestart Then $iFound = $__g_CD_idBtnRestart
+            If $aCursor[4] = $__g_CD_idBtnCheckNow Then $iFound = $__g_CD_idBtnCheckNow
             If $iFound <> $iHovered Then
                 If $iHovered <> 0 Then
                     Local $iFgRestore = $THEME_FG_MENU
                     If $iHovered = $__g_CD_idBtnReset Then $iFgRestore = 0xCC6666
                     If $iHovered = $__g_CD_idBtnImport Or $iHovered = $__g_CD_idBtnExport Then $iFgRestore = $THEME_FG_DIM
                     If $iHovered = $__g_CD_idBtnRestart Then $iFgRestore = $THEME_FG_LINK
+                    If $iHovered = $__g_CD_idBtnCheckNow Then $iFgRestore = $THEME_FG_MENU
                     _Theme_RemoveHover($iHovered, $iFgRestore, $THEME_BG_HOVER)
                 EndIf
                 $iHovered = $iFound
@@ -824,9 +890,6 @@ Func __CD_ApplyChanges()
     _Cfg_SetTrayIconMode(__CD_GetCheckState($__g_CD_idChkTrayMode))
     _Cfg_SetQuickAccessEnabled(__CD_GetCheckState($__g_CD_idChkQuickAccess))
     _Cfg_SetListKeyboardNav(__CD_GetCheckState($__g_CD_idChkListKeyNav))
-    _Cfg_SetAutoUpdateEnabled(__CD_GetCheckState($__g_CD_idChkAutoUpdate))
-    $s = GUICtrlRead($__g_CD_idInpUpdateInterval)
-    If StringIsInt($s) Then _Cfg_SetAutoUpdateInterval(Int($s))
 
     ; Display
     _Cfg_SetShowCount(__CD_GetCheckState($__g_CD_idChkShowCount))
@@ -836,6 +899,11 @@ Func __CD_ApplyChanges()
     If StringIsInt($s) Then _Cfg_SetThemeAlphaMain(Int($s))
     Local $sOldTheme = _Cfg_GetTheme()
     _Cfg_SetTheme(GUICtrlRead($__g_CD_idLblTheme))
+    _Cfg_SetThumbnailsEnabled(__CD_GetCheckState($__g_CD_idChkThumbnails))
+    $s = GUICtrlRead($__g_CD_idInpThumbW)
+    If StringIsInt($s) Then _Cfg_SetThumbnailWidth(Int($s))
+    $s = GUICtrlRead($__g_CD_idInpThumbH)
+    If StringIsInt($s) Then _Cfg_SetThumbnailHeight(Int($s))
 
     ; Scroll
     _Cfg_SetScrollEnabled(__CD_GetCheckState($__g_CD_idChkScroll))
@@ -867,6 +935,8 @@ Func __CD_ApplyChanges()
     _Cfg_SetConfigWatcherEnabled(__CD_GetCheckState($__g_CD_idChkConfigWatcher))
     $s = GUICtrlRead($__g_CD_idInpWatcherInterval)
     If StringIsInt($s) Then _Cfg_SetConfigWatcherInterval(Int($s))
+    $s = GUICtrlRead($__g_CD_idInpCountCacheTTL)
+    If StringIsInt($s) Then _Cfg_SetCountCacheTTL(Int($s))
 
     ; Colors
     _Cfg_SetDesktopColorsEnabled(__CD_GetCheckState($__g_CD_idChkColorsEnabled))
@@ -883,7 +953,18 @@ Func __CD_ApplyChanges()
     _Cfg_SetLogFilePath(GUICtrlRead($__g_CD_idInpLogPath))
     _Cfg_SetLogLevel(GUICtrlRead($__g_CD_idLblLogLevel))
 
-    _Cfg_Save()
+    ; Updates
+    _Cfg_SetAutoUpdateEnabled(__CD_GetCheckState($__g_CD_idChkAutoUpdate))
+    $s = GUICtrlRead($__g_CD_idInpUpdateInterval)
+    If StringIsInt($s) Then _Cfg_SetAutoUpdateInterval(Int($s))
+
+    If Not _Cfg_Save() Then
+        Local $aErrPos = WinGetPos($__g_CD_hGUI)
+        If Not @error Then
+            _Theme_Toast("Failed to save settings", $aErrPos[0], $aErrPos[1] + $aErrPos[3] + 4, 2000, $TOAST_ERROR)
+        EndIf
+        Return
+    EndIf
 
     ; Apply changes live to the running app
     _ApplySettingsLive()

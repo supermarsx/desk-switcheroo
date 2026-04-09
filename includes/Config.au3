@@ -1,4 +1,5 @@
 #include-once
+#include "Logger.au3"
 
 ; #INDEX# =======================================================
 ; Title .........: Config
@@ -30,6 +31,9 @@ Global $__g_Cfg_bShowCount         = False
 Global $__g_Cfg_iCountFontSize     = 7
 Global $__g_Cfg_iThemeAlphaMain    = 235
 Global $__g_Cfg_sTheme             = "dark"
+Global $__g_Cfg_bThumbnailsEnabled = False
+Global $__g_Cfg_iThumbnailWidth    = 160
+Global $__g_Cfg_iThumbnailHeight   = 90
 
 ; [Scroll]
 Global $__g_Cfg_bScrollEnabled     = False
@@ -58,6 +62,7 @@ Global $__g_Cfg_iTopmostInterval   = 300
 Global $__g_Cfg_iCmAutoHideDelay   = 500
 Global $__g_Cfg_bConfigWatcherEnabled = False
 Global $__g_Cfg_iConfigWatcherInterval = 60000
+Global $__g_Cfg_iCountCacheTTL = 1000
 
 ; [Logging]
 Global $__g_Cfg_bLoggingEnabled    = False
@@ -99,6 +104,10 @@ EndFunc
 ; Name:        _Cfg_Load
 ; Description: Reads all values from INI into memory, with validation
 Func _Cfg_Load()
+    If Not __Cfg_ReadFromFile() Then
+        _Log_Warn("Config file not readable, using defaults")
+    EndIf
+
     Local $f = $__g_Cfg_sIniPath
 
     ; [General]
@@ -121,6 +130,9 @@ Func _Cfg_Load()
     $__g_Cfg_iCountFontSize     = __Cfg_ReadInt($f, "Display", "count_font_size", 7, 4, 20)
     $__g_Cfg_iThemeAlphaMain    = __Cfg_ReadInt($f, "Display", "theme_alpha_main", 235, 50, 255)
     $__g_Cfg_sTheme             = __Cfg_ReadEnum($f, "Display", "theme", "dark", "dark|darker|midnight")
+    $__g_Cfg_bThumbnailsEnabled = __Cfg_ReadBool($f, "Display", "thumbnails_enabled", False)
+    $__g_Cfg_iThumbnailWidth    = __Cfg_ReadInt($f, "Display", "thumbnail_width", 160, 80, 320)
+    $__g_Cfg_iThumbnailHeight   = __Cfg_ReadInt($f, "Display", "thumbnail_height", 90, 45, 180)
 
     ; [Scroll]
     $__g_Cfg_bScrollEnabled     = __Cfg_ReadBool($f, "Scroll", "scroll_enabled", False)
@@ -148,6 +160,7 @@ Func _Cfg_Load()
     $__g_Cfg_iCmAutoHideDelay   = __Cfg_ReadInt($f, "Behavior", "cm_auto_hide_delay", 500, 100, 5000)
     $__g_Cfg_bConfigWatcherEnabled = __Cfg_ReadBool($f, "Behavior", "config_watcher_enabled", False)
     $__g_Cfg_iConfigWatcherInterval = __Cfg_ReadInt($f, "Behavior", "config_watcher_interval", 60000, 5000, 300000)
+    $__g_Cfg_iCountCacheTTL = __Cfg_ReadInt($f, "Behavior", "count_cache_ttl", 1000, 100, 10000)
 
     ; [Logging]
     $__g_Cfg_bLoggingEnabled    = __Cfg_ReadBool($f, "Logging", "logging_enabled", False)
@@ -192,6 +205,9 @@ Func _Cfg_Save()
     IniWrite($f, "Display", "count_font_size", $__g_Cfg_iCountFontSize)
     IniWrite($f, "Display", "theme_alpha_main", $__g_Cfg_iThemeAlphaMain)
     IniWrite($f, "Display", "theme", $__g_Cfg_sTheme)
+    __Cfg_WriteBool($f, "Display", "thumbnails_enabled", $__g_Cfg_bThumbnailsEnabled)
+    IniWrite($f, "Display", "thumbnail_width", $__g_Cfg_iThumbnailWidth)
+    IniWrite($f, "Display", "thumbnail_height", $__g_Cfg_iThumbnailHeight)
 
     ; [Scroll]
     __Cfg_WriteBool($f, "Scroll", "scroll_enabled", $__g_Cfg_bScrollEnabled)
@@ -219,6 +235,7 @@ Func _Cfg_Save()
     IniWrite($f, "Behavior", "cm_auto_hide_delay", $__g_Cfg_iCmAutoHideDelay)
     __Cfg_WriteBool($f, "Behavior", "config_watcher_enabled", $__g_Cfg_bConfigWatcherEnabled)
     IniWrite($f, "Behavior", "config_watcher_interval", $__g_Cfg_iConfigWatcherInterval)
+    IniWrite($f, "Behavior", "count_cache_ttl", $__g_Cfg_iCountCacheTTL)
 
     ; [Logging]
     __Cfg_WriteBool($f, "Logging", "logging_enabled", $__g_Cfg_bLoggingEnabled)
@@ -230,6 +247,11 @@ Func _Cfg_Save()
     For $i = 1 To 9
         IniWrite($f, "DesktopColors", "desktop_" & $i & "_color", "0x" & Hex($__g_Cfg_aDesktopColors[$i], 6))
     Next
+
+    ; Verify write succeeded
+    Local $sVerify = IniRead($f, "General", "wrap_navigation", "")
+    If $sVerify = "" Then Return False
+    Return True
 EndFunc
 
 ; Name:        _Cfg_WriteDefaults
@@ -255,6 +277,9 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Display", "count_font_size", 7)
     __Cfg_DefaultVal($f, "Display", "theme_alpha_main", 235)
     __Cfg_DefaultVal($f, "Display", "theme", "dark")
+    __Cfg_DefaultBool($f, "Display", "thumbnails_enabled", False)
+    __Cfg_DefaultVal($f, "Display", "thumbnail_width", 160)
+    __Cfg_DefaultVal($f, "Display", "thumbnail_height", 90)
 
     __Cfg_DefaultBool($f, "Scroll", "scroll_enabled", False)
     __Cfg_DefaultVal($f, "Scroll", "scroll_direction", "normal")
@@ -279,6 +304,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Behavior", "cm_auto_hide_delay", 500)
     __Cfg_DefaultBool($f, "Behavior", "config_watcher_enabled", False)
     __Cfg_DefaultVal($f, "Behavior", "config_watcher_interval", 60000)
+    __Cfg_DefaultVal($f, "Behavior", "count_cache_ttl", 1000)
 
     __Cfg_DefaultBool($f, "Logging", "logging_enabled", False)
     __Cfg_DefaultVal($f, "Logging", "log_file_path", "")
@@ -349,6 +375,15 @@ EndFunc
 Func _Cfg_GetTheme()
     Return $__g_Cfg_sTheme
 EndFunc
+Func _Cfg_GetThumbnailsEnabled()
+    Return $__g_Cfg_bThumbnailsEnabled
+EndFunc
+Func _Cfg_GetThumbnailWidth()
+    Return $__g_Cfg_iThumbnailWidth
+EndFunc
+Func _Cfg_GetThumbnailHeight()
+    Return $__g_Cfg_iThumbnailHeight
+EndFunc
 
 ; [Scroll]
 Func _Cfg_GetScrollEnabled()
@@ -409,6 +444,9 @@ Func _Cfg_GetConfigWatcherEnabled()
 EndFunc
 Func _Cfg_GetConfigWatcherInterval()
     Return $__g_Cfg_iConfigWatcherInterval
+EndFunc
+Func _Cfg_GetCountCacheTTL()
+    Return $__g_Cfg_iCountCacheTTL
 EndFunc
 
 ; [Logging]
@@ -499,6 +537,19 @@ Func _Cfg_SetTheme($s)
     If $s <> "dark" And $s <> "darker" And $s <> "midnight" Then $s = "dark"
     $__g_Cfg_sTheme = $s
 EndFunc
+Func _Cfg_SetThumbnailsEnabled($b)
+    $__g_Cfg_bThumbnailsEnabled = $b
+EndFunc
+Func _Cfg_SetThumbnailWidth($i)
+    If $i < 80 Then $i = 80
+    If $i > 320 Then $i = 320
+    $__g_Cfg_iThumbnailWidth = $i
+EndFunc
+Func _Cfg_SetThumbnailHeight($i)
+    If $i < 45 Then $i = 45
+    If $i > 180 Then $i = 180
+    $__g_Cfg_iThumbnailHeight = $i
+EndFunc
 
 ; [Scroll]
 Func _Cfg_SetScrollEnabled($b)
@@ -571,6 +622,11 @@ Func _Cfg_SetConfigWatcherInterval($i)
     If $i > 300000 Then $i = 300000
     $__g_Cfg_iConfigWatcherInterval = $i
 EndFunc
+Func _Cfg_SetCountCacheTTL($i)
+    If $i < 100 Then $i = 100
+    If $i > 10000 Then $i = 10000
+    $__g_Cfg_iCountCacheTTL = $i
+EndFunc
 
 ; [Logging]
 Func _Cfg_SetLoggingEnabled($b)
@@ -642,6 +698,29 @@ Func _Cfg_Import($sSrcPath)
     FileCopy($sSrcPath, _Cfg_GetPath(), 1)
     _Cfg_Load()
     Return True
+EndFunc
+
+; =============================================
+; PERSISTENCE LAYER
+; =============================================
+
+; Name:        __Cfg_ReadFromFile
+; Description: Checks if the INI file exists and is readable
+; Return:      True if file is readable, False otherwise
+Func __Cfg_ReadFromFile()
+    Local $f = $__g_Cfg_sIniPath
+    If Not FileExists($f) Then Return False
+    Local $sTest = IniRead($f, "General", "wrap_navigation", Chr(0))
+    If $sTest = Chr(0) Then Return False
+    Return True
+EndFunc
+
+; Name:        __Cfg_WriteToFile
+; Description: Wraps _Cfg_Save() with error checking — saves and verifies
+; Return:      True if write succeeded, False otherwise
+Func __Cfg_WriteToFile()
+    Local $bResult = _Cfg_Save()
+    Return $bResult
 EndFunc
 
 ; =============================================
