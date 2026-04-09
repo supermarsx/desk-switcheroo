@@ -85,9 +85,9 @@ Global $__g_CD_idBtnApply, $__g_CD_idBtnClose
 Global $__g_CD_idBtnImport, $__g_CD_idBtnExport, $__g_CD_idBtnRestart
 
 ; -- Checkbox state tracking --
-Global $__g_CD_aChkIDs[23]     ; control IDs
-Global $__g_CD_aChkStates[23]  ; boolean states
-Global $__g_CD_aChkTexts[23]   ; original text per checkbox
+Global $__g_CD_aChkIDs[30]     ; control IDs
+Global $__g_CD_aChkStates[30]  ; boolean states
+Global $__g_CD_aChkTexts[30]   ; original text per checkbox
 Global $__g_CD_iChkCount = 0
 
 ; -- Reset button --
@@ -1196,6 +1196,9 @@ Func __CD_ApplyChanges()
     _Cfg_SetLogLevel(GUICtrlRead($__g_CD_idLblLogLevel))
     $s = GUICtrlRead($__g_CD_idInpLogMaxSize)
     If StringIsInt($s) Then _Cfg_SetLogMaxSizeMB(Int($s))
+    $s = GUICtrlRead($__g_CD_idInpLogRotateCount)
+    If StringIsInt($s) Then _Cfg_SetLogRotateCount(Int($s))
+    _Cfg_SetLogCompressOld(__CD_GetCheckState($__g_CD_idChkLogCompress))
 
     ; Updates
     _Cfg_SetAutoUpdateEnabled(__CD_GetCheckState($__g_CD_idChkAutoUpdate))
