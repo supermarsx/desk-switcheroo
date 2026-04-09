@@ -415,6 +415,82 @@ Func _Theme_ToastDestroy()
     EndIf
 EndFunc
 
+; =============================================
+; THEMED TOOLTIP
+; =============================================
+
+Global $__g_Tooltip_hGUI = 0
+Global $__g_Tooltip_hTimer = 0
+
+; Name:        _Theme_ShowTooltip
+; Description: Shows a dark-themed tooltip popup near the cursor. Non-blocking.
+;              Auto-dismisses after 2.5 seconds or when cursor moves away.
+;              Call _Theme_TooltipTick() from the main loop to handle auto-dismiss.
+; Parameters:  $sText - tooltip text (supports multi-line via @CRLF)
+;              $iX - X position (default: cursor X + 16)
+;              $iY - Y position (default: cursor Y + 16)
+Func _Theme_ShowTooltip($sText, $iX = -1, $iY = -1)
+    _Theme_HideTooltip()
+
+    If $iX = -1 Or $iY = -1 Then
+        Local $aMP = MouseGetPos()
+        If $iX = -1 Then $iX = $aMP[0] + 16
+        If $iY = -1 Then $iY = $aMP[1] + 16
+    EndIf
+
+    ; Calculate size based on text
+    Local $aLines = StringSplit($sText, @CRLF, 1)
+    Local $iMaxLen = 0
+    Local $i
+    For $i = 1 To $aLines[0]
+        If StringLen($aLines[$i]) > $iMaxLen Then $iMaxLen = StringLen($aLines[$i])
+    Next
+    Local $iW = $iMaxLen * 6 + 16
+    If $iW < 80 Then $iW = 80
+    If $iW > 350 Then $iW = 350
+    Local $iH = $aLines[0] * 14 + 10
+    If $iH < 22 Then $iH = 22
+
+    ; Keep on screen
+    If $iX + $iW > @DesktopWidth Then $iX = @DesktopWidth - $iW - 4
+    If $iY + $iH > @DesktopHeight Then $iY = $iY - $iH - 32
+
+    $__g_Tooltip_hGUI = GUICreate("Tooltip", $iW, $iH, $iX, $iY, $WS_POPUP, _
+        BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW, $WS_EX_LAYERED))
+    GUISetBkColor($THEME_BG_POPUP)
+    _WinAPI_SetLayeredWindowAttributes($__g_Tooltip_hGUI, 0, 240, $LWA_ALPHA)
+
+    GUICtrlCreateLabel($sText, 6, 4, $iW - 12, $iH - 8)
+    GUICtrlSetFont(-1, 7, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor(-1, $THEME_FG_NORMAL)
+    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+
+    GUISetState(@SW_SHOWNOACTIVATE, $__g_Tooltip_hGUI)
+    $__g_Tooltip_hTimer = TimerInit()
+EndFunc
+
+; Name:        _Theme_HideTooltip
+; Description: Hides the themed tooltip if visible
+Func _Theme_HideTooltip()
+    If $__g_Tooltip_hGUI <> 0 Then
+        GUIDelete($__g_Tooltip_hGUI)
+        $__g_Tooltip_hGUI = 0
+    EndIf
+EndFunc
+
+; Name:        _Theme_TooltipTick
+; Description: Auto-dismiss tooltip after 2.5 seconds. Call from main loop.
+Func _Theme_TooltipTick()
+    If $__g_Tooltip_hGUI = 0 Then Return
+    If TimerDiff($__g_Tooltip_hTimer) > 2500 Then _Theme_HideTooltip()
+EndFunc
+
+; Name:        _Theme_IsTooltipVisible
+; Description: Returns whether a themed tooltip is currently showing
+Func _Theme_IsTooltipVisible()
+    Return ($__g_Tooltip_hGUI <> 0)
+EndFunc
+
 ; Name:        _Theme_ValidateHexColor
 ; Description: Validates and parses a hex color string
 ; Parameters:  $sHex - hex string (with or without "0x" prefix)

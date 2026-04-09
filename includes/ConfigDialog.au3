@@ -69,6 +69,7 @@ Global $__g_CD_aidLblPreview[10]  ; index 1-9
 
 ; -- Tab 2: Display extras --
 Global $__g_CD_idInpListFont, $__g_CD_idInpListFontSize
+Global $__g_CD_idChkListScrollable, $__g_CD_idInpListMaxVisible, $__g_CD_idInpListScrollSpeed
 
 ; -- Tab 7: Logging --
 Global $__g_CD_idChkLogging, $__g_CD_idInpLogPath, $__g_CD_idLblLogLevel
@@ -79,9 +80,9 @@ Global $__g_CD_idBtnApply, $__g_CD_idBtnClose
 Global $__g_CD_idBtnImport, $__g_CD_idBtnExport, $__g_CD_idBtnRestart
 
 ; -- Checkbox state tracking --
-Global $__g_CD_aChkIDs[20]     ; control IDs
-Global $__g_CD_aChkStates[20]  ; boolean states
-Global $__g_CD_aChkTexts[20]   ; original text per checkbox
+Global $__g_CD_aChkIDs[21]     ; control IDs
+Global $__g_CD_aChkStates[21]  ; boolean states
+Global $__g_CD_aChkTexts[21]   ; original text per checkbox
 Global $__g_CD_iChkCount = 0
 
 ; -- Reset button --
@@ -91,7 +92,7 @@ Global $__g_CD_idBtnReset
 ; #FUNCTIONS# ===================================================
 
 Func _CD_Show()
-    Local $iW = 460, $iH = 475
+    Local $iW = 460, $iH = 570
     Local $iX = (@DesktopWidth - $iW) / 2
     Local $iY = (@DesktopHeight - $iH) / 2
 
@@ -118,7 +119,7 @@ Func _CD_Show()
     Next
 
     ; Content area background (disabled so it doesn't intercept clicks on controls above)
-    Local $idContentBg = GUICtrlCreateLabel("", 8, 38, $iW - 16, 352)
+    Local $idContentBg = GUICtrlCreateLabel("", 8, 38, $iW - 16, 447)
     GUICtrlSetBkColor($idContentBg, $THEME_BG_MAIN)
     GUICtrlSetState($idContentBg, $GUI_DISABLE)
 
@@ -355,10 +356,13 @@ Func __CD_BuildTabGeneral()
     Local $t = 1, $iX = 20, $iY = 50
 
     $__g_CD_idChkStartWin = __CD_CreateCheckbox("Start with Windows", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkStartWin, "Launch Desk Switcheroo automatically when you log in")
     $iY += 26
     $__g_CD_idChkWrapNav = __CD_CreateCheckbox("Wrap navigation at ends", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkWrapNav, "Left arrow on first desktop goes to last, and vice versa")
     $iY += 26
     $__g_CD_idChkAutoCreate = __CD_CreateCheckbox("Auto-create desktop past end", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkAutoCreate, "Right arrow on last desktop creates a new one")
     $iY += 34
 
     Local $idLbl = GUICtrlCreateLabel("Number padding (1-4):", $iX, $iY + 2, 165, 18)
@@ -371,9 +375,11 @@ Func __CD_BuildTabGeneral()
     GUICtrlSetColor($__g_CD_idInpPadding, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpPadding, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpPadding)
+    _Theme_SetTooltip($__g_CD_idInpPadding, "Zero-pad desktop numbers (2 = '01', 3 = '001')")
     $iY += 30
 
     $__g_CD_idLblPosition = __CD_CreateCycleLabel("Widget position:", $iX, $iY, 165, 90, $t)
+    _Theme_SetTooltip($__g_CD_idLblPosition, "Click to cycle: left, center, or right on taskbar")
     $iY += 30
 
     $idLbl = GUICtrlCreateLabel("Widget X offset (px):", $iX, $iY + 2, 165, 18)
@@ -386,21 +392,27 @@ Func __CD_BuildTabGeneral()
     GUICtrlSetColor($__g_CD_idInpOffsetX, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpOffsetX, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpOffsetX)
+    _Theme_SetTooltip($__g_CD_idInpOffsetX, "Fine-tune widget position in pixels")
     $iY += 34
 
     $__g_CD_idChkWidgetDrag = __CD_CreateCheckbox("Enable widget drag", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkWidgetDrag, "Hold and drag the widget to reposition it on the taskbar")
     $iY += 26
     $__g_CD_idChkTrayMode = __CD_CreateCheckbox("Tray icon mode", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkTrayMode, "Run as system tray icon instead of taskbar widget (requires restart)")
     $iY += 26
     $__g_CD_idChkQuickAccess = __CD_CreateCheckbox("Quick-access number input", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkQuickAccess, "Double-click the number to type a desktop number (1-9) to jump to")
     $iY += 26
     $__g_CD_idChkListKeyNav = __CD_CreateCheckbox("Keyboard nav in list", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkListKeyNav, "Use Up/Down arrow keys to navigate when the desktop list is open")
 EndFunc
 
 Func __CD_BuildTabDisplay()
     Local $t = 2, $iX = 20, $iY = 50
 
     $__g_CD_idChkShowCount = __CD_CreateCheckbox("Show desktop count (2/5)", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkShowCount, "Show total count next to current number (e.g. '2/5')")
     $iY += 34
 
     Local $idLbl = GUICtrlCreateLabel("Count font size:", $iX, $iY + 2, 165, 18)
@@ -413,6 +425,7 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpCountFont, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpCountFont, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpCountFont)
+    _Theme_SetTooltip($__g_CD_idInpCountFont, "Font size for the desktop number on the widget")
     $iY += 30
 
     $idLbl = GUICtrlCreateLabel("Widget opacity (50-255):", $iX, $iY + 2, 165, 18)
@@ -425,9 +438,11 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpOpacity, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpOpacity, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpOpacity)
+    _Theme_SetTooltip($__g_CD_idInpOpacity, "Widget transparency (50 = very transparent, 255 = fully opaque)")
     $iY += 30
 
     $__g_CD_idLblTheme = __CD_CreateCycleLabel("Theme:", $iX, $iY, 165, 90, $t)
+    _Theme_SetTooltip($__g_CD_idLblTheme, "Click to cycle color scheme (requires restart)")
     $iY += 26
 
     Local $idThemeHint = GUICtrlCreateLabel("Theme change requires restart", $iX + 20, $iY, 250, 16)
@@ -438,6 +453,7 @@ Func __CD_BuildTabDisplay()
     $iY += 30
 
     $__g_CD_idChkThumbnails = __CD_CreateCheckbox("Show desktop thumbnails on hover", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkThumbnails, "Show a preview popup with window list when hovering a desktop")
     $iY += 34
 
     $idLbl = GUICtrlCreateLabel("Thumbnail width (px):", $iX, $iY + 2, 165, 18)
@@ -450,6 +466,7 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpThumbW, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpThumbW, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpThumbW)
+    _Theme_SetTooltip($__g_CD_idInpThumbW, "Size of the thumbnail preview popup in pixels")
     $iY += 30
 
     $idLbl = GUICtrlCreateLabel("Thumbnail height (px):", $iX, $iY + 2, 165, 18)
@@ -462,6 +479,7 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpThumbH, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpThumbH, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpThumbH)
+    _Theme_SetTooltip($__g_CD_idInpThumbH, "Size of the thumbnail preview popup in pixels")
     $iY += 30
 
     $idLbl = GUICtrlCreateLabel("List font name:", $iX, $iY + 2, 165, 18)
@@ -474,6 +492,7 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpListFont, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpListFont, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpListFont)
+    _Theme_SetTooltip($__g_CD_idInpListFont, "Font for desktop list items (empty = default Fira Code/Consolas)")
     $iY += 30
 
     $idLbl = GUICtrlCreateLabel("List font size (6-14):", $iX, $iY + 2, 165, 18)
@@ -486,20 +505,56 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpListFontSize, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpListFontSize, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpListFontSize)
+    _Theme_SetTooltip($__g_CD_idInpListFontSize, "Font size for desktop list items")
+    $iY += 34
+
+    $__g_CD_idChkListScrollable = __CD_CreateCheckbox("Scrollable desktop list", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkListScrollable, "Enable scrolling when many desktops (shows scroll arrows)")
+    $iY += 30
+
+    $idLbl = GUICtrlCreateLabel("Max visible items (3-30):", $iX + 20, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpListMaxVisible = GUICtrlCreateInput("", $iX + 190, $iY, 50, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpListMaxVisible, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpListMaxVisible, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpListMaxVisible, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpListMaxVisible)
+    _Theme_SetTooltip($__g_CD_idInpListMaxVisible, "Maximum items visible before scrolling activates")
+    $iY += 30
+
+    $idLbl = GUICtrlCreateLabel("Scroll speed (items, 1-5):", $iX + 20, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpListScrollSpeed = GUICtrlCreateInput("", $iX + 190, $iY, 50, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpListScrollSpeed, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpListScrollSpeed, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpListScrollSpeed, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpListScrollSpeed)
+    _Theme_SetTooltip($__g_CD_idInpListScrollSpeed, "Number of items to scroll per step")
 EndFunc
 
 Func __CD_BuildTabScroll()
     Local $t = 3, $iX = 20, $iY = 50
 
     $__g_CD_idChkScroll = __CD_CreateCheckbox("Scroll wheel on widget", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkScroll, "Use mouse wheel on the widget to cycle desktops")
     $iY += 26
     $__g_CD_idLblScrollDir = __CD_CreateCycleLabel("Direction:", $iX + 20, $iY, 145, 90, $t)
+    _Theme_SetTooltip($__g_CD_idLblScrollDir, "Click to toggle: normal or inverted scroll direction")
     $iY += 26
     $__g_CD_idChkScrollWrap = __CD_CreateCheckbox("Wrap at ends", $iX + 20, $iY, 280, $t)
+    _Theme_SetTooltip($__g_CD_idChkScrollWrap, "Scroll past last desktop wraps to first")
     $iY += 34
     $__g_CD_idChkListScroll = __CD_CreateCheckbox("Scroll on desktop list", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkListScroll, "Use mouse wheel on the desktop list panel")
     $iY += 26
     $__g_CD_idLblListAction = __CD_CreateCycleLabel("List action:", $iX + 20, $iY, 145, 90, $t)
+    _Theme_SetTooltip($__g_CD_idLblListAction, "Click to toggle: 'switch' changes desktops, 'scroll' scrolls the list")
 EndFunc
 
 Func __CD_BuildTabHotkeys()
@@ -520,6 +575,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetColor($__g_CD_idInpHkNext, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHkNext, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpHkNext)
+    _Theme_SetTooltip($__g_CD_idInpHkNext, "AutoIt hotkey format: ^=Ctrl !=Alt +=Shift #=Win e.g. ^!{RIGHT}")
     $__g_CD_idBtnHkBuild[0] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[0], 8, 700, 0, $THEME_FONT_MAIN)
@@ -527,6 +583,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetBkColor($__g_CD_idBtnHkBuild[0], $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnHkBuild[0], 0)
     __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[0])
+    _Theme_SetTooltip($__g_CD_idBtnHkBuild[0], "Open hotkey builder to visually create a key combination")
     $iY += 24
 
     ; Prev (build index 1)
@@ -540,6 +597,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetColor($__g_CD_idInpHkPrev, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHkPrev, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpHkPrev)
+    _Theme_SetTooltip($__g_CD_idInpHkPrev, "AutoIt hotkey format: ^=Ctrl !=Alt +=Shift #=Win e.g. ^!{RIGHT}")
     $__g_CD_idBtnHkBuild[1] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[1], 8, 700, 0, $THEME_FONT_MAIN)
@@ -547,6 +605,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetBkColor($__g_CD_idBtnHkBuild[1], $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnHkBuild[1], 0)
     __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[1])
+    _Theme_SetTooltip($__g_CD_idBtnHkBuild[1], "Open hotkey builder to visually create a key combination")
     $iY += 24
 
     ; Desktop 1-9 (build index 2-10)
@@ -561,6 +620,7 @@ Func __CD_BuildTabHotkeys()
         GUICtrlSetColor($__g_CD_aidInpHkDesktop[$i], $THEME_FG_TEXT)
         GUICtrlSetBkColor($__g_CD_aidInpHkDesktop[$i], $THEME_BG_INPUT)
         __CD_RegCtrl($t, $__g_CD_aidInpHkDesktop[$i])
+        _Theme_SetTooltip($__g_CD_aidInpHkDesktop[$i], "AutoIt hotkey format: ^=Ctrl !=Alt +=Shift #=Win e.g. ^!{RIGHT}")
         $__g_CD_idBtnHkBuild[$i + 1] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
             BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
         GUICtrlSetFont($__g_CD_idBtnHkBuild[$i + 1], 8, 700, 0, $THEME_FONT_MAIN)
@@ -568,6 +628,7 @@ Func __CD_BuildTabHotkeys()
         GUICtrlSetBkColor($__g_CD_idBtnHkBuild[$i + 1], $THEME_BG_HOVER)
         GUICtrlSetCursor($__g_CD_idBtnHkBuild[$i + 1], 0)
         __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[$i + 1])
+        _Theme_SetTooltip($__g_CD_idBtnHkBuild[$i + 1], "Open hotkey builder to visually create a key combination")
         $iY += 24
     Next
 
@@ -582,6 +643,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetColor($__g_CD_idInpHkToggleList, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHkToggleList, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpHkToggleList)
+    _Theme_SetTooltip($__g_CD_idInpHkToggleList, "AutoIt hotkey format: ^=Ctrl !=Alt +=Shift #=Win e.g. ^!{RIGHT}")
     $__g_CD_idBtnHkBuild[11] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[11], 8, 700, 0, $THEME_FONT_MAIN)
@@ -589,6 +651,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetBkColor($__g_CD_idBtnHkBuild[11], $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnHkBuild[11], 0)
     __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[11])
+    _Theme_SetTooltip($__g_CD_idBtnHkBuild[11], "Open hotkey builder to visually create a key combination")
     $iY += 28
 
     ; Help
@@ -603,10 +666,13 @@ Func __CD_BuildTabBehavior()
     Local $t = 5, $iX = 20, $iY = 50
 
     $__g_CD_idChkConfirmDel = __CD_CreateCheckbox("Confirm before delete", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkConfirmDel, "Show confirmation dialog before deleting a desktop")
     $iY += 26
     $__g_CD_idChkMidClick = __CD_CreateCheckbox("Middle-click to delete", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkMidClick, "Middle-click a desktop in the list to delete it")
     $iY += 26
     $__g_CD_idChkMoveWin = __CD_CreateCheckbox("Move Window Here in menu", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkMoveWin, "Show 'Move Window Here' in the desktop right-click menu")
     $iY += 34
 
     Local $aFields[5][2] = [["Peek delay (ms):", ""], ["Auto-hide timeout (ms):", ""], _
@@ -628,6 +694,7 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetColor($__g_CD_idInpPeekDelay, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpPeekDelay, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpPeekDelay)
+    _Theme_SetTooltip($__g_CD_idInpPeekDelay, "Time in milliseconds (1000ms = 1 second)")
     $iY += 28
 
     $idLbl = GUICtrlCreateLabel("Auto-hide timeout (ms):", $iX, $iY + 2, 175, 18)
@@ -640,6 +707,7 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetColor($__g_CD_idInpAutoHide, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpAutoHide, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpAutoHide)
+    _Theme_SetTooltip($__g_CD_idInpAutoHide, "Time in milliseconds (1000ms = 1 second)")
     $iY += 28
 
     $idLbl = GUICtrlCreateLabel("Topmost interval (ms):", $iX, $iY + 2, 175, 18)
@@ -652,6 +720,7 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetColor($__g_CD_idInpTopmost, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpTopmost, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpTopmost)
+    _Theme_SetTooltip($__g_CD_idInpTopmost, "Time in milliseconds (1000ms = 1 second)")
     $iY += 28
 
     $idLbl = GUICtrlCreateLabel("Menu hide delay (ms):", $iX, $iY + 2, 175, 18)
@@ -664,9 +733,11 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetColor($__g_CD_idInpCmDelay, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpCmDelay, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpCmDelay)
+    _Theme_SetTooltip($__g_CD_idInpCmDelay, "Time in milliseconds (1000ms = 1 second)")
     $iY += 34
 
     $__g_CD_idChkConfigWatcher = __CD_CreateCheckbox("Config file watcher", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkConfigWatcher, "Automatically reload settings when the INI file changes")
     $iY += 28
 
     $idLbl = GUICtrlCreateLabel("Watcher interval (ms):", $iX, $iY + 2, 175, 18)
@@ -679,6 +750,7 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetColor($__g_CD_idInpWatcherInterval, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpWatcherInterval, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpWatcherInterval)
+    _Theme_SetTooltip($__g_CD_idInpWatcherInterval, "Time in milliseconds (1000ms = 1 second)")
     $iY += 28
 
     $idLbl = GUICtrlCreateLabel("Count cache TTL (ms):", $iX, $iY + 2, 175, 18)
@@ -691,12 +763,14 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetColor($__g_CD_idInpCountCacheTTL, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpCountCacheTTL, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpCountCacheTTL)
+    _Theme_SetTooltip($__g_CD_idInpCountCacheTTL, "How long to cache desktop count before re-querying (ms)")
 EndFunc
 
 Func __CD_BuildTabColors()
     Local $t = 6, $iX = 20, $iY = 50, $i
 
     $__g_CD_idChkColorsEnabled = __CD_CreateCheckbox("Enable desktop colors", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkColorsEnabled, "Show colored indicators next to desktop names in the list")
     $iY += 30
 
     For $i = 1 To 9
@@ -711,6 +785,7 @@ Func __CD_BuildTabColors()
         GUICtrlSetColor($__g_CD_aidInpColor[$i], $THEME_FG_TEXT)
         GUICtrlSetBkColor($__g_CD_aidInpColor[$i], $THEME_BG_INPUT)
         __CD_RegCtrl($t, $__g_CD_aidInpColor[$i])
+        _Theme_SetTooltip($__g_CD_aidInpColor[$i], "Hex color code without 0x prefix (e.g. 4A9EFF)")
 
         $__g_CD_aidLblPreview[$i] = GUICtrlCreateLabel("", $iX + 175, $iY + 2, 16, 16)
         __CD_RegCtrl($t, $__g_CD_aidLblPreview[$i])
@@ -722,6 +797,7 @@ Func __CD_BuildTabLogging()
     Local $t = 7, $iX = 20, $iY = 50
 
     $__g_CD_idChkLogging = __CD_CreateCheckbox("Enable logging", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkLogging, "Write debug information to a log file for troubleshooting")
     $iY += 34
 
     Local $idLbl = GUICtrlCreateLabel("Log file path:", $iX, $iY + 2, 100, 18)
@@ -734,9 +810,11 @@ Func __CD_BuildTabLogging()
     GUICtrlSetColor($__g_CD_idInpLogPath, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpLogPath, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpLogPath)
+    _Theme_SetTooltip($__g_CD_idInpLogPath, "Full path to log file (empty = desk_switcheroo.log in script folder)")
     $iY += 30
 
     $__g_CD_idLblLogLevel = __CD_CreateCycleLabel("Log level:", $iX, $iY, 100, 90, $t)
+    _Theme_SetTooltip($__g_CD_idLblLogLevel, "Click to cycle: error, warn, info, debug (debug is most verbose)")
     $iY += 30
 
     $idLbl = GUICtrlCreateLabel("Max log size (MB):", $iX, $iY + 2, 165, 18)
@@ -749,12 +827,14 @@ Func __CD_BuildTabLogging()
     GUICtrlSetColor($__g_CD_idInpLogMaxSize, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpLogMaxSize, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpLogMaxSize)
+    _Theme_SetTooltip($__g_CD_idInpLogMaxSize, "Rotate log file when it exceeds this size")
 EndFunc
 
 Func __CD_BuildTabUpdates()
     Local $t = 8, $iX = 20, $iY = 50
 
     $__g_CD_idChkAutoUpdate = __CD_CreateCheckbox("Auto-check for updates", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkAutoUpdate, "Periodically check GitHub for new releases")
     $iY += 34
 
     Local $idLbl = GUICtrlCreateLabel("Check interval (hours):", $iX, $iY + 2, 165, 18)
@@ -767,6 +847,7 @@ Func __CD_BuildTabUpdates()
     GUICtrlSetColor($__g_CD_idInpUpdateInterval, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpUpdateInterval, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpUpdateInterval)
+    _Theme_SetTooltip($__g_CD_idInpUpdateInterval, "How often to check for updates (in hours)")
     $iY += 34
 
     $__g_CD_idBtnCheckNow = GUICtrlCreateLabel(ChrW(0x21BB) & " Check Now", $iX, $iY, 120, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
@@ -775,6 +856,7 @@ Func __CD_BuildTabUpdates()
     GUICtrlSetBkColor($__g_CD_idBtnCheckNow, $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnCheckNow, 0)
     __CD_RegCtrl($t, $__g_CD_idBtnCheckNow)
+    _Theme_SetTooltip($__g_CD_idBtnCheckNow, "Check for updates right now")
 EndFunc
 
 ; =============================================
@@ -805,6 +887,9 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpThumbH, _Cfg_GetThumbnailHeight())
     GUICtrlSetData($__g_CD_idInpListFont, _Cfg_GetListFontName())
     GUICtrlSetData($__g_CD_idInpListFontSize, _Cfg_GetListFontSize())
+    __CD_SetCheckState($__g_CD_idChkListScrollable, _Cfg_GetListScrollable())
+    GUICtrlSetData($__g_CD_idInpListMaxVisible, _Cfg_GetListMaxVisible())
+    GUICtrlSetData($__g_CD_idInpListScrollSpeed, _Cfg_GetListScrollSpeed())
 
     ; Scroll
     __CD_SetCheckState($__g_CD_idChkScroll, _Cfg_GetScrollEnabled())
@@ -983,6 +1068,11 @@ Func __CD_ApplyChanges()
     _Cfg_SetListFontName(GUICtrlRead($__g_CD_idInpListFont))
     $s = GUICtrlRead($__g_CD_idInpListFontSize)
     If StringIsInt($s) Then _Cfg_SetListFontSize(Int($s))
+    _Cfg_SetListScrollable(__CD_GetCheckState($__g_CD_idChkListScrollable))
+    $s = GUICtrlRead($__g_CD_idInpListMaxVisible)
+    If StringIsInt($s) Then _Cfg_SetListMaxVisible(Int($s))
+    $s = GUICtrlRead($__g_CD_idInpListScrollSpeed)
+    If StringIsInt($s) Then _Cfg_SetListScrollSpeed(Int($s))
 
     ; Scroll
     _Cfg_SetScrollEnabled(__CD_GetCheckState($__g_CD_idChkScroll))
@@ -1226,10 +1316,19 @@ Func __CD_ShowHotkeyBuilder()
     GUICtrlSetColor($idKeyLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idKeyLbl, $GUI_BKCOLOR_TRANSPARENT)
 
-    Local $idKeyInput = GUICtrlCreateInput("", 55, $iKeyY, 140, 22)
+    Local $idKeyInput = GUICtrlCreateInput("", 55, $iKeyY, 120, 22)
     GUICtrlSetFont($idKeyInput, 9, 400, 0, $THEME_FONT_MONO)
     GUICtrlSetColor($idKeyInput, $THEME_FG_TEXT)
     GUICtrlSetBkColor($idKeyInput, $THEME_BG_INPUT)
+
+    ; Capture button
+    Local $iX = 16
+    Local $idCapture = GUICtrlCreateLabel(ChrW(0x23CE) & " Capture", $iX + 165, $iKeyY, 80, 22, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idCapture, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idCapture, $THEME_FG_MENU)
+    GUICtrlSetBkColor($idCapture, $THEME_BG_HOVER)
+    GUICtrlSetCursor($idCapture, 0)
+    _Theme_SetTooltip($idCapture, "Press to capture a key (waits 5 seconds)")
 
     ; Hint
     Local $idHint = GUICtrlCreateLabel("e.g.: LEFT, RIGHT, F1-F12, 1-9, A-Z", 16, $iKeyY + 26, 250, 14)
@@ -1301,6 +1400,40 @@ Func __CD_ShowHotkeyBuilder()
                     $bWin = Not $bWin
                     GUICtrlSetData($idChkWin, $bWin ? "  [x]  Win" : "  [ ]  Win")
                     GUICtrlSetColor($idChkWin, $bWin ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
+                Case $idCapture
+                    ; Set input to "Press a key..." and capture
+                    GUICtrlSetData($idKeyInput, "Press a key...")
+                    Local $sCaptured = __CD_CaptureKeyPress()
+                    If $sCaptured <> "" Then
+                        GUICtrlSetData($idKeyInput, $sCaptured)
+                        ; Auto-detect modifiers held during capture
+                        Local $retModCtrl = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x11)
+                        If Not @error And BitAND($retModCtrl[0], 0x8000) <> 0 Then
+                            $bCtrl = True
+                            GUICtrlSetData($idChkCtrl, "  [x]  Ctrl")
+                            GUICtrlSetColor($idChkCtrl, $THEME_FG_WHITE)
+                        EndIf
+                        Local $retModAlt = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x12)
+                        If Not @error And BitAND($retModAlt[0], 0x8000) <> 0 Then
+                            $bAlt = True
+                            GUICtrlSetData($idChkAlt, "  [x]  Alt")
+                            GUICtrlSetColor($idChkAlt, $THEME_FG_WHITE)
+                        EndIf
+                        Local $retModShift = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x10)
+                        If Not @error And BitAND($retModShift[0], 0x8000) <> 0 Then
+                            $bShift = True
+                            GUICtrlSetData($idChkShift, "  [x]  Shift")
+                            GUICtrlSetColor($idChkShift, $THEME_FG_WHITE)
+                        EndIf
+                        Local $retModWin = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x5B)
+                        If Not @error And BitAND($retModWin[0], 0x8000) <> 0 Then
+                            $bWin = True
+                            GUICtrlSetData($idChkWin, "  [x]  Win")
+                            GUICtrlSetColor($idChkWin, $THEME_FG_WHITE)
+                        EndIf
+                    Else
+                        GUICtrlSetData($idKeyInput, "")
+                    EndIf
             EndSwitch
         EndIf
 
@@ -1326,6 +1459,7 @@ Func __CD_ShowHotkeyBuilder()
             Local $iFound = 0
             If $aCursor[4] = $idOK Then $iFound = $idOK
             If $aCursor[4] = $idCancel Then $iFound = $idCancel
+            If $aCursor[4] = $idCapture Then $iFound = $idCapture
             If $iFound <> $iHovered Then
                 If $iHovered <> 0 Then _Theme_RemoveHover($iHovered, $THEME_FG_MENU, $THEME_BG_HOVER)
                 $iHovered = $iFound
@@ -1338,6 +1472,132 @@ Func __CD_ShowHotkeyBuilder()
 
     GUIDelete($hDlg)
     Return $sResult
+EndFunc
+
+; Name:        __CD_CaptureKeyPress
+; Description: Polls all virtual keys looking for a new keypress (non-modifier).
+;              Waits up to 5 seconds for a key to be pressed.
+; Return:      AutoIt key name string, or "" on timeout
+Func __CD_CaptureKeyPress()
+    ; Flush any currently-held keys by waiting for all to be released
+    Local $hFlush = TimerInit()
+    While TimerDiff($hFlush) < 300
+        Sleep(10)
+    WEnd
+
+    Local $hTimeout = TimerInit()
+    While TimerDiff($hTimeout) < 5000
+        Local $i
+        For $i = 0x08 To 0xFE
+            ; Skip modifier keys themselves
+            If $i = 0x10 Or $i = 0x11 Or $i = 0x12 Or $i = 0x5B Or $i = 0x5C Then ContinueLoop
+            Local $ret = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $i)
+            If Not @error And BitAND($ret[0], 0x0001) <> 0 Then
+                Return __CD_VKToAutoItKey($i)
+            EndIf
+        Next
+        Sleep(10)
+    WEnd
+    Return "" ; timeout
+EndFunc
+
+; Name:        __CD_VKToAutoItKey
+; Description: Converts a Windows virtual key code to an AutoIt key name
+; Parameters:  $iVK - virtual key code (0x08-0xFE)
+; Return:      AutoIt key name string
+Func __CD_VKToAutoItKey($iVK)
+    Switch $iVK
+        Case 0x08
+            Return "BS"
+        Case 0x09
+            Return "TAB"
+        Case 0x0D
+            Return "ENTER"
+        Case 0x1B
+            Return "ESC"
+        Case 0x20
+            Return "SPACE"
+        Case 0x21
+            Return "PGUP"
+        Case 0x22
+            Return "PGDN"
+        Case 0x23
+            Return "END"
+        Case 0x24
+            Return "HOME"
+        Case 0x25
+            Return "LEFT"
+        Case 0x26
+            Return "UP"
+        Case 0x27
+            Return "RIGHT"
+        Case 0x28
+            Return "DOWN"
+        Case 0x2D
+            Return "INSERT"
+        Case 0x2E
+            Return "DELETE"
+        Case 0x30 To 0x39
+            Return Chr($iVK)
+        Case 0x41 To 0x5A
+            Return StringLower(Chr($iVK))
+        Case 0x60
+            Return "NUMPAD0"
+        Case 0x61
+            Return "NUMPAD1"
+        Case 0x62
+            Return "NUMPAD2"
+        Case 0x63
+            Return "NUMPAD3"
+        Case 0x64
+            Return "NUMPAD4"
+        Case 0x65
+            Return "NUMPAD5"
+        Case 0x66
+            Return "NUMPAD6"
+        Case 0x67
+            Return "NUMPAD7"
+        Case 0x68
+            Return "NUMPAD8"
+        Case 0x69
+            Return "NUMPAD9"
+        Case 0x6A
+            Return "NUMPADMULT"
+        Case 0x6B
+            Return "NUMPADADD"
+        Case 0x6D
+            Return "NUMPADSUB"
+        Case 0x6E
+            Return "NUMPADDOT"
+        Case 0x6F
+            Return "NUMPADDIV"
+        Case 0x70 To 0x7B
+            Return "F" & ($iVK - 0x6F)
+        Case 0xBA
+            Return ";"
+        Case 0xBB
+            Return "="
+        Case 0xBC
+            Return ","
+        Case 0xBD
+            Return "-"
+        Case 0xBE
+            Return "."
+        Case 0xBF
+            Return "/"
+        Case 0xC0
+            Return "``"
+        Case 0xDB
+            Return "["
+        Case 0xDC
+            Return "\"
+        Case 0xDD
+            Return "]"
+        Case 0xDE
+            Return "'"
+        Case Else
+            Return "{" & Hex($iVK, 2) & "}"
+    EndSwitch
 EndFunc
 
 ; Name:        __CD_BuildHotkeyString

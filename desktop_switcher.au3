@@ -762,6 +762,9 @@ Func _ProcessTimersAndSleep($bCursorActive)
     ; Toast fade-out tick
     _Theme_ToastTick()
 
+    ; Themed tooltip auto-dismiss
+    _Theme_TooltipTick()
+
     ; Check non-blocking update download result
     _CheckUpdateResult()
 
