@@ -400,7 +400,9 @@ While 1
             EndIf
             _DL_ColorPickerDestroy()
             _DL_CtxDestroy()
-            _DL_Refresh($iTaskbarY, $iDesktop)
+            ; Full rebuild to show updated color indicators
+            _DL_Destroy()
+            _DL_Show($iTaskbarY, $iDesktop)
         EndIf
     EndIf
 
