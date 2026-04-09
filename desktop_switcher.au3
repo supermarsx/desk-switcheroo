@@ -2037,7 +2037,13 @@ Func __ShowCrashDialog($sReason, $sDetails, $sCrashFile)
     GUICtrlSetBkColor($idOpen, 0x333333)
     GUICtrlSetCursor($idOpen, 0)
 
-    Local $idClose = GUICtrlCreateLabel("Close", $iW - 114, $iBtnY, 100, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idRestart = GUICtrlCreateLabel(ChrW(0x21BB) & " Restart", 234, $iBtnY, 80, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idRestart, 9, 400, 0, "Segoe UI")
+    GUICtrlSetColor($idRestart, 0x6699CC)
+    GUICtrlSetBkColor($idRestart, 0x333333)
+    GUICtrlSetCursor($idRestart, 0)
+
+    Local $idClose = GUICtrlCreateLabel("Close", $iW - 84, $iBtnY, 70, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idClose, 9, 400, 0, "Segoe UI")
     GUICtrlSetColor($idClose, 0xDDDDDD)
     GUICtrlSetBkColor($idClose, 0x333333)
@@ -2053,6 +2059,15 @@ Func __ShowCrashDialog($sReason, $sDetails, $sCrashFile)
                     ExitLoop
                 Case $idClose
                     ExitLoop
+                Case $idRestart
+                    GUIDelete($hDlg)
+                    ; Relaunch the app
+                    If @Compiled Then
+                        Run('"' & @ScriptFullPath & '"')
+                    Else
+                        Run('"' & @AutoItExe & '" "' & @ScriptFullPath & '"')
+                    EndIf
+                    Return
                 Case $idCopy
                     ClipPut(FileRead($sCrashFile))
                     GUICtrlSetData($idCopy, "Copied!")
