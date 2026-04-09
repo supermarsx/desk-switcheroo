@@ -1967,6 +1967,7 @@ Func __TriggerTestCrash()
 
     GUISetState(@SW_SHOW, $hDlg)
 
+    Local $iHovered = 0
     While 1
         Local $aMsg = GUIGetMsg(1)
         If $aMsg[1] = $hDlg Then
@@ -1997,6 +1998,27 @@ Func __TriggerTestCrash()
                     _Log_Warn("DEBUG: Forced exit crash triggered")
                     Exit 99
             EndSwitch
+        EndIf
+        ; Hover effects
+        Local $aCur = GUIGetCursorInfo($hDlg)
+        If Not @error Then
+            Local $iF = 0
+            If $aCur[4] = $idCOM Then $iF = $idCOM
+            If $aCur[4] = $idArray Then $iF = $idArray
+            If $aCur[4] = $idDivZero Then $iF = $idDivZero
+            If $aCur[4] = $idExit Then $iF = $idExit
+            If $aCur[4] = $idCancel Then $iF = $idCancel
+            If $iF <> $iHovered Then
+                If $iHovered <> 0 Then
+                    GUICtrlSetColor($iHovered, 0xCCCCCC)
+                    GUICtrlSetBkColor($iHovered, 0x333333)
+                EndIf
+                $iHovered = $iF
+                If $iHovered <> 0 Then
+                    GUICtrlSetColor($iHovered, 0xFFFFFF)
+                    GUICtrlSetBkColor($iHovered, 0x484848)
+                EndIf
+            EndIf
         EndIf
         Sleep(10)
     WEnd
@@ -2122,6 +2144,7 @@ Func __ShowCrashDialog($sReason, $sDetails, $sCrashFile)
 
     GUISetState(@SW_SHOW, $hDlg)
 
+    Local $iHov = 0
     While 1
         Local $aMsg = GUIGetMsg(1)
         If $aMsg[1] = $hDlg Then
@@ -2132,7 +2155,6 @@ Func __ShowCrashDialog($sReason, $sDetails, $sCrashFile)
                     ExitLoop
                 Case $idRestart
                     GUIDelete($hDlg)
-                    ; Relaunch the app
                     If @Compiled Then
                         Run('"' & @ScriptFullPath & '"')
                     Else
@@ -2146,6 +2168,28 @@ Func __ShowCrashDialog($sReason, $sDetails, $sCrashFile)
                 Case $idOpen
                     ShellExecute($sCrashFile)
             EndSwitch
+        EndIf
+        ; Hover effects on buttons
+        Local $aCur2 = GUIGetCursorInfo($hDlg)
+        If Not @error Then
+            Local $iF2 = 0
+            If $aCur2[4] = $idCopy Then $iF2 = $idCopy
+            If $aCur2[4] = $idOpen Then $iF2 = $idOpen
+            If $aCur2[4] = $idRestart Then $iF2 = $idRestart
+            If $aCur2[4] = $idClose Then $iF2 = $idClose
+            If $iF2 <> $iHov Then
+                If $iHov <> 0 Then
+                    Local $iFgR = 0xDDDDDD
+                    If $iHov = $idOpen Or $iHov = $idRestart Then $iFgR = 0x6699CC
+                    GUICtrlSetColor($iHov, $iFgR)
+                    GUICtrlSetBkColor($iHov, 0x333333)
+                EndIf
+                $iHov = $iF2
+                If $iHov <> 0 Then
+                    GUICtrlSetColor($iHov, 0xFFFFFF)
+                    GUICtrlSetBkColor($iHov, 0x484848)
+                EndIf
+            EndIf
         EndIf
         Sleep(10)
     WEnd
