@@ -1912,36 +1912,85 @@ EndFunc
 
 ; Name:        _OnExit
 ; Description: Exit callback registered with OnAutoItExitRegister
-; Name:        _OnAutoItError
-; Description: COM/AutoIt error handler — logs errors and writes crash report
-; Parameters:  Standard AutoIt error object
-Func _OnAutoItError()
-    Local $sErr = "AutoIt Error:" & @CRLF
-    $sErr &= "  Number: " & $__g_oErrorHandler.number & @CRLF
-    $sErr &= "  Description: " & $__g_oErrorHandler.description & @CRLF
-    $sErr &= "  Script Line: " & $__g_oErrorHandler.scriptline & @CRLF
-    $sErr &= "  Source: " & $__g_oErrorHandler.source & @CRLF
-
-    ; Write crash log
+; Name:        __WriteCrashLog
+; Description: Writes crash report IMMEDIATELY to file (bypasses Logger in case Logger crashed)
+; Parameters:  $sReason - crash reason header
+;              $sDetails - error details
+Func __WriteCrashLog($sReason, $sDetails)
+    Local $sTimestamp = @YEAR & "-" & @MON & "-" & @MDAY & " " & @HOUR & ":" & @MIN & ":" & @SEC & "." & @MSEC
     Local $sCrashFile = @ScriptDir & "\crash_" & @YEAR & @MON & @MDAY & "_" & @HOUR & @MIN & @SEC & ".log"
-    FileWrite($sCrashFile, $sErr & @CRLF & "Desktop: " & $iDesktop & @CRLF & "Time: " & @YEAR & "/" & @MON & "/" & @MDAY & " " & @HOUR & ":" & @MIN & ":" & @SEC)
 
-    _Log_Error($sErr)
+    Local $sReport = "=== DESK SWITCHEROO CRASH REPORT ===" & @CRLF
+    $sReport &= "Timestamp: " & $sTimestamp & @CRLF
+    $sReport &= "Reason: " & $sReason & @CRLF
+    $sReport &= @CRLF
+
+    ; Error details
+    $sReport &= "--- Error Details ---" & @CRLF
+    $sReport &= $sDetails & @CRLF
+    $sReport &= @CRLF
+
+    ; App state snapshot
+    $sReport &= "--- App State ---" & @CRLF
+    $sReport &= "Version: " & $APP_VERSION & @CRLF
+    $sReport &= "Current Desktop: " & $iDesktop & @CRLF
+    $sReport &= "Script Line: " & @ScriptLineNumber & @CRLF
+    $sReport &= "Shutting Down: " & $__g_bShuttingDown & @CRLF
+    $sReport &= "Peek Active: " & _Peek_IsActive() & @CRLF
+    $sReport &= "DL Visible: " & _DL_IsVisible() & @CRLF
+    $sReport &= "CM Visible: " & _CM_IsVisible() & @CRLF
+    $sReport &= "CD Visible: " & _CD_IsVisible() & @CRLF
+    $sReport &= "RD Visible: " & _RD_IsVisible() & @CRLF
+    $sReport &= "Tray Mode: " & $__g_bTrayMode & @CRLF
+    $sReport &= "Dragging: " & _DL_IsDragging() & @CRLF
+    $sReport &= @CRLF
+
+    ; System info
+    $sReport &= "--- System Info ---" & @CRLF
+    $sReport &= "AutoIt: " & @AutoItVersion & " (" & @AutoItX64 & "-bit)" & @CRLF
+    $sReport &= "OS: " & @OSVersion & " " & @OSArch & " (Build " & @OSBuild & ")" & @CRLF
+    $sReport &= "User: " & @UserName & @CRLF
+    $sReport &= "PID: " & @AutoItPID & @CRLF
+    $sReport &= "Script: " & @ScriptFullPath & @CRLF
+    $sReport &= "Working Dir: " & @WorkingDir & @CRLF
+    $sReport &= @CRLF
+    $sReport &= "=== END CRASH REPORT ===" & @CRLF
+
+    ; Write immediately — don't use Logger (it might be the crash source)
+    Local $hFile = FileOpen($sCrashFile, 2) ; 2 = overwrite
+    If $hFile <> -1 Then
+        FileWrite($hFile, $sReport)
+        FileFlush($hFile)
+        FileClose($hFile)
+    EndIf
+
+    ; Also try to log via Logger (may fail if Logger is broken)
+    _Log_Error("CRASH: " & $sReason & " | " & StringReplace($sDetails, @CRLF, " | "))
+EndFunc
+
+; Name:        _OnAutoItError
+; Description: COM/AutoIt error handler — writes crash report IMMEDIATELY
+Func _OnAutoItError()
+    Local $sDetails = "Error Number: 0x" & Hex($__g_oErrorHandler.number, 8) & @CRLF
+    $sDetails &= "Description: " & $__g_oErrorHandler.description & @CRLF
+    $sDetails &= "WinDescription: " & $__g_oErrorHandler.windescription & @CRLF
+    $sDetails &= "Script Line: " & $__g_oErrorHandler.scriptline & @CRLF
+    $sDetails &= "Source: " & $__g_oErrorHandler.source & @CRLF
+    $sDetails &= "HelpFile: " & $__g_oErrorHandler.helpfile & @CRLF
+    $sDetails &= "HelpContext: " & $__g_oErrorHandler.helpcontext & @CRLF
+    $sDetails &= "LastDllError: " & $__g_oErrorHandler.lastdllerror & @CRLF
+    $sDetails &= "RetCode: " & $__g_oErrorHandler.retcode
+
+    __WriteCrashLog("COM/AutoIt Error", $sDetails)
 EndFunc
 
 ; Name:        _OnExit
-; Description: Exit callback — writes crash info if exit was unexpected
+; Description: Exit callback — writes crash report if exit was unexpected
 Func _OnExit()
     If Not $__g_bShuttingDown Then
-        ; Unexpected exit — write crash report
-        Local $sCrashFile = @ScriptDir & "\crash_" & @YEAR & @MON & @MDAY & "_" & @HOUR & @MIN & @SEC & ".log"
-        Local $sInfo = "Unexpected exit at " & @YEAR & "/" & @MON & "/" & @MDAY & " " & @HOUR & ":" & @MIN & ":" & @SEC & @CRLF
-        $sInfo &= "Exit code: " & @exitCode & @CRLF
-        $sInfo &= "Desktop: " & $iDesktop & @CRLF
-        $sInfo &= "AutoIt version: " & @AutoItVersion & @CRLF
-        $sInfo &= "OS: " & @OSVersion & " " & @OSArch & @CRLF
-        FileWrite($sCrashFile, $sInfo)
-        _Log_Error("Unexpected exit: code=" & @exitCode)
+        Local $sDetails = "Exit Code: " & @exitCode & @CRLF
+        $sDetails &= "Exit Method: " & @exitMethod
+        __WriteCrashLog("Unexpected Exit", $sDetails)
     EndIf
     _Shutdown()
 EndFunc
