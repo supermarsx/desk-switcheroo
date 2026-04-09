@@ -104,7 +104,8 @@ Global $gui, $lblNum, $lblName, $lblLeft, $lblRight
 Global $iTaskbarH, $iTaskbarY
 Global $bHoverLeft = False, $bHoverRight = False
 Global $iRenameTarget = 0
-Global $hMoveWindowTarget = 0 ; foreground window captured before context menu opens
+Global $hMoveWindowTarget = 0   ; last known external foreground window
+Global $hLastExternalWindow = 0 ; continuously tracked
 Global $bDesktopChanged = False
 Global $bNamesChanged = False
 Global $__g_iLastCursorX = -1, $__g_iLastCursorY = -1
@@ -494,9 +495,8 @@ Func _ProcessMouseInput()
                     If _DL_CtxIsVisible() Then
                         _DL_CtxDestroy()
                     Else
-                        ; Capture foreground window BEFORE context menu steals focus
-                        $hMoveWindowTarget = WinGetHandle("[ACTIVE]")
-                        If $hMoveWindowTarget = $gui Then $hMoveWindowTarget = 0
+                        ; Use last tracked external window for Move Window Here
+                        $hMoveWindowTarget = $hLastExternalWindow
                         _DL_CtxShow($iRightClickRow)
                     EndIf
                 EndIf
@@ -687,6 +687,16 @@ Func _ProcessEventFlags()
     If $bNamesChanged Then
         $bNamesChanged = False
         _ApplyDesktopChange()
+    EndIf
+
+    ; Track last external foreground window (for Move Window Here)
+    Local $hFg = WinGetHandle("[ACTIVE]")
+    If $hFg <> 0 And $hFg <> $gui And (Not _DL_IsVisible() Or $hFg <> _DL_GetGUI()) And _
+       (Not _CM_IsVisible() Or $hFg <> _CM_GetGUI()) And _
+       (Not _DL_CtxIsVisible() Or $hFg <> _DL_CtxGetGUI()) And _
+       (Not _RD_IsVisible() Or $hFg <> _RD_GetGUI()) And _
+       (Not _CD_IsVisible() Or $hFg <> _CD_GetGUI()) Then
+        $hLastExternalWindow = $hFg
     EndIf
 EndFunc
 
