@@ -22,6 +22,8 @@ Global $__g_Cfg_bTrayIconMode     = False
 Global $__g_Cfg_bQuickAccessEnabled = False
 Global $__g_Cfg_bStartMinimized    = False
 Global $__g_Cfg_bListKeyboardNav   = False
+Global $__g_Cfg_bAutoUpdateEnabled = False
+Global $__g_Cfg_iAutoUpdateInterval = 604800000
 
 ; [Display]
 Global $__g_Cfg_bShowCount         = False
@@ -111,6 +113,8 @@ Func _Cfg_Load()
     $__g_Cfg_bQuickAccessEnabled = __Cfg_ReadBool($f, "General", "quick_access_enabled", False)
     $__g_Cfg_bStartMinimized    = __Cfg_ReadBool($f, "General", "start_minimized", False)
     $__g_Cfg_bListKeyboardNav   = __Cfg_ReadBool($f, "General", "list_keyboard_nav", False)
+    $__g_Cfg_bAutoUpdateEnabled = __Cfg_ReadBool($f, "General", "auto_update_enabled", False)
+    $__g_Cfg_iAutoUpdateInterval = __Cfg_ReadInt($f, "General", "auto_update_interval", 604800000, 3600000, 2592000000)
 
     ; [Display]
     $__g_Cfg_bShowCount         = __Cfg_ReadBool($f, "Display", "show_count", False)
@@ -180,6 +184,8 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "General", "quick_access_enabled", $__g_Cfg_bQuickAccessEnabled)
     __Cfg_WriteBool($f, "General", "start_minimized", $__g_Cfg_bStartMinimized)
     __Cfg_WriteBool($f, "General", "list_keyboard_nav", $__g_Cfg_bListKeyboardNav)
+    __Cfg_WriteBool($f, "General", "auto_update_enabled", $__g_Cfg_bAutoUpdateEnabled)
+    IniWrite($f, "General", "auto_update_interval", $__g_Cfg_iAutoUpdateInterval)
 
     ; [Display]
     __Cfg_WriteBool($f, "Display", "show_count", $__g_Cfg_bShowCount)
@@ -242,6 +248,8 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "General", "quick_access_enabled", False)
     __Cfg_DefaultBool($f, "General", "start_minimized", False)
     __Cfg_DefaultBool($f, "General", "list_keyboard_nav", False)
+    __Cfg_DefaultBool($f, "General", "auto_update_enabled", False)
+    __Cfg_DefaultVal($f, "General", "auto_update_interval", 604800000)
 
     __Cfg_DefaultBool($f, "Display", "show_count", False)
     __Cfg_DefaultVal($f, "Display", "count_font_size", 7)
@@ -320,6 +328,12 @@ Func _Cfg_GetStartMinimized()
 EndFunc
 Func _Cfg_GetListKeyboardNav()
     Return $__g_Cfg_bListKeyboardNav
+EndFunc
+Func _Cfg_GetAutoUpdateEnabled()
+    Return $__g_Cfg_bAutoUpdateEnabled
+EndFunc
+Func _Cfg_GetAutoUpdateInterval()
+    Return $__g_Cfg_iAutoUpdateInterval
 EndFunc
 
 ; [Display]
@@ -457,6 +471,14 @@ Func _Cfg_SetStartMinimized($b)
 EndFunc
 Func _Cfg_SetListKeyboardNav($b)
     $__g_Cfg_bListKeyboardNav = $b
+EndFunc
+Func _Cfg_SetAutoUpdateEnabled($b)
+    $__g_Cfg_bAutoUpdateEnabled = $b
+EndFunc
+Func _Cfg_SetAutoUpdateInterval($i)
+    If $i < 3600000 Then $i = 3600000
+    If $i > 2592000000 Then $i = 2592000000
+    $__g_Cfg_iAutoUpdateInterval = $i
 EndFunc
 
 ; [Display]

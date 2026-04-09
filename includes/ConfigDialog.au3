@@ -48,6 +48,7 @@ Global $__g_CD_aidInpHkDesktop[10] ; index 1-9
 ; -- Tab 1 extras: General --
 Global $__g_CD_idChkWidgetDrag, $__g_CD_idChkTrayMode, $__g_CD_idChkQuickAccess
 Global $__g_CD_idChkListKeyNav
+Global $__g_CD_idChkAutoUpdate, $__g_CD_idInpUpdateInterval
 
 ; -- Tab 5: Behavior --
 Global $__g_CD_idChkConfirmDel, $__g_CD_idChkMidClick, $__g_CD_idChkMoveWin
@@ -382,6 +383,21 @@ Func __CD_BuildTabGeneral()
     $__g_CD_idChkQuickAccess = __CD_CreateCheckbox("Quick-access number input", $iX, $iY, 300, $t)
     $iY += 26
     $__g_CD_idChkListKeyNav = __CD_CreateCheckbox("Keyboard nav in list", $iX, $iY, 300, $t)
+    $iY += 34
+
+    $__g_CD_idChkAutoUpdate = __CD_CreateCheckbox("Auto-update check", $iX, $iY, 300, $t)
+    $iY += 28
+
+    $idLbl = GUICtrlCreateLabel("Update interval (ms):", $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpUpdateInterval = GUICtrlCreateInput("", $iX + 170, $iY, 100, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpUpdateInterval, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpUpdateInterval, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpUpdateInterval, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpUpdateInterval)
 EndFunc
 
 Func __CD_BuildTabDisplay()
@@ -652,6 +668,8 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkTrayMode, _Cfg_GetTrayIconMode())
     __CD_SetCheckState($__g_CD_idChkQuickAccess, _Cfg_GetQuickAccessEnabled())
     __CD_SetCheckState($__g_CD_idChkListKeyNav, _Cfg_GetListKeyboardNav())
+    __CD_SetCheckState($__g_CD_idChkAutoUpdate, _Cfg_GetAutoUpdateEnabled())
+    GUICtrlSetData($__g_CD_idInpUpdateInterval, _Cfg_GetAutoUpdateInterval())
 
     ; Display
     __CD_SetCheckState($__g_CD_idChkShowCount, _Cfg_GetShowCount())
@@ -806,6 +824,9 @@ Func __CD_ApplyChanges()
     _Cfg_SetTrayIconMode(__CD_GetCheckState($__g_CD_idChkTrayMode))
     _Cfg_SetQuickAccessEnabled(__CD_GetCheckState($__g_CD_idChkQuickAccess))
     _Cfg_SetListKeyboardNav(__CD_GetCheckState($__g_CD_idChkListKeyNav))
+    _Cfg_SetAutoUpdateEnabled(__CD_GetCheckState($__g_CD_idChkAutoUpdate))
+    $s = GUICtrlRead($__g_CD_idInpUpdateInterval)
+    If StringIsInt($s) Then _Cfg_SetAutoUpdateInterval(Int($s))
 
     ; Display
     _Cfg_SetShowCount(__CD_GetCheckState($__g_CD_idChkShowCount))

@@ -132,6 +132,9 @@ Global $__g_iTraySettings = 0, $__g_iTrayAbout = 0, $__g_iTrayQuit = 0
 ; ---- Config file watcher global ----
 Global $__g_sCfgFileTime = ""
 
+; ---- Auto-update checker global ----
+Global $__g_hUpdateTimer = 0
+
 ; ---- Get taskbar dimensions ----
 Local $hTaskbar = WinGetHandle("[CLASS:Shell_TrayWnd]")
 Local $aTaskbarPos = WinGetPos($hTaskbar)
@@ -210,6 +213,11 @@ If _Cfg_GetTrayIconMode() Then _InitTrayMode()
 If _Cfg_GetConfigWatcherEnabled() Then
     $__g_sCfgFileTime = FileGetTime(_Cfg_GetPath(), 0, 1)
     AdlibRegister("_AdlibConfigWatcher", _Cfg_GetConfigWatcherInterval())
+EndIf
+
+; ---- Auto-update checker (if enabled) ----
+If _Cfg_GetAutoUpdateEnabled() Then
+    AdlibRegister("_AdlibCheckUpdate", _Cfg_GetAutoUpdateInterval())
 EndIf
 
 _Log_Info("Startup complete")
@@ -677,6 +685,7 @@ While 1
         If _DL_IsVisible() And _Theme_IsCursorOverWindow(_DL_GetGUI()) Then _DL_CheckHover($iDesktop)
         If _CM_IsVisible() And _Theme_IsCursorOverWindow(_CM_GetGUI()) Then _CM_CheckHover()
         If _DL_CtxIsVisible() And _Theme_IsCursorOverWindow(_DL_CtxGetGUI()) Then _DL_CtxCheckHover()
+        If _DL_ColorPickerIsVisible() And _Theme_IsCursorOverWindow(_DL_ColorPickerGetGUI()) Then _DL_ColorPickerCheckHover()
         If _RD_IsVisible() And _Theme_IsCursorOverWindow(_RD_GetGUI()) Then _RD_CheckHover()
     EndIf
 
@@ -780,6 +789,12 @@ Func _ApplySettingsLive()
         AdlibRegister("_AdlibConfigWatcher", _Cfg_GetConfigWatcherInterval())
     EndIf
 
+    ; Update auto-update checker
+    AdlibUnRegister("_AdlibCheckUpdate")
+    If _Cfg_GetAutoUpdateEnabled() Then
+        AdlibRegister("_AdlibCheckUpdate", _Cfg_GetAutoUpdateInterval())
+    EndIf
+
     ; Refresh display (count format, label, list)
     _ApplyDesktopChange()
 
@@ -866,6 +881,29 @@ EndFunc
 Func _AdlibSyncNames()
     If _Peek_IsActive() Then Return
     If _Labels_SyncFromOS() Then $bNamesChanged = True
+EndFunc
+
+; Name:        _AdlibCheckUpdate
+; Description: Checks GitHub releases API for newer version. Shows toast if update available.
+Func _AdlibCheckUpdate()
+    Local $sUrl = "https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest"
+    Local $sResponse = InetRead($sUrl, 1) ; 1 = force reload
+    If @error Then Return
+    Local $sJson = BinaryToString($sResponse)
+
+    ; Extract tag_name from JSON (simple pattern match, no JSON parser needed)
+    Local $aMatch = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
+    If @error Or UBound($aMatch) < 1 Then Return
+
+    Local $sLatest = $aMatch[0]
+    _Log_Info("Update check: latest release is v" & $sLatest)
+
+    ; Show toast if different from last shown (avoid spamming)
+    Static $sLastShown = ""
+    If $sLatest <> $sLastShown Then
+        $sLastShown = $sLatest
+        _Theme_Toast("Update available: v" & $sLatest, 0, $iTaskbarY + $iTaskbarH + 4, 3000, $TOAST_INFO)
+    EndIf
 EndFunc
 
 ; Name:        _CheckHover
@@ -1445,6 +1483,7 @@ Func _Shutdown()
     AdlibUnRegister("_ForceTopMost")
     AdlibUnRegister("_AdlibSyncNames")
     AdlibUnRegister("_AdlibConfigWatcher")
+    AdlibUnRegister("_AdlibCheckUpdate")
     If $gui Then _VD_UnregisterNotify($gui)
     _RD_Shutdown()
     _VD_Shutdown()
