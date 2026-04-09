@@ -57,6 +57,7 @@ Global $__g_CD_idChkListKeyNav
 Global $__g_CD_idChkAutoUpdate, $__g_CD_idInpUpdateInterval
 Global $__g_CD_idChkUpdateOnStartup, $__g_CD_idInpUpdateCheckDays
 Global $__g_CD_idBtnCheckNow, $__g_CD_idBtnDownloadLatest
+Global $__g_CD_iContentH = 450
 
 ; -- Tab 5: Behavior --
 Global $__g_CD_idChkConfirmDel, $__g_CD_idChkMidClick, $__g_CD_idChkMoveWin
@@ -102,7 +103,12 @@ Global $__g_CD_idBtnReset
 ; #FUNCTIONS# ===================================================
 
 Func _CD_Show()
-    Local $iW = 460, $iH = 570
+    Local $iW = 460
+    ; Dynamic height: use up to 80% of screen, minimum 570
+    Local $iMaxH = Int(@DesktopHeight * 0.8)
+    Local $iH = 620
+    If $iH > $iMaxH Then $iH = $iMaxH
+    If $iH < 570 Then $iH = 570
     Local $iX = (@DesktopWidth - $iW) / 2
     Local $iY = (@DesktopHeight - $iH) / 2
 
@@ -129,7 +135,9 @@ Func _CD_Show()
     Next
 
     ; Content area background (disabled so it doesn't intercept clicks on controls above)
-    Local $idContentBg = GUICtrlCreateLabel("", 8, 38, $iW - 16, 447)
+    $__g_CD_iContentH = $iH - 120 ; leave room for tab bar + buttons
+    Local $iContentH = $__g_CD_iContentH
+    Local $idContentBg = GUICtrlCreateLabel("", 8, 38, $iW - 16, $iContentH)
     GUICtrlSetBkColor($idContentBg, $THEME_BG_MAIN)
     GUICtrlSetState($idContentBg, $GUI_DISABLE)
 
@@ -936,8 +944,11 @@ Func __CD_BuildTabDesktops()
     _Theme_SetTooltip($__g_CD_idChkColorsEnabled, "Show colored indicators next to desktop names in the list")
     $iY += 28
 
-    ; Get current desktop count from VD
+    ; Get current desktop count, limit to what fits in content area
     Local $iCount = _VD_GetCount()
+    Local $iMaxRows = Int(($__g_CD_iContentH - 100) / 24) ; 100px for checkbox + header + padding
+    If $iMaxRows < 3 Then $iMaxRows = 3
+    If $iCount > $iMaxRows Then $iCount = $iMaxRows
     If $iCount > 20 Then $iCount = 20
     $__g_CD_iDeskCount = $iCount
 
