@@ -882,6 +882,17 @@ Func _ApplySettingsLive()
     ; Refresh display (count format, label, list)
     _ApplyDesktopChange()
 
+    ; Rebuild desktop list to apply scroll/font/color changes immediately
+    If _DL_IsVisible() Then
+        _DL_Destroy()
+        _DL_Show($iTaskbarY, $iDesktop)
+    EndIf
+
+    ; Ensure scroll wheel handler is registered
+    If _Cfg_GetScrollEnabled() Or _Cfg_GetListScrollEnabled() Then
+        GUIRegisterMsg(0x020A, "_WM_MOUSEWHEEL")
+    EndIf
+
     ; Force reposition with new widget position/offset
     _ForceTopMost()
 EndFunc
