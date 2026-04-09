@@ -12,6 +12,7 @@
 Global $__g_CM_hGUI       = 0
 Global $__g_CM_bVisible   = False
 Global $__g_CM_iEditID    = 0
+Global $__g_CM_iSetColorID = 0
 Global $__g_CM_iToggleID  = 0
 Global $__g_CM_iAddID     = 0
 Global $__g_CM_iDeleteID  = 0
@@ -31,7 +32,9 @@ Global $__g_CM_bHideArmed = False
 Func _CM_Show($iTaskbarY, $bListVisible)
     Local $iMenuW = 170
     Local $iSepH = 1
-    Local $iMenuH = 7 * $THEME_MENU_ITEM_H + 2 * $iSepH + 20
+    Local $iItemCount = 7
+    If _Cfg_GetDesktopColorsEnabled() Then $iItemCount += 1
+    Local $iMenuH = $iItemCount * $THEME_MENU_ITEM_H + 2 * $iSepH + 20
     Local $iMenuX = 0
     Local $iMenuY = $iTaskbarY - $iMenuH
 
@@ -41,6 +44,11 @@ Func _CM_Show($iTaskbarY, $bListVisible)
 
     $__g_CM_iEditID = _Theme_CreateMenuItem("  Edit Label", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
+
+    If _Cfg_GetDesktopColorsEnabled() Then
+        $__g_CM_iSetColorID = _Theme_CreateMenuItem("  Set Color  " & ChrW(0x25B6), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+        $iY += $THEME_MENU_ITEM_H
+    EndIf
 
     Local $sToggle = "  Show Desktop List"
     If $bListVisible Then $sToggle = "  Hide Desktop List"
@@ -85,6 +93,7 @@ Func _CM_Destroy()
     EndIf
     $__g_CM_bVisible = False
     $__g_CM_iEditID = 0
+    $__g_CM_iSetColorID = 0
     $__g_CM_iToggleID = 0
     $__g_CM_iAddID = 0
     $__g_CM_iDeleteID = 0
@@ -110,6 +119,7 @@ Func _CM_CheckHover()
 
     Local $iFound = 0
     If $aCursor[4] = $__g_CM_iEditID Then $iFound = $__g_CM_iEditID
+    If $__g_CM_iSetColorID <> 0 And $aCursor[4] = $__g_CM_iSetColorID Then $iFound = $__g_CM_iSetColorID
     If $aCursor[4] = $__g_CM_iToggleID Then $iFound = $__g_CM_iToggleID
     If $aCursor[4] = $__g_CM_iAddID Then $iFound = $__g_CM_iAddID
     If $aCursor[4] = $__g_CM_iDeleteID Then $iFound = $__g_CM_iDeleteID
@@ -137,6 +147,7 @@ EndFunc
 ; Return:      "edit", "toggle_list", "add", "delete", "about", "settings", "quit", or ""
 Func _CM_HandleClick($msg)
     If $msg = $__g_CM_iEditID Then Return "edit"
+    If $__g_CM_iSetColorID <> 0 And $msg = $__g_CM_iSetColorID Then Return "set_color"
     If $msg = $__g_CM_iToggleID Then Return "toggle_list"
     If $msg = $__g_CM_iAddID Then Return "add"
     If $msg = $__g_CM_iDeleteID Then Return "delete"

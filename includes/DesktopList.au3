@@ -820,8 +820,10 @@ Func _DL_CtxShow($iTarget)
     $__g_DL_iCtxPeek = _Theme_CreateMenuItem("  Peek", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 
-    $__g_DL_iCtxSetColor = _Theme_CreateMenuItem("  Set Color  " & ChrW(0x25B6), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
-    $iY += $THEME_MENU_ITEM_H
+    If _Cfg_GetDesktopColorsEnabled() Then
+        $__g_DL_iCtxSetColor = _Theme_CreateMenuItem("  Set Color  " & ChrW(0x25B6), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+        $iY += $THEME_MENU_ITEM_H
+    EndIf
 
     If _Cfg_GetMoveWindowEnabled() Then
         $__g_DL_iCtxMoveWin = _Theme_CreateMenuItem("  Move Window Here", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)

@@ -315,6 +315,8 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 _CM_Destroy()
                 $iRenameTarget = $iDesktop
                 _RD_Show($iDesktop, $iTaskbarY)
+            Case "set_color"
+                _DL_ColorPickerShow($iDesktop)
             Case "toggle_list"
                 _CM_Destroy()
                 _DL_Toggle($iTaskbarY, $iDesktop)
