@@ -6,6 +6,12 @@
 
 A lightweight Windows virtual desktop switcher that sits in your taskbar. Built with AutoIt.
 
+## Requirements
+
+- **Windows 10 or 11** (64-bit only)
+- [AutoIt v3](https://www.autoitscript.com/) (64-bit) — only needed to run the .au3 source; compiled .exe works standalone
+- [VirtualDesktopAccessor.dll](https://github.com/Ciantic/VirtualDesktopAccessor) — bundled, must match your Windows build
+
 ## Features
 
 - **Taskbar widget** — compact overlay docked to the taskbar showing your current desktop number and custom label
