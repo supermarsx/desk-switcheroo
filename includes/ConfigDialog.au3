@@ -21,12 +21,12 @@ Global $__g_CD_bVisible = False
 Global $__g_CD_iActiveTab = 0
 
 ; -- Tab button IDs --
-Global $__g_CD_aidTabBtn[9] ; index 1-8
-Global Const $__g_CD_aTabNames = "General,Display,Scroll,Hotkeys,Behavior,Colors,Logging,Updates"
+Global $__g_CD_aidTabBtn[10] ; index 1-9
+Global Const $__g_CD_aTabNames = "General,Display,Scroll,Hotkeys,Behavior,Colors,Logging,Updates,Desktops"
 
 ; -- Controls per tab (arrays of IDs to show/hide) --
-Global $__g_CD_aidTabCtrls[9][40] ; [tab 1-8][up to 40 controls per tab]
-Global $__g_CD_aiTabCtrlCount[9]  ; how many controls per tab
+Global $__g_CD_aidTabCtrls[10][40] ; [tab 1-9][up to 40 controls per tab]
+Global $__g_CD_aiTabCtrlCount[10]  ; how many controls per tab
 
 ; -- Tab 1: General --
 Global $__g_CD_idChkStartWin, $__g_CD_idChkWrapNav, $__g_CD_idChkAutoCreate
@@ -90,6 +90,12 @@ Global $__g_CD_aChkStates[30]  ; boolean states
 Global $__g_CD_aChkTexts[30]   ; original text per checkbox
 Global $__g_CD_iChkCount = 0
 
+; -- Tab 9: Desktops --
+Global $__g_CD_aidDeskLabel[21]   ; input fields for desktop labels, index 1-20
+Global $__g_CD_aidDeskColor[21]   ; input fields for desktop colors, index 1-20
+Global $__g_CD_aidDeskPreview[21] ; color preview labels, index 1-20
+Global $__g_CD_iDeskCount = 0     ; how many desktop rows were created
+
 ; -- Reset button --
 Global $__g_CD_idBtnReset
 
@@ -106,13 +112,13 @@ Func _CD_Show()
     ; Reset state
     $__g_CD_iChkCount = 0
     Local $t
-    For $t = 1 To 8
+    For $t = 1 To 9
         $__g_CD_aiTabCtrlCount[$t] = 0
     Next
 
     ; Create custom tab bar
     Local $aNames = StringSplit($__g_CD_aTabNames, ",")
-    Local $iTabW = 52, $iTabH = 26, $iTabX = 10, $iTabY = 8
+    Local $iTabW = 46, $iTabH = 26, $iTabX = 10, $iTabY = 8
     For $t = 1 To $aNames[0]
         $__g_CD_aidTabBtn[$t] = GUICtrlCreateLabel($aNames[$t], $iTabX, $iTabY, $iTabW, $iTabH, _
             BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
@@ -137,6 +143,7 @@ Func _CD_Show()
     __CD_BuildTabColors()
     __CD_BuildTabLogging()
     __CD_BuildTabUpdates()
+    __CD_BuildTabDesktops()
 
     ; Import + Export + Restart buttons (top row)
     Local $iBtnW = 80, $iBtnH = 26
@@ -227,7 +234,7 @@ Func __CD_SwitchTab($iTab)
     $__g_CD_iActiveTab = $iTab
     ; Update tab button styles
     Local $t, $c
-    For $t = 1 To 8
+    For $t = 1 To 9
         If $t = $iTab Then
             GUICtrlSetColor($__g_CD_aidTabBtn[$t], $THEME_FG_WHITE)
             GUICtrlSetBkColor($__g_CD_aidTabBtn[$t], $THEME_BG_ACTIVE)
@@ -239,7 +246,7 @@ Func __CD_SwitchTab($iTab)
         EndIf
     Next
     ; Show/hide controls per tab
-    For $t = 1 To 8
+    For $t = 1 To 9
         Local $iState = $GUI_HIDE
         If $t = $iTab Then $iState = $GUI_SHOW
         For $c = 0 To $__g_CD_aiTabCtrlCount[$t] - 1
@@ -916,6 +923,53 @@ Func __CD_BuildTabUpdates()
     _Theme_SetTooltip($__g_CD_idBtnCheckNow, "Check for updates right now")
 EndFunc
 
+Func __CD_BuildTabDesktops()
+    Local $t = 9, $iX = 20, $iY = 50
+
+    ; Get current desktop count from VD
+    Local $iCount = _VD_GetCount()
+    If $iCount > 20 Then $iCount = 20
+    $__g_CD_iDeskCount = $iCount
+
+    ; Header
+    Local $idHdr = GUICtrlCreateLabel("Desktop    Label                     Color", $iX, $iY, 400, 16)
+    GUICtrlSetFont($idHdr, 7, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idHdr, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idHdr, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idHdr)
+    $iY += 20
+
+    Local $i
+    For $i = 1 To $iCount
+        ; Desktop number
+        Local $idNum = GUICtrlCreateLabel(StringRight("0" & $i, 2), $iX, $iY + 2, 30, 18)
+        GUICtrlSetFont($idNum, 8, 700, 0, $THEME_FONT_MONO)
+        GUICtrlSetColor($idNum, $THEME_FG_PRIMARY)
+        GUICtrlSetBkColor($idNum, $GUI_BKCOLOR_TRANSPARENT)
+        __CD_RegCtrl($t, $idNum)
+
+        ; Label input
+        $__g_CD_aidDeskLabel[$i] = GUICtrlCreateInput("", $iX + 35, $iY, 180, 20)
+        GUICtrlSetFont($__g_CD_aidDeskLabel[$i], 8, 400, 0, $THEME_FONT_MAIN)
+        GUICtrlSetColor($__g_CD_aidDeskLabel[$i], $THEME_FG_TEXT)
+        GUICtrlSetBkColor($__g_CD_aidDeskLabel[$i], $THEME_BG_INPUT)
+        __CD_RegCtrl($t, $__g_CD_aidDeskLabel[$i])
+
+        ; Color hex input
+        $__g_CD_aidDeskColor[$i] = GUICtrlCreateInput("", $iX + 225, $iY, 70, 20)
+        GUICtrlSetFont($__g_CD_aidDeskColor[$i], 8, 400, 0, $THEME_FONT_MONO)
+        GUICtrlSetColor($__g_CD_aidDeskColor[$i], $THEME_FG_TEXT)
+        GUICtrlSetBkColor($__g_CD_aidDeskColor[$i], $THEME_BG_INPUT)
+        __CD_RegCtrl($t, $__g_CD_aidDeskColor[$i])
+
+        ; Color preview
+        $__g_CD_aidDeskPreview[$i] = GUICtrlCreateLabel("", $iX + 305, $iY + 2, 16, 16)
+        __CD_RegCtrl($t, $__g_CD_aidDeskPreview[$i])
+
+        $iY += 24
+    Next
+EndFunc
+
 ; =============================================
 ; POPULATE FROM CONFIG
 ; =============================================
@@ -998,6 +1052,19 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpUpdateInterval, _Cfg_GetAutoUpdateIntervalHours())
     __CD_SetCheckState($__g_CD_idChkUpdateOnStartup, _Cfg_GetUpdateCheckOnStartup())
     GUICtrlSetData($__g_CD_idInpUpdateCheckDays, _Cfg_GetUpdateCheckDays())
+
+    ; Desktops
+    For $i = 1 To $__g_CD_iDeskCount
+        GUICtrlSetData($__g_CD_aidDeskLabel[$i], _Labels_Load($i))
+        Local $iClr = _Cfg_GetDesktopColor($i)
+        If $iClr > 0 Then
+            GUICtrlSetData($__g_CD_aidDeskColor[$i], Hex($iClr, 6))
+            GUICtrlSetBkColor($__g_CD_aidDeskPreview[$i], $iClr)
+        Else
+            GUICtrlSetData($__g_CD_aidDeskColor[$i], "")
+            GUICtrlSetBkColor($__g_CD_aidDeskPreview[$i], $THEME_BG_INPUT)
+        EndIf
+    Next
 EndFunc
 
 ; =============================================
@@ -1032,7 +1099,7 @@ Func __CD_MessageLoop()
             EndSwitch
 
             ; Tab button clicks
-            For $t = 1 To 8
+            For $t = 1 To 9
                 If $id = $__g_CD_aidTabBtn[$t] Then
                     __CD_SwitchTab($t)
                     ExitLoop
@@ -1208,6 +1275,21 @@ Func __CD_ApplyChanges()
     $s = GUICtrlRead($__g_CD_idInpUpdateCheckDays)
     If StringIsInt($s) Then _Cfg_SetUpdateCheckDays(Int($s))
 
+    ; Desktops - save labels and colors
+    For $i = 1 To $__g_CD_iDeskCount
+        Local $sLabel = GUICtrlRead($__g_CD_aidDeskLabel[$i])
+        _Labels_Save($i, $sLabel)
+
+        Local $sHex = GUICtrlRead($__g_CD_aidDeskColor[$i])
+        Local $iClr = _Theme_ValidateHexColor($sHex)
+        If $iClr >= 0 Then
+            _Cfg_SetDesktopColor($i, $iClr)
+            _Cfg_SetDesktopColorsEnabled(True)
+        ElseIf $sHex = "" Then
+            _Cfg_SetDesktopColor($i, 0) ; none
+        EndIf
+    Next
+
     If Not _Cfg_Save() Then
         Local $aErrPos = WinGetPos($__g_CD_hGUI)
         If Not @error Then
@@ -1262,16 +1344,31 @@ EndFunc
 ; Name:        __CD_UpdateColorPreviews
 ; Description: Updates color preview swatches from input values in real-time
 Func __CD_UpdateColorPreviews()
-    If $__g_CD_iActiveTab <> 6 Then Return ; only update when Colors tab is visible
-    Local $i
-    For $i = 1 To 9
-        If $__g_CD_aidInpColor[$i] = 0 Then ContinueLoop
-        Local $sHex = GUICtrlRead($__g_CD_aidInpColor[$i])
-        Local $iColor = _Theme_ValidateHexColor($sHex)
-        If $iColor >= 0 Then
-            GUICtrlSetBkColor($__g_CD_aidLblPreview[$i], $iColor)
-        EndIf
-    Next
+    If $__g_CD_iActiveTab = 6 Then
+        ; Update Colors tab previews
+        Local $i
+        For $i = 1 To 9
+            If $__g_CD_aidInpColor[$i] = 0 Then ContinueLoop
+            Local $sHex = GUICtrlRead($__g_CD_aidInpColor[$i])
+            Local $iColor = _Theme_ValidateHexColor($sHex)
+            If $iColor >= 0 Then
+                GUICtrlSetBkColor($__g_CD_aidLblPreview[$i], $iColor)
+            EndIf
+        Next
+    EndIf
+
+    ; Also update Desktops tab (tab 9) previews
+    If $__g_CD_iActiveTab = 9 Then
+        Local $i
+        For $i = 1 To $__g_CD_iDeskCount
+            If $__g_CD_aidDeskColor[$i] = 0 Then ContinueLoop
+            Local $sHex2 = GUICtrlRead($__g_CD_aidDeskColor[$i])
+            Local $iClr2 = _Theme_ValidateHexColor($sHex2)
+            If $iClr2 >= 0 Then
+                GUICtrlSetBkColor($__g_CD_aidDeskPreview[$i], $iClr2)
+            EndIf
+        Next
+    EndIf
 EndFunc
 
 Func __CD_ResetDefaults()
