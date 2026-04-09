@@ -1112,6 +1112,38 @@ EndFunc
 
 ; Name:        _CheckHover
 ; Description: Updates hover highlighting on widget arrow buttons
+; Name:        _DownloadLatestPortable
+; Description: Downloads the latest portable zip from GitHub to the Downloads folder
+Func _DownloadLatestPortable()
+    _Log_Info("Download latest portable triggered")
+    Local $sUrl = "https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest"
+    Local $bData = InetRead($sUrl, 1)
+    If @error Then
+        _Theme_Toast("Download failed — connection error", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
+        Return
+    EndIf
+    Local $sJson = BinaryToString($bData)
+
+    ; Find portable zip URL
+    Local $aMatch = StringRegExp($sJson, '"browser_download_url"\s*:\s*"([^"]*Portable[^"]*\.zip)"', 1)
+    If @error Or UBound($aMatch) < 1 Then
+        _Theme_Toast("No portable download found", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_WARNING)
+        Return
+    EndIf
+
+    Local $sDownloadUrl = $aMatch[0]
+    Local $sDestDir = @UserProfileDir & "\Downloads"
+    Local $sDestFile = $sDestDir & "\DeskSwitcheroo_Portable_latest.zip"
+
+    _Theme_Toast("Downloading...", 0, $iTaskbarY + $iTaskbarH + 4, 5000, $TOAST_INFO)
+    InetGet($sDownloadUrl, $sDestFile, 1)
+    If @error Then
+        _Theme_Toast("Download failed", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
+    Else
+        _Theme_Toast("Saved to Downloads", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_SUCCESS)
+    EndIf
+EndFunc
+
 Func _CheckHover()
     Local $aCursor = GUIGetCursorInfo($gui)
     If @error Then Return

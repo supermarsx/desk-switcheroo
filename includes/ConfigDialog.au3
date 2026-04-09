@@ -55,7 +55,7 @@ Global $__g_CD_idChkListKeyNav
 ; -- Tab 8: Updates --
 Global $__g_CD_idChkAutoUpdate, $__g_CD_idInpUpdateInterval
 Global $__g_CD_idChkUpdateOnStartup, $__g_CD_idInpUpdateCheckDays
-Global $__g_CD_idBtnCheckNow
+Global $__g_CD_idBtnCheckNow, $__g_CD_idBtnDownloadLatest
 
 ; -- Tab 5: Behavior --
 Global $__g_CD_idChkConfirmDel, $__g_CD_idChkMidClick, $__g_CD_idChkMoveWin
@@ -892,6 +892,14 @@ Func __CD_BuildTabUpdates()
     GUICtrlSetCursor($__g_CD_idBtnCheckNow, 0)
     __CD_RegCtrl($t, $__g_CD_idBtnCheckNow)
     _Theme_SetTooltip($__g_CD_idBtnCheckNow, "Check for updates right now")
+
+    $__g_CD_idBtnDownloadLatest = GUICtrlCreateLabel(ChrW(0x2B07) & " Download Latest", $iX + 130, $iY, 140, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBtnDownloadLatest, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBtnDownloadLatest, $THEME_FG_LINK)
+    GUICtrlSetBkColor($__g_CD_idBtnDownloadLatest, $THEME_BG_HOVER)
+    GUICtrlSetCursor($__g_CD_idBtnDownloadLatest, 0)
+    __CD_RegCtrl($t, $__g_CD_idBtnDownloadLatest)
+    _Theme_SetTooltip($__g_CD_idBtnDownloadLatest, "Download the latest portable version to your Downloads folder")
 EndFunc
 
 Func __CD_BuildTabDesktops()
@@ -1064,6 +1072,8 @@ Func __CD_MessageLoop()
                     ExitLoop
                 Case $__g_CD_idBtnCheckNow
                     _CheckUpdateNow()
+                Case $__g_CD_idBtnDownloadLatest
+                    _DownloadLatestPortable()
             EndSwitch
 
             ; Tab button clicks
@@ -1103,6 +1113,7 @@ Func __CD_MessageLoop()
             If $aCursor[4] = $__g_CD_idBtnExport Then $iFound = $__g_CD_idBtnExport
             If $aCursor[4] = $__g_CD_idBtnRestart Then $iFound = $__g_CD_idBtnRestart
             If $aCursor[4] = $__g_CD_idBtnCheckNow Then $iFound = $__g_CD_idBtnCheckNow
+            If $aCursor[4] = $__g_CD_idBtnDownloadLatest Then $iFound = $__g_CD_idBtnDownloadLatest
             If $iFound <> $iHovered Then
                 If $iHovered <> 0 Then
                     Local $iFgRestore = $THEME_FG_MENU
@@ -1110,6 +1121,7 @@ Func __CD_MessageLoop()
                     If $iHovered = $__g_CD_idBtnImport Or $iHovered = $__g_CD_idBtnExport Then $iFgRestore = $THEME_FG_DIM
                     If $iHovered = $__g_CD_idBtnRestart Then $iFgRestore = $THEME_FG_LINK
                     If $iHovered = $__g_CD_idBtnCheckNow Then $iFgRestore = $THEME_FG_MENU
+                    If $iHovered = $__g_CD_idBtnDownloadLatest Then $iFgRestore = $THEME_FG_LINK
                     _Theme_RemoveHover($iHovered, $iFgRestore, $THEME_BG_HOVER)
                 EndIf
                 $iHovered = $iFound
@@ -1300,20 +1312,26 @@ Func __CD_ApplyChanges()
 EndFunc
 
 ; Name:        __CD_UpdateColorPreviews
-; Description: Updates color preview swatches from input values in real-time
+; Description: Updates color preview swatches only when values actually change (throttled)
+Global $__g_CD_hColorUpdateTimer = 0
+Global $__g_CD_aLastDeskColor[21] ; cached last-applied color per desktop
+
 Func __CD_UpdateColorPreviews()
-    ; Update Desktops tab (tab 8) color previews
-    If $__g_CD_iActiveTab = 8 Then
-        Local $i
-        For $i = 1 To $__g_CD_iDeskCount
-            If $__g_CD_aidDeskColor[$i] = 0 Then ContinueLoop
-            Local $sHex2 = GUICtrlRead($__g_CD_aidDeskColor[$i])
-            Local $iClr2 = _Theme_ValidateHexColor($sHex2)
-            If $iClr2 >= 0 Then
-                GUICtrlSetBkColor($__g_CD_aidDeskPreview[$i], $iClr2)
-            EndIf
-        Next
-    EndIf
+    If $__g_CD_iActiveTab <> 8 Then Return
+    ; Throttle: only check every 250ms to avoid flicker
+    If TimerDiff($__g_CD_hColorUpdateTimer) < 250 Then Return
+    $__g_CD_hColorUpdateTimer = TimerInit()
+
+    Local $i
+    For $i = 1 To $__g_CD_iDeskCount
+        If $__g_CD_aidDeskColor[$i] = 0 Then ContinueLoop
+        Local $sHex = GUICtrlRead($__g_CD_aidDeskColor[$i])
+        Local $iClr = _Theme_ValidateHexColor($sHex)
+        If $iClr >= 0 And $iClr <> $__g_CD_aLastDeskColor[$i] Then
+            $__g_CD_aLastDeskColor[$i] = $iClr
+            GUICtrlSetBkColor($__g_CD_aidDeskPreview[$i], $iClr)
+        EndIf
+    Next
 EndFunc
 
 Func __CD_ResetDefaults()
