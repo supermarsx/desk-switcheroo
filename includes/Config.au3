@@ -88,6 +88,10 @@ Global $__g_Cfg_iLogMaxSizeMB      = 5
 Global $__g_Cfg_iLogRotateCount    = 3
 Global $__g_Cfg_bLogCompressOld    = False
 Global $__g_Cfg_sLogDefaultPath    = ""
+Global $__g_Cfg_bLogIncludePID     = False
+Global $__g_Cfg_bLogIncludeFunc    = False
+Global $__g_Cfg_sLogDateFormat     = "iso"
+Global $__g_Cfg_bLogFlushImmediate = True
 
 ; [DesktopColors]
 Global $__g_Cfg_bDesktopColorsEnabled = False
@@ -213,6 +217,10 @@ Func _Cfg_Load()
     $__g_Cfg_iLogRotateCount    = __Cfg_ReadInt($f, "Logging", "log_rotate_count", 3, 1, 10)
     $__g_Cfg_bLogCompressOld    = __Cfg_ReadBool($f, "Logging", "log_compress_old", False)
     $__g_Cfg_sLogDefaultPath    = IniRead($f, "Logging", "log_default_path", "")
+    $__g_Cfg_bLogIncludePID     = __Cfg_ReadBool($f, "Logging", "log_include_pid", False)
+    $__g_Cfg_bLogIncludeFunc    = __Cfg_ReadBool($f, "Logging", "log_include_func", False)
+    $__g_Cfg_sLogDateFormat     = __Cfg_ReadEnum($f, "Logging", "log_date_format", "iso", "iso|us|eu")
+    $__g_Cfg_bLogFlushImmediate = __Cfg_ReadBool($f, "Logging", "log_flush_immediate", True)
 
     ; [DesktopColors]
     $__g_Cfg_bDesktopColorsEnabled = __Cfg_ReadBool($f, "DesktopColors", "desktop_colors_enabled", False)
@@ -306,6 +314,10 @@ Func _Cfg_Save()
     IniWrite($f, "Logging", "log_rotate_count", $__g_Cfg_iLogRotateCount)
     __Cfg_WriteBool($f, "Logging", "log_compress_old", $__g_Cfg_bLogCompressOld)
     IniWrite($f, "Logging", "log_default_path", $__g_Cfg_sLogDefaultPath)
+    __Cfg_WriteBool($f, "Logging", "log_include_pid", $__g_Cfg_bLogIncludePID)
+    __Cfg_WriteBool($f, "Logging", "log_include_func", $__g_Cfg_bLogIncludeFunc)
+    IniWrite($f, "Logging", "log_date_format", $__g_Cfg_sLogDateFormat)
+    __Cfg_WriteBool($f, "Logging", "log_flush_immediate", $__g_Cfg_bLogFlushImmediate)
 
     ; [DesktopColors]
     __Cfg_WriteBool($f, "DesktopColors", "desktop_colors_enabled", $__g_Cfg_bDesktopColorsEnabled)
@@ -391,6 +403,10 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Logging", "log_rotate_count", 3)
     __Cfg_DefaultBool($f, "Logging", "log_compress_old", False)
     __Cfg_DefaultVal($f, "Logging", "log_default_path", "")
+    __Cfg_DefaultBool($f, "Logging", "log_include_pid", False)
+    __Cfg_DefaultBool($f, "Logging", "log_include_func", False)
+    __Cfg_DefaultVal($f, "Logging", "log_date_format", "iso")
+    __Cfg_DefaultBool($f, "Logging", "log_flush_immediate", True)
 
     __Cfg_DefaultBool($f, "DesktopColors", "desktop_colors_enabled", False)
     Local $aDefColors[10] = [9, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -598,6 +614,18 @@ Func _Cfg_GetLogCompressOld()
 EndFunc
 Func _Cfg_GetLogDefaultPath()
     Return $__g_Cfg_sLogDefaultPath
+EndFunc
+Func _Cfg_GetLogIncludePID()
+    Return $__g_Cfg_bLogIncludePID
+EndFunc
+Func _Cfg_GetLogIncludeFunc()
+    Return $__g_Cfg_bLogIncludeFunc
+EndFunc
+Func _Cfg_GetLogDateFormat()
+    Return $__g_Cfg_sLogDateFormat
+EndFunc
+Func _Cfg_GetLogFlushImmediate()
+    Return $__g_Cfg_bLogFlushImmediate
 EndFunc
 
 ; [DesktopColors]
@@ -841,6 +869,19 @@ Func _Cfg_SetLogCompressOld($b)
 EndFunc
 Func _Cfg_SetLogDefaultPath($s)
     $__g_Cfg_sLogDefaultPath = $s
+EndFunc
+Func _Cfg_SetLogIncludePID($b)
+    $__g_Cfg_bLogIncludePID = $b
+EndFunc
+Func _Cfg_SetLogIncludeFunc($b)
+    $__g_Cfg_bLogIncludeFunc = $b
+EndFunc
+Func _Cfg_SetLogDateFormat($s)
+    If $s <> "iso" And $s <> "us" And $s <> "eu" Then $s = "iso"
+    $__g_Cfg_sLogDateFormat = $s
+EndFunc
+Func _Cfg_SetLogFlushImmediate($b)
+    $__g_Cfg_bLogFlushImmediate = $b
 EndFunc
 
 ; [DesktopColors]

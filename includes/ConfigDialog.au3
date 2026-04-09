@@ -76,6 +76,7 @@ Global $__g_CD_idChkListScrollable, $__g_CD_idInpListMaxVisible, $__g_CD_idInpLi
 Global $__g_CD_idChkLogging, $__g_CD_idInpLogPath, $__g_CD_idLblLogLevel
 Global $__g_CD_idInpLogMaxSize
 Global $__g_CD_idInpLogRotateCount, $__g_CD_idChkLogCompress
+Global $__g_CD_idChkLogPID, $__g_CD_idLblLogDateFormat, $__g_CD_idChkLogFlush
 
 ; -- Tab 5: Behavior extras --
 Global $__g_CD_idChkConfirmQuit
@@ -872,6 +873,18 @@ Func __CD_BuildTabLogging()
 
     $__g_CD_idChkLogCompress = __CD_CreateCheckbox("Compress old logs", $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkLogCompress, "Zip old log files when rotating (uses PowerShell)")
+    $iY += 34
+
+    $__g_CD_idChkLogPID = __CD_CreateCheckbox("Include PID in log", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkLogPID, "Add process ID [PID:XXXX] to each log line after the timestamp")
+    $iY += 34
+
+    $__g_CD_idLblLogDateFormat = __CD_CreateCycleLabel("Date format:", $iX, $iY, 100, 90, $t)
+    _Theme_SetTooltip($__g_CD_idLblLogDateFormat, "Click to cycle: iso (YYYY-MM-DD), us (MM/DD/YYYY), eu (DD/MM/YYYY)")
+    $iY += 30
+
+    $__g_CD_idChkLogFlush = __CD_CreateCheckbox("Flush immediately", $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkLogFlush, "Flush log file after every write (vs buffered I/O)")
 EndFunc
 
 Func __CD_BuildTabUpdates()
@@ -1061,6 +1074,9 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpLogMaxSize, _Cfg_GetLogMaxSizeMB())
     GUICtrlSetData($__g_CD_idInpLogRotateCount, _Cfg_GetLogRotateCount())
     __CD_SetCheckState($__g_CD_idChkLogCompress, _Cfg_GetLogCompressOld())
+    __CD_SetCheckState($__g_CD_idChkLogPID, _Cfg_GetLogIncludePID())
+    GUICtrlSetData($__g_CD_idLblLogDateFormat, _Cfg_GetLogDateFormat())
+    __CD_SetCheckState($__g_CD_idChkLogFlush, _Cfg_GetLogFlushImmediate())
 
     ; Updates
     __CD_SetCheckState($__g_CD_idChkAutoUpdate, _Cfg_GetAutoUpdateEnabled())
@@ -1135,6 +1151,7 @@ Func __CD_MessageLoop()
             If $id = $__g_CD_idLblListAction Then __CD_CycleValue($id, "switch|scroll")
             If $id = $__g_CD_idLblTheme Then __CD_CycleValue($id, _Theme_GetAvailableSchemes())
             If $id = $__g_CD_idLblLogLevel Then __CD_CycleValue($id, "error|warn|info|debug")
+            If $id = $__g_CD_idLblLogDateFormat Then __CD_CycleValue($id, "iso|us|eu")
         EndIf
 
         ; Escape closes
@@ -1278,6 +1295,9 @@ Func __CD_ApplyChanges()
     $s = GUICtrlRead($__g_CD_idInpLogRotateCount)
     If StringIsInt($s) Then _Cfg_SetLogRotateCount(Int($s))
     _Cfg_SetLogCompressOld(__CD_GetCheckState($__g_CD_idChkLogCompress))
+    _Cfg_SetLogIncludePID(__CD_GetCheckState($__g_CD_idChkLogPID))
+    _Cfg_SetLogDateFormat(GUICtrlRead($__g_CD_idLblLogDateFormat))
+    _Cfg_SetLogFlushImmediate(__CD_GetCheckState($__g_CD_idChkLogFlush))
 
     ; Updates
     _Cfg_SetAutoUpdateEnabled(__CD_GetCheckState($__g_CD_idChkAutoUpdate))

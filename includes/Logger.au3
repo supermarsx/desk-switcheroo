@@ -111,10 +111,32 @@ EndFunc
 Func __Log_Write($sLevel, $sMsg)
     If $__g_Log_hFile = -1 Then Return
 
-    Local $sTimestamp = StringFormat("%04d-%02d-%02d %02d:%02d:%02d", @YEAR, @MON, @MDAY, @HOUR, @MIN, @SEC)
-    Local $sLine = "[" & $sTimestamp & "] [" & $sLevel & "] " & $sMsg
+    ; Format date portion based on log_date_format config
+    Local $sDatePart
+    Local $sDateFmt = _Cfg_GetLogDateFormat()
+    Switch $sDateFmt
+        Case "us"
+            $sDatePart = StringFormat("%02d/%02d/%04d", @MON, @MDAY, @YEAR)
+        Case "eu"
+            $sDatePart = StringFormat("%02d/%02d/%04d", @MDAY, @MON, @YEAR)
+        Case Else ; "iso"
+            $sDatePart = StringFormat("%04d-%02d-%02d", @YEAR, @MON, @MDAY)
+    EndSwitch
+
+    Local $sTimestamp = $sDatePart & " " & StringFormat("%02d:%02d:%02d", @HOUR, @MIN, @SEC)
+    Local $sLine = "[" & $sTimestamp & "]"
+
+    ; Optionally include PID
+    If _Cfg_GetLogIncludePID() Then
+        $sLine &= " [PID:" & @AutoItPID & "]"
+    EndIf
+
+    $sLine &= " [" & $sLevel & "] " & $sMsg
 
     FileWriteLine($__g_Log_hFile, $sLine)
+
+    ; Flush immediately if configured
+    If _Cfg_GetLogFlushImmediate() Then FileFlush($__g_Log_hFile)
 
     ; Check rotation after write
     __Log_CheckRotation()

@@ -1025,85 +1025,86 @@ Func _CheckUpdateResult()
 EndFunc
 
 ; Name:        _CheckUpdateNow
-; Description: Manually triggers an update check with a progress dialog and version comparison
+; Description: Manually triggers an update check with a themed multi-phase dialog
 Func _CheckUpdateNow()
     _Log_Info("Manual update check triggered")
 
-    ; Show a small "Checking..." dialog
-    Local $iW = 280, $iH = 120
-    Local $hDlg = _Theme_CreatePopup("Update Check", $iW, $iH, (@DesktopWidth - $iW) / 2, (@DesktopHeight - $iH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
-
-    GUICtrlCreateLabel("Checking for updates...", 14, 14, $iW - 28, 20)
-    GUICtrlSetFont(-1, 10, 400, 0, $THEME_FONT_MAIN)
+    ; Phase 1: Fetch release info
+    Local $iDlgW = 320, $iDlgH = 100
+    Local $hDlg = _Theme_CreatePopup("Update Check", $iDlgW, $iDlgH, _
+        (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+    GUICtrlCreateLabel("Checking for updates...", 14, 14, $iDlgW - 28, 20)
+    GUICtrlSetFont(-1, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-
-    Local $idStatus = GUICtrlCreateLabel("Connecting to GitHub...", 14, 40, $iW - 28, 16)
-    GUICtrlSetFont($idStatus, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idStatus, $THEME_FG_DIM)
-    GUICtrlSetBkColor($idStatus, $GUI_BKCOLOR_TRANSPARENT)
-
     GUISetState(@SW_SHOW, $hDlg)
-    Sleep(100) ; let the dialog render
+    Sleep(50)
 
-    ; Download
-    Local $bData = InetRead("https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest", 1)
-    If @error Then
-        GUICtrlSetData($idStatus, "Connection failed")
-        GUICtrlSetColor($idStatus, 0xFF5555)
-        Sleep(2000)
-        GUIDelete($hDlg)
-        Return
-    EndIf
-
-    Local $sJson = BinaryToString($bData)
-    Local $aMatch = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
-    If @error Or UBound($aMatch) < 1 Then
-        GUICtrlSetData($idStatus, "Could not parse release info")
-        GUICtrlSetColor($idStatus, 0xFFD54A)
-        Sleep(2000)
-        GUIDelete($hDlg)
-        Return
-    EndIf
-
-    Local $sLatest = $aMatch[0]
-    ; Extract download URL for the installer
-    Local $aUrlMatch = StringRegExp($sJson, '"browser_download_url"\s*:\s*"([^"]*Setup[^"]*)"', 1)
-    Local $sDownloadUrl = ""
-    If Not @error And UBound($aUrlMatch) >= 1 Then $sDownloadUrl = $aUrlMatch[0]
-
-    ; Show result
+    Local $sUrl = "https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest"
+    Local $bData = InetRead($sUrl, 1)
     GUIDelete($hDlg)
+    If @error Then
+        _Theme_Toast("Connection failed", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
+        Return
+    EndIf
+    Local $sJson = BinaryToString($bData)
 
-    ; Show result dialog with version info
-    $hDlg = _Theme_CreatePopup("Update Check", $iW, $iH, (@DesktopWidth - $iW) / 2, (@DesktopHeight - $iH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+    ; Extract version and release date
+    Local $aVer = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
+    Local $sLatest = "unknown"
+    If Not @error And UBound($aVer) >= 1 Then $sLatest = $aVer[0]
 
-    Local $sStatusIcon = ChrW(0x2713)
-    Local $iStatusColor = $TOAST_SUCCESS
-    Local $sStatusText = "Latest: v" & $sLatest & "  |  Current: v" & $APP_VERSION
-    If $sLatest <> $APP_VERSION Then
-        $sStatusIcon = ChrW(0x2B06)
-        $sStatusText = "Update available: v" & $sLatest & " (you have v" & $APP_VERSION & ")"
-    Else
-        $sStatusText = "You're up to date! v" & $APP_VERSION
+    Local $aDate = StringRegExp($sJson, '"published_at"\s*:\s*"([^T"]+)', 1)
+    Local $sDate = "unknown"
+    If Not @error And UBound($aDate) >= 1 Then $sDate = $aDate[0]
+
+    If $sLatest = "unknown" Then
+        _Theme_Toast("Could not parse release info", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_WARNING)
+        Return
     EndIf
 
-    GUICtrlCreateLabel($sStatusIcon & " " & $sStatusText, 14, 14, $iW - 28, 20)
-    GUICtrlSetFont(-1, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor(-1, $iStatusColor)
+    _Log_Info("Update check: latest release is v" & $sLatest)
+
+    ; Determine update status
+    Local $bUpdateAvailable = ($sLatest <> $APP_VERSION)
+
+    ; Phase 2: Result dialog with version details
+    $iDlgH = 140
+    $hDlg = _Theme_CreatePopup("Update Check", $iDlgW, $iDlgH, _
+        (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+
+    If $bUpdateAvailable Then
+        GUICtrlCreateLabel(ChrW(0x2B06) & " Update available!", 14, 10, $iDlgW - 28, 20)
+        GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
+        GUICtrlSetColor(-1, $TOAST_SUCCESS)
+        GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+    Else
+        GUICtrlCreateLabel(ChrW(0x2713) & " You're up to date!", 14, 10, $iDlgW - 28, 20)
+        GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
+        GUICtrlSetColor(-1, $TOAST_SUCCESS)
+        GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+    EndIf
+
+    GUICtrlCreateLabel("Current: v" & $APP_VERSION & "  |  Latest: v" & $sLatest, 14, 34, $iDlgW - 28, 16)
+    GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor(-1, $THEME_FG_DIM)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
-    ; Download button (if URL found)
+    GUICtrlCreateLabel("Released: " & $sDate, 14, 52, $iDlgW - 28, 16)
+    GUICtrlSetFont(-1, 7, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor(-1, $THEME_FG_LABEL)
+    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+
     Local $idDownload = 0
-    If $sDownloadUrl <> "" Then
-        $idDownload = GUICtrlCreateLabel(ChrW(0x2B07) & " Download", 14, 50, 120, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    If $bUpdateAvailable Then
+        $idDownload = GUICtrlCreateLabel(ChrW(0x2B07) & " Download", 14, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
         GUICtrlSetFont($idDownload, 9, 400, 0, $THEME_FONT_MAIN)
-        GUICtrlSetColor($idDownload, $THEME_FG_LINK)
+        GUICtrlSetColor($idDownload, $THEME_FG_MENU)
         GUICtrlSetBkColor($idDownload, $THEME_BG_HOVER)
         GUICtrlSetCursor($idDownload, 0)
     EndIf
 
-    Local $idClose = GUICtrlCreateLabel(ChrW(0x2715) & " Close", $iW - 94, $iH - 36, 80, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idClose = GUICtrlCreateLabel(ChrW(0x2715) & " Close", $iDlgW - 114, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idClose, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idClose, $THEME_FG_MENU)
     GUICtrlSetBkColor($idClose, $THEME_BG_HOVER)
@@ -1117,22 +1118,12 @@ Func _CheckUpdateNow()
         If $aMsg[1] = $hDlg Then
             If $aMsg[0] = $GUI_EVENT_CLOSE Or $aMsg[0] = $idClose Then ExitLoop
             If $idDownload <> 0 And $aMsg[0] = $idDownload Then
-                ; Download to user's Downloads folder
-                Local $sDestDir = @UserProfileDir & "\Downloads"
-                Local $sDestFile = $sDestDir & "\DeskSwitcheroo_Setup_v" & $sLatest & ".exe"
-                GUICtrlSetData($idDownload, "Downloading...")
-                InetGet($sDownloadUrl, $sDestFile, 1)
-                If @error Then
-                    GUICtrlSetData($idDownload, "Download failed")
-                    GUICtrlSetColor($idDownload, 0xFF5555)
-                Else
-                    GUICtrlSetData($idDownload, "Downloaded!")
-                    GUICtrlSetColor($idDownload, $TOAST_SUCCESS)
-                    _Theme_Toast("Saved to Downloads", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_SUCCESS)
-                EndIf
+                GUIDelete($hDlg)
+                _DownloadLatestPortable()
+                Return
             EndIf
         EndIf
-        Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_ESCAPE)
+        Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
         If Not @error And IsArray($retEsc) And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
         Sleep(10)
     WEnd
