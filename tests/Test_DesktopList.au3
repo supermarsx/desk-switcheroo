@@ -97,6 +97,39 @@ Func _RunTest_DesktopList()
     _DL_Destroy()
     _Test_AssertFalse("Ctx: gone after DL_Destroy", _DL_CtxIsVisible())
 
+    ; -- DL context menu Set Color conditional --
+    _DL_Show($iTestTaskbarY, $iCurrentDesktop)
+    Local $bColorsWas2 = _Cfg_GetDesktopColorsEnabled()
+    _Cfg_SetDesktopColorsEnabled(False)
+    _DL_CtxShow(1)
+    _Test_AssertEqual("DL Ctx: SetColor hidden when disabled", $__g_DL_iCtxSetColor, 0)
+    _DL_CtxDestroy()
+
+    _Cfg_SetDesktopColorsEnabled(True)
+    _DL_CtxShow(1)
+    _Test_AssertNotEqual("DL Ctx: SetColor shown when enabled", $__g_DL_iCtxSetColor, 0)
+    _DL_CtxDestroy()
+    _Cfg_SetDesktopColorsEnabled($bColorsWas2)
+
+    ; -- Color picker show/destroy from DL context --
+    _Cfg_SetDesktopColorsEnabled(True)
+    _DL_CtxShow(1)
+    _Test_AssertFalse("ColorPicker: initially hidden", _DL_ColorPickerIsVisible())
+    _DL_ColorPickerShow(1)
+    _Test_AssertTrue("ColorPicker: visible after show", _DL_ColorPickerIsVisible())
+    _Test_AssertNotEqual("ColorPicker: GUI <> 0", _DL_ColorPickerGetGUI(), 0)
+    _DL_ColorPickerDestroy()
+    _Test_AssertFalse("ColorPicker: hidden after destroy", _DL_ColorPickerIsVisible())
+    _DL_CtxDestroy()
+
+    ; -- Color picker show without DL context (from main CM) --
+    _DL_ColorPickerShow(1)
+    _Test_AssertTrue("ColorPicker: works without DL ctx", _DL_ColorPickerIsVisible())
+    _DL_ColorPickerDestroy()
+
+    _Cfg_SetDesktopColorsEnabled($bColorsWas2)
+    _DL_Destroy()
+
     ; -- Cleanup --
     FileDelete($sTempIni)
 EndFunc

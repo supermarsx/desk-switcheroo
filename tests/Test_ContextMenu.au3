@@ -55,4 +55,41 @@ Func _RunTest_ContextMenu()
     _CM_Show($iTestTaskbarY, True)
     _Test_AssertTrue("Show with list: visible", _CM_IsVisible())
     _CM_Destroy()
+
+    ; -- Set Color conditional on desktop colors --
+    ; When colors disabled, set_color should not exist
+    Local $bColorsWas = _Cfg_GetDesktopColorsEnabled()
+    _Cfg_SetDesktopColorsEnabled(False)
+    _CM_Show($iTestTaskbarY, False)
+    _Test_AssertEqual("SetColor hidden when disabled", $__g_CM_iSetColorID, 0)
+    _CM_Destroy()
+
+    ; When colors enabled, set_color should exist
+    _Cfg_SetDesktopColorsEnabled(True)
+    _CM_Show($iTestTaskbarY, False)
+    _Test_AssertNotEqual("SetColor shown when enabled", $__g_CM_iSetColorID, 0)
+    _Test_AssertEqual("HandleClick(set_color)", _CM_HandleClick($__g_CM_iSetColorID), "set_color")
+    _CM_Destroy()
+
+    ; Restore original state
+    _Cfg_SetDesktopColorsEnabled($bColorsWas)
+
+    ; -- Multiple show/destroy cycles don't crash --
+    Local $j
+    For $j = 1 To 3
+        _CM_Show($iTestTaskbarY, False)
+        _Test_AssertTrue("Cycle " & $j & ": visible", _CM_IsVisible())
+        _CM_Destroy()
+        _Test_AssertFalse("Cycle " & $j & ": destroyed", _CM_IsVisible())
+    Next
+
+    ; -- All IDs reset after destroy --
+    _CM_Destroy()
+    _Test_AssertEqual("After destroy: edit=0", _CM_GetEditID(), 0)
+    _Test_AssertEqual("After destroy: toggle=0", _CM_GetToggleID(), 0)
+    _Test_AssertEqual("After destroy: add=0", _CM_GetAddID(), 0)
+    _Test_AssertEqual("After destroy: delete=0", _CM_GetDeleteID(), 0)
+    _Test_AssertEqual("After destroy: about=0", _CM_GetAboutID(), 0)
+    _Test_AssertEqual("After destroy: settings=0", _CM_GetSettingsID(), 0)
+    _Test_AssertEqual("After destroy: quit=0", _CM_GetQuitID(), 0)
 EndFunc

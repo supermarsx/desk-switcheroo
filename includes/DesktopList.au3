@@ -975,13 +975,26 @@ Func _DL_ColorPickerShow($iTarget)
     Local $iPickerW = 130
     Local $iPickerH = 280
 
-    ; Position to the right of the context menu
-    Local $aCtxPos = WinGetPos($__g_DL_hCtxGUI)
-    Local $iPickerX = $aCtxPos[0] + $aCtxPos[2]
-    Local $iPickerY = $aCtxPos[1]
+    ; Position: to the right of DL context menu if open, else near cursor
+    Local $iPickerX = 0, $iPickerY = 0
+    If $__g_DL_hCtxGUI <> 0 Then
+        Local $aCtxPos = WinGetPos($__g_DL_hCtxGUI)
+        If Not @error Then
+            $iPickerX = $aCtxPos[0] + $aCtxPos[2]
+            $iPickerY = $aCtxPos[1]
+        EndIf
+    EndIf
+    If $iPickerX = 0 Then
+        ; Fallback: position near cursor (called from main context menu)
+        Local $aMP = MouseGetPos()
+        $iPickerX = $aMP[0] + 8
+        $iPickerY = $aMP[1] - $iPickerH
+    EndIf
     ; Keep on screen
-    If $iPickerX + $iPickerW > @DesktopWidth Then $iPickerX = $aCtxPos[0] - $iPickerW
+    If $iPickerX + $iPickerW > @DesktopWidth Then $iPickerX = @DesktopWidth - $iPickerW - 4
+    If $iPickerX < 0 Then $iPickerX = 0
     If $iPickerY + $iPickerH > @DesktopHeight Then $iPickerY = @DesktopHeight - $iPickerH
+    If $iPickerY < 0 Then $iPickerY = 0
 
     $__g_DL_hColorGUI = _Theme_CreatePopup("ColorPicker", $iPickerW, $iPickerH, $iPickerX, $iPickerY, $THEME_BG_POPUP, $THEME_ALPHA_MENU)
 
