@@ -228,6 +228,73 @@ Func _RunTest_Config()
     _Cfg_SetDesktopColor(5, 0)
     _Test_AssertEqual("Clear desktop color to none", _Cfg_GetDesktopColor(5), 0)
 
+    ; -- Auto-update settings --
+    _Test_AssertFalse("Default: auto_update_enabled", _Cfg_GetAutoUpdateEnabled())
+    _Test_AssertEqual("Default: auto_update_interval_hours", _Cfg_GetAutoUpdateIntervalHours(), 168)
+    _Test_AssertGreaterEqual("Default: auto_update_interval_ms", _Cfg_GetAutoUpdateInterval(), 3600000)
+    _Cfg_SetAutoUpdateEnabled(True)
+    _Test_AssertTrue("Set+Get: auto_update_enabled", _Cfg_GetAutoUpdateEnabled())
+
+    ; -- Update check on startup --
+    _Test_AssertFalse("Default: update_check_on_startup", _Cfg_GetUpdateCheckOnStartup())
+    _Test_AssertEqual("Default: update_check_days", _Cfg_GetUpdateCheckDays(), 7)
+    _Cfg_SetUpdateCheckOnStartup(True)
+    _Test_AssertTrue("Set+Get: update_check_on_startup", _Cfg_GetUpdateCheckOnStartup())
+    _Cfg_SetUpdateCheckDays(14)
+    _Test_AssertEqual("Set+Get: update_check_days", _Cfg_GetUpdateCheckDays(), 14)
+
+    ; -- Quit confirmation --
+    _Test_AssertFalse("Default: confirm_quit", _Cfg_GetConfirmQuit())
+    _Cfg_SetConfirmQuit(True)
+    _Test_AssertTrue("Set+Get: confirm_quit", _Cfg_GetConfirmQuit())
+
+    ; -- Count cache TTL --
+    _Test_AssertEqual("Default: count_cache_ttl", _Cfg_GetCountCacheTTL(), 1000)
+    _Cfg_SetCountCacheTTL(2000)
+    _Test_AssertEqual("Set+Get: count_cache_ttl", _Cfg_GetCountCacheTTL(), 2000)
+
+    ; -- Hotkey desktop count --
+    _Test_AssertEqual("Default: hotkey_desktop_count", _Cfg_GetHotkeyDesktopCount(), 9)
+    _Cfg_SetHotkeyDesktopCount(5)
+    _Test_AssertEqual("Set+Get: hotkey_desktop_count", _Cfg_GetHotkeyDesktopCount(), 5)
+
+    ; -- List font --
+    _Test_AssertEqual("Default: list_font_name", _Cfg_GetListFontName(), "")
+    _Test_AssertEqual("Default: list_font_size", _Cfg_GetListFontSize(), 8)
+    _Cfg_SetListFontName("Consolas")
+    _Test_AssertEqual("Set+Get: list_font_name", _Cfg_GetListFontName(), "Consolas")
+    _Cfg_SetListFontSize(10)
+    _Test_AssertEqual("Set+Get: list_font_size", _Cfg_GetListFontSize(), 10)
+
+    ; -- Scrollable list --
+    _Test_AssertFalse("Default: list_scrollable", _Cfg_GetListScrollable())
+    _Test_AssertEqual("Default: list_max_visible", _Cfg_GetListMaxVisible(), 10)
+    _Test_AssertEqual("Default: list_scroll_speed", _Cfg_GetListScrollSpeed(), 1)
+    _Cfg_SetListScrollable(True)
+    _Test_AssertTrue("Set+Get: list_scrollable", _Cfg_GetListScrollable())
+
+    ; -- Tooltip font size --
+    _Test_AssertEqual("Default: tooltip_font_size", _Cfg_GetTooltipFontSize(), 8)
+    _Cfg_SetTooltipFontSize(10)
+    _Test_AssertEqual("Set+Get: tooltip_font_size", _Cfg_GetTooltipFontSize(), 10)
+
+    ; -- Thumbnails --
+    _Test_AssertFalse("Default: thumbnails_enabled", _Cfg_GetThumbnailsEnabled())
+    _Test_AssertEqual("Default: thumbnail_width", _Cfg_GetThumbnailWidth(), 160)
+    _Test_AssertEqual("Default: thumbnail_height", _Cfg_GetThumbnailHeight(), 90)
+    _Cfg_SetThumbnailsEnabled(True)
+    _Test_AssertTrue("Set+Get: thumbnails_enabled", _Cfg_GetThumbnailsEnabled())
+
+    ; -- Log enhanced settings --
+    _Test_AssertEqual("Default: log_max_size_mb", _Cfg_GetLogMaxSizeMB(), 5)
+    _Test_AssertEqual("Default: log_rotate_count", _Cfg_GetLogRotateCount(), 3)
+    _Test_AssertFalse("Default: log_compress_old", _Cfg_GetLogCompressOld())
+    _Test_AssertEqual("Default: log_default_path", _Cfg_GetLogDefaultPath(), "")
+    _Cfg_SetLogMaxSizeMB(10)
+    _Test_AssertEqual("Set+Get: log_max_size_mb", _Cfg_GetLogMaxSizeMB(), 10)
+    _Cfg_SetLogRotateCount(5)
+    _Test_AssertEqual("Set+Get: log_rotate_count", _Cfg_GetLogRotateCount(), 5)
+
     ; -- Cleanup --
     FileDelete($sTempIni)
 EndFunc

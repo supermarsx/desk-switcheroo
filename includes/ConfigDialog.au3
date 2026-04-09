@@ -25,7 +25,7 @@ Global $__g_CD_aidTabBtn[10] ; index 1-9
 Global Const $__g_CD_aTabNames = "General,Display,Scroll,Hotkeys,Behavior,Colors,Logging,Updates,Desktops"
 
 ; -- Controls per tab (arrays of IDs to show/hide) --
-Global $__g_CD_aidTabCtrls[10][40] ; [tab 1-9][up to 40 controls per tab]
+Global $__g_CD_aidTabCtrls[10][100] ; [tab 1-9][up to 40 controls per tab]
 Global $__g_CD_aiTabCtrlCount[10]  ; how many controls per tab
 
 ; -- Tab 1: General --
