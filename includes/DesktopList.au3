@@ -5,6 +5,9 @@
 #include "Peek.au3"
 #include "Config.au3"
 
+; Extern globals from main script (declared here to suppress Au3Check warnings)
+Global $iTaskbarY, $iDesktop
+
 ; #INDEX# =======================================================
 ; Title .........: DesktopList
 ; Description ....: Desktop list panel showing all virtual desktops with peek support

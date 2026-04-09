@@ -26,10 +26,11 @@ Global Const $TRIPLE_CLICK_MS = 500
 Global Const $QUICK_ACCESS_TIMEOUT = 3000
 Global Const $DESKTOP_LIMIT = 20
 
-; ---- Ensure cleanup on unexpected exit ----
+; ---- Error handling and crash recovery ----
 Global $__g_bShuttingDown = False
 Global $__g_bPeekWasActive = False
 Global $__g_bWasCursorActive = False
+Global $__g_oErrorHandler = ObjEvent("AutoIt.Error", "_OnAutoItError")
 OnAutoItExitRegister("_OnExit")
 
 ; ---- Singleton: kill previous instance on relaunch ----
@@ -1684,7 +1685,37 @@ EndFunc
 
 ; Name:        _OnExit
 ; Description: Exit callback registered with OnAutoItExitRegister
+; Name:        _OnAutoItError
+; Description: COM/AutoIt error handler — logs errors and writes crash report
+; Parameters:  Standard AutoIt error object
+Func _OnAutoItError()
+    Local $sErr = "AutoIt Error:" & @CRLF
+    $sErr &= "  Number: " & $__g_oErrorHandler.number & @CRLF
+    $sErr &= "  Description: " & $__g_oErrorHandler.description & @CRLF
+    $sErr &= "  Script Line: " & $__g_oErrorHandler.scriptline & @CRLF
+    $sErr &= "  Source: " & $__g_oErrorHandler.source & @CRLF
+
+    ; Write crash log
+    Local $sCrashFile = @ScriptDir & "\crash_" & @YEAR & @MON & @MDAY & "_" & @HOUR & @MIN & @SEC & ".log"
+    FileWrite($sCrashFile, $sErr & @CRLF & "Desktop: " & $iDesktop & @CRLF & "Time: " & @YEAR & "/" & @MON & "/" & @MDAY & " " & @HOUR & ":" & @MIN & ":" & @SEC)
+
+    _Log_Error($sErr)
+EndFunc
+
+; Name:        _OnExit
+; Description: Exit callback — writes crash info if exit was unexpected
 Func _OnExit()
+    If Not $__g_bShuttingDown Then
+        ; Unexpected exit — write crash report
+        Local $sCrashFile = @ScriptDir & "\crash_" & @YEAR & @MON & @MDAY & "_" & @HOUR & @MIN & @SEC & ".log"
+        Local $sInfo = "Unexpected exit at " & @YEAR & "/" & @MON & "/" & @MDAY & " " & @HOUR & ":" & @MIN & ":" & @SEC & @CRLF
+        $sInfo &= "Exit code: " & @exitCode & @CRLF
+        $sInfo &= "Desktop: " & $iDesktop & @CRLF
+        $sInfo &= "AutoIt version: " & @AutoItVersion & @CRLF
+        $sInfo &= "OS: " & @OSVersion & " " & @OSArch & @CRLF
+        FileWrite($sCrashFile, $sInfo)
+        _Log_Error("Unexpected exit: code=" & @exitCode)
+    EndIf
     _Shutdown()
 EndFunc
 
@@ -1692,6 +1723,10 @@ EndFunc
 ; Description: Cleanup and exit with reentrancy guard
 Func _Shutdown()
     If $__g_bShuttingDown Then Return
+    ; Quit confirmation (skip if already shutting down from OnExit)
+    If _Cfg_GetConfirmQuit() Then
+        If Not _Theme_Confirm("Quit Desk Switcheroo?", "Are you sure you want to exit?") Then Return
+    EndIf
     $__g_bShuttingDown = True
     _UnregisterHotkeys()
     AdlibUnRegister("_ForceTopMost")

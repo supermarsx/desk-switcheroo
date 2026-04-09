@@ -7,3 +7,4 @@ tests/results/
 build/
 *.exe
 !tools/*.au3
+crash_*.log
