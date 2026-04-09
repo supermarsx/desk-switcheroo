@@ -239,6 +239,10 @@ EndFunc
 
 Func __CD_SwitchTab($iTab)
     $__g_CD_iActiveTab = $iTab
+
+    ; Lock window to prevent repaint during bulk control state changes
+    DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", $__g_CD_hGUI)
+
     ; Update tab button styles
     Local $t, $c
     For $t = 1 To 8
@@ -260,6 +264,9 @@ Func __CD_SwitchTab($iTab)
             GUICtrlSetState($__g_CD_aidTabCtrls[$t][$c], $iState)
         Next
     Next
+
+    ; Unlock window — triggers a single repaint with all changes applied
+    DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", 0)
 EndFunc
 
 Func __CD_RegCtrl($iTab, $idCtrl)
