@@ -1,5 +1,6 @@
 #include-once
 #include "Config.au3"
+#include "Logger.au3"
 #include <WinAPISysWin.au3>
 
 ; #INDEX# =======================================================
@@ -14,6 +15,54 @@ Global $__g_VD_hDLL = -1
 Global $__g_VD_bNameSupport = False
 Global $__g_VD_iCachedCount = 0
 Global $__g_VD_hCountTimer = 0
+
+; #INTERNAL HELPERS# ============================================
+
+; Name:        __VD_Call
+; Description: Centralized DLL call wrapper with error handling and debug logging.
+;              All VirtualDesktopAccessor DLL calls should go through this.
+; Parameters:  $sFunc - DLL function name
+;              $sRetType - return type (e.g. "int", "handle")
+;              $aArgs - array of [type, value] pairs for DLL parameters (empty array for no args)
+; Return:      DllCall result array on success, or empty array on failure
+Func __VD_Call($sFunc, $sRetType, $aArgs = Default)
+    If $__g_VD_hDLL = -1 Then
+        _Log_Error("VD_Call: DLL not loaded, cannot call " & $sFunc)
+        Local $aEmpty[1] = [0]
+        Return SetError(1, 0, $aEmpty)
+    EndIf
+
+    Local $aResult
+    Switch UBound($aArgs)
+        Case 0
+            $aResult = DllCall($__g_VD_hDLL, $sRetType, $sFunc)
+        Case 2
+            $aResult = DllCall($__g_VD_hDLL, $sRetType, $sFunc, $aArgs[0], $aArgs[1])
+        Case 4
+            $aResult = DllCall($__g_VD_hDLL, $sRetType, $sFunc, $aArgs[0], $aArgs[1], $aArgs[2], $aArgs[3])
+        Case 6
+            $aResult = DllCall($__g_VD_hDLL, $sRetType, $sFunc, $aArgs[0], $aArgs[1], $aArgs[2], $aArgs[3], $aArgs[4], $aArgs[5])
+        Case Else
+            _Log_Error("VD_Call: unsupported arg count " & UBound($aArgs) & " for " & $sFunc)
+            Local $aEmpty2[1] = [0]
+            Return SetError(2, 0, $aEmpty2)
+    EndSwitch
+
+    If @error Then
+        _Log_Error("VD_Call: DllCall failed for " & $sFunc & " (error=" & @error & ")")
+        Local $aEmpty3[1] = [0]
+        Return SetError(3, 0, $aEmpty3)
+    EndIf
+
+    If Not IsArray($aResult) Then
+        _Log_Error("VD_Call: DllCall returned non-array for " & $sFunc)
+        Local $aEmpty4[1] = [0]
+        Return SetError(4, 0, $aEmpty4)
+    EndIf
+
+    _Log_Debug("VD_Call: " & $sFunc & " returned " & $aResult[0])
+    Return $aResult
+EndFunc
 
 ; #FUNCTIONS# ===================================================
 
@@ -42,9 +91,8 @@ Func _VD_GetCount()
         Local $iElapsed = TimerDiff($__g_VD_hCountTimer)
         If $iElapsed < _Cfg_GetCountCacheTTL() Then Return $__g_VD_iCachedCount
     EndIf
-    If $__g_VD_hDLL = -1 Then Return 1
-    Local $aResult = DllCall($__g_VD_hDLL, "int", "GetDesktopCount")
-    If @error Or Not IsArray($aResult) Or $aResult[0] < 1 Then Return 1
+    Local $aResult = __VD_Call("GetDesktopCount", "int")
+    If @error Or $aResult[0] < 1 Then Return 1
     $__g_VD_iCachedCount = $aResult[0]
     $__g_VD_hCountTimer = TimerInit()
     Return $aResult[0]
@@ -60,9 +108,8 @@ EndFunc
 ; Description: Returns the current virtual desktop index (1-based)
 ; Return:      Integer >= 1
 Func _VD_GetCurrent()
-    If $__g_VD_hDLL = -1 Then Return 1
-    Local $aResult = DllCall($__g_VD_hDLL, "int", "GetCurrentDesktopNumber")
-    If @error Or Not IsArray($aResult) Or $aResult[0] < 0 Then Return 1
+    Local $aResult = __VD_Call("GetCurrentDesktopNumber", "int")
+    If @error Or $aResult[0] < 0 Then Return 1
     Return $aResult[0] + 1
 EndFunc
 
@@ -70,9 +117,8 @@ EndFunc
 ; Description: Switches to a virtual desktop by index (1-based)
 ; Parameters:  $iDesktop - target desktop index (1-based)
 Func _VD_GoTo($iDesktop)
-    If $__g_VD_hDLL = -1 Then Return
-    DllCall($__g_VD_hDLL, "int", "GoToDesktopNumber", "int", $iDesktop - 1)
-    ; @error is non-critical here — the switch simply won't happen
+    Local $aArgs[2] = ["int", $iDesktop - 1]
+    __VD_Call("GoToDesktopNumber", "int", $aArgs)
 EndFunc
 
 ; Name:        _VD_HasNameSupport
@@ -125,9 +171,9 @@ EndFunc
 ; Parameters:  $hWnd - window handle
 ; Return:      Desktop index (1-based), or 0 if error/pinned
 Func _VD_GetWindowDesktopNumber($hWnd)
-    If $__g_VD_hDLL = -1 Then Return 0
-    Local $aResult = DllCall($__g_VD_hDLL, "int", "GetWindowDesktopNumber", "hwnd", $hWnd)
-    If @error Or Not IsArray($aResult) Or $aResult[0] < 0 Then Return 0
+    Local $aArgs[2] = ["hwnd", $hWnd]
+    Local $aResult = __VD_Call("GetWindowDesktopNumber", "int", $aArgs)
+    If @error Or $aResult[0] < 0 Then Return 0
     Return $aResult[0] + 1
 EndFunc
 
@@ -137,8 +183,8 @@ EndFunc
 ;              $iDesktop - target desktop index (1-based)
 ; Return:      True on success, False on failure
 Func _VD_MoveWindowToDesktop($hWnd, $iDesktop)
-    If $__g_VD_hDLL = -1 Then Return False
-    DllCall($__g_VD_hDLL, "int", "MoveWindowToDesktopNumber", "hwnd", $hWnd, "int", $iDesktop - 1)
+    Local $aArgs[4] = ["hwnd", $hWnd, "int", $iDesktop - 1]
+    __VD_Call("MoveWindowToDesktopNumber", "int", $aArgs)
     If @error Then Return False
     Return True
 EndFunc
@@ -217,8 +263,7 @@ EndFunc
 ; Description: Creates a new virtual desktop
 ; Return:      True on success, False on failure or unsupported
 Func _VD_CreateDesktop()
-    If $__g_VD_hDLL = -1 Then Return False
-    DllCall($__g_VD_hDLL, "int", "CreateDesktop")
+    __VD_Call("CreateDesktop", "int")
     If @error Then Return False
     _VD_InvalidateCountCache()
     Return True
@@ -238,8 +283,8 @@ Func _VD_RemoveDesktop($iDesktop, $iFallback = Default)
             $iFallback = 2
         EndIf
     EndIf
-    If $__g_VD_hDLL = -1 Then Return False
-    Local $aResult = DllCall($__g_VD_hDLL, "int", "RemoveDesktop", "int", $iDesktop - 1, "int", $iFallback - 1)
+    Local $aArgs[4] = ["int", $iDesktop - 1, "int", $iFallback - 1]
+    Local $aResult = __VD_Call("RemoveDesktop", "int", $aArgs)
     If @error Then Return False
     _VD_InvalidateCountCache()
     Return True
