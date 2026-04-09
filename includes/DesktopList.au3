@@ -738,6 +738,7 @@ Func _DL_DragPerformReorder($iFrom, $iTo, $iCurrentDesktop)
     While $iPos <> $iTo
         Local $iNext = $iPos + $iStep
         _VD_SwapDesktops($iPos, $iNext)
+        Sleep(100) ; let Windows process the window moves between swaps
         ; Swap INI labels (OS names already swapped inside _VD_SwapDesktops)
         Local $sIniA = IniRead($__g_Labels_IniPath, "Labels", "desktop_" & $iPos, "")
         Local $sIniB = IniRead($__g_Labels_IniPath, "Labels", "desktop_" & $iNext, "")

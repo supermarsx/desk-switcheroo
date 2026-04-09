@@ -183,9 +183,13 @@ EndFunc
 ;              $iDesktop - target desktop index (1-based)
 ; Return:      True on success, False on failure
 Func _VD_MoveWindowToDesktop($hWnd, $iDesktop)
-    Local $aArgs[4] = ["hwnd", $hWnd, "int", $iDesktop - 1]
-    __VD_Call("MoveWindowToDesktopNumber", "int", $aArgs)
-    If @error Then Return False
+    If $__g_VD_hDLL = -1 Then Return False
+    ; Use direct DllCall for reliability (wrapper may eat errors)
+    DllCall($__g_VD_hDLL, "int", "MoveWindowToDesktopNumber", "hwnd", $hWnd, "int", $iDesktop - 1)
+    If @error Then
+        _Log_Debug("MoveWindow FAILED: hwnd=" & $hWnd & " to desktop=" & $iDesktop & " err=" & @error)
+        Return False
+    EndIf
     Return True
 EndFunc
 
@@ -226,14 +230,26 @@ Func _VD_SwapDesktops($iA, $iB)
     _Log_Debug("SwapDesktops: " & $aWinA[0] & " windows on " & $iA & ", " & $aWinB[0] & " windows on " & $iB)
 
     ; Move A's windows to B
-    Local $i, $iMoved = 0
+    Local $i, $iMoved = 0, $iFailed = 0
     For $i = 1 To $aWinA[0]
-        If _VD_MoveWindowToDesktop($aWinA[$i], $iB) Then $iMoved += 1
+        If _VD_MoveWindowToDesktop($aWinA[$i], $iB) Then
+            $iMoved += 1
+        Else
+            $iFailed += 1
+        EndIf
     Next
+    ; Small delay for Windows to process the moves
+    If $aWinA[0] > 0 Then Sleep(50)
     ; Move B's windows to A
     For $i = 1 To $aWinB[0]
-        If _VD_MoveWindowToDesktop($aWinB[$i], $iA) Then $iMoved += 1
+        If _VD_MoveWindowToDesktop($aWinB[$i], $iA) Then
+            $iMoved += 1
+        Else
+            $iFailed += 1
+        EndIf
     Next
+
+    _Log_Debug("SwapDesktops: moved=" & $iMoved & " failed=" & $iFailed)
 
     ; Swap OS desktop names
     If _VD_HasNameSupport() Then
