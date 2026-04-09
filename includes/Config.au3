@@ -38,6 +38,7 @@ Global $__g_Cfg_bListScrollable    = False
 Global $__g_Cfg_iListMaxVisible    = 10
 Global $__g_Cfg_iListScrollSpeed   = 1
 Global $__g_Cfg_iTooltipFontSize   = 8
+Global $__g_Cfg_iHotkeyDesktopCount = 9
 
 ; [Scroll]
 Global $__g_Cfg_bScrollEnabled     = False
@@ -166,6 +167,7 @@ Func _Cfg_Load()
     $__g_Cfg_sListScrollAction  = __Cfg_ReadEnum($f, "Scroll", "list_scroll_action", "switch", "switch|scroll")
 
     ; [Hotkeys]
+    $__g_Cfg_iHotkeyDesktopCount = __Cfg_ReadInt($f, "Hotkeys", "hotkey_desktop_count", 9, 1, 20)
     $__g_Cfg_sHotkeyNext       = IniRead($f, "Hotkeys", "hotkey_next", "")
     $__g_Cfg_sHotkeyPrev       = IniRead($f, "Hotkeys", "hotkey_prev", "")
     Local $i
@@ -248,6 +250,7 @@ Func _Cfg_Save()
     IniWrite($f, "Scroll", "list_scroll_action", $__g_Cfg_sListScrollAction)
 
     ; [Hotkeys]
+    IniWrite($f, "Hotkeys", "hotkey_desktop_count", $__g_Cfg_iHotkeyDesktopCount)
     IniWrite($f, "Hotkeys", "hotkey_next", $__g_Cfg_sHotkeyNext)
     IniWrite($f, "Hotkeys", "hotkey_prev", $__g_Cfg_sHotkeyPrev)
     Local $i
@@ -325,6 +328,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "Scroll", "list_scroll_enabled", False)
     __Cfg_DefaultVal($f, "Scroll", "list_scroll_action", "switch")
 
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_desktop_count", 9)
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_next", "")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_prev", "")
     Local $i
@@ -463,6 +467,14 @@ Func _Cfg_GetListScrollAction()
 EndFunc
 
 ; [Hotkeys]
+Func _Cfg_GetHotkeyDesktopCount()
+    Return $__g_Cfg_iHotkeyDesktopCount
+EndFunc
+Func _Cfg_SetHotkeyDesktopCount($i)
+    If $i < 1 Then $i = 1
+    If $i > 20 Then $i = 20
+    $__g_Cfg_iHotkeyDesktopCount = $i
+EndFunc
 Func _Cfg_GetHotkeyNext()
     Return $__g_Cfg_sHotkeyNext
 EndFunc

@@ -574,11 +574,10 @@ Func __CD_BuildTabHotkeys()
     Local $t = 4, $iX = 20, $iY = 50
     Local $iLblW = 100, $iInpW = 130, $iBtnBuildW = 24, $i
 
-    Local $aLabels[13] = [12, "Next:", "Prev:", "Desktop 1:", "Desktop 2:", "Desktop 3:", _
-        "Desktop 4:", "Desktop 5:", "Desktop 6:", "Desktop 7:", "Desktop 8:", "Desktop 9:", "Toggle List:"]
+    ; Dynamic label: "Desktop N:" generated per iteration below
 
     ; Next (build index 0)
-    Local $idLbl = GUICtrlCreateLabel($aLabels[1], $iX, $iY + 2, $iLblW, 18)
+    Local $idLbl = GUICtrlCreateLabel("Next:", $iX, $iY + 2, $iLblW, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -600,7 +599,7 @@ Func __CD_BuildTabHotkeys()
     $iY += 24
 
     ; Prev (build index 1)
-    $idLbl = GUICtrlCreateLabel($aLabels[2], $iX, $iY + 2, $iLblW, 18)
+    $idLbl = GUICtrlCreateLabel("Prev:", $iX, $iY + 2, $iLblW, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -621,9 +620,11 @@ Func __CD_BuildTabHotkeys()
     _Theme_SetTooltip($__g_CD_idBtnHkBuild[1], "Open hotkey builder to visually create a key combination")
     $iY += 24
 
-    ; Desktop 1-9 (build index 2-10)
-    For $i = 1 To 9
-        $idLbl = GUICtrlCreateLabel($aLabels[$i + 2], $iX, $iY + 2, $iLblW, 18)
+    ; Desktop hotkeys (build index 2+, count from config)
+    Local $iHkCount = _Cfg_GetHotkeyDesktopCount()
+    If $iHkCount > 9 Then $iHkCount = 9 ; limited by array size
+    For $i = 1 To $iHkCount
+        $idLbl = GUICtrlCreateLabel("Desktop " & $i & ":", $iX, $iY + 2, $iLblW, 18)
         GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor($idLbl, $THEME_FG_DIM)
         GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -646,7 +647,7 @@ Func __CD_BuildTabHotkeys()
     Next
 
     ; Toggle List (build index 11)
-    $idLbl = GUICtrlCreateLabel($aLabels[12], $iX, $iY + 2, $iLblW, 18)
+    $idLbl = GUICtrlCreateLabel("Toggle List:", $iX, $iY + 2, $iLblW, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
