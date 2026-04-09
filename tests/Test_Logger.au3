@@ -3,12 +3,14 @@
 Func _RunTest_Logger()
     _Test_Suite("Logger")
 
-    ; Test with temp log file
-    Local $sTempLog = @TempDir & "\desk_switcheroo_test_log.log"
+    ; Test with temp log folder (filename is auto-generated as desk_switcheroo.log)
+    Local $sTempFolder = @TempDir & "\desk_switcheroo_test_logs"
+    DirCreate($sTempFolder)
+    Local $sTempLog = $sTempFolder & "\desk_switcheroo.log"
     If FileExists($sTempLog) Then FileDelete($sTempLog)
 
     _Cfg_SetLoggingEnabled(True)
-    _Cfg_SetLogFilePath($sTempLog)
+    _Cfg_SetLogFolder($sTempFolder)
     _Cfg_SetLogLevel("debug")
     _Log_Init()
 
@@ -45,12 +47,15 @@ Func _RunTest_Logger()
     _Log_Info("Should not write")
     _Log_Shutdown()
     ; File should not exist or be empty
-    Local $sTempLog2 = @TempDir & "\desk_switcheroo_test_log2.log"
-    _Cfg_SetLogFilePath($sTempLog2)
+    Local $sTempFolder2 = @TempDir & "\desk_switcheroo_test_logs2"
+    DirCreate($sTempFolder2)
+    Local $sTempLog2 = $sTempFolder2 & "\desk_switcheroo.log"
+    _Cfg_SetLogFolder($sTempFolder2)
     ; Don't enable logging - verify no writes
     _Log_Info("Ghost write")
     _Test_AssertFalse("No log when disabled", FileExists($sTempLog2) And FileGetSize($sTempLog2) > 0)
     If FileExists($sTempLog2) Then FileDelete($sTempLog2)
+    DirRemove($sTempFolder2)
 
     ; -- All level names accepted --
     _Cfg_SetLogLevel("error")
@@ -65,5 +70,6 @@ Func _RunTest_Logger()
     ; Cleanup
     FileDelete($sTempLog)
     If FileExists($sTempLog & ".bak") Then FileDelete($sTempLog & ".bak")
+    DirRemove($sTempFolder, 1)
     _Cfg_SetLoggingEnabled(False)
 EndFunc

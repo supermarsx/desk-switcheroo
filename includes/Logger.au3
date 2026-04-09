@@ -27,19 +27,8 @@ Func _Log_Init()
     ; Apply configured max log size
     $__g_Log_iMaxSize = _Cfg_GetLogMaxSizeMB() * 1024 * 1024
 
-    ; Determine log file path
+    ; Determine log file path (folder from config + automatic filename)
     Local $sPath = _Cfg_GetLogFilePath()
-    If $sPath = "" Then
-        Local $sDefaultPath = _Cfg_GetLogDefaultPath()
-        If $sDefaultPath <> "" Then
-            $sDefaultPath = StringReplace($sDefaultPath, "%APPDATA%", @AppDataDir)
-            $sDefaultPath = StringReplace($sDefaultPath, "%TEMP%", @TempDir)
-            $sDefaultPath = StringReplace($sDefaultPath, "%SCRIPTDIR%", @ScriptDir)
-            $sPath = $sDefaultPath & "\desk_switcheroo.log"
-        Else
-            $sPath = @ScriptDir & "\desk_switcheroo.log"
-        EndIf
-    EndIf
     $__g_Log_sFilePath = $sPath
 
     ; Determine log level

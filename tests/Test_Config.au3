@@ -115,7 +115,7 @@ Func _RunTest_Config()
     _Test_AssertFalse("Default: config_watcher_enabled", _Cfg_GetConfigWatcherEnabled())
     _Test_AssertEqual("Default: config_watcher_interval", _Cfg_GetConfigWatcherInterval(), 60000)
     _Test_AssertFalse("Default: logging_enabled", _Cfg_GetLoggingEnabled())
-    _Test_AssertEqual("Default: log_file_path", _Cfg_GetLogFilePath(), "")
+    _Test_AssertEqual("Default: log_folder", _Cfg_GetLogFolder(), "")
     _Test_AssertEqual("Default: log_level", _Cfg_GetLogLevel(), "info")
 
     ; -- New config keys: Set+Get round-trips --
@@ -137,8 +137,8 @@ Func _RunTest_Config()
     _Cfg_SetLoggingEnabled(True)
     _Test_AssertTrue("Set+Get: logging_enabled", _Cfg_GetLoggingEnabled())
 
-    _Cfg_SetLogFilePath("C:\logs\test.log")
-    _Test_AssertEqual("Set+Get: log_file_path", _Cfg_GetLogFilePath(), "C:\logs\test.log")
+    _Cfg_SetLogFolder("C:\logs")
+    _Test_AssertEqual("Set+Get: log_folder", _Cfg_GetLogFolder(), "C:\logs")
 
     _Cfg_SetLogLevel("debug")
     _Test_AssertEqual("Set+Get: log_level", _Cfg_GetLogLevel(), "debug")
@@ -208,9 +208,9 @@ Func _RunTest_Config()
     _Cfg_Load()
     _Test_AssertEqual("Empty hotkey persists", _Cfg_GetHotkeyNext(), "")
 
-    ; -- Edge case: special characters in log path --
-    _Cfg_SetLogFilePath("C:\Users\test dir\my log.log")
-    _Test_AssertEqual("Special chars in log path", _Cfg_GetLogFilePath(), "C:\Users\test dir\my log.log")
+    ; -- Edge case: special characters in log folder --
+    _Cfg_SetLogFolder("C:\Users\test dir\logs")
+    _Test_AssertEqual("Special chars in log folder", _Cfg_GetLogFolder(), "C:\Users\test dir\logs")
 
     ; -- Edge case: boundary values --
     _Cfg_SetThemeAlphaMain(50)
@@ -289,7 +289,7 @@ Func _RunTest_Config()
     _Test_AssertEqual("Default: log_max_size_mb", _Cfg_GetLogMaxSizeMB(), 5)
     _Test_AssertEqual("Default: log_rotate_count", _Cfg_GetLogRotateCount(), 3)
     _Test_AssertFalse("Default: log_compress_old", _Cfg_GetLogCompressOld())
-    _Test_AssertEqual("Default: log_default_path", _Cfg_GetLogDefaultPath(), "")
+    _Test_AssertEqual("Default: log_folder (extended)", _Cfg_GetLogFolder(), "")
     _Cfg_SetLogMaxSizeMB(10)
     _Test_AssertEqual("Set+Get: log_max_size_mb", _Cfg_GetLogMaxSizeMB(), 10)
     _Cfg_SetLogRotateCount(5)
