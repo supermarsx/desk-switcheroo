@@ -15,6 +15,7 @@ Global $__g_VD_hDLL = -1
 Global $__g_VD_bNameSupport = False
 Global $__g_VD_iCachedCount = 0
 Global $__g_VD_hCountTimer = 0
+Global $__g_VD_aEnumBuf[1]  ; scratch buffer for EnumWindows callback
 
 ; #INTERNAL HELPERS# ============================================
 
@@ -184,13 +185,48 @@ EndFunc
 ; Return:      True on success, False on failure
 Func _VD_MoveWindowToDesktop($hWnd, $iDesktop)
     If $__g_VD_hDLL = -1 Then Return False
-    ; Use direct DllCall for reliability (wrapper may eat errors)
-    DllCall($__g_VD_hDLL, "int", "MoveWindowToDesktopNumber", "hwnd", $hWnd, "int", $iDesktop - 1)
+    Local $aResult = DllCall($__g_VD_hDLL, "int", "MoveWindowToDesktopNumber", "hwnd", $hWnd, "int", $iDesktop - 1)
     If @error Then
-        _Log_Debug("MoveWindow FAILED: hwnd=" & $hWnd & " to desktop=" & $iDesktop & " err=" & @error)
+        _Log_Debug("MoveWindow DllCall FAILED: hwnd=" & $hWnd & " to desktop=" & $iDesktop & " err=" & @error)
         Return False
     EndIf
+    If Not IsArray($aResult) Then
+        _Log_Debug("MoveWindow non-array result: hwnd=" & $hWnd)
+        Return False
+    EndIf
+    _Log_Debug("MoveWindow: hwnd=" & $hWnd & " to desktop=" & $iDesktop & " ret=" & $aResult[0])
     Return True
+EndFunc
+
+; Name:        __VD_EnumWindowsCB
+; Description: Callback for Win32 EnumWindows — collects all HWNDs into $__g_VD_aEnumBuf
+Func __VD_EnumWindowsCB($hWnd, $lParam)
+    #forceref $lParam
+    If $__g_VD_aEnumBuf[0] >= UBound($__g_VD_aEnumBuf) - 1 Then
+        ReDim $__g_VD_aEnumBuf[UBound($__g_VD_aEnumBuf) * 2]
+    EndIf
+    $__g_VD_aEnumBuf[0] += 1
+    $__g_VD_aEnumBuf[$__g_VD_aEnumBuf[0]] = $hWnd
+    Return 1
+EndFunc
+
+; Name:        __VD_EnumAllWindows
+; Description: Calls Win32 EnumWindows directly to get ALL top-level windows
+;              system-wide, bypassing AutoIt's WinList which is virtual-desktop-scoped.
+; Return:      Array where [0] = count, [1..N] = HWNDs
+Func __VD_EnumAllWindows()
+    ReDim $__g_VD_aEnumBuf[2048]
+    $__g_VD_aEnumBuf[0] = 0
+    Local $hCB = DllCallbackRegister("__VD_EnumWindowsCB", "bool", "hwnd;lparam")
+    If $hCB = 0 Then
+        _Log_Error("EnumAllWindows: DllCallbackRegister failed")
+        Local $aEmpty[1] = [0]
+        Return $aEmpty
+    EndIf
+    DllCall("user32.dll", "bool", "EnumWindows", "ptr", DllCallbackGetPtr($hCB), "lparam", 0)
+    DllCallbackFree($hCB)
+    ReDim $__g_VD_aEnumBuf[$__g_VD_aEnumBuf[0] + 1]
+    Return $__g_VD_aEnumBuf
 EndFunc
 
 ; Name:        _VD_EnumWindowsOnDesktop
@@ -198,18 +234,26 @@ EndFunc
 ; Parameters:  $iDesktop - desktop index (1-based)
 ; Return:      Array where [0] = count, [1..N] = HWNDs
 Func _VD_EnumWindowsOnDesktop($iDesktop)
-    Local $aAll = WinList("")
-    Local $aResult[$aAll[0][0] + 1]
+    Local $aAll = __VD_EnumAllWindows()
+    Local $aResult[$aAll[0] + 1]
     $aResult[0] = 0
+    Local $iTotal = 0, $iFiltered = 0, $iNoDesk = 0
     Local $i
-    For $i = 1 To $aAll[0][0]
-        Local $hWnd = $aAll[$i][1]
+    For $i = 1 To $aAll[0]
+        Local $hWnd = $aAll[$i]
         If $hWnd = 0 Then ContinueLoop
+        $iTotal += 1
         ; Pre-filter: skip child windows (have an owner/parent)
-        If _WinAPI_GetParent($hWnd) <> 0 Then ContinueLoop
+        If _WinAPI_GetParent($hWnd) <> 0 Then
+            $iFiltered += 1
+            ContinueLoop
+        EndIf
         ; Direct DllCall instead of wrapper to avoid function-call overhead in tight loop
         Local $aDesk = DllCall($__g_VD_hDLL, "int", "GetWindowDesktopNumber", "hwnd", $hWnd)
-        If @error Or $aDesk[0] < 0 Then ContinueLoop
+        If @error Or $aDesk[0] < 0 Then
+            $iNoDesk += 1
+            ContinueLoop
+        EndIf
         If $aDesk[0] + 1 = $iDesktop Then
             $aResult[0] += 1
             $aResult[$aResult[0]] = $hWnd
@@ -225,21 +269,58 @@ EndFunc
 ; Return:      True on success
 Func _VD_SwapDesktops($iA, $iB)
     _Log_Debug("SwapDesktops: swapping desktop " & $iA & " <-> " & $iB)
-    Local $aWinA = _VD_EnumWindowsOnDesktop($iA)
-    Local $aWinB = _VD_EnumWindowsOnDesktop($iB)
-    _Log_Debug("SwapDesktops: " & $aWinA[0] & " windows on " & $iA & ", " & $aWinB[0] & " windows on " & $iB)
 
-    ; Move A's windows to B
-    Local $i, $iMoved = 0, $iFailed = 0
+    ; Use Win32 EnumWindows directly — AutoIt's WinList("") is virtual-desktop-
+    ; scoped on Win10/11 and only returns windows on the current desktop.
+    ; EnumWindows returns ALL top-level windows system-wide.
+    Local $aAll = __VD_EnumAllWindows()
+    Local $aWinA[$aAll[0] + 1], $aWinB[$aAll[0] + 1]
+    $aWinA[0] = 0
+    $aWinB[0] = 0
+    Local $iTotal = 0, $iFiltered = 0, $iNoDesk = 0
+    Local $i
+    For $i = 1 To $aAll[0]
+        Local $hWnd = $aAll[$i]
+        If $hWnd = 0 Then ContinueLoop
+        $iTotal += 1
+        If _WinAPI_GetParent($hWnd) <> 0 Then
+            $iFiltered += 1
+            ContinueLoop
+        EndIf
+        Local $aDesk = DllCall($__g_VD_hDLL, "int", "GetWindowDesktopNumber", "hwnd", $hWnd)
+        If @error Or $aDesk[0] < 0 Then
+            $iNoDesk += 1
+            ContinueLoop
+        EndIf
+        Local $iDesk = $aDesk[0] + 1
+        If $iDesk = $iA Then
+            $aWinA[0] += 1
+            $aWinA[$aWinA[0]] = $hWnd
+            _Log_Debug("SwapDesktops: A hwnd=" & $hWnd & " title=" & WinGetTitle($hWnd))
+        ElseIf $iDesk = $iB Then
+            $aWinB[0] += 1
+            $aWinB[$aWinB[0]] = $hWnd
+            _Log_Debug("SwapDesktops: B hwnd=" & $hWnd & " title=" & WinGetTitle($hWnd))
+        EndIf
+    Next
+    ReDim $aWinA[$aWinA[0] + 1]
+    ReDim $aWinB[$aWinB[0] + 1]
+
+    _Log_Debug("SwapDesktops: EnumWindows total=" & $iTotal & " filtered=" & $iFiltered & " noDesk=" & $iNoDesk & _
+        " deskA=" & $aWinA[0] & " deskB=" & $aWinB[0])
+
+    ; Move A's windows to B (small delay between each to avoid COM threading issues)
+    Local $iMoved = 0, $iFailed = 0
     For $i = 1 To $aWinA[0]
         If _VD_MoveWindowToDesktop($aWinA[$i], $iB) Then
             $iMoved += 1
         Else
             $iFailed += 1
         EndIf
+        If $i < $aWinA[0] Then Sleep(20)
     Next
-    ; Small delay for Windows to process the moves
-    If $aWinA[0] > 0 Then Sleep(50)
+    ; Delay between the two batches
+    If $aWinA[0] > 0 And $aWinB[0] > 0 Then Sleep(50)
     ; Move B's windows to A
     For $i = 1 To $aWinB[0]
         If _VD_MoveWindowToDesktop($aWinB[$i], $iA) Then
@@ -247,9 +328,30 @@ Func _VD_SwapDesktops($iA, $iB)
         Else
             $iFailed += 1
         EndIf
+        If $i < $aWinB[0] Then Sleep(20)
     Next
 
     _Log_Debug("SwapDesktops: moved=" & $iMoved & " failed=" & $iFailed)
+
+    ; Allow Windows to process all moves before verification
+    If $iMoved > 0 Then Sleep(150)
+
+    ; Verify moves actually worked by spot-checking first window from each set
+    Local $bVerified = True
+    If $aWinA[0] > 0 Then
+        Local $iCheckA = _VD_GetWindowDesktopNumber($aWinA[1])
+        _Log_Debug("SwapDesktops VERIFY: A hwnd=" & $aWinA[1] & " should be on " & $iB & ", actually on " & $iCheckA)
+        If $iCheckA <> $iB And $iCheckA > 0 Then $bVerified = False
+    EndIf
+    If $aWinB[0] > 0 Then
+        Local $iCheckB = _VD_GetWindowDesktopNumber($aWinB[1])
+        _Log_Debug("SwapDesktops VERIFY: B hwnd=" & $aWinB[1] & " should be on " & $iA & ", actually on " & $iCheckB)
+        If $iCheckB <> $iA And $iCheckB > 0 Then $bVerified = False
+    EndIf
+
+    If Not $bVerified Then
+        _Log_Error("SwapDesktops: WINDOW MOVES DID NOT TAKE EFFECT")
+    EndIf
 
     ; Swap OS desktop names
     If _VD_HasNameSupport() Then
@@ -267,8 +369,8 @@ Func _VD_SwapDesktops($iA, $iB)
         _Cfg_SetDesktopColor($iB, $iColorA)
     EndIf
 
-    _Log_Debug("SwapDesktops: moved " & $iMoved & " windows total")
-    Return True
+    _Log_Debug("SwapDesktops: complete — moved=" & $iMoved & " failed=" & $iFailed & " verified=" & $bVerified)
+    Return $bVerified
 EndFunc
 
 ; Name:        _VD_RegisterNotify
