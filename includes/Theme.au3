@@ -76,12 +76,65 @@ Global Const $THEME_TIMER_TEMPLIST = 3000
 
 ; #FUNCTIONS# ===================================================
 
+; -- Tooltip registry for themed tooltips --
+Global $__g_Theme_aTipIDs[200]
+Global $__g_Theme_aTipTexts[200]
+Global $__g_Theme_iTipCount = 0
+Global $__g_Theme_iLastTipCtrl = 0
+
 ; Name:        _Theme_SetTooltip
-; Description: Sets a tooltip on a control using GUICtrlSetTip
+; Description: Registers a themed tooltip for a control. The tooltip is shown
+;              when _Theme_CheckTooltipHover is called and cursor is over the control.
 ; Parameters:  $idCtrl - control ID
 ;              $sText - tooltip text
 Func _Theme_SetTooltip($idCtrl, $sText)
-    GUICtrlSetTip($idCtrl, $sText)
+    If $__g_Theme_iTipCount >= 199 Then Return
+    $__g_Theme_iTipCount += 1
+    $__g_Theme_aTipIDs[$__g_Theme_iTipCount] = $idCtrl
+    $__g_Theme_aTipTexts[$__g_Theme_iTipCount] = $sText
+EndFunc
+
+; Name:        _Theme_CheckTooltipHover
+; Description: Check if cursor is over any registered tooltip control and show/hide.
+;              Call from dialog message loops.
+; Parameters:  $hGUI - the GUI handle to check cursor against
+Func _Theme_CheckTooltipHover($hGUI)
+    If $hGUI = 0 Then Return
+    Local $aCursor = GUIGetCursorInfo($hGUI)
+    If @error Then
+        If $__g_Theme_iLastTipCtrl <> 0 Then
+            _Theme_HideTooltip()
+            $__g_Theme_iLastTipCtrl = 0
+        EndIf
+        Return
+    EndIf
+
+    Local $iCtrl = $aCursor[4]
+    If $iCtrl = $__g_Theme_iLastTipCtrl Then Return ; same control, tooltip already showing
+
+    ; Check if this control has a registered tooltip
+    Local $i
+    For $i = 1 To $__g_Theme_iTipCount
+        If $__g_Theme_aTipIDs[$i] = $iCtrl Then
+            $__g_Theme_iLastTipCtrl = $iCtrl
+            _Theme_ShowTooltip($__g_Theme_aTipTexts[$i])
+            Return
+        EndIf
+    Next
+
+    ; Cursor over unregistered control — hide tooltip
+    If $__g_Theme_iLastTipCtrl <> 0 Then
+        _Theme_HideTooltip()
+        $__g_Theme_iLastTipCtrl = 0
+    EndIf
+EndFunc
+
+; Name:        _Theme_ClearTooltips
+; Description: Clears all registered tooltips (call when dialog is destroyed)
+Func _Theme_ClearTooltips()
+    $__g_Theme_iTipCount = 0
+    $__g_Theme_iLastTipCtrl = 0
+    _Theme_HideTooltip()
 EndFunc
 
 ; Name:        _Theme_CreatePopup

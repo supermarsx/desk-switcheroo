@@ -1022,9 +1022,16 @@ Func __CD_MessageLoop()
         ; Tick toast fade-out while dialog is open
         _Theme_ToastTick()
 
+        ; Themed tooltip hover check
+        _Theme_CheckTooltipHover($__g_CD_hGUI)
+
+        ; Live color preview update
+        __CD_UpdateColorPreviews()
+
         Sleep(10)
     WEnd
 
+    _Theme_ClearTooltips()
     _Theme_ToastDestroy()
     _CD_Destroy()
 EndFunc
@@ -1178,6 +1185,21 @@ Func __CD_ApplyChanges()
     If Not @error Then
         _Theme_Toast($sToastMsg, $aPos[0], $aPos[1] + $aPos[3] + 4, 2000, $iToastIcon)
     EndIf
+EndFunc
+
+; Name:        __CD_UpdateColorPreviews
+; Description: Updates color preview swatches from input values in real-time
+Func __CD_UpdateColorPreviews()
+    If $__g_CD_iActiveTab <> 6 Then Return ; only update when Colors tab is visible
+    Local $i
+    For $i = 1 To 9
+        If $__g_CD_aidInpColor[$i] = 0 Then ContinueLoop
+        Local $sHex = GUICtrlRead($__g_CD_aidInpColor[$i])
+        Local $iColor = _Theme_ValidateHexColor($sHex)
+        If $iColor >= 0 Then
+            GUICtrlSetBkColor($__g_CD_aidLblPreview[$i], $iColor)
+        EndIf
+    Next
 EndFunc
 
 Func __CD_ResetDefaults()
