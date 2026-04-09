@@ -106,6 +106,8 @@ Global $bHoverLeft = False, $bHoverRight = False
 Global $iRenameTarget = 0
 Global $hMoveWindowTarget = 0   ; last known external foreground window
 Global $hLastExternalWindow = 0 ; continuously tracked
+Global $__g_hInetDownload = 0   ; background update download handle
+Global $__g_sInetTempFile = ""  ; temp file for update check
 Global $bDesktopChanged = False
 Global $bNamesChanged = False
 Global $__g_iLastCursorX = -1, $__g_iLastCursorY = -1
@@ -934,9 +936,6 @@ Func _AdlibSyncNames()
     If _Peek_IsActive() Then Return
     If _Labels_SyncFromOS() Then $bNamesChanged = True
 EndFunc
-
-Global $__g_hInetDownload = 0
-Global $__g_sInetTempFile = ""
 
 ; Name:        _AdlibCheckUpdate
 ; Description: Starts a non-blocking download of the GitHub releases API
