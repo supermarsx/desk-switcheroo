@@ -50,6 +50,7 @@ Global $__g_DL_aColorPresetIDs[8]  ; [0]=7, [1-7]=control IDs
 Global $__g_DL_iColorNoneID   = 0
 Global $__g_DL_iColorCustomID = 0
 Global $__g_DL_iColorTarget = 0
+Global $__g_DL_iColorHovered = 0
 
 ; #FUNCTIONS# ===================================================
 
@@ -664,6 +665,15 @@ Func _DL_CtxCheckHover()
     If $__g_DL_iCtxHovered <> 0 Then
         _Theme_ApplyHover($__g_DL_iCtxHovered, $THEME_FG_WHITE, $THEME_BG_HOVER)
     EndIf
+
+    ; Auto-show color picker on hover over "Set Color"
+    If $iFound = $__g_DL_iCtxSetColor And $__g_DL_iCtxSetColor <> 0 And Not _DL_ColorPickerIsVisible() Then
+        _DL_ColorPickerShow($__g_DL_iCtxTarget)
+    ElseIf $iFound <> $__g_DL_iCtxSetColor And _DL_ColorPickerIsVisible() Then
+        If Not _Theme_IsCursorOverWindow(_DL_ColorPickerGetGUI()) Then
+            _DL_ColorPickerDestroy()
+        EndIf
+    EndIf
 EndFunc
 
 ; Name:        _DL_CtxCheckAutoHide
@@ -777,6 +787,7 @@ Func _DL_ColorPickerDestroy()
     EndIf
     $__g_DL_bColorVisible = False
     $__g_DL_iColorTarget = 0
+    $__g_DL_iColorHovered = 0
     $__g_DL_iColorNoneID = 0
     $__g_DL_iColorCustomID = 0
     For $i = 1 To 7
@@ -817,6 +828,63 @@ EndFunc
 ; Return:      Desktop index (1-based)
 Func _DL_ColorPickerGetTarget()
     Return $__g_DL_iColorTarget
+EndFunc
+
+; Name:        _DL_ColorPickerCheckHover
+; Description: Updates hover highlighting on the color picker popup. Call from main loop.
+Func _DL_ColorPickerCheckHover()
+    If Not $__g_DL_bColorVisible Or $__g_DL_hColorGUI = 0 Then Return
+    Local $aCursor = GUIGetCursorInfo($__g_DL_hColorGUI)
+    If @error Then
+        If $__g_DL_iColorHovered <> 0 Then
+            __DL_ColorPickerRestoreItem($__g_DL_iColorHovered)
+            $__g_DL_iColorHovered = 0
+        EndIf
+        Return
+    EndIf
+
+    Local $iFound = 0
+    If $aCursor[4] = $__g_DL_iColorNoneID Then $iFound = $__g_DL_iColorNoneID
+    If $aCursor[4] = $__g_DL_iColorCustomID Then $iFound = $__g_DL_iColorCustomID
+    Local $i
+    For $i = 1 To 7
+        If $__g_DL_aColorPresetIDs[$i] <> 0 And $aCursor[4] = $__g_DL_aColorPresetIDs[$i] Then
+            $iFound = $__g_DL_aColorPresetIDs[$i]
+            ExitLoop
+        EndIf
+    Next
+
+    If $iFound = $__g_DL_iColorHovered Then Return
+
+    If $__g_DL_iColorHovered <> 0 Then
+        __DL_ColorPickerRestoreItem($__g_DL_iColorHovered)
+    EndIf
+
+    $__g_DL_iColorHovered = $iFound
+    If $__g_DL_iColorHovered <> 0 Then
+        _Theme_ApplyHover($__g_DL_iColorHovered, $THEME_FG_WHITE, $THEME_BG_HOVER)
+    EndIf
+EndFunc
+
+; Name:        __DL_ColorPickerRestoreItem
+; Description: Restores the original color of a color picker item after hover
+; Parameters:  $idCtrl - control ID to restore
+Func __DL_ColorPickerRestoreItem($idCtrl)
+    If $idCtrl = $__g_DL_iColorNoneID Then
+        _Theme_RemoveHover($idCtrl, $THEME_FG_DIM)
+        Return
+    EndIf
+    If $idCtrl = $__g_DL_iColorCustomID Then
+        _Theme_RemoveHover($idCtrl, $THEME_FG_MENU)
+        Return
+    EndIf
+    Local $i
+    For $i = 1 To 7
+        If $__g_DL_aColorPresetIDs[$i] = $idCtrl Then
+            _Theme_RemoveHover($idCtrl, $THEME_PRESET_COLORS[$i])
+            Return
+        EndIf
+    Next
 EndFunc
 
 ; Name:        _DL_ColorPickerCustomDialog
