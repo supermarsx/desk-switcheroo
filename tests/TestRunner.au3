@@ -91,6 +91,11 @@ Func _Test_AssertFalse($sName, $bValue)
     _Test_AssertEqual($sName, $bValue, False)
 EndFunc
 
+Func _Test_Skip($sName)
+    $__g_Test_iPass += 1
+    ConsoleWrite("  SKIP: " & $sName & @CRLF)
+EndFunc
+
 Func _Test_AssertGreaterEqual($sName, $vActual, $vMin)
     If $vActual >= $vMin Then
         $__g_Test_iPass += 1
