@@ -224,18 +224,25 @@ EndIf
 _Log_Info("Startup complete")
 
 ; ---- Main loop ----
-Local $bRightWasDown = False
-Local $bLeftWasDown = False
-Local $bMiddleWasDown = False
+Global $bRightWasDown = False
+Global $bLeftWasDown = False
+Global $bMiddleWasDown = False
 
 While 1
     Local $aMsg = GUIGetMsg(1)
-    Local $msg = $aMsg[0]
-    Local $hFrom = $aMsg[1]
-
-    ; Tray icon messages (if in tray mode)
     _CheckTrayMessages()
+    _ProcessGUIEvents($aMsg[0], $aMsg[1])
+    If Not _ProcessMouseInput() Then ContinueLoop
+    _ProcessKeyboardInput()
+    _ProcessEventFlags()
+    Local $bActive = _ProcessHoverAndVisuals()
+    _ProcessTimersAndSleep($bActive)
+WEnd
 
+; Name:        _ProcessGUIEvents
+; Description: Handles GUI messages from all windows (widget, menus, dialogs, color picker)
+; Parameters:  $msg - GUI message, $hFrom - source GUI handle
+Func _ProcessGUIEvents($msg, $hFrom)
     ; Main GUI events
     If $hFrom = $gui Then
         Switch $msg
@@ -450,10 +457,15 @@ While 1
                 _RD_Destroy()
         EndSwitch
     EndIf
+EndFunc
 
+; Name:        _ProcessMouseInput
+; Description: Handles raw mouse button state for right-click, middle-click, left-click/drag
+; Return:      False if the main loop should ContinueLoop, True otherwise
+Func _ProcessMouseInput()
     ; Right-click detection
     Local $rBtn = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_RBUTTON)
-    If @error Or Not IsArray($rBtn) Then ContinueLoop
+    If @error Or Not IsArray($rBtn) Then Return False
     Local $bRightDown = (BitAND($rBtn[0], 0x8000) <> 0)
 
     If $bRightWasDown And Not $bRightDown Then
@@ -499,7 +511,7 @@ While 1
 
     ; Middle-click detection
     Local $mBtn = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_MBUTTON)
-    If @error Or Not IsArray($mBtn) Then ContinueLoop
+    If @error Or Not IsArray($mBtn) Then Return False
     Local $bMiddleDown = (BitAND($mBtn[0], 0x8000) <> 0)
 
     If $bMiddleWasDown And Not $bMiddleDown Then
@@ -526,7 +538,7 @@ While 1
 
     ; Left-click drag detection for desktop list + triple-click + widget drag
     Local $lBtn = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_LBUTTON)
-    If @error Or Not IsArray($lBtn) Then ContinueLoop
+    If @error Or Not IsArray($lBtn) Then Return False
     Local $bLeftDown = (BitAND($lBtn[0], 0x8000) <> 0)
 
     If $bLeftDown And Not $bLeftWasDown Then
@@ -632,6 +644,12 @@ While 1
 
     $bLeftWasDown = $bLeftDown
 
+    Return True
+EndFunc
+
+; Name:        _ProcessKeyboardInput
+; Description: Handles keyboard navigation, quick-access, and escape-cancel during drag
+Func _ProcessKeyboardInput()
     ; Keyboard navigation in desktop list
     If _Cfg_GetListKeyboardNav() And _DL_IsVisible() And Not _DL_IsDragging() Then
         Local $retUp = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_UP)
@@ -654,7 +672,11 @@ While 1
 
     ; Quick-access number input polling
     If $__g_bQuickAccessActive Then _QuickAccess_Check()
+EndFunc
 
+; Name:        _ProcessEventFlags
+; Description: Processes event-driven flags (desktop change, name sync)
+Func _ProcessEventFlags()
     ; Event-driven desktop change (flag set by _WM_DESKTOPCHANGE)
     If $bDesktopChanged And Not _Peek_IsActive() Then
         $bDesktopChanged = False
@@ -666,7 +688,12 @@ While 1
         $bNamesChanged = False
         _ApplyDesktopChange()
     EndIf
+EndFunc
 
+; Name:        _ProcessHoverAndVisuals
+; Description: Handles cursor tracking, hover effects, peek indicator, hover clear
+; Return:      True if cursor is over any of our windows (for sleep decision)
+Func _ProcessHoverAndVisuals()
     ; Lazy hover check: skip when cursor hasn't moved and no state changed
     Local $aCurPos = MouseGetPos()
     Local $bCursorMoved = ($aCurPos[0] <> $__g_iLastCursorX Or $aCurPos[1] <> $__g_iLastCursorY)
@@ -707,6 +734,13 @@ While 1
     EndIf
     $__g_bWasCursorActive = $bCursorActive
 
+    Return $bCursorActive
+EndFunc
+
+; Name:        _ProcessTimersAndSleep
+; Description: Handles toast, update check, peek bounce, auto-hide, and dynamic sleep
+; Parameters:  $bCursorActive - whether cursor is over any window
+Func _ProcessTimersAndSleep($bCursorActive)
     ; Toast fade-out tick
     _Theme_ToastTick()
 
@@ -738,7 +772,7 @@ While 1
     Else
         Sleep(30)
     EndIf
-WEnd
+EndFunc
 
 ; =============================================
 ; MAIN HELPERS
