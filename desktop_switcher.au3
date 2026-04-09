@@ -1113,35 +1113,208 @@ EndFunc
 ; Name:        _CheckHover
 ; Description: Updates hover highlighting on widget arrow buttons
 ; Name:        _DownloadLatestPortable
-; Description: Downloads the latest portable zip from GitHub to the Downloads folder
+; Description: Fetches release info, shows confirm with details, downloads with progress bar
 Func _DownloadLatestPortable()
     _Log_Info("Download latest portable triggered")
+
+    ; Phase 1: Fetch release info
+    Local $iDlgW = 320, $iDlgH = 100
+    Local $hDlg = _Theme_CreatePopup("Download", $iDlgW, $iDlgH, _
+        (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+    GUICtrlCreateLabel("Fetching release info...", 14, 14, $iDlgW - 28, 20)
+    GUICtrlSetFont(-1, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
+    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+    GUISetState(@SW_SHOW, $hDlg)
+    Sleep(50)
+
     Local $sUrl = "https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest"
     Local $bData = InetRead($sUrl, 1)
+    GUIDelete($hDlg)
     If @error Then
-        _Theme_Toast("Download failed — connection error", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
+        _Theme_Toast("Connection failed", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
         Return
     EndIf
     Local $sJson = BinaryToString($bData)
 
-    ; Find portable zip URL
-    Local $aMatch = StringRegExp($sJson, '"browser_download_url"\s*:\s*"([^"]*Portable[^"]*\.zip)"', 1)
-    If @error Or UBound($aMatch) < 1 Then
+    ; Extract version, date, portable URL, and size
+    Local $aVer = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
+    Local $sVersion = "unknown"
+    If Not @error And UBound($aVer) >= 1 Then $sVersion = $aVer[0]
+
+    Local $aDate = StringRegExp($sJson, '"published_at"\s*:\s*"([^T"]+)', 1)
+    Local $sDate = "unknown"
+    If Not @error And UBound($aDate) >= 1 Then $sDate = $aDate[0]
+
+    Local $aPortUrl = StringRegExp($sJson, '"browser_download_url"\s*:\s*"([^"]*Portable[^"]*\.zip)"', 1)
+    If @error Or UBound($aPortUrl) < 1 Then
         _Theme_Toast("No portable download found", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_WARNING)
         Return
     EndIf
+    Local $sDownloadUrl = $aPortUrl[0]
 
-    Local $sDownloadUrl = $aMatch[0]
-    Local $sDestDir = @UserProfileDir & "\Downloads"
-    Local $sDestFile = $sDestDir & "\DeskSwitcheroo_Portable_latest.zip"
-
-    _Theme_Toast("Downloading...", 0, $iTaskbarY + $iTaskbarH + 4, 5000, $TOAST_INFO)
-    InetGet($sDownloadUrl, $sDestFile, 1)
-    If @error Then
-        _Theme_Toast("Download failed", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
-    Else
-        _Theme_Toast("Saved to Downloads", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_SUCCESS)
+    ; Extract file size from the assets array (find size near the portable URL)
+    Local $aSize = StringRegExp($sJson, '"name"\s*:\s*"[^"]*Portable[^"]*"[^}]*"size"\s*:\s*(\d+)', 1)
+    Local $iSizeBytes = 0
+    Local $sSizeStr = "unknown"
+    If Not @error And UBound($aSize) >= 1 Then
+        $iSizeBytes = Int($aSize[0])
+        If $iSizeBytes > 1048576 Then
+            $sSizeStr = StringFormat("%.1f MB", $iSizeBytes / 1048576)
+        ElseIf $iSizeBytes > 1024 Then
+            $sSizeStr = StringFormat("%.0f KB", $iSizeBytes / 1024)
+        Else
+            $sSizeStr = $iSizeBytes & " bytes"
+        EndIf
     EndIf
+
+    ; Phase 2: Confirm dialog with release details
+    $iDlgH = 140
+    $hDlg = _Theme_CreatePopup("Download", $iDlgW, $iDlgH, _
+        (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+
+    GUICtrlCreateLabel("Download Portable v" & $sVersion & "?", 14, 10, $iDlgW - 28, 20)
+    GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
+    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+
+    GUICtrlCreateLabel("Size: " & $sSizeStr & "  |  Released: " & $sDate, 14, 34, $iDlgW - 28, 16)
+    GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor(-1, $THEME_FG_DIM)
+    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+
+    GUICtrlCreateLabel("Save to: " & @UserProfileDir & "\Downloads", 14, 52, $iDlgW - 28, 16)
+    GUICtrlSetFont(-1, 7, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor(-1, $THEME_FG_LABEL)
+    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+
+    Local $idYes = GUICtrlCreateLabel(ChrW(0x2B07) & " Download", 14, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idYes, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idYes, $THEME_FG_MENU)
+    GUICtrlSetBkColor($idYes, $THEME_BG_HOVER)
+    GUICtrlSetCursor($idYes, 0)
+
+    Local $idNo = GUICtrlCreateLabel(ChrW(0x2715) & " Cancel", $iDlgW - 114, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idNo, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idNo, $THEME_FG_MENU)
+    GUICtrlSetBkColor($idNo, $THEME_BG_HOVER)
+    GUICtrlSetCursor($idNo, 0)
+
+    GUISetState(@SW_SHOW, $hDlg)
+
+    Local $bProceed = False
+    While 1
+        Local $aMsg = GUIGetMsg(1)
+        If $aMsg[1] = $hDlg Then
+            If $aMsg[0] = $GUI_EVENT_CLOSE Or $aMsg[0] = $idNo Then ExitLoop
+            If $aMsg[0] = $idYes Then
+                $bProceed = True
+                ExitLoop
+            EndIf
+        EndIf
+        Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
+        If Not @error And IsArray($retEsc) And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
+        Sleep(10)
+    WEnd
+    GUIDelete($hDlg)
+
+    If Not $bProceed Then Return
+
+    ; Phase 3: Download with progress bar
+    Local $sDestFile = @UserProfileDir & "\Downloads\DeskSwitcheroo_Portable_v" & $sVersion & ".zip"
+
+    $iDlgH = 90
+    $hDlg = _Theme_CreatePopup("Downloading", $iDlgW, $iDlgH, _
+        (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+
+    Local $idProgLabel = GUICtrlCreateLabel("Downloading v" & $sVersion & "...", 14, 10, $iDlgW - 28, 18)
+    GUICtrlSetFont($idProgLabel, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idProgLabel, $THEME_FG_PRIMARY)
+    GUICtrlSetBkColor($idProgLabel, $GUI_BKCOLOR_TRANSPARENT)
+
+    ; Progress bar background
+    GUICtrlCreateLabel("", 14, 38, $iDlgW - 28, 16)
+    GUICtrlSetBkColor(-1, $THEME_BG_INPUT)
+    ; Progress bar fill
+    Local $idProgBar = GUICtrlCreateLabel("", 14, 38, 1, 16)
+    GUICtrlSetBkColor($idProgBar, 0x4A9EFF)
+
+    Local $idProgPct = GUICtrlCreateLabel("0%", 14, 58, $iDlgW - 28, 16)
+    GUICtrlSetFont($idProgPct, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idProgPct, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idProgPct, $GUI_BKCOLOR_TRANSPARENT)
+
+    GUISetState(@SW_SHOW, $hDlg)
+
+    ; Start background download
+    Local $hDownload = InetGet($sDownloadUrl, $sDestFile, 1, 1)
+    Local $iBarW = $iDlgW - 28
+
+    ; Poll progress
+    While Not InetGetInfo($hDownload, 2) ; 2 = complete
+        Local $iBytesRead = InetGetInfo($hDownload, 0)
+        If $iSizeBytes > 0 Then
+            Local $iPct = Int($iBytesRead / $iSizeBytes * 100)
+            If $iPct > 100 Then $iPct = 100
+            GUICtrlSetPos($idProgBar, 14, 38, Int($iBarW * $iPct / 100), 16)
+            GUICtrlSetData($idProgPct, $iPct & "% (" & StringFormat("%.1f", $iBytesRead / 1048576) & " / " & $sSizeStr & ")")
+        Else
+            GUICtrlSetData($idProgPct, StringFormat("%.1f MB downloaded", $iBytesRead / 1048576))
+        EndIf
+        Sleep(100)
+    WEnd
+
+    Local $bSuccess = InetGetInfo($hDownload, 3) ; 3 = success
+    InetClose($hDownload)
+    GUIDelete($hDlg)
+
+    ; Phase 4: Result dialog
+    $iDlgH = 110
+    $hDlg = _Theme_CreatePopup("Download Complete", $iDlgW, $iDlgH, _
+        (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+
+    If $bSuccess Then
+        Local $iFinalSize = FileGetSize($sDestFile)
+        Local $sFinalSize = StringFormat("%.1f MB", $iFinalSize / 1048576)
+
+        GUICtrlCreateLabel(ChrW(0x2713) & " Download complete!", 14, 10, $iDlgW - 28, 20)
+        GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
+        GUICtrlSetColor(-1, $TOAST_SUCCESS)
+        GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+
+        GUICtrlCreateLabel("Version: v" & $sVersion & "  |  Size: " & $sFinalSize, 14, 34, $iDlgW - 28, 16)
+        GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
+        GUICtrlSetColor(-1, $THEME_FG_NORMAL)
+        GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+
+        GUICtrlCreateLabel("Saved: " & $sDestFile, 14, 52, $iDlgW - 28, 16)
+        GUICtrlSetFont(-1, 7, 400, 0, $THEME_FONT_MAIN)
+        GUICtrlSetColor(-1, $THEME_FG_DIM)
+        GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+    Else
+        GUICtrlCreateLabel(ChrW(0x2715) & " Download failed", 14, 14, $iDlgW - 28, 20)
+        GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
+        GUICtrlSetColor(-1, $TOAST_ERROR)
+        GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+    EndIf
+
+    Local $idClose = GUICtrlCreateLabel(ChrW(0x2715) & " Close", ($iDlgW - 80) / 2, $iDlgH - 36, 80, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idClose, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idClose, $THEME_FG_MENU)
+    GUICtrlSetBkColor($idClose, $THEME_BG_HOVER)
+    GUICtrlSetCursor($idClose, 0)
+
+    GUISetState(@SW_SHOW, $hDlg)
+    While 1
+        Local $aMsg2 = GUIGetMsg(1)
+        If $aMsg2[1] = $hDlg Then
+            If $aMsg2[0] = $GUI_EVENT_CLOSE Or $aMsg2[0] = $idClose Then ExitLoop
+        EndIf
+        Local $retEsc2 = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
+        If Not @error And IsArray($retEsc2) And BitAND($retEsc2[0], 0x8000) <> 0 Then ExitLoop
+        Sleep(10)
+    WEnd
+    GUIDelete($hDlg)
 EndFunc
 
 Func _CheckHover()
