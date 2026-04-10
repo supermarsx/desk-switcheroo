@@ -1147,9 +1147,9 @@ Func __CD_MessageLoop()
                 Case $__g_CD_idBtnClose
                     ExitLoop
                 Case $__g_CD_idBtnCheckNow
-                    _CheckUpdateNow()
+                    _UC_CheckNow()
                 Case $__g_CD_idBtnDownloadLatest
-                    _DownloadLatestPortable()
+                    _UC_DownloadPortable()
                 Case $__g_CD_idBtnLogBrowse
                     Local $sFolder = FileSelectFolder("Select log folder", "", 7, GUICtrlRead($__g_CD_idInpLogPath), $__g_CD_hGUI)
                     If $sFolder <> "" Then GUICtrlSetData($__g_CD_idInpLogPath, $sFolder)

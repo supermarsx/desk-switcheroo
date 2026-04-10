@@ -13,6 +13,8 @@
 #include "includes\RenameDialog.au3"
 #include "includes\DesktopList.au3"
 #include "includes\ConfigDialog.au3"
+#include "includes\AboutDialog.au3"
+#include "includes\UpdateChecker.au3"
 
 ; ---- App version (read from VERSION file or fallback) ----
 Global $APP_VERSION = "dev"
@@ -246,7 +248,7 @@ EndIf
 
 ; ---- Auto-update checker (if enabled) ----
 If _Cfg_GetAutoUpdateEnabled() Then
-    AdlibRegister("_AdlibCheckUpdate", _Cfg_GetAutoUpdateInterval())
+    AdlibRegister("_UC_AdlibCheck", _Cfg_GetAutoUpdateInterval())
 EndIf
 
 ; ---- Restore persisted window state ----
@@ -265,7 +267,7 @@ If _Cfg_GetUpdateCheckOnStartup() Then
     Local $iLast = Int($sLastCheck)
     If $iToday - $iLast >= _Cfg_GetUpdateCheckDays() Then
         IniWrite(_Cfg_GetPath(), "Updates", "_last_check_date", String($iToday))
-        _AdlibCheckUpdate()
+        _UC_AdlibCheck()
         _Log_Info("Startup update check triggered")
     EndIf
 EndIf
@@ -841,7 +843,7 @@ Func _ProcessTimersAndSleep($bCursorActive)
 
     ; Check non-blocking update download result (rate-limited)
     If TimerDiff($__g_hUpdatePollTimer) >= _Cfg_GetUpdatePollInterval() Then
-        _CheckUpdateResult()
+        _UC_CheckResult()
         $__g_hUpdatePollTimer = TimerInit()
     EndIf
 
@@ -946,9 +948,9 @@ Func _ApplySettingsLive()
     EndIf
 
     ; Update auto-update checker
-    AdlibUnRegister("_AdlibCheckUpdate")
+    AdlibUnRegister("_UC_AdlibCheck")
     If _Cfg_GetAutoUpdateEnabled() Then
-        AdlibRegister("_AdlibCheckUpdate", _Cfg_GetAutoUpdateInterval())
+        AdlibRegister("_UC_AdlibCheck", _Cfg_GetAutoUpdateInterval())
     EndIf
 
     ; Refresh display (count format, label, list)
@@ -1055,394 +1057,8 @@ Func _AdlibSyncNames()
     If _Labels_SyncFromOS() Then $bNamesChanged = True
 EndFunc
 
-; Name:        _AdlibCheckUpdate
-; Description: Starts a non-blocking download of the GitHub releases API
-Func _AdlibCheckUpdate()
-    If $__g_hInetDownload <> 0 Then Return ; already in progress
-    $__g_sInetTempFile = @TempDir & "\desk_switcheroo_update_check.tmp"
-    $__g_hInetDownload = InetGet("https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest", _
-        $__g_sInetTempFile, 1, 1) ; 1=force reload, 1=background
-    If @error Then
-        $__g_hInetDownload = 0
-        _Log_Warn("Update check: failed to start download")
-    EndIf
-EndFunc
-
-; Name:        _CheckUpdateResult
-; Description: Called from main loop to check if background download completed
-Func _CheckUpdateResult()
-    If $__g_hInetDownload = 0 Then Return
-    If Not InetGetInfo($__g_hInetDownload, 2) Then Return ; 2 = complete flag, not done yet
-
-    Local $bSuccess = InetGetInfo($__g_hInetDownload, 3) ; 3 = success flag
-    InetClose($__g_hInetDownload)
-    $__g_hInetDownload = 0
-
-    If Not $bSuccess Then
-        _Log_Warn("Update check: download failed")
-        If FileExists($__g_sInetTempFile) Then FileDelete($__g_sInetTempFile)
-        Return
-    EndIf
-
-    Local $sJson = FileRead($__g_sInetTempFile)
-    FileDelete($__g_sInetTempFile)
-    If $sJson = "" Then Return
-
-    Local $aMatch = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
-    If @error Or UBound($aMatch) < 1 Then Return
-
-    Local $sLatest = $aMatch[0]
-    _Log_Info("Update check: latest release is v" & $sLatest)
-
-    Static $sLastShown = ""
-    If $sLatest <> $sLastShown Then
-        $sLastShown = $sLatest
-        _Theme_Toast("Update available: v" & $sLatest, 0, $iTaskbarY + $iTaskbarH + 4, 3000, $TOAST_INFO)
-    EndIf
-EndFunc
-
-; Name:        _CheckUpdateNow
-; Description: Manually triggers an update check with a themed multi-phase dialog
-Func _CheckUpdateNow()
-    _Log_Info("Manual update check triggered")
-
-    ; Phase 1: Fetch release info
-    Local $iDlgW = 320, $iDlgH = 100
-    Local $hDlg = _Theme_CreatePopup("Update Check", $iDlgW, $iDlgH, _
-        (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
-    GUICtrlCreateLabel("Checking for updates...", 14, 14, $iDlgW - 28, 20)
-    GUICtrlSetFont(-1, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
-    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-    GUISetState(@SW_SHOW, $hDlg)
-    Sleep(50)
-
-    ; Non-blocking fetch with 10s timeout
-    Local $sUrl = "https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest"
-    Local $sTmpChk = @TempDir & "\ds_update_check_" & @AutoItPID & ".tmp"
-    Local $hInetChk = InetGet($sUrl, $sTmpChk, 1, 1)
-    Local $hTimeoutChk = TimerInit()
-    While Not InetGetInfo($hInetChk, 2)
-        If TimerDiff($hTimeoutChk) > 10000 Then
-            InetClose($hInetChk)
-            FileDelete($sTmpChk)
-            GUIDelete($hDlg)
-            _Theme_Toast("Connection timed out", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
-            Return
-        EndIf
-        Sleep(50)
-    WEnd
-    InetClose($hInetChk)
-    GUIDelete($hDlg)
-    Local $sJson = FileRead($sTmpChk)
-    FileDelete($sTmpChk)
-    If $sJson = "" Then
-        _Theme_Toast("Connection failed", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
-        Return
-    EndIf
-
-    ; Extract version and release date
-    Local $aVer = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
-    Local $sLatest = "unknown"
-    If Not @error And UBound($aVer) >= 1 Then $sLatest = $aVer[0]
-
-    Local $aDate = StringRegExp($sJson, '"published_at"\s*:\s*"([^T"]+)', 1)
-    Local $sDate = "unknown"
-    If Not @error And UBound($aDate) >= 1 Then $sDate = $aDate[0]
-
-    If $sLatest = "unknown" Then
-        _Theme_Toast("Could not parse release info", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_WARNING)
-        Return
-    EndIf
-
-    _Log_Info("Update check: latest release is v" & $sLatest)
-
-    ; Determine update status
-    Local $bUpdateAvailable = ($sLatest <> $APP_VERSION)
-
-    ; Phase 2: Result dialog with version details
-    $iDlgH = 140
-    $hDlg = _Theme_CreatePopup("Update Check", $iDlgW, $iDlgH, _
-        (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
-
-    If $bUpdateAvailable Then
-        GUICtrlCreateLabel(ChrW(0x2B06) & " Update available!", 14, 10, $iDlgW - 28, 20)
-        GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
-        GUICtrlSetColor(-1, $TOAST_SUCCESS)
-        GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-    Else
-        GUICtrlCreateLabel(ChrW(0x2713) & " You're up to date!", 14, 10, $iDlgW - 28, 20)
-        GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
-        GUICtrlSetColor(-1, $TOAST_SUCCESS)
-        GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-    EndIf
-
-    GUICtrlCreateLabel("Current: v" & $APP_VERSION & "  |  Latest: v" & $sLatest, 14, 34, $iDlgW - 28, 16)
-    GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor(-1, $THEME_FG_DIM)
-    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-
-    GUICtrlCreateLabel("Released: " & $sDate, 14, 52, $iDlgW - 28, 16)
-    GUICtrlSetFont(-1, 7, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor(-1, $THEME_FG_LABEL)
-    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-
-    Local $idDownload = 0
-    If $bUpdateAvailable Then
-        $idDownload = GUICtrlCreateLabel(ChrW(0x2B07) & " Download", 14, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-        GUICtrlSetFont($idDownload, 9, 400, 0, $THEME_FONT_MAIN)
-        GUICtrlSetColor($idDownload, $THEME_FG_MENU)
-        GUICtrlSetBkColor($idDownload, $THEME_BG_HOVER)
-        GUICtrlSetCursor($idDownload, 0)
-    EndIf
-
-    Local $idClose = GUICtrlCreateLabel(ChrW(0x2715) & " Close", $iDlgW - 114, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($idClose, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idClose, $THEME_FG_MENU)
-    GUICtrlSetBkColor($idClose, $THEME_BG_HOVER)
-    GUICtrlSetCursor($idClose, 0)
-
-    GUISetState(@SW_SHOW, $hDlg)
-
-    ; Mini message loop
-    While 1
-        Local $aMsg = GUIGetMsg(1)
-        If $aMsg[1] = $hDlg Then
-            If $aMsg[0] = $GUI_EVENT_CLOSE Or $aMsg[0] = $idClose Then ExitLoop
-            If $idDownload <> 0 And $aMsg[0] = $idDownload Then
-                GUIDelete($hDlg)
-                _DownloadLatestPortable()
-                Return
-            EndIf
-        EndIf
-        Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
-        If Not @error And IsArray($retEsc) And BitAND($retEsc[0], $VK_KEYDOWN) <> 0 Then ExitLoop
-        Sleep(10)
-    WEnd
-    GUIDelete($hDlg)
-EndFunc
-
-; Name:        _CheckHover
-; Description: Updates hover highlighting on widget arrow buttons
-; Name:        _DownloadLatestPortable
-; Description: Fetches release info, shows confirm with details, downloads with progress bar
-Func _DownloadLatestPortable()
-    _Log_Info("Download latest portable triggered")
-
-    ; Phase 1: Fetch release info
-    Local $iDlgW = 320, $iDlgH = 100
-    Local $hDlg = _Theme_CreatePopup("Download", $iDlgW, $iDlgH, _
-        (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
-    GUICtrlCreateLabel("Fetching release info...", 14, 14, $iDlgW - 28, 20)
-    GUICtrlSetFont(-1, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
-    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-    GUISetState(@SW_SHOW, $hDlg)
-    Sleep(50)
-
-    ; Non-blocking fetch with 10s timeout
-    Local $sUrl = "https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest"
-    Local $sTmpDl = @TempDir & "\ds_dl_check_" & @AutoItPID & ".tmp"
-    Local $hInetDl = InetGet($sUrl, $sTmpDl, 1, 1)
-    Local $hTimeoutDl = TimerInit()
-    While Not InetGetInfo($hInetDl, 2)
-        If TimerDiff($hTimeoutDl) > 10000 Then
-            InetClose($hInetDl)
-            FileDelete($sTmpDl)
-            GUIDelete($hDlg)
-            _Theme_Toast("Connection timed out", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
-            Return
-        EndIf
-        Sleep(50)
-    WEnd
-    InetClose($hInetDl)
-    GUIDelete($hDlg)
-    Local $sJson = FileRead($sTmpDl)
-    FileDelete($sTmpDl)
-    If $sJson = "" Then
-        _Theme_Toast("Connection failed", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
-        Return
-    EndIf
-
-    ; Extract version, date, portable URL, and size
-    Local $aVer = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
-    Local $sVersion = "unknown"
-    If Not @error And UBound($aVer) >= 1 Then $sVersion = $aVer[0]
-
-    Local $aDate = StringRegExp($sJson, '"published_at"\s*:\s*"([^T"]+)', 1)
-    Local $sDate = "unknown"
-    If Not @error And UBound($aDate) >= 1 Then $sDate = $aDate[0]
-
-    Local $aPortUrl = StringRegExp($sJson, '"browser_download_url"\s*:\s*"([^"]*Portable[^"]*\.zip)"', 1)
-    If @error Or UBound($aPortUrl) < 1 Then
-        _Theme_Toast("No portable download found", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_WARNING)
-        Return
-    EndIf
-    Local $sDownloadUrl = $aPortUrl[0]
-
-    ; Extract file size from the assets array (find size near the portable URL)
-    Local $aSize = StringRegExp($sJson, '"name"\s*:\s*"[^"]*Portable[^"]*"[^}]*"size"\s*:\s*(\d+)', 1)
-    Local $iSizeBytes = 0
-    Local $sSizeStr = "unknown"
-    If Not @error And UBound($aSize) >= 1 Then
-        $iSizeBytes = Int($aSize[0])
-        If $iSizeBytes > 1048576 Then
-            $sSizeStr = StringFormat("%.1f MB", $iSizeBytes / 1048576)
-        ElseIf $iSizeBytes > 1024 Then
-            $sSizeStr = StringFormat("%.0f KB", $iSizeBytes / 1024)
-        Else
-            $sSizeStr = $iSizeBytes & " bytes"
-        EndIf
-    EndIf
-
-    ; Phase 2: Confirm dialog with release details
-    $iDlgH = 140
-    $hDlg = _Theme_CreatePopup("Download", $iDlgW, $iDlgH, _
-        (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
-
-    GUICtrlCreateLabel("Download Portable v" & $sVersion & "?", 14, 10, $iDlgW - 28, 20)
-    GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
-    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-
-    GUICtrlCreateLabel("Size: " & $sSizeStr & "  |  Released: " & $sDate, 14, 34, $iDlgW - 28, 16)
-    GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor(-1, $THEME_FG_DIM)
-    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-
-    GUICtrlCreateLabel("Save to: " & @UserProfileDir & "\Downloads", 14, 52, $iDlgW - 28, 16)
-    GUICtrlSetFont(-1, 7, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor(-1, $THEME_FG_LABEL)
-    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-
-    Local $idYes = GUICtrlCreateLabel(ChrW(0x2B07) & " Download", 14, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($idYes, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idYes, $THEME_FG_MENU)
-    GUICtrlSetBkColor($idYes, $THEME_BG_HOVER)
-    GUICtrlSetCursor($idYes, 0)
-
-    Local $idNo = GUICtrlCreateLabel(ChrW(0x2715) & " Cancel", $iDlgW - 114, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($idNo, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idNo, $THEME_FG_MENU)
-    GUICtrlSetBkColor($idNo, $THEME_BG_HOVER)
-    GUICtrlSetCursor($idNo, 0)
-
-    GUISetState(@SW_SHOW, $hDlg)
-
-    Local $bProceed = False
-    While 1
-        Local $aMsg = GUIGetMsg(1)
-        If $aMsg[1] = $hDlg Then
-            If $aMsg[0] = $GUI_EVENT_CLOSE Or $aMsg[0] = $idNo Then ExitLoop
-            If $aMsg[0] = $idYes Then
-                $bProceed = True
-                ExitLoop
-            EndIf
-        EndIf
-        Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
-        If Not @error And IsArray($retEsc) And BitAND($retEsc[0], $VK_KEYDOWN) <> 0 Then ExitLoop
-        Sleep(10)
-    WEnd
-    GUIDelete($hDlg)
-
-    If Not $bProceed Then Return
-
-    ; Phase 3: Download with progress bar
-    Local $sDestFile = @UserProfileDir & "\Downloads\DeskSwitcheroo_Portable_v" & $sVersion & ".zip"
-
-    $iDlgH = 90
-    $hDlg = _Theme_CreatePopup("Downloading", $iDlgW, $iDlgH, _
-        (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
-
-    Local $idProgLabel = GUICtrlCreateLabel("Downloading v" & $sVersion & "...", 14, 10, $iDlgW - 28, 18)
-    GUICtrlSetFont($idProgLabel, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idProgLabel, $THEME_FG_PRIMARY)
-    GUICtrlSetBkColor($idProgLabel, $GUI_BKCOLOR_TRANSPARENT)
-
-    ; Progress bar background
-    GUICtrlCreateLabel("", 14, 38, $iDlgW - 28, 16)
-    GUICtrlSetBkColor(-1, $THEME_BG_INPUT)
-    ; Progress bar fill
-    Local $idProgBar = GUICtrlCreateLabel("", 14, 38, 1, 16)
-    GUICtrlSetBkColor($idProgBar, 0x4A9EFF)
-
-    Local $idProgPct = GUICtrlCreateLabel("0%", 14, 58, $iDlgW - 28, 16)
-    GUICtrlSetFont($idProgPct, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idProgPct, $THEME_FG_DIM)
-    GUICtrlSetBkColor($idProgPct, $GUI_BKCOLOR_TRANSPARENT)
-
-    GUISetState(@SW_SHOW, $hDlg)
-
-    ; Start background download
-    Local $hDownload = InetGet($sDownloadUrl, $sDestFile, 1, 1)
-    Local $iBarW = $iDlgW - 28
-
-    ; Poll progress
-    While Not InetGetInfo($hDownload, 2) ; 2 = complete
-        Local $iBytesRead = InetGetInfo($hDownload, 0)
-        If $iSizeBytes > 0 Then
-            Local $iPct = Int($iBytesRead / $iSizeBytes * 100)
-            If $iPct > 100 Then $iPct = 100
-            GUICtrlSetPos($idProgBar, 14, 38, Int($iBarW * $iPct / 100), 16)
-            GUICtrlSetData($idProgPct, $iPct & "% (" & StringFormat("%.1f", $iBytesRead / 1048576) & " / " & $sSizeStr & ")")
-        Else
-            GUICtrlSetData($idProgPct, StringFormat("%.1f MB downloaded", $iBytesRead / 1048576))
-        EndIf
-        Sleep(100)
-    WEnd
-
-    Local $bSuccess = InetGetInfo($hDownload, 3) ; 3 = success
-    InetClose($hDownload)
-    GUIDelete($hDlg)
-
-    ; Phase 4: Result dialog
-    $iDlgH = 110
-    $hDlg = _Theme_CreatePopup("Download Complete", $iDlgW, $iDlgH, _
-        (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
-
-    If $bSuccess Then
-        Local $iFinalSize = FileGetSize($sDestFile)
-        Local $sFinalSize = StringFormat("%.1f MB", $iFinalSize / 1048576)
-
-        GUICtrlCreateLabel(ChrW(0x2713) & " Download complete!", 14, 10, $iDlgW - 28, 20)
-        GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
-        GUICtrlSetColor(-1, $TOAST_SUCCESS)
-        GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-
-        GUICtrlCreateLabel("Version: v" & $sVersion & "  |  Size: " & $sFinalSize, 14, 34, $iDlgW - 28, 16)
-        GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
-        GUICtrlSetColor(-1, $THEME_FG_NORMAL)
-        GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-
-        GUICtrlCreateLabel("Saved: " & $sDestFile, 14, 52, $iDlgW - 28, 16)
-        GUICtrlSetFont(-1, 7, 400, 0, $THEME_FONT_MAIN)
-        GUICtrlSetColor(-1, $THEME_FG_DIM)
-        GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-    Else
-        GUICtrlCreateLabel(ChrW(0x2715) & " Download failed", 14, 14, $iDlgW - 28, 20)
-        GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
-        GUICtrlSetColor(-1, $TOAST_ERROR)
-        GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-    EndIf
-
-    Local $idClose = GUICtrlCreateLabel(ChrW(0x2715) & " Close", ($iDlgW - 80) / 2, $iDlgH - 36, 80, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($idClose, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idClose, $THEME_FG_MENU)
-    GUICtrlSetBkColor($idClose, $THEME_BG_HOVER)
-    GUICtrlSetCursor($idClose, 0)
-
-    GUISetState(@SW_SHOW, $hDlg)
-    While 1
-        Local $aMsg2 = GUIGetMsg(1)
-        If $aMsg2[1] = $hDlg Then
-            If $aMsg2[0] = $GUI_EVENT_CLOSE Or $aMsg2[0] = $idClose Then ExitLoop
-        EndIf
-        Local $retEsc2 = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
-        If Not @error And IsArray($retEsc2) And BitAND($retEsc2[0], $VK_KEYDOWN) <> 0 Then ExitLoop
-        Sleep(10)
-    WEnd
-    GUIDelete($hDlg)
-EndFunc
+; Update checker functions extracted to includes\UpdateChecker.au3
+; (_UC_AdlibCheck, _UC_CheckResult, _UC_CheckNow, _UC_DownloadPortable)
 
 Func _CheckHover()
     Local $aCursor = GUIGetCursorInfo($gui)
@@ -1831,139 +1447,8 @@ Func _HK_OpenSettings()
     If Not _CD_IsVisible() Then _CD_Show()
 EndFunc
 
-; =============================================
-; ABOUT DIALOG
-; =============================================
+; About dialog extracted to includes\AboutDialog.au3
 
-; Name:        _ShowAbout
-; Description: About dialog with credit links and 15-second auto-close timeout
-Func _ShowAbout()
-    Local $iDlgW = 350, $iDlgH = 230
-    Local $iDlgX = (@DesktopWidth - $iDlgW) / 2
-    Local $iDlgY = (@DesktopHeight - $iDlgH) / 2
-
-    Local $hDlg = _Theme_CreatePopup("About", $iDlgW, $iDlgH, $iDlgX, $iDlgY, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
-
-    ; Icon + Title (side by side)
-    Local $sIconPath = @ScriptDir & "\assets\desk_switcheroo.ico"
-    Local $iTitleX = 14
-    If FileExists($sIconPath) Then
-        GUICtrlCreateIcon($sIconPath, -1, 14, 12, 32, 32)
-        $iTitleX = 54
-    EndIf
-
-    ; Title
-    GUICtrlCreateLabel("Desk Switcheroo v" & $APP_VERSION, $iTitleX, 10, $iDlgW - $iTitleX - 14, 22)
-    GUICtrlSetFont(-1, 11, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
-    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-
-    ; Description
-    GUICtrlCreateLabel("Lightweight virtual desktop switcher for Windows." & @CRLF & _
-        "Navigate, rename, peek, and manage desktops" & @CRLF & _
-        "from a compact taskbar widget." & @CRLF & _
-        "Created by supermarsx. Built with AutoIt.", $iTitleX, 36, $iDlgW - $iTitleX - 14, 56)
-    GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor(-1, $THEME_FG_NORMAL)
-    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-
-    ; Repo link
-    Local $iLY = 90
-    GUICtrlCreateLabel("Repository:", 14, $iLY, 70, 16)
-    GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor(-1, $THEME_FG_DIM)
-    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-
-    Local $idLinkRepo = GUICtrlCreateLabel("github.com/supermarsx/desk-switcheroo", 86, $iLY, 240, 16, $SS_NOTIFY)
-    GUICtrlSetFont($idLinkRepo, 8, 400, 4, $THEME_FONT_MAIN) ; 4 = underline
-    GUICtrlSetColor($idLinkRepo, $THEME_FG_LINK)
-    GUICtrlSetBkColor($idLinkRepo, $GUI_BKCOLOR_TRANSPARENT)
-    GUICtrlSetCursor($idLinkRepo, 0)
-
-    ; DLL credit + link
-    $iLY += 22
-    GUICtrlCreateLabel("VirtualDesktopAccessor.dll by Ciantic (MIT)", 14, $iLY, $iDlgW - 28, 16)
-    GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor(-1, $THEME_FG_DIM)
-    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-
-    $iLY += 16
-    Local $idLinkDLL = GUICtrlCreateLabel("github.com/Ciantic/VirtualDesktopAccessor", 14, $iLY, $iDlgW - 28, 16, $SS_NOTIFY)
-    GUICtrlSetFont($idLinkDLL, 8, 400, 4, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idLinkDLL, $THEME_FG_LINK)
-    GUICtrlSetBkColor($idLinkDLL, $GUI_BKCOLOR_TRANSPARENT)
-    GUICtrlSetCursor($idLinkDLL, 0)
-
-    ; Font credit + link
-    $iLY += 22
-    GUICtrlCreateLabel("Fira Code font by Nikita Prokopov (OFL)", 14, $iLY, $iDlgW - 28, 16)
-    GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor(-1, $THEME_FG_DIM)
-    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-
-    $iLY += 16
-    Local $idLinkFont = GUICtrlCreateLabel("github.com/tonsky/FiraCode", 14, $iLY, $iDlgW - 28, 16, $SS_NOTIFY)
-    GUICtrlSetFont($idLinkFont, 8, 400, 4, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idLinkFont, $THEME_FG_LINK)
-    GUICtrlSetBkColor($idLinkFont, $GUI_BKCOLOR_TRANSPARENT)
-    GUICtrlSetCursor($idLinkFont, 0)
-
-    ; Close button
-    Local $iBtnW = 64, $iBtnH = 26
-    Local $idClose = GUICtrlCreateLabel("Close", ($iDlgW - $iBtnW) / 2, $iDlgH - 36, $iBtnW, $iBtnH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($idClose, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idClose, $THEME_FG_MENU)
-    GUICtrlSetBkColor($idClose, $THEME_BG_HOVER)
-    GUICtrlSetCursor($idClose, 0)
-
-    GUISetState(@SW_SHOW, $hDlg)
-
-    ; Blocking message loop with 5s timeout
-    Local $iHovered = 0
-    Local $hTimer = TimerInit()
-    While 1
-        Local $aMsg = GUIGetMsg(1)
-        If $aMsg[1] = $hDlg Then
-            Switch $aMsg[0]
-                Case $GUI_EVENT_CLOSE
-                    ExitLoop
-                Case $idClose
-                    ExitLoop
-                Case $idLinkRepo
-                    ShellExecute("https://github.com/supermarsx/desk-switcheroo")
-                Case $idLinkDLL
-                    ShellExecute("https://github.com/Ciantic/VirtualDesktopAccessor")
-                Case $idLinkFont
-                    ShellExecute("https://github.com/tonsky/FiraCode")
-            EndSwitch
-        EndIf
-
-        ; Keyboard: Enter or Escape closes
-        Local $retKey = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_RETURN)
-        If Not @error And BitAND($retKey[0], $VK_KEYDOWN) <> 0 Then ExitLoop
-        Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_ESCAPE)
-        If Not @error And BitAND($retEsc[0], $VK_KEYDOWN) <> 0 Then ExitLoop
-
-        ; 15 second timeout
-        If TimerDiff($hTimer) >= 15000 Then ExitLoop
-
-        ; Hover on close button
-        Local $aCursor = GUIGetCursorInfo($hDlg)
-        If Not @error Then
-            Local $iFound = 0
-            If $aCursor[4] = $idClose Then $iFound = $idClose
-            If $iFound <> $iHovered Then
-                If $iHovered <> 0 Then _Theme_RemoveHover($iHovered, $THEME_FG_MENU, $THEME_BG_HOVER)
-                $iHovered = $iFound
-                If $iHovered <> 0 Then _Theme_ApplyHover($iHovered, $THEME_FG_WHITE, $THEME_BG_BTN_HOV)
-            EndIf
-        EndIf
-
-        Sleep(10)
-    WEnd
-
-    GUIDelete($hDlg)
-EndFunc
 
 ; =============================================
 ; TRAY ICON MODE
@@ -2419,7 +1904,7 @@ Func _Shutdown()
     AdlibUnRegister("_ForceTopMost")
     AdlibUnRegister("_AdlibSyncNames")
     AdlibUnRegister("_AdlibConfigWatcher")
-    AdlibUnRegister("_AdlibCheckUpdate")
+    AdlibUnRegister("_UC_AdlibCheck")
     If $gui Then _VD_UnregisterNotify($gui)
     _DL_ThumbClearCache()
     _RD_Shutdown()
