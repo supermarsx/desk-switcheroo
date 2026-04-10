@@ -191,7 +191,7 @@ Func _Cfg_Load()
     $__g_Cfg_sListScrollAction  = __Cfg_ReadEnum($f, "Scroll", "list_scroll_action", "switch", "switch|scroll")
 
     ; [Hotkeys]
-    $__g_Cfg_iHotkeyDesktopCount = __Cfg_ReadInt($f, "Hotkeys", "hotkey_desktop_count", 9, 1, 20)
+    $__g_Cfg_iHotkeyDesktopCount = __Cfg_ReadInt($f, "Hotkeys", "hotkey_desktop_count", 9, 1, 9)
     $__g_Cfg_sHotkeyNext       = IniRead($f, "Hotkeys", "hotkey_next", "")
     $__g_Cfg_sHotkeyPrev       = IniRead($f, "Hotkeys", "hotkey_prev", "")
     Local $i
@@ -341,8 +341,7 @@ Func _Cfg_Save()
         FileDelete($f)
         Return False
     EndIf
-    ; Atomic replace: delete original, rename temp
-    FileDelete($__g_Cfg_sIniPath)
+    ; Atomic replace: FileMove with overwrite flag (no delete gap)
     FileMove($f, $__g_Cfg_sIniPath, 1)
     Return True
 EndFunc
@@ -565,7 +564,7 @@ Func _Cfg_GetHotkeyDesktopCount()
 EndFunc
 Func _Cfg_SetHotkeyDesktopCount($i)
     If $i < 1 Then $i = 1
-    If $i > 20 Then $i = 20
+    If $i > 9 Then $i = 9
     $__g_Cfg_iHotkeyDesktopCount = $i
 EndFunc
 Func _Cfg_GetHotkeyNext()

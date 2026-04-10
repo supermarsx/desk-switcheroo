@@ -650,7 +650,7 @@ Func _DL_DragMouseMove()
         _Peek_End()
         _DL_CtxDestroy()
         ; Dim source row
-        If $__g_DL_iDragSource >= 1 And $__g_DL_iDragSource <= $__g_DL_iCount Then
+        If $__g_DL_iDragSource >= 1 And $__g_DL_iDragSource <= $__g_DL_aItems[0] Then
             GUICtrlSetColor($__g_DL_aItems[$__g_DL_iDragSource], $THEME_FG_DRAG_DIM)
             GUICtrlSetBkColor($__g_DL_aItems[$__g_DL_iDragSource], $GUI_BKCOLOR_TRANSPARENT)
         EndIf
@@ -1071,6 +1071,7 @@ Func _DL_ColorPickerDestroy()
     $__g_DL_iColorHovered = 0
     $__g_DL_iColorNoneID = 0
     $__g_DL_iColorCustomID = 0
+    Local $i
     For $i = 1 To 7
         $__g_DL_aColorPresetIDs[$i] = 0
     Next
@@ -1083,6 +1084,7 @@ EndFunc
 Func _DL_ColorPickerHandleClick($msg)
     If $msg <= 0 Then Return ""
     If $msg = $__g_DL_iColorNoneID Then Return "none"
+    Local $i
     For $i = 1 To 7
         If $msg = $__g_DL_aColorPresetIDs[$i] Then Return $THEME_PRESET_COLORS[$i]
     Next

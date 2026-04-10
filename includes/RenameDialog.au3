@@ -24,7 +24,12 @@ Global $__g_RD_hBrush        = 0
 ; Name:        _RD_Init
 ; Description: Creates the GDI brush for input field styling. Call once at startup.
 Func _RD_Init()
-    $__g_RD_hBrush = DllCall("gdi32.dll", "handle", "CreateSolidBrush", "dword", $THEME_BG_INPUT)[0]
+    Local $aResult = DllCall("gdi32.dll", "handle", "CreateSolidBrush", "dword", $THEME_BG_INPUT)
+    If @error Or Not IsArray($aResult) Then
+        $__g_RD_hBrush = 0
+    Else
+        $__g_RD_hBrush = $aResult[0]
+    EndIf
 EndFunc
 
 ; Name:        _RD_Show

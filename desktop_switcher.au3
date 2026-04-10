@@ -916,7 +916,8 @@ Func _ApplySettingsLive()
         _DL_Show($iTaskbarY, $iDesktop)
     EndIf
 
-    ; Ensure scroll wheel handler is registered
+    ; Re-register scroll wheel handler (unregister first to avoid duplicates)
+    GUIRegisterMsg(0x020A, "")
     If _Cfg_GetScrollEnabled() Or _Cfg_GetListScrollEnabled() Then
         GUIRegisterMsg(0x020A, "_WM_MOUSEWHEEL")
     EndIf
@@ -970,6 +971,10 @@ Func _QuickAccess_Check()
         If Not @error And BitAND($retKey[0], 0x8000) <> 0 Then
             Local $iTarget = $i - 0x30 ; 1-9
             $__g_bQuickAccessActive = False
+            If $iTarget > _VD_GetCount() Then
+                _QuickAccess_Cancel()
+                Return
+            EndIf
             _VD_GoTo($iTarget)
             Sleep(50)
             _RefreshIndex()
@@ -1572,17 +1577,29 @@ EndFunc
 ; Name:        _RegisterHotkeys
 ; Description: Registers all configured global hotkeys
 Func _RegisterHotkeys()
-    Local $sKey, $i
+    Local $sKey, $i, $iRet
     $sKey = _Cfg_GetHotkeyNext()
-    If $sKey <> "" Then HotKeySet($sKey, "_HK_Next")
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_Next")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (next)")
+    EndIf
     $sKey = _Cfg_GetHotkeyPrev()
-    If $sKey <> "" Then HotKeySet($sKey, "_HK_Prev")
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_Prev")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (prev)")
+    EndIf
     For $i = 1 To 9
         $sKey = _Cfg_GetHotkeyDesktop($i)
-        If $sKey <> "" Then HotKeySet($sKey, "_HK_Desktop" & $i)
+        If $sKey <> "" Then
+            $iRet = HotKeySet($sKey, "_HK_Desktop" & $i)
+            If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (desktop " & $i & ")")
+        EndIf
     Next
     $sKey = _Cfg_GetHotkeyToggleList()
-    If $sKey <> "" Then HotKeySet($sKey, "_HK_ToggleList")
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_ToggleList")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (toggle list)")
+    EndIf
 EndFunc
 
 ; Name:        _UnregisterHotkeys
