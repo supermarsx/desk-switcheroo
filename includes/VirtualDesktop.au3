@@ -15,7 +15,8 @@ Global $__g_VD_hDLL = -1
 Global $__g_VD_bNameSupport = False
 Global $__g_VD_iCachedCount = 0
 Global $__g_VD_hCountTimer = 0
-Global $__g_VD_aEnumBuf[1]  ; scratch buffer for EnumWindows callback
+Global $__g_VD_aEnumBuf[4096] ; pre-allocated buffer for EnumWindows callback
+Global Const $__g_VD_ENUM_MAX = 16384 ; hard cap on enumerated windows
 
 ; #INTERNAL HELPERS# ============================================
 
@@ -67,8 +68,15 @@ EndFunc
 
 ; #FUNCTIONS# ===================================================
 
+; Name:        _VD_IsReady
+; Description: Returns whether the DLL is loaded and ready for calls
+; Return:      True/False
+Func _VD_IsReady()
+    Return ($__g_VD_hDLL <> -1)
+EndFunc
+
 ; Name:        _VD_Init
-; Description: Opens the VirtualDesktopAccessor DLL
+; Description: Opens the VirtualDesktopAccessor DLL and validates core exports
 ; Parameters:  $sDllPath - full path to DLL (default: @ScriptDir & "\VirtualDesktopAccessor.dll")
 ; Return:      True on success, False on failure
 Func _VD_Init($sDllPath = Default)
@@ -76,6 +84,25 @@ Func _VD_Init($sDllPath = Default)
     If $__g_VD_hDLL <> -1 Then DllClose($__g_VD_hDLL)
     $__g_VD_hDLL = DllOpen($sDllPath)
     If $__g_VD_hDLL = -1 Then Return False
+
+    ; Validate core DLL exports by test-calling GetDesktopCount
+    Local $aTest = DllCall($__g_VD_hDLL, "int", "GetDesktopCount")
+    If @error Or Not IsArray($aTest) Or $aTest[0] < 1 Then
+        _Log_Error("VD_Init: DLL loaded but GetDesktopCount failed — incompatible DLL version?")
+        DllClose($__g_VD_hDLL)
+        $__g_VD_hDLL = -1
+        Return False
+    EndIf
+
+    ; Validate GoToDesktopNumber export exists
+    DllCall($__g_VD_hDLL, "int", "GetCurrentDesktopNumber")
+    If @error Then
+        _Log_Error("VD_Init: GetCurrentDesktopNumber export missing — incompatible DLL version?")
+        DllClose($__g_VD_hDLL)
+        $__g_VD_hDLL = -1
+        Return False
+    EndIf
+
     ; Detect desktop name support (Windows 11+)
     Local $tBuf = DllStructCreate("char[1024]")
     DllCall($__g_VD_hDLL, "int", "GetDesktopName", "int", 0, "ptr", DllStructGetPtr($tBuf), "uint_ptr", 1024)
@@ -88,9 +115,10 @@ EndFunc
 ; Return:      Integer >= 1
 Func _VD_GetCount()
     ; Return cached value if fresh (within configured TTL)
+    ; Guard against TimerDiff overflow (~24 days) — negative = stale
     If $__g_VD_iCachedCount > 0 Then
         Local $iElapsed = TimerDiff($__g_VD_hCountTimer)
-        If $iElapsed < _Cfg_GetCountCacheTTL() Then Return $__g_VD_iCachedCount
+        If $iElapsed >= 0 And $iElapsed < _Cfg_GetCountCacheTTL() Then Return $__g_VD_iCachedCount
     EndIf
     Local $aResult = __VD_Call("GetDesktopCount", "int")
     If @error Or $aResult[0] < 1 Then Return 1
@@ -185,6 +213,9 @@ EndFunc
 ; Return:      True on success, False on failure
 Func _VD_MoveWindowToDesktop($hWnd, $iDesktop)
     If $__g_VD_hDLL = -1 Then Return False
+    ; Verify window still exists (handle may be stale from enumeration)
+    Local $aIsWnd = DllCall("user32.dll", "bool", "IsWindow", "hwnd", $hWnd)
+    If Not @error And IsArray($aIsWnd) And $aIsWnd[0] = 0 Then Return False
     Local $aResult = DllCall($__g_VD_hDLL, "int", "MoveWindowToDesktopNumber", "hwnd", $hWnd, "int", $iDesktop - 1)
     If @error Then
         _Log_Debug("MoveWindow DllCall FAILED: hwnd=" & $hWnd & " to desktop=" & $iDesktop & " err=" & @error)
@@ -202,6 +233,7 @@ EndFunc
 ; Description: Callback for Win32 EnumWindows — collects all HWNDs into $__g_VD_aEnumBuf
 Func __VD_EnumWindowsCB($hWnd, $lParam)
     #forceref $lParam
+    If $__g_VD_aEnumBuf[0] >= $__g_VD_ENUM_MAX Then Return 0 ; stop enumeration at hard cap
     If $__g_VD_aEnumBuf[0] >= UBound($__g_VD_aEnumBuf) - 1 Then
         ReDim $__g_VD_aEnumBuf[UBound($__g_VD_aEnumBuf) * 2]
     EndIf
@@ -215,7 +247,7 @@ EndFunc
 ;              system-wide, bypassing AutoIt's WinList which is virtual-desktop-scoped.
 ; Return:      Array where [0] = count, [1..N] = HWNDs
 Func __VD_EnumAllWindows()
-    ReDim $__g_VD_aEnumBuf[2048]
+    If UBound($__g_VD_aEnumBuf) < 4096 Then ReDim $__g_VD_aEnumBuf[4096]
     $__g_VD_aEnumBuf[0] = 0
     Local $hCB = DllCallbackRegister("__VD_EnumWindowsCB", "bool", "hwnd;lparam")
     If $hCB = 0 Then

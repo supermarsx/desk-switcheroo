@@ -242,7 +242,11 @@ EndFunc
 ; Name:        _Cfg_Save
 ; Description: Writes all in-memory values to the INI file
 Func _Cfg_Save()
-    Local $f = $__g_Cfg_sIniPath
+    ; Write to temp file first, then rename for atomic save (prevents corruption on crash)
+    Local $f = $__g_Cfg_sIniPath & ".tmp"
+    If FileExists($f) Then FileDelete($f)
+    ; Copy existing file as base (preserves sections we don't write)
+    If FileExists($__g_Cfg_sIniPath) Then FileCopy($__g_Cfg_sIniPath, $f, 1)
 
     ; [General]
     __Cfg_WriteBool($f, "General", "start_with_windows", $__g_Cfg_bStartWithWindows)
@@ -331,9 +335,15 @@ Func _Cfg_Save()
         IniWrite($f, "DesktopColors", "desktop_" & $i & "_color", "0x" & Hex($__g_Cfg_aDesktopColors[$i], 6))
     Next
 
-    ; Verify write succeeded
+    ; Verify write succeeded before replacing original
     Local $sVerify = IniRead($f, "General", "wrap_navigation", "")
-    If $sVerify = "" Then Return False
+    If $sVerify = "" Then
+        FileDelete($f)
+        Return False
+    EndIf
+    ; Atomic replace: delete original, rename temp
+    FileDelete($__g_Cfg_sIniPath)
+    FileMove($f, $__g_Cfg_sIniPath, 1)
     Return True
 EndFunc
 

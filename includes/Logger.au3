@@ -155,12 +155,19 @@ Func __Log_CheckRotation()
     For $i = $iKeep - 1 To 1 Step -1
         Local $sSrc = $__g_Log_sFilePath & "." & $i
         Local $sDst = $__g_Log_sFilePath & "." & ($i + 1)
-        If FileExists($sSrc) Then FileMove($sSrc, $sDst, 1)
+        If FileExists($sSrc) Then
+            If Not FileMove($sSrc, $sDst, 1) Then ContinueLoop ; file locked by external reader
+        EndIf
         If FileExists($sSrc & ".zip") Then FileMove($sSrc & ".zip", $sDst & ".zip", 1)
     Next
 
-    ; Current -> .log.1
-    FileMove($__g_Log_sFilePath, $__g_Log_sFilePath & ".1", 1)
+    ; Current -> .log.1 (may fail if file is locked by external reader)
+    If Not FileMove($__g_Log_sFilePath, $__g_Log_sFilePath & ".1", 1) Then
+        ; Fallback: truncate in place so logging can continue
+        $__g_Log_hFile = FileOpen($__g_Log_sFilePath, 2) ; 2 = overwrite
+        If $__g_Log_hFile = -1 Then $__g_Log_hFile = FileOpen($__g_Log_sFilePath, 1)
+        Return
+    EndIf
 
     ; Compress .log.1 if enabled (use PowerShell)
     If $bCompress Then

@@ -149,6 +149,10 @@ Func _DL_Show($iTaskbarY, $iCurrentDesktop)
     Local $iListY = $iTaskbarY + 2 - $iListH - 2
 
     $__g_DL_hGUI = _Theme_CreatePopup("DesktopList", $iListW, $iListH, 0, $iListY)
+    If $__g_DL_hGUI = 0 Then
+        _Log_Error("DL_Show: Failed to create list GUI")
+        Return
+    EndIf
 
     ReDim $__g_DL_aItems[$iVisibleCount + 1]
     ReDim $__g_DL_aPeekBtns[$iVisibleCount + 1]
@@ -290,19 +294,26 @@ EndFunc
 Func _DL_CheckHover($iCurrentDesktop)
     If Not $__g_DL_bVisible Or $__g_DL_hGUI = 0 Then Return
     If $__g_DL_iDragState = 2 Then Return ; drag controls visuals during active drag
-    If UBound($__g_DL_aItems) < 2 Or $__g_DL_aItems[0] < 1 Then Return
+    Local $iItemBound = UBound($__g_DL_aItems) - 1
+    Local $iPeekBound = UBound($__g_DL_aPeekBtns) - 1
+    If $iItemBound < 1 Or $__g_DL_aItems[0] < 1 Then Return
+    ; Clamp stored count to actual array size (defensive against stale state)
+    Local $iItemCount = $__g_DL_aItems[0]
+    If $iItemCount > $iItemBound Then $iItemCount = $iItemBound
+    Local $iPeekCount = $__g_DL_aPeekBtns[0]
+    If $iPeekCount > $iPeekBound Then $iPeekCount = $iPeekBound
 
     ; Convert current desktop to visual slot (0 if not visible)
     Local $iCurSlot = $iCurrentDesktop - $__g_DL_iScrollOffset
-    If $iCurSlot < 1 Or $iCurSlot > $__g_DL_aItems[0] Then $iCurSlot = 0
+    If $iCurSlot < 1 Or $iCurSlot > $iItemCount Then $iCurSlot = 0
 
     Local $aCursor = GUIGetCursorInfo($__g_DL_hGUI)
     If @error Then
         ; Cursor left the list
-        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <= $__g_DL_aItems[0] And $__g_DL_iHovered <> $iCurSlot Then
+        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <= $iItemCount And $__g_DL_iHovered <> $iCurSlot Then
             _Theme_RemoveHover($__g_DL_aItems[$__g_DL_iHovered], $THEME_FG_DIM)
         EndIf
-        If $__g_DL_iPeekHovered > 0 And $__g_DL_iPeekHovered <= $__g_DL_aPeekBtns[0] Then
+        If $__g_DL_iPeekHovered > 0 And $__g_DL_iPeekHovered <= $iPeekCount Then
             GUICtrlSetColor($__g_DL_aPeekBtns[$__g_DL_iPeekHovered], $THEME_FG_PEEK_DIM)
             $__g_DL_iPeekHovered = 0
         EndIf
@@ -315,7 +326,7 @@ Func _DL_CheckHover($iCurrentDesktop)
     ; Find hovered text item (slot index)
     Local $iFound = 0
     Local $i
-    For $i = 1 To $__g_DL_aItems[0]
+    For $i = 1 To $iItemCount
         If $aCursor[4] = $__g_DL_aItems[$i] Then
             $iFound = $i
             ExitLoop
@@ -324,7 +335,7 @@ Func _DL_CheckHover($iCurrentDesktop)
 
     ; Find hovered peek button (slot index)
     Local $iPeekFound = 0
-    For $i = 1 To $__g_DL_aPeekBtns[0]
+    For $i = 1 To $iPeekCount
         If $aCursor[4] = $__g_DL_aPeekBtns[$i] Then
             $iPeekFound = $i
             ExitLoop
@@ -337,11 +348,11 @@ Func _DL_CheckHover($iCurrentDesktop)
 
     ; Update text hover highlight (using slot indices for array access)
     If $iEffective <> $__g_DL_iHovered Then
-        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <= $__g_DL_aItems[0] And $__g_DL_iHovered <> $iCurSlot Then
+        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <= $iItemCount And $__g_DL_iHovered <> $iCurSlot Then
             _Theme_RemoveHover($__g_DL_aItems[$__g_DL_iHovered], $THEME_FG_DIM)
         EndIf
         $__g_DL_iHovered = $iEffective
-        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <= $__g_DL_aItems[0] And $__g_DL_iHovered <> $iCurSlot Then
+        If $__g_DL_iHovered > 0 And $__g_DL_iHovered <= $iItemCount And $__g_DL_iHovered <> $iCurSlot Then
             _Theme_ApplyHover($__g_DL_aItems[$__g_DL_iHovered], $THEME_FG_WHITE, $THEME_BG_HOVER)
         EndIf
     EndIf
@@ -357,11 +368,11 @@ Func _DL_CheckHover($iCurrentDesktop)
 
     ; Update peek button hover + trigger peek
     If $iPeekFound <> $__g_DL_iPeekHovered Then
-        If $__g_DL_iPeekHovered > 0 And $__g_DL_iPeekHovered <= $__g_DL_aPeekBtns[0] Then
+        If $__g_DL_iPeekHovered > 0 And $__g_DL_iPeekHovered <= $iPeekCount Then
             GUICtrlSetColor($__g_DL_aPeekBtns[$__g_DL_iPeekHovered], $THEME_FG_PEEK_DIM)
         EndIf
         $__g_DL_iPeekHovered = $iPeekFound
-        If $__g_DL_iPeekHovered > 0 And $__g_DL_iPeekHovered <= $__g_DL_aPeekBtns[0] Then
+        If $__g_DL_iPeekHovered > 0 And $__g_DL_iPeekHovered <= $iPeekCount Then
             GUICtrlSetColor($__g_DL_aPeekBtns[$__g_DL_iPeekHovered], $THEME_FG_WHITE)
         EndIf
 
@@ -809,6 +820,10 @@ Func _DL_CtxShow($iTarget)
     If $iMenuY < 0 Then $iMenuY = $aMP[1]
 
     $__g_DL_hCtxGUI = _Theme_CreatePopup("DLCtx", $iMenuW, $iMenuH, $iMenuX, $iMenuY, $THEME_BG_POPUP, $THEME_ALPHA_MENU)
+    If $__g_DL_hCtxGUI = 0 Then
+        _Log_Error("DL_CtxShow: Failed to create context menu GUI")
+        Return
+    EndIf
 
     Local $iY = 4
 
