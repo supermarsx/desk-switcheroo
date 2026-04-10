@@ -218,6 +218,7 @@ Func _DL_Show($iTaskbarY, $iCurrentDesktop)
             If $iClr <> 0 Then
                 Local $iColorInd = GUICtrlCreateLabel("", $iListW - 8, $iY + 2, 4, $THEME_ITEM_HEIGHT - 6)
                 GUICtrlSetBkColor($iColorInd, $iClr)
+                GUICtrlSetState($iColorInd, $GUI_DISABLE) ; pass clicks through to text label
             EndIf
         EndIf
     Next
