@@ -32,16 +32,16 @@ Func _ShowAbout()
     GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
-    GUICtrlCreateLabel("Lightweight virtual desktop switcher for Windows." & @CRLF & _
+    GUICtrlCreateLabel(_i18n("Dialogs.about_description", "Lightweight virtual desktop switcher for Windows." & @CRLF & _
         "Navigate, rename, peek, and manage desktops" & @CRLF & _
         "from a compact taskbar widget." & @CRLF & _
-        "Created by supermarsx. Built with AutoIt.", $iTitleX, 36, $iDlgW - $iTitleX - 14, 56)
+        "Created by supermarsx. Built with AutoIt."), $iTitleX, 36, $iDlgW - $iTitleX - 14, 56)
     GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_NORMAL)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
     Local $iLY = 90
-    GUICtrlCreateLabel("Repository:", 14, $iLY, 70, 16)
+    GUICtrlCreateLabel(_i18n("Dialogs.about_repo", "Repository:"), 14, $iLY, 70, 16)
     GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_DIM)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
@@ -53,7 +53,7 @@ Func _ShowAbout()
     GUICtrlSetCursor($idLinkRepo, 0)
 
     $iLY += 22
-    GUICtrlCreateLabel("VirtualDesktopAccessor.dll by Ciantic (MIT)", 14, $iLY, $iDlgW - 28, 16)
+    GUICtrlCreateLabel(_i18n("Dialogs.about_dll_credit", "VirtualDesktopAccessor.dll by Ciantic (MIT)"), 14, $iLY, $iDlgW - 28, 16)
     GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_DIM)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
@@ -66,7 +66,7 @@ Func _ShowAbout()
     GUICtrlSetCursor($idLinkDLL, 0)
 
     $iLY += 22
-    GUICtrlCreateLabel("Fira Code font by Nikita Prokopov (OFL)", 14, $iLY, $iDlgW - 28, 16)
+    GUICtrlCreateLabel(_i18n("Dialogs.about_font_credit", "Fira Code font by Nikita Prokopov (OFL)"), 14, $iLY, $iDlgW - 28, 16)
     GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_DIM)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
@@ -79,7 +79,7 @@ Func _ShowAbout()
     GUICtrlSetCursor($idLinkFont, 0)
 
     Local $iBtnW = 64, $iBtnH = 26
-    Local $idClose = GUICtrlCreateLabel("Close", ($iDlgW - $iBtnW) / 2, $iDlgH - 36, $iBtnW, $iBtnH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idClose = GUICtrlCreateLabel(_i18n("General.btn_close", "Close"), ($iDlgW - $iBtnW) / 2, $iDlgH - 36, $iBtnW, $iBtnH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idClose, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idClose, $THEME_FG_MENU)
     GUICtrlSetBkColor($idClose, $THEME_BG_HOVER)

@@ -217,14 +217,14 @@ Func _Theme_Confirm($sTitle, $sMessage)
     ; Yes button
     Local $iBtnY = $iDlgH - 36
     Local $iBtnW = 64, $iBtnH = 26
-    Local $idYes = GUICtrlCreateLabel("Yes", 14, $iBtnY, $iBtnW, $iBtnH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idYes = GUICtrlCreateLabel(_i18n("General.btn_yes", "Yes"), 14, $iBtnY, $iBtnW, $iBtnH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idYes, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idYes, $THEME_FG_MENU)
     GUICtrlSetBkColor($idYes, $THEME_BG_HOVER)
     GUICtrlSetCursor($idYes, 0)
 
     ; No button
-    Local $idNo = GUICtrlCreateLabel("No", 14 + $iBtnW + 10, $iBtnY, $iBtnW, $iBtnH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idNo = GUICtrlCreateLabel(_i18n("General.btn_no", "No"), 14 + $iBtnW + 10, $iBtnY, $iBtnW, $iBtnH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idNo, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idNo, $THEME_FG_MENU)
     GUICtrlSetBkColor($idNo, $THEME_BG_HOVER)
@@ -312,7 +312,7 @@ Func _Theme_Alert($sTitle, $sMessage, $iTimeout = 5000)
 
     ; Close button
     Local $iBtnW = 64, $iBtnH = 26
-    Local $idClose = GUICtrlCreateLabel("Close", ($iDlgW - $iBtnW) / 2, $iDlgH - 36, $iBtnW, $iBtnH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idClose = GUICtrlCreateLabel(_i18n("General.btn_close", "Close"), ($iDlgW - $iBtnW) / 2, $iDlgH - 36, $iBtnW, $iBtnH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idClose, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idClose, $THEME_FG_MENU)
     GUICtrlSetBkColor($idClose, $THEME_BG_HOVER)

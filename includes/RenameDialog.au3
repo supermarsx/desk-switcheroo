@@ -47,7 +47,7 @@ Func _RD_Show($iDesktop, $iTaskbarY)
     $__g_RD_hGUI = _Theme_CreatePopup("Rename", $iDlgW, $iDlgH, $iDlgX, $iDlgY, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
 
     ; Title
-    GUICtrlCreateLabel("Label for Desktop " & $iDesktop, 12, 10, $iDlgW - 24, 18)
+    GUICtrlCreateLabel(_i18n_Format("Dialogs.rd_title", "Label for Desktop {1}", $iDesktop), 12, 10, $iDlgW - 24, 18)
     GUICtrlSetFont(-1, 10, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_NORMAL)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
@@ -63,14 +63,14 @@ Func _RD_Show($iDesktop, $iTaskbarY)
     GUICtrlSetBkColor($__g_RD_iInputField, $THEME_BG_INPUT)
 
     ; OK button
-    $__g_RD_iBtnOk = GUICtrlCreateLabel("OK", 12, 74, 56, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    $__g_RD_iBtnOk = GUICtrlCreateLabel(_i18n("General.btn_ok", "OK"), 12, 74, 56, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_RD_iBtnOk, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_RD_iBtnOk, $THEME_FG_MENU)
     GUICtrlSetBkColor($__g_RD_iBtnOk, $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_RD_iBtnOk, 0)
 
     ; Cancel button
-    $__g_RD_iBtnCancel = GUICtrlCreateLabel("Cancel", 76, 74, 56, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    $__g_RD_iBtnCancel = GUICtrlCreateLabel(_i18n("General.btn_cancel", "Cancel"), 76, 74, 56, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_RD_iBtnCancel, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_RD_iBtnCancel, $THEME_FG_MENU)
     GUICtrlSetBkColor($__g_RD_iBtnCancel, $THEME_BG_HOVER)

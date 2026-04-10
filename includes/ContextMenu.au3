@@ -44,16 +44,16 @@ Func _CM_Show($iTaskbarY, $bListVisible)
 
     Local $iY = 4
 
-    $__g_CM_iEditID = _Theme_CreateMenuItem("  Edit Label", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $__g_CM_iEditID = _Theme_CreateMenuItem("  " & _i18n("ContextMenu.cm_edit_label", "Edit Label"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 
     If _Cfg_GetDesktopColorsEnabled() Then
-        $__g_CM_iSetColorID = _Theme_CreateMenuItem("  Set Color  " & ChrW(0x25B6), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+        $__g_CM_iSetColorID = _Theme_CreateMenuItem("  " & _i18n("ContextMenu.cm_set_color", "Set Color") & "  " & ChrW(0x25B6), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
         $iY += $THEME_MENU_ITEM_H
     EndIf
 
-    Local $sToggle = "  Show Desktop List"
-    If $bListVisible Then $sToggle = "  Hide Desktop List"
+    Local $sToggle = "  " & _i18n("ContextMenu.cm_show_list", "Show Desktop List")
+    If $bListVisible Then $sToggle = "  " & _i18n("ContextMenu.cm_hide_list", "Hide Desktop List")
     $__g_CM_iToggleID = _Theme_CreateMenuItem($sToggle, 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 
@@ -62,10 +62,10 @@ Func _CM_Show($iTaskbarY, $bListVisible)
     GUICtrlSetBkColor(-1, $THEME_BG_SEPARATOR)
     $iY += $iSepH + 4
 
-    $__g_CM_iAddID = _Theme_CreateMenuItem("  Add Desktop", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $__g_CM_iAddID = _Theme_CreateMenuItem("  " & _i18n("ContextMenu.cm_add_desktop", "Add Desktop"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 
-    $__g_CM_iDeleteID = _Theme_CreateMenuItem("  Delete Desktop", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $__g_CM_iDeleteID = _Theme_CreateMenuItem("  " & _i18n("ContextMenu.cm_delete_desktop", "Delete Desktop"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     GUICtrlSetColor($__g_CM_iDeleteID, 0xCC6666)
     $iY += $THEME_MENU_ITEM_H
 
@@ -74,19 +74,19 @@ Func _CM_Show($iTaskbarY, $bListVisible)
     GUICtrlSetBkColor(-1, $THEME_BG_SEPARATOR)
     $iY += $iSepH + 4
 
-    $__g_CM_iAboutID = _Theme_CreateMenuItem("  About", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $__g_CM_iAboutID = _Theme_CreateMenuItem("  " & _i18n("ContextMenu.cm_about", "About"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 
-    $__g_CM_iSettingsID = _Theme_CreateMenuItem("  Settings", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $__g_CM_iSettingsID = _Theme_CreateMenuItem("  " & _i18n("ContextMenu.cm_settings", "Settings"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 
     If _Cfg_GetDebugMode() Then
-        $__g_CM_iCrashID = _Theme_CreateMenuItem("  " & ChrW(0x26A0) & " Trigger Crash", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+        $__g_CM_iCrashID = _Theme_CreateMenuItem("  " & ChrW(0x26A0) & " " & _i18n("ContextMenu.cm_trigger_crash", "Trigger Crash"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
         GUICtrlSetColor($__g_CM_iCrashID, 0xFF5555)
         $iY += $THEME_MENU_ITEM_H
     EndIf
 
-    $__g_CM_iQuitID = _Theme_CreateMenuItem("  Quit", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $__g_CM_iQuitID = _Theme_CreateMenuItem("  " & _i18n("ContextMenu.cm_quit", "Quit"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
 
     GUISetState(@SW_SHOW, $__g_CM_hGUI)
     $__g_CM_bVisible = True
