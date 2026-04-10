@@ -14,7 +14,7 @@ Global $__g_Cfg_hSaveTimer = 0
 Global Const $__g_Cfg_SAVE_DEBOUNCE = 500 ; ms between saves
 
 ; [General]
-Global $__g_Cfg_sLanguage          = "en"
+Global $__g_Cfg_sLanguage          = "en-US"
 Global $__g_Cfg_bStartWithWindows  = False
 Global $__g_Cfg_bWrapNavigation    = True
 Global $__g_Cfg_bAutoCreateDesktop = False
@@ -155,7 +155,7 @@ Func _Cfg_Load()
     Local $f = $__g_Cfg_sIniPath
 
     ; [General]
-    $__g_Cfg_sLanguage          = IniRead($f, "General", "language", "en")
+    $__g_Cfg_sLanguage          = IniRead($f, "General", "language", "en-US")
     $__g_Cfg_bStartWithWindows  = __Cfg_ReadBool($f, "General", "start_with_windows", False)
     $__g_Cfg_bWrapNavigation    = __Cfg_ReadBool($f, "General", "wrap_navigation", True)
     $__g_Cfg_bAutoCreateDesktop = __Cfg_ReadBool($f, "General", "auto_create_desktop", False)
@@ -378,7 +378,7 @@ EndFunc
 Func _Cfg_WriteDefaults()
     Local $f = $__g_Cfg_sIniPath
 
-    __Cfg_DefaultVal($f, "General", "language", "en")
+    __Cfg_DefaultVal($f, "General", "language", "en-US")
     __Cfg_DefaultBool($f, "General", "start_with_windows", False)
     __Cfg_DefaultBool($f, "General", "wrap_navigation", True)
     __Cfg_DefaultBool($f, "General", "auto_create_desktop", False)
