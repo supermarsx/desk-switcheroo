@@ -8,7 +8,7 @@
 ; ===============================================================
 
 ; Extern globals from main script
-Global $APP_VERSION, $VK_RETURN, $VK_ESCAPE, $VK_KEYDOWN
+Global $APP_VERSION
 
 ; Name:        _ShowAbout
 ; Description: About dialog with credit links and 15-second auto-close timeout

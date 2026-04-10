@@ -8,7 +8,7 @@
 #include "Config.au3"
 
 ; Extern globals from main script (declared here to suppress Au3Check warnings)
-Global $iTaskbarY, $iDesktop, $APP_VERSION
+Global $iTaskbarY, $iDesktop, $APP_VERSION, $gui
 
 ; #INDEX# =======================================================
 ; Title .........: DesktopList
@@ -532,14 +532,6 @@ Func _DL_GetGUI()
     Return $__g_DL_hGUI
 EndFunc
 
-Func _DL_GetScrollOffset()
-    Return $__g_DL_iScrollOffset
-EndFunc
-
-Func _DL_SetScrollOffset($i)
-    $__g_DL_iScrollOffset = $i
-EndFunc
-
 ; Name:        _DL_GetCount
 ; Description: Returns the desktop count at time of list creation
 ; Return:      Integer
@@ -552,6 +544,10 @@ EndFunc
 ; Return:      Integer (0-based offset)
 Func _DL_GetScrollOffset()
     Return $__g_DL_iScrollOffset
+EndFunc
+
+Func _DL_SetScrollOffset($i)
+    $__g_DL_iScrollOffset = $i
 EndFunc
 
 ; Name:        _DL_ScrollUp

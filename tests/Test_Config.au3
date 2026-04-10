@@ -21,7 +21,7 @@ Func _RunTest_Config()
     _Test_AssertTrue("Default: wrap_navigation", _Cfg_GetWrapNavigation())
     _Test_AssertFalse("Default: auto_create_desktop", _Cfg_GetAutoCreateDesktop())
     _Test_AssertEqual("Default: number_padding", _Cfg_GetNumberPadding(), 2)
-    _Test_AssertEqual("Default: widget_position", _Cfg_GetWidgetPosition(), "left")
+    _Test_AssertEqual("Default: widget_position", _Cfg_GetWidgetPosition(), "bottom-left")
     _Test_AssertEqual("Default: widget_offset_x", _Cfg_GetWidgetOffsetX(), 0)
     _Test_AssertFalse("Default: show_count", _Cfg_GetShowCount())
     _Test_AssertEqual("Default: count_font_size", _Cfg_GetCountFontSize(), 7)
@@ -48,8 +48,8 @@ Func _RunTest_Config()
     _Cfg_SetScrollEnabled(True)
     _Test_AssertTrue("Set+Get: scroll_enabled", _Cfg_GetScrollEnabled())
 
-    _Cfg_SetWidgetPosition("center")
-    _Test_AssertEqual("Set+Get: widget_position", _Cfg_GetWidgetPosition(), "center")
+    _Cfg_SetWidgetPosition("bottom-center")
+    _Test_AssertEqual("Set+Get: widget_position", _Cfg_GetWidgetPosition(), "bottom-center")
 
     _Cfg_SetNumberPadding(3)
     _Test_AssertEqual("Set+Get: number_padding", _Cfg_GetNumberPadding(), 3)
@@ -69,7 +69,7 @@ Func _RunTest_Config()
     _Cfg_Load()
     _Test_AssertTrue("Persist: scroll_enabled survives reload", _Cfg_GetScrollEnabled())
 
-    _Test_AssertEqual("Persist: widget_position survives reload", _Cfg_GetWidgetPosition(), "center")
+    _Test_AssertEqual("Persist: widget_position survives reload", _Cfg_GetWidgetPosition(), "bottom-center")
     _Test_AssertEqual("Persist: hotkey_next survives reload", _Cfg_GetHotkeyNext(), "^!{RIGHT}")
 
     ; -- Invalid values fall back to defaults --
@@ -80,12 +80,12 @@ Func _RunTest_Config()
     _Cfg_Load()
     _Test_AssertEqual("Invalid enum falls back", _Cfg_GetScrollDirection(), "normal")
     _Test_AssertLessEqual("Clamped int <= 255", _Cfg_GetThemeAlphaMain(), 255)
-    _Test_AssertEqual("Invalid position falls back", _Cfg_GetWidgetPosition(), "left")
+    _Test_AssertEqual("Invalid position falls back", _Cfg_GetWidgetPosition(), "bottom-left")
     _Test_AssertGreaterEqual("Clamped padding >= 1", _Cfg_GetNumberPadding(), 1)
 
     ; -- Setter validation --
     _Cfg_SetWidgetPosition("bogus")
-    _Test_AssertEqual("Invalid position setter falls back", _Cfg_GetWidgetPosition(), "left")
+    _Test_AssertEqual("Invalid position setter falls back", _Cfg_GetWidgetPosition(), "bottom-left")
 
     _Cfg_SetNumberPadding(99)
     _Test_AssertLessEqual("Padding clamped to 4", _Cfg_GetNumberPadding(), 4)
@@ -187,6 +187,7 @@ Func _RunTest_Config()
     If FileExists($sExportPath) Then FileDelete($sExportPath)
     _Cfg_SetScrollEnabled(True)
     _Cfg_SetNumberPadding(3)
+    Sleep(600) ; wait for save debounce window to pass
     _Cfg_Save()
     _Test_AssertTrue("Export succeeds", _Cfg_Export($sExportPath))
     _Test_AssertTrue("Export file exists", FileExists($sExportPath) <> 0)
@@ -204,6 +205,7 @@ Func _RunTest_Config()
 
     ; -- Edge case: empty string config values --
     _Cfg_SetHotkeyNext("")
+    Sleep(600) ; wait for save debounce window
     _Cfg_Save()
     _Cfg_Load()
     _Test_AssertEqual("Empty hotkey persists", _Cfg_GetHotkeyNext(), "")

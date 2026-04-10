@@ -10,7 +10,7 @@
 ; ===============================================================
 
 ; Extern globals from main script
-Global $APP_VERSION, $iTaskbarY, $iTaskbarH, $VK_KEYDOWN
+Global $APP_VERSION, $iTaskbarY, $iTaskbarH
 Global $__g_hInetDownload, $__g_sInetTempFile
 
 ; Name:        _UC_AdlibCheck

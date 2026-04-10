@@ -259,8 +259,8 @@ EndFunc
 ; Name:        _Cfg_Save
 ; Description: Writes all in-memory values to the INI file
 Func _Cfg_Save()
-    ; Debounce: skip if saved less than 500ms ago
-    If TimerDiff($__g_Cfg_hSaveTimer) < $__g_Cfg_SAVE_DEBOUNCE Then Return True
+    ; Debounce: skip if saved less than 500ms ago (skip check on first call)
+    If $__g_Cfg_hSaveTimer <> 0 And TimerDiff($__g_Cfg_hSaveTimer) < $__g_Cfg_SAVE_DEBOUNCE Then Return True
     $__g_Cfg_hSaveTimer = TimerInit()
     ; Write to temp file first, then rename for atomic save (prevents corruption on crash)
     Local $f = $__g_Cfg_sIniPath & ".tmp"
