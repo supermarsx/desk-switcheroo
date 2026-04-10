@@ -303,7 +303,7 @@ EndFunc
 ; Parameters:  $msg - GUI message from GUIGetMsg
 ; Return:      Target desktop index (1-based), or 0 if no match
 Func _DL_HandleClick($msg)
-    If $__g_DL_iDragState > 0 Then Return 0
+    If $__g_DL_iDragState = 2 Then Return 0 ; only block during active drag, not pending
     If $msg <= 0 Then Return 0
     ; Handle scroll arrow clicks
     If $__g_DL_idScrollUp <> 0 And $msg = $__g_DL_idScrollUp Then Return -1
