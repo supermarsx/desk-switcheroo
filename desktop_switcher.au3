@@ -776,23 +776,28 @@ Func _ProcessHoverAndVisuals()
         $__g_iLastCursorY = $aCurPos[1]
     EndIf
 
-    ; Check if cursor is over any of our windows
-    Local $bCursorActive = _Theme_IsCursorOverWindow($gui)
-    If Not $bCursorActive And _DL_IsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_DL_GetGUI())
-    If Not $bCursorActive And _CM_IsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_CM_GetGUI())
-    If Not $bCursorActive And _DL_CtxIsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_DL_CtxGetGUI())
-    If Not $bCursorActive And _DL_ColorPickerIsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_DL_ColorPickerGetGUI())
-    If Not $bCursorActive And _RD_IsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_RD_GetGUI())
-    If Not $bCursorActive And _DL_ThumbIsVisible() Then $bCursorActive = _Theme_IsCursorOverWindow(_DL_ThumbGetGUI())
+    ; Skip all hit-testing when nothing changed (cursor still, no events, no drag)
+    Local $bStateChanged = ($bCursorMoved Or _DL_IsDragging() Or $bDesktopChanged Or $bNamesChanged)
+    If Not $bStateChanged And Not $__g_bWasCursorActive Then Return False
 
-    ; Hover effects -- only when cursor moved or drag active, and only for the window under cursor
-    If $bCursorActive And ($bCursorMoved Or _DL_IsDragging() Or $bDesktopChanged Or $bNamesChanged) Then
-        If _Theme_IsCursorOverWindow($gui) Then _CheckHover()
+    ; Single-pass hit-test: determine which window (if any) the cursor is over
+    Local $bOverWidget = _Theme_IsCursorOverWindow($gui)
+    Local $bOverDL = (_DL_IsVisible() And _Theme_IsCursorOverWindow(_DL_GetGUI()))
+    Local $bOverCM = (_CM_IsVisible() And _Theme_IsCursorOverWindow(_CM_GetGUI()))
+    Local $bOverCtx = (_DL_CtxIsVisible() And _Theme_IsCursorOverWindow(_DL_CtxGetGUI()))
+    Local $bOverCP = (_DL_ColorPickerIsVisible() And _Theme_IsCursorOverWindow(_DL_ColorPickerGetGUI()))
+    Local $bOverRD = (_RD_IsVisible() And _Theme_IsCursorOverWindow(_RD_GetGUI()))
+    Local $bOverThumb = (_DL_ThumbIsVisible() And _Theme_IsCursorOverWindow(_DL_ThumbGetGUI()))
+    Local $bCursorActive = ($bOverWidget Or $bOverDL Or $bOverCM Or $bOverCtx Or $bOverCP Or $bOverRD Or $bOverThumb)
+
+    ; Hover effects — reuse hit-test results (no redundant WinGetPos calls)
+    If $bCursorActive And $bStateChanged Then
+        If $bOverWidget Then _CheckHover()
         If _DL_IsVisible() Then _DL_CheckHover($iDesktop) ; always call — clears hover via @error when cursor not over list
-        If _CM_IsVisible() And _Theme_IsCursorOverWindow(_CM_GetGUI()) Then _CM_CheckHover()
-        If _DL_CtxIsVisible() And _Theme_IsCursorOverWindow(_DL_CtxGetGUI()) Then _DL_CtxCheckHover()
-        If _DL_ColorPickerIsVisible() And _Theme_IsCursorOverWindow(_DL_ColorPickerGetGUI()) Then _DL_ColorPickerCheckHover()
-        If _RD_IsVisible() And _Theme_IsCursorOverWindow(_RD_GetGUI()) Then _RD_CheckHover()
+        If $bOverCM Then _CM_CheckHover()
+        If $bOverCtx Then _DL_CtxCheckHover()
+        If $bOverCP Then _DL_ColorPickerCheckHover()
+        If $bOverRD Then _RD_CheckHover()
     EndIf
 
     ; Clear hover states when cursor leaves all windows (prevents stuck highlights)
