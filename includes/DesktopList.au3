@@ -146,9 +146,26 @@ Func _DL_Show($iTaskbarY, $iCurrentDesktop)
 
     Local $iListW = $THEME_MAIN_WIDTH + $THEME_PEEK_ZONE_W
     Local $iListH = $iVisibleCount * $THEME_ITEM_HEIGHT + 6 + $iExtraH
-    Local $iListY = $iTaskbarY + 2 - $iListH - 2
+    ; Position list relative to widget anchor — above for bottom, below for top, beside for middle
+    Local $sAnchor = _Cfg_GetWidgetPosition()
+    Local $iListX = 0
+    Local $iListY = $iTaskbarY + 2 - $iListH - 2 ; default: above taskbar
+    Local $aWP = WinGetPos($gui) ; $gui is the main widget handle (extern global)
+    If Not @error And IsArray($aWP) Then
+        $iListX = $aWP[0]
+        If StringLeft($sAnchor, 3) = "top" Then
+            $iListY = $aWP[1] + $aWP[3] + 2 ; below widget
+        ElseIf StringLeft($sAnchor, 6) = "middle" Then
+            $iListY = $aWP[1] - $iListH - 2 ; above widget (could also go below)
+        Else
+            $iListY = $aWP[1] - $iListH - 2 ; above widget (bottom anchor)
+        EndIf
+        ; Keep on screen
+        If $iListY < 0 Then $iListY = $aWP[1] + $aWP[3] + 2
+        If $iListY + $iListH > @DesktopHeight Then $iListY = $aWP[1] - $iListH - 2
+    EndIf
 
-    $__g_DL_hGUI = _Theme_CreatePopup("DesktopList", $iListW, $iListH, 0, $iListY)
+    $__g_DL_hGUI = _Theme_CreatePopup("DesktopList", $iListW, $iListH, $iListX, $iListY)
     If $__g_DL_hGUI = 0 Then
         _Log_Error("DL_Show: Failed to create list GUI")
         Return
@@ -1017,7 +1034,10 @@ Func _DL_ColorPickerShow($iTarget)
     Local $iY = 6
 
     ; "None" option at the top (clear color)
-    $__g_DL_iColorNoneID = GUICtrlCreateLabel("  None", 6, $iY, $iPickerW - 12, 24, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $iCurClr = _Cfg_GetDesktopColor($iTarget)
+    Local $sNoneText = "  None"
+    If $iCurClr = 0 Then $sNoneText = ChrW(0x2713) & " None"
+    $__g_DL_iColorNoneID = GUICtrlCreateLabel($sNoneText, 6, $iY, $iPickerW - 12, 24, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_DL_iColorNoneID, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_DL_iColorNoneID, $THEME_FG_DIM)
     GUICtrlSetBkColor($__g_DL_iColorNoneID, $GUI_BKCOLOR_TRANSPARENT)
@@ -1029,13 +1049,16 @@ Func _DL_ColorPickerShow($iTarget)
     GUICtrlSetBkColor(-1, $THEME_BG_SEPARATOR)
     $iY += 5
 
-    ; 7 preset colors with names
+    ; 7 preset colors with names (highlight currently selected)
     Local $aColorNames[8] = [7, "Blue", "Green", "Orange", "Yellow", "Purple", "Pink", "Teal"]
+    Local $iCurrentColor = _Cfg_GetDesktopColor($iTarget)
     $__g_DL_aColorPresetIDs[0] = 7
     Local $i
     For $i = 1 To 7
         Local $iColor = $THEME_PRESET_COLORS[$i]
-        $__g_DL_aColorPresetIDs[$i] = GUICtrlCreateLabel("  " & ChrW(0x25CF) & "  " & $aColorNames[$i], 6, $iY, $iPickerW - 12, 24, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+        Local $sCheck = "  " & ChrW(0x25CF) & "  " & $aColorNames[$i]
+        If $iColor = $iCurrentColor Then $sCheck = ChrW(0x2713) & " " & ChrW(0x25CF) & "  " & $aColorNames[$i]
+        $__g_DL_aColorPresetIDs[$i] = GUICtrlCreateLabel($sCheck, 6, $iY, $iPickerW - 12, 24, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
         GUICtrlSetFont($__g_DL_aColorPresetIDs[$i], 9, 400, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor($__g_DL_aColorPresetIDs[$i], $iColor)
         GUICtrlSetBkColor($__g_DL_aColorPresetIDs[$i], $GUI_BKCOLOR_TRANSPARENT)

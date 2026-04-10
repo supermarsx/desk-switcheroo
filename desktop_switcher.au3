@@ -1687,6 +1687,8 @@ Func _RegisterHotkeys()
         $iRet = HotKeySet($sKey, "_HK_ToggleList")
         If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (toggle list)")
     EndIf
+    ; Settings shortcut (always registered, not configurable)
+    HotKeySet("^!s", "_HK_OpenSettings")
 EndFunc
 
 ; Name:        _UnregisterHotkeys
@@ -1703,6 +1705,7 @@ Func _UnregisterHotkeys()
     Next
     $sKey = _Cfg_GetHotkeyToggleList()
     If $sKey <> "" Then HotKeySet($sKey)
+    HotKeySet("^!s")
 EndFunc
 
 ; Name:        _HK_Next
@@ -1809,6 +1812,12 @@ EndFunc
 ; Description: Hotkey callback to toggle the desktop list panel
 Func _HK_ToggleList()
     _DL_Toggle($iTaskbarY, $iDesktop)
+EndFunc
+
+; Name:        _HK_OpenSettings
+; Description: Global hotkey handler: opens the Settings dialog
+Func _HK_OpenSettings()
+    If Not _CD_IsVisible() Then _CD_Show()
 EndFunc
 
 ; =============================================
