@@ -719,7 +719,7 @@ Func _ProcessMouseInput()
     ; Escape cancels drag
     If _DL_IsDragging() Then
         Local $retEscDrag = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_ESCAPE)
-        If Not @error And BitAND($retEscDrag[0], $VK_KEYDOWN) <> 0 Then
+        If Not @error And IsArray($retEscDrag) And BitAND($retEscDrag[0], $VK_KEYDOWN) <> 0 Then
             _DL_DragCancel($iDesktop)
         EndIf
     EndIf
@@ -1003,7 +1003,7 @@ Func _QuickAccess_Check()
 
     ; Check for escape
     Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_ESCAPE)
-    If Not @error And BitAND($retEsc[0], $VK_KEYDOWN) <> 0 Then
+    If Not @error And IsArray($retEsc) And BitAND($retEsc[0], $VK_KEYDOWN) <> 0 Then
         _QuickAccess_Cancel()
         Return
     EndIf
@@ -1018,7 +1018,7 @@ Func _QuickAccess_Check()
     Local $i
     For $i = $VK_1 To $VK_9
         Local $retKey = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $i)
-        If Not @error And BitAND($retKey[0], $VK_KEYDOWN) <> 0 Then
+        If Not @error And IsArray($retKey) And BitAND($retKey[0], $VK_KEYDOWN) <> 0 Then
             Local $iTarget = $i - $VK_1 + 1
             $__g_bQuickAccessActive = False
             If $iTarget > _VD_GetCount() Then

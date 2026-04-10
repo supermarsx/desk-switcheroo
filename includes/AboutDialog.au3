@@ -107,9 +107,9 @@ Func _ShowAbout()
         EndIf
 
         Local $retKey = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_RETURN)
-        If Not @error And BitAND($retKey[0], $VK_KEYDOWN) <> 0 Then ExitLoop
+        If Not @error And IsArray($retKey) And BitAND($retKey[0], $VK_KEYDOWN) <> 0 Then ExitLoop
         Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_ESCAPE)
-        If Not @error And BitAND($retEsc[0], $VK_KEYDOWN) <> 0 Then ExitLoop
+        If Not @error And IsArray($retEsc) And BitAND($retEsc[0], $VK_KEYDOWN) <> 0 Then ExitLoop
 
         If TimerDiff($hTimer) >= 15000 Then ExitLoop
 

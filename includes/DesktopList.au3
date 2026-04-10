@@ -1275,13 +1275,13 @@ Func _DL_ColorPickerCustomDialog()
 
         ; Keyboard: Enter = OK, Escape = Cancel
         Local $retEnter = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x0D)
-        If Not @error And BitAND($retEnter[0], 0x8000) <> 0 Then
+        If Not @error And IsArray($retEnter) And BitAND($retEnter[0], 0x8000) <> 0 Then
             Local $iValidated2 = _Theme_ValidateHexColor(GUICtrlRead($idInput))
             If $iValidated2 >= 0 Then $iResult = $iValidated2
             ExitLoop
         EndIf
         Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
-        If Not @error And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
+        If Not @error And IsArray($retEsc) And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
 
         ; Hover effects on buttons
         Local $aCursor = GUIGetCursorInfo($hDlg)

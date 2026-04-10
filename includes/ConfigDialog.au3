@@ -1652,25 +1652,25 @@ Func __CD_ShowHotkeyBuilder()
                         GUICtrlSetData($idKeyInput, $sCaptured)
                         ; Auto-detect modifiers held during capture
                         Local $retModCtrl = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x11)
-                        If Not @error And BitAND($retModCtrl[0], 0x8000) <> 0 Then
+                        If Not @error And IsArray($retModCtrl) And BitAND($retModCtrl[0], 0x8000) <> 0 Then
                             $bCtrl = True
                             GUICtrlSetData($idChkCtrl, "  [x]  Ctrl")
                             GUICtrlSetColor($idChkCtrl, $THEME_FG_WHITE)
                         EndIf
                         Local $retModAlt = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x12)
-                        If Not @error And BitAND($retModAlt[0], 0x8000) <> 0 Then
+                        If Not @error And IsArray($retModAlt) And BitAND($retModAlt[0], 0x8000) <> 0 Then
                             $bAlt = True
                             GUICtrlSetData($idChkAlt, "  [x]  Alt")
                             GUICtrlSetColor($idChkAlt, $THEME_FG_WHITE)
                         EndIf
                         Local $retModShift = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x10)
-                        If Not @error And BitAND($retModShift[0], 0x8000) <> 0 Then
+                        If Not @error And IsArray($retModShift) And BitAND($retModShift[0], 0x8000) <> 0 Then
                             $bShift = True
                             GUICtrlSetData($idChkShift, "  [x]  Shift")
                             GUICtrlSetColor($idChkShift, $THEME_FG_WHITE)
                         EndIf
                         Local $retModWin = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x5B)
-                        If Not @error And BitAND($retModWin[0], 0x8000) <> 0 Then
+                        If Not @error And IsArray($retModWin) And BitAND($retModWin[0], 0x8000) <> 0 Then
                             $bWin = True
                             GUICtrlSetData($idChkWin, "  [x]  Win")
                             GUICtrlSetColor($idChkWin, $THEME_FG_WHITE)
@@ -1736,7 +1736,7 @@ Func __CD_CaptureKeyPress()
             ; Skip modifier keys themselves
             If $i = 0x10 Or $i = 0x11 Or $i = 0x12 Or $i = 0x5B Or $i = 0x5C Then ContinueLoop
             Local $ret = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $i)
-            If Not @error And BitAND($ret[0], 0x0001) <> 0 Then
+            If Not @error And IsArray($ret) And BitAND($ret[0], 0x0001) <> 0 Then
                 Return __CD_VKToAutoItKey($i)
             EndIf
         Next

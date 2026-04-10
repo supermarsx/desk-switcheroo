@@ -251,12 +251,12 @@ Func _Theme_Confirm($sTitle, $sMessage)
 
         ; Keyboard: Enter = Yes, Escape = No
         Local $retEnter = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x0D)
-        If Not @error And BitAND($retEnter[0], 0x8000) <> 0 Then
+        If Not @error And IsArray($retEnter) And BitAND($retEnter[0], 0x8000) <> 0 Then
             $bResult = True
             ExitLoop
         EndIf
         Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
-        If Not @error And BitAND($retEsc[0], 0x8000) <> 0 Then
+        If Not @error And IsArray($retEsc) And BitAND($retEsc[0], 0x8000) <> 0 Then
             ExitLoop
         EndIf
 
@@ -330,9 +330,9 @@ Func _Theme_Alert($sTitle, $sMessage, $iTimeout = 5000)
 
         ; Keyboard: Enter or Escape closes
         Local $retKey = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x0D)
-        If Not @error And BitAND($retKey[0], 0x8000) <> 0 Then ExitLoop
+        If Not @error And IsArray($retKey) And BitAND($retKey[0], 0x8000) <> 0 Then ExitLoop
         Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
-        If Not @error And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
+        If Not @error And IsArray($retEsc) And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
 
         ; Timeout
         If TimerDiff($hTimer) >= $iTimeout Then ExitLoop
