@@ -15,6 +15,7 @@
 #include "includes\ConfigDialog.au3"
 #include "includes\AboutDialog.au3"
 #include "includes\UpdateChecker.au3"
+#include "includes\i18n.au3"
 
 ; ---- App version (read from VERSION file or fallback) ----
 Global $APP_VERSION = "dev"
@@ -66,6 +67,9 @@ _Theme_LoadFonts()
 
 ; ---- Initialize config ----
 _Cfg_Init()
+
+; ---- Initialize i18n ----
+_i18n_Init(_Cfg_GetLanguage())
 
 ; ---- Apply theme scheme ----
 _Theme_ApplyScheme(_Cfg_GetTheme())
