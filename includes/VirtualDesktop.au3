@@ -14,7 +14,6 @@
 Global $__g_VD_hDLL = -1
 Global $__g_VD_bNameSupport = False
 Global $__g_VD_iCachedCount = 0
-Global $__g_VD_hCountTimer = 0
 Global $__g_VD_aEnumBuf[4096] ; pre-allocated buffer for EnumWindows callback
 Global Const $__g_VD_ENUM_MAX = 16384 ; hard cap on enumerated windows
 Global $__g_VD_hEnumCB = 0   ; persistent DllCallback handle (registered once, reused)
@@ -116,23 +115,25 @@ EndFunc
 ; Description: Returns the number of virtual desktops
 ; Return:      Integer >= 1
 Func _VD_GetCount()
-    ; Return cached value if fresh (within configured TTL)
-    ; Guard against TimerDiff overflow (~24 days) — negative = stale
-    If $__g_VD_iCachedCount > 0 Then
-        Local $iElapsed = TimerDiff($__g_VD_hCountTimer)
-        If $iElapsed >= 0 And $iElapsed < _Cfg_GetCountCacheTTL() Then Return $__g_VD_iCachedCount
-    EndIf
+    ; Return cached value — refreshed by _VD_InvalidateCountCache (event-driven)
+    ; Only queries DLL if cache is empty (startup or explicit invalidation)
+    If $__g_VD_iCachedCount > 0 Then Return $__g_VD_iCachedCount
     Local $aResult = __VD_Call("GetDesktopCount", "int")
     If @error Or $aResult[0] < 1 Then Return 1
     $__g_VD_iCachedCount = $aResult[0]
-    $__g_VD_hCountTimer = TimerInit()
     Return $aResult[0]
 EndFunc
 
 ; Name:        _VD_InvalidateCountCache
-; Description: Forces the next _VD_GetCount() call to query the DLL
+; Description: Refreshes the cached desktop count immediately from the DLL.
+;              Called from desktop change notifications — no polling needed.
 Func _VD_InvalidateCountCache()
-    $__g_VD_iCachedCount = 0
+    Local $aResult = __VD_Call("GetDesktopCount", "int")
+    If Not @error And $aResult[0] >= 1 Then
+        $__g_VD_iCachedCount = $aResult[0]
+    Else
+        $__g_VD_iCachedCount = 0 ; force re-query on next GetCount call
+    EndIf
 EndFunc
 
 ; Name:        _VD_GetCurrent
