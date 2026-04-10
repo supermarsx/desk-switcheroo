@@ -258,7 +258,16 @@ Func _DL_Show($iTaskbarY, $iCurrentDesktop)
         GUICtrlSetCursor($__g_DL_idScrollDown, 0)
     EndIf
 
+    ; Fade-in animation
+    _WinAPI_SetLayeredWindowAttributes($__g_DL_hGUI, 0, 0, $LWA_ALPHA)
     GUISetState(@SW_SHOW, $__g_DL_hGUI)
+    Local $iTargetAlpha = $THEME_ALPHA_POPUP
+    Local $iStep
+    For $iStep = 0 To $iTargetAlpha Step 30
+        _WinAPI_SetLayeredWindowAttributes($__g_DL_hGUI, 0, $iStep, $LWA_ALPHA)
+        Sleep(8)
+    Next
+    _WinAPI_SetLayeredWindowAttributes($__g_DL_hGUI, 0, $iTargetAlpha, $LWA_ALPHA)
     $__g_DL_bVisible = True
     $__g_DL_iCount = $iCount
 EndFunc
@@ -271,6 +280,13 @@ Func _DL_Destroy()
     _DL_CtxDestroy()
     _Peek_End()
     If $__g_DL_hGUI <> 0 Then
+        ; Fade-out animation
+        Local $iAlpha = $THEME_ALPHA_POPUP
+        Local $iFadeStep
+        For $iFadeStep = $iAlpha To 0 Step -30
+            _WinAPI_SetLayeredWindowAttributes($__g_DL_hGUI, 0, $iFadeStep, $LWA_ALPHA)
+            Sleep(8)
+        Next
         GUIDelete($__g_DL_hGUI)
         $__g_DL_hGUI = 0
     EndIf
