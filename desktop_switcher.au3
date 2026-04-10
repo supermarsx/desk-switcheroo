@@ -228,8 +228,8 @@ GUIRegisterMsg($WM_VD_NOTIFY, "_WM_DESKTOPCHANGE")
 
 ; ---- Periodic tasks (adlib) ----
 AdlibRegister("_ForceTopMost", _Cfg_GetTopmostInterval())
-AdlibRegister("_AdlibSyncNames", 2000)
-AdlibRegister("_CheckDLLHealth", 30000) ; check DLL every 30s
+AdlibRegister("_AdlibSyncNames", _Cfg_GetNameSyncInterval())
+AdlibRegister("_CheckDLLHealth", _Cfg_GetDllCheckInterval())
 
 ; ---- Register hotkeys ----
 _RegisterHotkeys()
