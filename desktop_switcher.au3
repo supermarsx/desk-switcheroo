@@ -30,6 +30,9 @@ Global Const $VK_RETURN  = 0x0D
 Global Const $VK_ESCAPE  = 0x1B
 Global Const $VK_UP      = 0x26
 Global Const $VK_DOWN    = 0x28
+Global Const $VK_1       = 0x31
+Global Const $VK_9       = 0x39
+Global Const $VK_KEYDOWN = 0x8000
 Global Const $TRIPLE_CLICK_MS = 500
 Global Const $QUICK_ACCESS_TIMEOUT = 3000
 Global Const $DESKTOP_LIMIT = 20
@@ -226,6 +229,7 @@ GUIRegisterMsg($WM_VD_NOTIFY, "_WM_DESKTOPCHANGE")
 ; ---- Periodic tasks (adlib) ----
 AdlibRegister("_ForceTopMost", _Cfg_GetTopmostInterval())
 AdlibRegister("_AdlibSyncNames", 2000)
+AdlibRegister("_CheckDLLHealth", 30000) ; check DLL every 30s
 
 ; ---- Register hotkeys ----
 _RegisterHotkeys()
@@ -513,7 +517,7 @@ Func _ProcessMouseInput()
     ; Right-click detection
     Local $rBtn = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_RBUTTON)
     If @error Or Not IsArray($rBtn) Then Return False
-    Local $bRightDown = (BitAND($rBtn[0], 0x8000) <> 0)
+    Local $bRightDown = (BitAND($rBtn[0], $VK_KEYDOWN) <> 0)
 
     If $bRightWasDown And Not $bRightDown Then
         ; Right-click during drag -> cancel drag
@@ -558,7 +562,7 @@ Func _ProcessMouseInput()
     ; Middle-click detection
     Local $mBtn = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_MBUTTON)
     If @error Or Not IsArray($mBtn) Then Return False
-    Local $bMiddleDown = (BitAND($mBtn[0], 0x8000) <> 0)
+    Local $bMiddleDown = (BitAND($mBtn[0], $VK_KEYDOWN) <> 0)
 
     If $bMiddleWasDown And Not $bMiddleDown Then
         If _Cfg_GetMiddleClickDelete() And _DL_IsVisible() And _Theme_IsCursorOverWindow(_DL_GetGUI()) Then
@@ -585,7 +589,7 @@ Func _ProcessMouseInput()
     ; Left-click drag detection for desktop list + triple-click + widget drag
     Local $lBtn = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_LBUTTON)
     If @error Or Not IsArray($lBtn) Then Return False
-    Local $bLeftDown = (BitAND($lBtn[0], 0x8000) <> 0)
+    Local $bLeftDown = (BitAND($lBtn[0], $VK_KEYDOWN) <> 0)
 
     If $bLeftDown And Not $bLeftWasDown Then
         ; Track click count for triple-click
@@ -701,7 +705,7 @@ Func _ProcessMouseInput()
     ; Escape cancels drag
     If _DL_IsDragging() Then
         Local $retEscDrag = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_ESCAPE)
-        If Not @error And BitAND($retEscDrag[0], 0x8000) <> 0 Then
+        If Not @error And BitAND($retEscDrag[0], $VK_KEYDOWN) <> 0 Then
             _DL_DragCancel($iDesktop)
         EndIf
     EndIf
@@ -982,7 +986,7 @@ Func _QuickAccess_Check()
 
     ; Check for escape
     Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_ESCAPE)
-    If Not @error And BitAND($retEsc[0], 0x8000) <> 0 Then
+    If Not @error And BitAND($retEsc[0], $VK_KEYDOWN) <> 0 Then
         _QuickAccess_Cancel()
         Return
     EndIf
@@ -993,12 +997,12 @@ Func _QuickAccess_Check()
         Return
     EndIf
 
-    ; Poll VK_1 (0x31) through VK_9 (0x39)
+    ; Poll VK_1 through VK_9
     Local $i
-    For $i = 0x31 To 0x39
+    For $i = $VK_1 To $VK_9
         Local $retKey = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $i)
-        If Not @error And BitAND($retKey[0], 0x8000) <> 0 Then
-            Local $iTarget = $i - 0x30 ; 1-9
+        If Not @error And BitAND($retKey[0], $VK_KEYDOWN) <> 0 Then
+            Local $iTarget = $i - $VK_1 + 1
             $__g_bQuickAccessActive = False
             If $iTarget > _VD_GetCount() Then
                 _QuickAccess_Cancel()
@@ -1102,14 +1106,29 @@ Func _CheckUpdateNow()
     GUISetState(@SW_SHOW, $hDlg)
     Sleep(50)
 
+    ; Non-blocking fetch with 10s timeout
     Local $sUrl = "https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest"
-    Local $bData = InetRead($sUrl, 1)
+    Local $sTmpChk = @TempDir & "\ds_update_check_" & @AutoItPID & ".tmp"
+    Local $hInetChk = InetGet($sUrl, $sTmpChk, 1, 1)
+    Local $hTimeoutChk = TimerInit()
+    While Not InetGetInfo($hInetChk, 2)
+        If TimerDiff($hTimeoutChk) > 10000 Then
+            InetClose($hInetChk)
+            FileDelete($sTmpChk)
+            GUIDelete($hDlg)
+            _Theme_Toast("Connection timed out", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
+            Return
+        EndIf
+        Sleep(50)
+    WEnd
+    InetClose($hInetChk)
     GUIDelete($hDlg)
-    If @error Then
+    Local $sJson = FileRead($sTmpChk)
+    FileDelete($sTmpChk)
+    If $sJson = "" Then
         _Theme_Toast("Connection failed", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
         Return
     EndIf
-    Local $sJson = BinaryToString($bData)
 
     ; Extract version and release date
     Local $aVer = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
@@ -1186,7 +1205,7 @@ Func _CheckUpdateNow()
             EndIf
         EndIf
         Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
-        If Not @error And IsArray($retEsc) And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
+        If Not @error And IsArray($retEsc) And BitAND($retEsc[0], $VK_KEYDOWN) <> 0 Then ExitLoop
         Sleep(10)
     WEnd
     GUIDelete($hDlg)
@@ -1210,14 +1229,29 @@ Func _DownloadLatestPortable()
     GUISetState(@SW_SHOW, $hDlg)
     Sleep(50)
 
+    ; Non-blocking fetch with 10s timeout
     Local $sUrl = "https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest"
-    Local $bData = InetRead($sUrl, 1)
+    Local $sTmpDl = @TempDir & "\ds_dl_check_" & @AutoItPID & ".tmp"
+    Local $hInetDl = InetGet($sUrl, $sTmpDl, 1, 1)
+    Local $hTimeoutDl = TimerInit()
+    While Not InetGetInfo($hInetDl, 2)
+        If TimerDiff($hTimeoutDl) > 10000 Then
+            InetClose($hInetDl)
+            FileDelete($sTmpDl)
+            GUIDelete($hDlg)
+            _Theme_Toast("Connection timed out", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
+            Return
+        EndIf
+        Sleep(50)
+    WEnd
+    InetClose($hInetDl)
     GUIDelete($hDlg)
-    If @error Then
+    Local $sJson = FileRead($sTmpDl)
+    FileDelete($sTmpDl)
+    If $sJson = "" Then
         _Theme_Toast("Connection failed", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
         Return
     EndIf
-    Local $sJson = BinaryToString($bData)
 
     ; Extract version, date, portable URL, and size
     Local $aVer = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
@@ -1295,7 +1329,7 @@ Func _DownloadLatestPortable()
             EndIf
         EndIf
         Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
-        If Not @error And IsArray($retEsc) And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
+        If Not @error And IsArray($retEsc) And BitAND($retEsc[0], $VK_KEYDOWN) <> 0 Then ExitLoop
         Sleep(10)
     WEnd
     GUIDelete($hDlg)
@@ -1393,7 +1427,7 @@ Func _DownloadLatestPortable()
             If $aMsg2[0] = $GUI_EVENT_CLOSE Or $aMsg2[0] = $idClose Then ExitLoop
         EndIf
         Local $retEsc2 = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
-        If Not @error And IsArray($retEsc2) And BitAND($retEsc2[0], 0x8000) <> 0 Then ExitLoop
+        If Not @error And IsArray($retEsc2) And BitAND($retEsc2[0], $VK_KEYDOWN) <> 0 Then ExitLoop
         Sleep(10)
     WEnd
     GUIDelete($hDlg)
@@ -1886,9 +1920,9 @@ Func _ShowAbout()
 
         ; Keyboard: Enter or Escape closes
         Local $retKey = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_RETURN)
-        If Not @error And BitAND($retKey[0], 0x8000) <> 0 Then ExitLoop
+        If Not @error And BitAND($retKey[0], $VK_KEYDOWN) <> 0 Then ExitLoop
         Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_ESCAPE)
-        If Not @error And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
+        If Not @error And BitAND($retEsc[0], $VK_KEYDOWN) <> 0 Then ExitLoop
 
         ; 15 second timeout
         If TimerDiff($hTimer) >= 15000 Then ExitLoop
@@ -1987,6 +2021,15 @@ EndFunc
 
 ; Name:        _AdlibConfigWatcher
 ; Description: Watch config file for external changes and reload if modified
+; Name:        _CheckDLLHealth
+; Description: Verifies the VD DLL is still responding; logs error if not
+Func _CheckDLLHealth()
+    If Not _VD_IsReady() Then
+        _Log_Error("VirtualDesktopAccessor DLL handle lost — attempting reload")
+        _VD_Init()
+    EndIf
+EndFunc
+
 Func _AdlibConfigWatcher()
     Local $sNewTime = FileGetTime(_Cfg_GetPath(), 0, 1)
     If @error Then Return
@@ -2118,7 +2161,16 @@ EndFunc
 
 Func __WriteCrashLog($sReason, $sDetails)
     Local $sTimestamp = @YEAR & "-" & @MON & "-" & @MDAY & " " & @HOUR & ":" & @MIN & ":" & @SEC & "." & @MSEC
-    Local $sCrashFile = @ScriptDir & "\crash_" & @YEAR & @MON & @MDAY & "_" & @HOUR & @MIN & @SEC & ".log"
+    ; Use @ScriptDir with fallback to @TempDir if script dir is unwritable
+    Local $sCrashDir = @ScriptDir
+    Local $hTest = FileOpen($sCrashDir & "\__write_test.tmp", 2)
+    If $hTest = -1 Then
+        $sCrashDir = @TempDir
+    Else
+        FileClose($hTest)
+        FileDelete($sCrashDir & "\__write_test.tmp")
+    EndIf
+    Local $sCrashFile = $sCrashDir & "\crash_" & @YEAR & @MON & @MDAY & "_" & @HOUR & @MIN & @SEC & ".log"
 
     Local $sReport = "=== DESK SWITCHEROO CRASH REPORT ===" & @CRLF
     $sReport &= "Timestamp: " & $sTimestamp & @CRLF
