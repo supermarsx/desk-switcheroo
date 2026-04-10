@@ -156,39 +156,44 @@ $iTaskbarY = $aTaskbarPos[1]
 
 Local $iTopMargin = 2
 Local $iInnerH = $iTaskbarH - $iTopMargin
+; Apply custom dimension overrides (0 = use defaults)
+Global $__g_iWidgetW = _Cfg_GetWidgetWidth()
+If $__g_iWidgetW <= 0 Then $__g_iWidgetW = $THEME_MAIN_WIDTH
+Global $__g_iWidgetH = _Cfg_GetWidgetHeight()
+If $__g_iWidgetH <= 0 Then $__g_iWidgetH = $iInnerH
 Local $iBtnW = $THEME_BTN_WIDTH
 Local $iCenterX = $iBtnW
-Local $iCenterW = $THEME_MAIN_WIDTH - (2 * $iBtnW)
+Local $iCenterW = $__g_iWidgetW - (2 * $iBtnW)
 
 ; ---- Create main GUI ----
 Local $aInitPos = __CalcWidgetXY()
-$gui = GUICreate(String($iDesktop), $THEME_MAIN_WIDTH, $iInnerH, $aInitPos[0], $aInitPos[1], _
+$gui = GUICreate(String($iDesktop), $__g_iWidgetW, $__g_iWidgetH, $aInitPos[0], $aInitPos[1], _
     $WS_POPUP, BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW, $WS_EX_LAYERED))
 GUISetBkColor($THEME_BG_MAIN)
 _WinAPI_SetLayeredWindowAttributes($gui, 0, _Cfg_GetThemeAlphaMain(), $LWA_ALPHA)
 
 ; Left arrow
-$lblLeft = GUICtrlCreateLabel(ChrW(9664), 0, 0, $iBtnW, $iInnerH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+$lblLeft = GUICtrlCreateLabel(ChrW(9664), 0, 0, $iBtnW, $__g_iWidgetH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
 GUICtrlSetFont($lblLeft, 9, 400, 0, $THEME_FONT_SYMBOL)
 GUICtrlSetColor($lblLeft, $THEME_FG_NORMAL)
 GUICtrlSetBkColor($lblLeft, $GUI_BKCOLOR_TRANSPARENT)
 GUICtrlSetCursor($lblLeft, 0)
 
 ; Desktop number
-$lblNum = GUICtrlCreateLabel(String($iDesktop), $iCenterX, 2, $iCenterW, $iInnerH * 0.55, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+$lblNum = GUICtrlCreateLabel(String($iDesktop), $iCenterX, 2, $iCenterW, $__g_iWidgetH * 0.55, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
 GUICtrlSetFont($lblNum, 13, 700, 0, $THEME_FONT_MAIN)
 GUICtrlSetColor($lblNum, $THEME_FG_PRIMARY)
 GUICtrlSetBkColor($lblNum, $GUI_BKCOLOR_TRANSPARENT)
 
 ; Desktop label
 Local $sLabel = _Labels_Load($iDesktop)
-$lblName = GUICtrlCreateLabel($sLabel, $iCenterX, $iInnerH * 0.52, $iCenterW, $iInnerH * 0.42, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+$lblName = GUICtrlCreateLabel($sLabel, $iCenterX, $__g_iWidgetH * 0.52, $iCenterW, $__g_iWidgetH * 0.42, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
 GUICtrlSetFont($lblName, 7, 400, 0, $THEME_FONT_MAIN)
 GUICtrlSetColor($lblName, $THEME_FG_LABEL)
 GUICtrlSetBkColor($lblName, $GUI_BKCOLOR_TRANSPARENT)
 
 ; Right arrow
-$lblRight = GUICtrlCreateLabel(ChrW(9654), $THEME_MAIN_WIDTH - $iBtnW, 0, $iBtnW, $iInnerH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+$lblRight = GUICtrlCreateLabel(ChrW(9654), $__g_iWidgetW - $iBtnW, 0, $iBtnW, $__g_iWidgetH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
 GUICtrlSetFont($lblRight, 9, 400, 0, $THEME_FONT_SYMBOL)
 GUICtrlSetColor($lblRight, $THEME_FG_NORMAL)
 GUICtrlSetBkColor($lblRight, $GUI_BKCOLOR_TRANSPARENT)
@@ -196,7 +201,7 @@ GUICtrlSetCursor($lblRight, 0)
 
 ; Color bar — thin accent at bottom showing the current desktop's color
 Local $iBarH = _Cfg_GetWidgetColorBarHeight()
-$lblColorBar = GUICtrlCreateLabel("", 0, $iInnerH - $iBarH, $THEME_MAIN_WIDTH, $iBarH)
+$lblColorBar = GUICtrlCreateLabel("", 0, $__g_iWidgetH - $iBarH, $__g_iWidgetW, $iBarH)
 _UpdateWidgetColorBar()
 
 GUISetState(@SW_SHOW)
@@ -633,7 +638,7 @@ Func _ProcessMouseInput()
         Local $iNewX = $aMPWD2[0] - $__g_iWidgetDragOffsetX
         ; Clamp to screen bounds
         If $iNewX < 0 Then $iNewX = 0
-        If $iNewX + $THEME_MAIN_WIDTH > @DesktopWidth Then $iNewX = @DesktopWidth - $THEME_MAIN_WIDTH
+        If $iNewX + $__g_iWidgetW > @DesktopWidth Then $iNewX = @DesktopWidth - $__g_iWidgetW
         WinMove($gui, "", $iNewX, $iTaskbarY + 2)
     EndIf
 
@@ -1496,8 +1501,8 @@ Func __CalcWidgetXY()
     Local $iOY = _Cfg_GetWidgetOffsetY()
     Local $iSW = @DesktopWidth
     Local $iSH = @DesktopHeight
-    Local $iWW = $THEME_MAIN_WIDTH
-    Local $iWH = $iTaskbarH - 2
+    Local $iWW = $__g_iWidgetW
+    Local $iWH = $__g_iWidgetH
     Local $aXY[2] = [0, $iTaskbarY + 2]
 
     ; Legacy compat
@@ -1569,7 +1574,7 @@ Func _ForceTopMost()
         DllCall("user32.dll", "bool", "SetWindowPos", _
             "hwnd", $gui, "hwnd", $HWND_TOPMOST, _
             "int", $aPos[0], "int", $aPos[1], _
-            "int", $THEME_MAIN_WIDTH, "int", $iTaskbarH - 2, _
+            "int", $__g_iWidgetW, "int", $__g_iWidgetH, _
             "uint", BitOR($SWP_NOACTIVATE, $SWP_SHOWWINDOW))
     EndIf
 
@@ -1581,7 +1586,7 @@ Func _ForceTopMost()
         DllCall("user32.dll", "bool", "SetWindowPos", _
             "hwnd", $gui, "hwnd", $HWND_TOPMOST, _
             "int", $aPos2[0], "int", $aPos2[1], _
-            "int", $THEME_MAIN_WIDTH, "int", $iTaskbarH - 2, _
+            "int", $__g_iWidgetW, "int", $__g_iWidgetH, _
             "uint", BitOR($SWP_NOACTIVATE, $SWP_SHOWWINDOW))
     EndIf
 EndFunc

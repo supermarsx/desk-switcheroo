@@ -19,6 +19,8 @@ Global $__g_Cfg_iNumberPadding     = 2
 Global $__g_Cfg_sWidgetPosition    = "bottom-left"
 Global $__g_Cfg_iWidgetOffsetX     = 0
 Global $__g_Cfg_iWidgetOffsetY     = 0
+Global $__g_Cfg_iWidgetWidth       = 0  ; 0 = auto (THEME_MAIN_WIDTH)
+Global $__g_Cfg_iWidgetHeight      = 0  ; 0 = auto (taskbar height)
 Global $__g_Cfg_bWidgetDragEnabled = False
 Global $__g_Cfg_bWidgetColorBar   = False
 Global $__g_Cfg_iWidgetColorBarH  = 2
@@ -155,6 +157,8 @@ Func _Cfg_Load()
         "bottom-left|bottom-center|bottom-right|middle-left|middle-right|top-left|top-center|top-right|left|center|right")
     $__g_Cfg_iWidgetOffsetX     = __Cfg_ReadInt($f, "General", "widget_offset_x", 0, -9999, 9999)
     $__g_Cfg_iWidgetOffsetY     = __Cfg_ReadInt($f, "General", "widget_offset_y", 0, -9999, 9999)
+    $__g_Cfg_iWidgetWidth       = __Cfg_ReadInt($f, "General", "widget_width", 0, 0, 500)
+    $__g_Cfg_iWidgetHeight      = __Cfg_ReadInt($f, "General", "widget_height", 0, 0, 200)
     $__g_Cfg_bWidgetDragEnabled = __Cfg_ReadBool($f, "General", "widget_drag_enabled", False)
     $__g_Cfg_bWidgetColorBar   = __Cfg_ReadBool($f, "General", "widget_color_bar", False)
     $__g_Cfg_iWidgetColorBarH  = __Cfg_ReadInt($f, "General", "widget_color_bar_height", 2, 1, 10)
@@ -259,6 +263,8 @@ Func _Cfg_Save()
     IniWrite($f, "General", "widget_position", $__g_Cfg_sWidgetPosition)
     IniWrite($f, "General", "widget_offset_x", $__g_Cfg_iWidgetOffsetX)
     IniWrite($f, "General", "widget_offset_y", $__g_Cfg_iWidgetOffsetY)
+    IniWrite($f, "General", "widget_width", $__g_Cfg_iWidgetWidth)
+    IniWrite($f, "General", "widget_height", $__g_Cfg_iWidgetHeight)
     __Cfg_WriteBool($f, "General", "widget_drag_enabled", $__g_Cfg_bWidgetDragEnabled)
     __Cfg_WriteBool($f, "General", "widget_color_bar", $__g_Cfg_bWidgetColorBar)
     IniWrite($f, "General", "widget_color_bar_height", $__g_Cfg_iWidgetColorBarH)
@@ -362,6 +368,8 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "General", "widget_position", "bottom-left")
     __Cfg_DefaultVal($f, "General", "widget_offset_x", 0)
     __Cfg_DefaultVal($f, "General", "widget_offset_y", 0)
+    __Cfg_DefaultVal($f, "General", "widget_width", 0)
+    __Cfg_DefaultVal($f, "General", "widget_height", 0)
     __Cfg_DefaultBool($f, "General", "widget_drag_enabled", False)
     __Cfg_DefaultBool($f, "General", "widget_color_bar", False)
     __Cfg_DefaultVal($f, "General", "widget_color_bar_height", 2)
@@ -715,6 +723,22 @@ Func _Cfg_GetWidgetOffsetY()
 EndFunc
 Func _Cfg_SetWidgetOffsetY($i)
     $__g_Cfg_iWidgetOffsetY = Int($i)
+EndFunc
+Func _Cfg_GetWidgetWidth()
+    Return $__g_Cfg_iWidgetWidth
+EndFunc
+Func _Cfg_SetWidgetWidth($i)
+    If $i < 0 Then $i = 0
+    If $i > 500 Then $i = 500
+    $__g_Cfg_iWidgetWidth = Int($i)
+EndFunc
+Func _Cfg_GetWidgetHeight()
+    Return $__g_Cfg_iWidgetHeight
+EndFunc
+Func _Cfg_SetWidgetHeight($i)
+    If $i < 0 Then $i = 0
+    If $i > 200 Then $i = 200
+    $__g_Cfg_iWidgetHeight = Int($i)
 EndFunc
 Func _Cfg_SetWidgetDragEnabled($b)
     $__g_Cfg_bWidgetDragEnabled = $b
