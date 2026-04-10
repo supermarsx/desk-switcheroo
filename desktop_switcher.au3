@@ -316,7 +316,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                     _VD_GoTo($iDesktop + 1)
                 ElseIf _Cfg_GetAutoCreateDesktop() Then
                     If _VD_GetCount() >= $DESKTOP_LIMIT Then
-                        _Theme_Toast("Desktop limit reached", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+                        _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
                     Else
                         _VD_CreateDesktop()
                         Sleep(100)
@@ -352,7 +352,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
             Case "add"
                 _CM_Destroy()
                 If _VD_GetCount() >= $DESKTOP_LIMIT Then
-                    _Theme_Toast("Desktop limit reached", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+                    _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
                 Else
                     _VD_CreateDesktop()
                     Sleep(100)
@@ -361,13 +361,13 @@ Func _ProcessGUIEvents($msg, $hFrom)
             Case "delete"
                 _CM_Destroy()
                 If _VD_GetCount() <= 1 Then
-                    _Theme_Confirm("Cannot Delete", "This is the last desktop.")
+                    _Theme_Confirm(_i18n("Dialogs.confirm_cannot_delete_title", "Cannot Delete"), _i18n("Dialogs.confirm_cannot_delete_msg", "This is the last desktop."))
                 Else
                     Local $sDelCurName = _Labels_Load($iDesktop)
                     Local $sDelCurLabel = "Desktop " & $iDesktop
                     If $sDelCurName <> "" Then $sDelCurLabel &= ' ("' & $sDelCurName & '")'
                     If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm("Delete " & $sDelCurLabel & "?", _
-                            "Windows will be moved to an adjacent desktop.") Then
+                            _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
                         _VD_RemoveDesktop($iDesktop)
                         Sleep(100)
                         _RefreshIndex()
@@ -433,7 +433,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
             Case "add"
                 _DL_CtxDestroy()
                 If _VD_GetCount() >= $DESKTOP_LIMIT Then
-                    _Theme_Toast("Desktop limit reached", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+                    _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
                 Else
                     _VD_CreateDesktop()
                     Sleep(100)
@@ -442,13 +442,13 @@ Func _ProcessGUIEvents($msg, $hFrom)
             Case "delete"
                 _DL_CtxDestroy()
                 If _VD_GetCount() <= 1 Then
-                    _Theme_Confirm("Cannot Delete", "This is the last desktop.")
+                    _Theme_Confirm(_i18n("Dialogs.confirm_cannot_delete_title", "Cannot Delete"), _i18n("Dialogs.confirm_cannot_delete_msg", "This is the last desktop."))
                 Else
                     Local $sDelName = _Labels_Load($iCtxTarget)
                     Local $sDelLabel = "Desktop " & $iCtxTarget
                     If $sDelName <> "" Then $sDelLabel &= ' ("' & $sDelName & '")'
                     If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm("Delete " & $sDelLabel & "?", _
-                        "Windows will be moved to an adjacent desktop.") Then
+                        _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
                         _VD_RemoveDesktop($iCtxTarget)
                         Sleep(100)
                         _RefreshIndex()
@@ -583,13 +583,13 @@ Func _ProcessMouseInput()
             Local $iMiddleClickRow = _DL_GetItemAtPos()
             If $iMiddleClickRow > 0 Then
                 If _VD_GetCount() <= 1 Then
-                    _Theme_Confirm("Cannot Delete", "This is the last desktop.")
+                    _Theme_Confirm(_i18n("Dialogs.confirm_cannot_delete_title", "Cannot Delete"), _i18n("Dialogs.confirm_cannot_delete_msg", "This is the last desktop."))
                 Else
                     Local $sDelMCName = _Labels_Load($iMiddleClickRow)
                     Local $sDelMCLabel = "Desktop " & $iMiddleClickRow
                     If $sDelMCName <> "" Then $sDelMCLabel &= ' ("' & $sDelMCName & '")'
                     If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm("Delete " & $sDelMCLabel & "?", _
-                        "Windows will be moved to an adjacent desktop.") Then
+                        _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
                         _VD_RemoveDesktop($iMiddleClickRow)
                         Sleep(100)
                         _RefreshIndex()
@@ -912,7 +912,7 @@ Func _ApplyDesktopChange()
     _UpdateWidgetColorBar()
     WinSetTitle($gui, "", String($iDesktop))
     _DL_Refresh($iTaskbarY, $iDesktop)
-    If $__g_bTrayMode Then TraySetToolTip("Desk Switcheroo - Desktop " & $iDesktop)
+    If $__g_bTrayMode Then TraySetToolTip(_i18n_Format("Tray.tray_tooltip", "Desk Switcheroo - Desktop {1}", $iDesktop))
 EndFunc
 
 ; Name:        _ApplySettingsLive
@@ -1347,7 +1347,7 @@ Func _HK_Next()
         _VD_GoTo($iDesktop + 1)
     ElseIf _Cfg_GetAutoCreateDesktop() Then
         If _VD_GetCount() >= $DESKTOP_LIMIT Then
-            _Theme_Toast("Desktop limit reached", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+            _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
         Else
             _VD_CreateDesktop()
             Sleep(100)
@@ -1464,16 +1464,16 @@ Func _InitTrayMode()
     $__g_bTrayMode = True
     GUISetState(@SW_HIDE, $gui)
     Opt("TrayMenuMode", 3) ; no default menu items
-    $__g_iTrayToggleList = TrayCreateItem("Show Desktop List")
-    $__g_iTrayEditLabel = TrayCreateItem("Edit Label")
+    $__g_iTrayToggleList = TrayCreateItem(_i18n("Tray.tray_show_list", "Show Desktop List"))
+    $__g_iTrayEditLabel = TrayCreateItem(_i18n("Tray.tray_edit_label", "Edit Label"))
     TrayCreateItem("") ; separator
-    $__g_iTrayAddDesktop = TrayCreateItem("Add Desktop")
-    $__g_iTrayDelDesktop = TrayCreateItem("Delete Desktop")
+    $__g_iTrayAddDesktop = TrayCreateItem(_i18n("Tray.tray_add_desktop", "Add Desktop"))
+    $__g_iTrayDelDesktop = TrayCreateItem(_i18n("Tray.tray_delete_desktop", "Delete Desktop"))
     TrayCreateItem("")
-    $__g_iTraySettings = TrayCreateItem("Settings")
-    $__g_iTrayAbout = TrayCreateItem("About")
+    $__g_iTraySettings = TrayCreateItem(_i18n("Tray.tray_settings", "Settings"))
+    $__g_iTrayAbout = TrayCreateItem(_i18n("Tray.tray_about", "About"))
     TrayCreateItem("")
-    $__g_iTrayQuit = TrayCreateItem("Quit")
+    $__g_iTrayQuit = TrayCreateItem(_i18n("Tray.tray_quit", "Quit"))
     ; Validate tray menu creation
     If $__g_iTrayToggleList = 0 Or $__g_iTrayQuit = 0 Then
         _Log_Error("Tray menu creation failed")
@@ -1481,7 +1481,7 @@ Func _InitTrayMode()
         GUISetState(@SW_SHOW, $gui)
         Return
     EndIf
-    TraySetToolTip("Desk Switcheroo - Desktop " & $iDesktop)
+    TraySetToolTip(_i18n_Format("Tray.tray_tooltip", "Desk Switcheroo - Desktop {1}", $iDesktop))
     If FileExists(@ScriptDir & "\assets\desk_switcheroo.ico") Then
         TraySetIcon(@ScriptDir & "\assets\desk_switcheroo.ico")
     EndIf
@@ -1501,7 +1501,7 @@ Func _CheckTrayMessages()
             _RD_Show($iDesktop, $iTaskbarY)
         Case $__g_iTrayAddDesktop
             If _VD_GetCount() >= $DESKTOP_LIMIT Then
-                _Theme_Toast("Desktop limit reached", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+                _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
             Else
                 _VD_CreateDesktop()
                 Sleep(100)
@@ -1509,7 +1509,7 @@ Func _CheckTrayMessages()
             EndIf
         Case $__g_iTrayDelDesktop
             If _VD_GetCount() > 1 Then
-                If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm("Delete Desktop " & $iDesktop & "?", "Windows will be moved to an adjacent desktop.") Then
+                If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm("Delete Desktop " & $iDesktop & "?", _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
                     _VD_RemoveDesktop($iDesktop)
                     Sleep(100)
                     _RefreshIndex()
@@ -1574,36 +1574,36 @@ Func __TriggerTestCrash()
         BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW))
     GUISetBkColor(0x1E1E1E)
 
-    GUICtrlCreateLabel(ChrW(0x26A0) & "  Select crash type:", 14, 10, $iW - 28, 22)
+    GUICtrlCreateLabel(ChrW(0x26A0) & "  " & _i18n("Errors.err_crash_select", "Select crash type:"), 14, 10, $iW - 28, 22)
     GUICtrlSetFont(-1, 10, 700, 0, "Segoe UI")
     GUICtrlSetColor(-1, 0xFF5555)
     GUICtrlSetBkColor(-1, 0x1E1E1E)
 
-    Local $idCOM = GUICtrlCreateLabel("  COM Error (shows crash dialog)", 14, 42, $iW - 28, 28, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idCOM = GUICtrlCreateLabel("  " & _i18n("Errors.err_crash_com", "COM Error (shows crash dialog)"), 14, 42, $iW - 28, 28, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idCOM, 8, 400, 0, "Segoe UI")
     GUICtrlSetColor($idCOM, 0xCCCCCC)
     GUICtrlSetBkColor($idCOM, 0x333333)
     GUICtrlSetCursor($idCOM, 0)
 
-    Local $idArray = GUICtrlCreateLabel("  Array bounds (fatal, writes log)", 14, 76, $iW - 28, 28, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idArray = GUICtrlCreateLabel("  " & _i18n("Errors.err_crash_array", "Array bounds (fatal, writes log)"), 14, 76, $iW - 28, 28, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idArray, 8, 400, 0, "Segoe UI")
     GUICtrlSetColor($idArray, 0xCCCCCC)
     GUICtrlSetBkColor($idArray, 0x333333)
     GUICtrlSetCursor($idArray, 0)
 
-    Local $idDivZero = GUICtrlCreateLabel("  Division by zero (fatal, writes log)", 14, 110, $iW - 28, 28, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idDivZero = GUICtrlCreateLabel("  " & _i18n("Errors.err_crash_div", "Division by zero (fatal, writes log)"), 14, 110, $iW - 28, 28, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idDivZero, 8, 400, 0, "Segoe UI")
     GUICtrlSetColor($idDivZero, 0xCCCCCC)
     GUICtrlSetBkColor($idDivZero, 0x333333)
     GUICtrlSetCursor($idDivZero, 0)
 
-    Local $idExit = GUICtrlCreateLabel("  Forced Exit code 99 (writes log)", 14, 144, $iW - 28, 28, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idExit = GUICtrlCreateLabel("  " & _i18n("Errors.err_crash_exit", "Forced Exit code 99 (writes log)"), 14, 144, $iW - 28, 28, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idExit, 8, 400, 0, "Segoe UI")
     GUICtrlSetColor($idExit, 0xCCCCCC)
     GUICtrlSetBkColor($idExit, 0x333333)
     GUICtrlSetCursor($idExit, 0)
 
-    Local $idCancel = GUICtrlCreateLabel("Cancel", ($iW - 80) / 2, $iH - 36, 80, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idCancel = GUICtrlCreateLabel(_i18n("General.btn_cancel", "Cancel"), ($iW - 80) / 2, $iH - 36, 80, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idCancel, 9, 400, 0, "Segoe UI")
     GUICtrlSetColor($idCancel, 0xDDDDDD)
     GUICtrlSetBkColor($idCancel, 0x333333)
@@ -1744,7 +1744,7 @@ Func __ShowCrashDialog($sReason, $sDetails, $sCrashFile)
     GUISetBkColor(0x1E1E1E)
 
     ; Red warning icon + title
-    GUICtrlCreateLabel(ChrW(0x26A0) & "  Desk Switcheroo has crashed", 14, 12, $iW - 28, 24)
+    GUICtrlCreateLabel(ChrW(0x26A0) & "  " & _i18n("Errors.err_crash_title", "Desk Switcheroo has crashed"), 14, 12, $iW - 28, 24)
     GUICtrlSetFont(-1, 11, 700, 0, "Segoe UI")
     GUICtrlSetColor(-1, 0xFF5555)
     GUICtrlSetBkColor(-1, 0x1E1E1E)
@@ -1896,7 +1896,7 @@ Func _Shutdown()
     If $__g_bShuttingDown Then Return
     ; Quit confirmation (skip if already shutting down from OnExit)
     If _Cfg_GetConfirmQuit() Then
-        If Not _Theme_Confirm("Quit Desk Switcheroo?", "Are you sure you want to exit?") Then Return
+        If Not _Theme_Confirm(_i18n("Dialogs.confirm_quit_title", "Quit Desk Switcheroo?"), _i18n("Dialogs.confirm_quit_msg", "Are you sure you want to exit?")) Then Return
     EndIf
     $__g_bShuttingDown = True
     ; Persist window state for next launch
