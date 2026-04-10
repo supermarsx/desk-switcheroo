@@ -56,6 +56,7 @@ Global $__g_DL_iColorNoneID   = 0
 Global $__g_DL_iColorCustomID = 0
 Global $__g_DL_iColorTarget = 0
 Global $__g_DL_iColorHovered = 0
+Global $__g_DL_sLastCustomColor = "FF0000"
 
 ; -- Scroll offset for large desktop lists --
 Global $__g_DL_iScrollOffset = 0
@@ -1210,7 +1211,7 @@ Func _DL_ColorPickerCustomDialog()
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
     ; Input field
-    Local $idInput = GUICtrlCreateInput("FF0000", 74, 8, 110, 20)
+    Local $idInput = GUICtrlCreateInput($__g_DL_sLastCustomColor, 74, 8, 110, 20)
     GUICtrlSetFont($idInput, 9, 400, 0, $THEME_FONT_MONO)
 
     ; OK button
@@ -1275,6 +1276,8 @@ Func _DL_ColorPickerCustomDialog()
     WEnd
 
     GUIDelete($hDlg)
+    ; Remember successful custom color for next time
+    If $iResult >= 0 Then $__g_DL_sLastCustomColor = StringRight("000000" & Hex($iResult, 6), 6)
     Return $iResult
 EndFunc
 

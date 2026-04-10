@@ -10,6 +10,8 @@
 
 ; #INTERNAL GLOBALS# ============================================
 Global $__g_Cfg_sIniPath = ""
+Global $__g_Cfg_hSaveTimer = 0
+Global Const $__g_Cfg_SAVE_DEBOUNCE = 500 ; ms between saves
 
 ; [General]
 Global $__g_Cfg_bStartWithWindows  = False
@@ -81,6 +83,7 @@ Global $__g_Cfg_iConfigWatcherInterval = 60000
 Global $__g_Cfg_iCountCacheTTL = 1000
 Global $__g_Cfg_iNameSyncInterval  = 2000
 Global $__g_Cfg_iDllCheckInterval  = 30000
+Global $__g_Cfg_iUpdatePollInterval = 500
 Global $__g_Cfg_bConfirmQuit       = False
 Global $__g_Cfg_bDebugMode         = False
 
@@ -222,6 +225,7 @@ Func _Cfg_Load()
     $__g_Cfg_iCountCacheTTL = __Cfg_ReadInt($f, "Behavior", "count_cache_ttl", 1000, 100, 10000)
     $__g_Cfg_iNameSyncInterval = __Cfg_ReadInt($f, "Behavior", "name_sync_interval", 2000, 500, 60000)
     $__g_Cfg_iDllCheckInterval = __Cfg_ReadInt($f, "Behavior", "dll_check_interval", 30000, 5000, 300000)
+    $__g_Cfg_iUpdatePollInterval = __Cfg_ReadInt($f, "Behavior", "update_poll_interval", 500, 100, 5000)
     $__g_Cfg_bConfirmQuit       = __Cfg_ReadBool($f, "Behavior", "confirm_quit", False)
     $__g_Cfg_bDebugMode         = __Cfg_ReadBool($f, "Behavior", "debug_mode", False)
 
@@ -253,6 +257,9 @@ EndFunc
 ; Name:        _Cfg_Save
 ; Description: Writes all in-memory values to the INI file
 Func _Cfg_Save()
+    ; Debounce: skip if saved less than 500ms ago
+    If TimerDiff($__g_Cfg_hSaveTimer) < $__g_Cfg_SAVE_DEBOUNCE Then Return True
+    $__g_Cfg_hSaveTimer = TimerInit()
     ; Write to temp file first, then rename for atomic save (prevents corruption on crash)
     Local $f = $__g_Cfg_sIniPath & ".tmp"
     If FileExists($f) Then FileDelete($f)
@@ -330,6 +337,7 @@ Func _Cfg_Save()
     IniWrite($f, "Behavior", "count_cache_ttl", $__g_Cfg_iCountCacheTTL)
     IniWrite($f, "Behavior", "name_sync_interval", $__g_Cfg_iNameSyncInterval)
     IniWrite($f, "Behavior", "dll_check_interval", $__g_Cfg_iDllCheckInterval)
+    IniWrite($f, "Behavior", "update_poll_interval", $__g_Cfg_iUpdatePollInterval)
     __Cfg_WriteBool($f, "Behavior", "confirm_quit", $__g_Cfg_bConfirmQuit)
     __Cfg_WriteBool($f, "Behavior", "debug_mode", $__g_Cfg_bDebugMode)
 
@@ -432,6 +440,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Behavior", "count_cache_ttl", 1000)
     __Cfg_DefaultVal($f, "Behavior", "name_sync_interval", 2000)
     __Cfg_DefaultVal($f, "Behavior", "dll_check_interval", 30000)
+    __Cfg_DefaultVal($f, "Behavior", "update_poll_interval", 500)
     __Cfg_DefaultBool($f, "Behavior", "confirm_quit", False)
     __Cfg_DefaultBool($f, "Behavior", "debug_mode", False)
 
@@ -642,6 +651,9 @@ Func _Cfg_GetNameSyncInterval()
 EndFunc
 Func _Cfg_GetDllCheckInterval()
     Return $__g_Cfg_iDllCheckInterval
+EndFunc
+Func _Cfg_GetUpdatePollInterval()
+    Return $__g_Cfg_iUpdatePollInterval
 EndFunc
 Func _Cfg_GetConfirmQuit()
     Return $__g_Cfg_bConfirmQuit
@@ -947,6 +959,11 @@ Func _Cfg_SetDllCheckInterval($i)
     If $i < 5000 Then $i = 5000
     If $i > 300000 Then $i = 300000
     $__g_Cfg_iDllCheckInterval = $i
+EndFunc
+Func _Cfg_SetUpdatePollInterval($i)
+    If $i < 100 Then $i = 100
+    If $i > 5000 Then $i = 5000
+    $__g_Cfg_iUpdatePollInterval = $i
 EndFunc
 Func _Cfg_SetConfirmQuit($b)
     $__g_Cfg_bConfirmQuit = $b

@@ -150,6 +150,7 @@ Global $__g_sCfgFileTime = ""
 
 ; ---- Auto-update checker global ----
 Global $__g_hUpdateTimer = 0
+Global $__g_hUpdatePollTimer = 0
 
 ; ---- Get taskbar dimensions ----
 Local $hTaskbar = WinGetHandle("[CLASS:Shell_TrayWnd]")
@@ -831,8 +832,11 @@ Func _ProcessTimersAndSleep($bCursorActive)
     ; Themed tooltip auto-dismiss
     _Theme_TooltipTick()
 
-    ; Check non-blocking update download result
-    _CheckUpdateResult()
+    ; Check non-blocking update download result (rate-limited)
+    If TimerDiff($__g_hUpdatePollTimer) >= _Cfg_GetUpdatePollInterval() Then
+        _CheckUpdateResult()
+        $__g_hUpdatePollTimer = TimerInit()
+    EndIf
 
     ; Peek bounce-back
     _Peek_CheckBounce()
