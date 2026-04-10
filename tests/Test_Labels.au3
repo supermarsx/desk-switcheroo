@@ -72,6 +72,13 @@ Func _RunTest_Labels()
     ; -- SyncFromOS returns false when disabled --
     _Test_AssertFalse("SyncFromOS false when disabled", _Labels_SyncFromOS())
 
+    ; -- Cache tests --
+    _Labels_Save(1, "CachedLabel")
+    _Test_AssertEqual("Label cached after save", _Labels_Load(1), "CachedLabel")
+    ; Invalidate and verify reload works
+    _Labels_InvalidateCache()
+    _Test_AssertEqual("Label reloads after invalidate", _Labels_Load(1), "CachedLabel")
+
     ; -- Cleanup --
     FileDelete($sTempIni)
 EndFunc

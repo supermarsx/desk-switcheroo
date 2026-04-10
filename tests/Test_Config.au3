@@ -402,6 +402,39 @@ Func _RunTest_Config()
     _Cfg_SetListScrollSpeed(3)
     _Test_AssertEqual("Set+Get: list_scroll_speed", _Cfg_GetListScrollSpeed(), 3)
 
+    ; -- Widget anchor and dimensions --
+    _Test_AssertEqual("Default: widget_position", _Cfg_GetWidgetPosition(), "bottom-left")
+    _Cfg_SetWidgetPosition("top-right")
+    _Test_AssertEqual("Set+Get: widget_position top-right", _Cfg_GetWidgetPosition(), "top-right")
+    _Cfg_SetWidgetPosition("middle-left")
+    _Test_AssertEqual("Set+Get: widget_position middle-left", _Cfg_GetWidgetPosition(), "middle-left")
+    ; Legacy compat
+    _Cfg_SetWidgetPosition("left")
+    _Test_AssertEqual("Legacy left -> bottom-left", _Cfg_GetWidgetPosition(), "bottom-left")
+    _Cfg_SetWidgetPosition("center")
+    _Test_AssertEqual("Legacy center -> bottom-center", _Cfg_GetWidgetPosition(), "bottom-center")
+    _Cfg_SetWidgetPosition("right")
+    _Test_AssertEqual("Legacy right -> bottom-right", _Cfg_GetWidgetPosition(), "bottom-right")
+    _Cfg_SetWidgetPosition("invalid-anchor")
+    _Test_AssertEqual("Invalid anchor -> bottom-left", _Cfg_GetWidgetPosition(), "bottom-left")
+    ; Offset Y
+    _Test_AssertEqual("Default: widget_offset_y", _Cfg_GetWidgetOffsetY(), 0)
+    _Cfg_SetWidgetOffsetY(50)
+    _Test_AssertEqual("Set+Get: widget_offset_y", _Cfg_GetWidgetOffsetY(), 50)
+    ; Widget dimensions
+    _Test_AssertEqual("Default: widget_width", _Cfg_GetWidgetWidth(), 0)
+    _Test_AssertEqual("Default: widget_height", _Cfg_GetWidgetHeight(), 0)
+    _Cfg_SetWidgetWidth(200)
+    _Test_AssertEqual("Set+Get: widget_width", _Cfg_GetWidgetWidth(), 200)
+    _Cfg_SetWidgetHeight(80)
+    _Test_AssertEqual("Set+Get: widget_height", _Cfg_GetWidgetHeight(), 80)
+    _Cfg_SetWidgetWidth(999)
+    _Test_AssertLessEqual("Widget width clamped high", _Cfg_GetWidgetWidth(), 500)
+    _Cfg_SetWidgetHeight(999)
+    _Test_AssertLessEqual("Widget height clamped high", _Cfg_GetWidgetHeight(), 200)
+    _Cfg_SetWidgetWidth(-1)
+    _Test_AssertGreaterEqual("Widget width clamped low", _Cfg_GetWidgetWidth(), 0)
+
     ; -- Cleanup --
     FileDelete($sTempIni)
 EndFunc

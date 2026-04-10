@@ -70,4 +70,30 @@ Func _RunTest_VirtualDesktop()
         ; -- SetName returns False when unsupported --
         _Test_AssertFalse("SetName fails when unsupported", _VD_SetName(1, "Test"))
     EndIf
+
+    ; -- _VD_IsReady after successful init --
+    _Test_AssertTrue("IsReady after init", _VD_IsReady())
+
+    ; -- InvalidateCountCache forces requery --
+    _VD_InvalidateCountCache()
+    Local $iCount3 = _VD_GetCount()
+    _Test_AssertGreaterEqual("GetCount after invalidate >= 1", $iCount3, 1)
+
+    ; -- EnumWindowsOnDesktop returns array with count at [0] --
+    Local $aEnum = _VD_EnumWindowsOnDesktop($iCurrent)
+    _Test_AssertTrue("EnumWindowsOnDesktop is array", IsArray($aEnum))
+    _Test_AssertGreaterEqual("EnumWindowsOnDesktop count >= 0", $aEnum[0], 0)
+
+    ; -- GetWindowDesktopNumber for invalid handle returns 0 --
+    _Test_AssertEqual("GetWindowDesktopNumber(0) = 0", _VD_GetWindowDesktopNumber(0), 0)
+
+    ; -- MoveWindowToDesktop with invalid handle returns False --
+    _Test_AssertFalse("MoveWindowToDesktop(0) fails", _VD_MoveWindowToDesktop(0, 1))
+
+    ; -- Shutdown cleans up --
+    _VD_Shutdown()
+    _Test_AssertFalse("IsReady after shutdown", _VD_IsReady())
+
+    ; Re-init for other tests that may need it
+    _VD_Init($sDllPath)
 EndFunc
