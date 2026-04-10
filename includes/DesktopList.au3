@@ -865,26 +865,26 @@ Func _DL_CtxShow($iTarget)
 
     Local $iY = 4
 
-    $__g_DL_iCtxSwitch = _Theme_CreateMenuItem("  Switch", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $__g_DL_iCtxSwitch = _Theme_CreateMenuItem("  " & _i18n("DesktopList.dl_switch", "Switch"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 
-    $__g_DL_iCtxRename = _Theme_CreateMenuItem("  Rename", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $__g_DL_iCtxRename = _Theme_CreateMenuItem("  " & _i18n("DesktopList.dl_rename", "Rename"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 
-    $__g_DL_iCtxPeek = _Theme_CreateMenuItem("  Peek", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $__g_DL_iCtxPeek = _Theme_CreateMenuItem("  " & _i18n("DesktopList.dl_peek", "Peek"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 
     If _Cfg_GetDesktopColorsEnabled() Then
-        $__g_DL_iCtxSetColor = _Theme_CreateMenuItem("  Set Color  " & ChrW(0x25B6), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+        $__g_DL_iCtxSetColor = _Theme_CreateMenuItem("  " & _i18n("DesktopList.dl_set_color", "Set Color") & "  " & ChrW(0x25B6), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
         $iY += $THEME_MENU_ITEM_H
     EndIf
 
     If _Cfg_GetMoveWindowEnabled() Then
-        $__g_DL_iCtxMoveWin = _Theme_CreateMenuItem("  Move Window Here", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+        $__g_DL_iCtxMoveWin = _Theme_CreateMenuItem("  " & _i18n("DesktopList.dl_move_window", "Move Window Here"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
         $iY += $THEME_MENU_ITEM_H
     EndIf
 
-    $__g_DL_iCtxAdd = _Theme_CreateMenuItem("  Add Desktop", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $__g_DL_iCtxAdd = _Theme_CreateMenuItem("  " & _i18n("DesktopList.dl_add_desktop", "Add Desktop"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 
     ; Separator
@@ -892,7 +892,7 @@ Func _DL_CtxShow($iTarget)
     GUICtrlSetBkColor(-1, $THEME_BG_SEPARATOR)
     $iY += $iSepH + 4
 
-    $__g_DL_iCtxDelete = _Theme_CreateMenuItem("  Delete", 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $__g_DL_iCtxDelete = _Theme_CreateMenuItem("  " & _i18n("DesktopList.dl_delete", "Delete"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     GUICtrlSetColor($__g_DL_iCtxDelete, 0xCC6666) ; muted red for danger
 
     GUISetState(@SW_SHOW, $__g_DL_hCtxGUI)
@@ -1056,8 +1056,8 @@ Func _DL_ColorPickerShow($iTarget)
 
     ; "None" option at the top (clear color)
     Local $iCurClr = _Cfg_GetDesktopColor($iTarget)
-    Local $sNoneText = "  None"
-    If $iCurClr = 0 Then $sNoneText = ChrW(0x2713) & " None"
+    Local $sNoneText = "  " & _i18n("DesktopList.cp_none", "None")
+    If $iCurClr = 0 Then $sNoneText = ChrW(0x2713) & " " & _i18n("DesktopList.cp_none", "None")
     $__g_DL_iColorNoneID = GUICtrlCreateLabel($sNoneText, 6, $iY, $iPickerW - 12, 24, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_DL_iColorNoneID, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_DL_iColorNoneID, $THEME_FG_DIM)
@@ -1093,7 +1093,7 @@ Func _DL_ColorPickerShow($iTarget)
     $iY += 5
 
     ; Custom... text row
-    $__g_DL_iColorCustomID = GUICtrlCreateLabel("  Custom...", 6, $iY, $iPickerW - 12, 24, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    $__g_DL_iColorCustomID = GUICtrlCreateLabel("  " & _i18n("DesktopList.cp_custom", "Custom..."), 6, $iY, $iPickerW - 12, 24, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_DL_iColorCustomID, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_DL_iColorCustomID, $THEME_FG_MENU)
     GUICtrlSetBkColor($__g_DL_iColorCustomID, $GUI_BKCOLOR_TRANSPARENT)
@@ -1225,7 +1225,7 @@ Func _DL_ColorPickerCustomDialog()
     Local $hDlg = _Theme_CreatePopup("CustomColor", $iDlgW, $iDlgH, $iDlgX, $iDlgY, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
 
     ; Hex label
-    GUICtrlCreateLabel("Hex color:", 10, 8, 60, 20, $SS_CENTERIMAGE)
+    GUICtrlCreateLabel(_i18n("DesktopList.cp_hex_color", "Hex color:"), 10, 8, 60, 20, $SS_CENTERIMAGE)
     GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_NORMAL)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
@@ -1236,14 +1236,14 @@ Func _DL_ColorPickerCustomDialog()
 
     ; OK button
     Local $iBtnW = 50, $iBtnH = 24
-    Local $idOK = GUICtrlCreateLabel("OK", 10, $iDlgH - 34, $iBtnW, $iBtnH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idOK = GUICtrlCreateLabel(_i18n("General.btn_ok", "OK"), 10, $iDlgH - 34, $iBtnW, $iBtnH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idOK, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idOK, $THEME_FG_MENU)
     GUICtrlSetBkColor($idOK, $THEME_BG_HOVER)
     GUICtrlSetCursor($idOK, 0)
 
     ; Cancel button
-    Local $idCancel = GUICtrlCreateLabel("Cancel", 10 + $iBtnW + 10, $iDlgH - 34, $iBtnW, $iBtnH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idCancel = GUICtrlCreateLabel(_i18n("General.btn_cancel", "Cancel"), 10 + $iBtnW + 10, $iDlgH - 34, $iBtnW, $iBtnH, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idCancel, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idCancel, $THEME_FG_MENU)
     GUICtrlSetBkColor($idCancel, $THEME_BG_HOVER)
