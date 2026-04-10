@@ -55,7 +55,7 @@ Func _UC_CheckResult()
     Static $sLastShown = ""
     If $sLatest <> $sLastShown Then
         $sLastShown = $sLatest
-        _Theme_Toast("Update available: v" & $sLatest, 0, $iTaskbarY + $iTaskbarH + 4, 3000, $TOAST_INFO)
+        _Theme_Toast(_i18n_Format("Toasts.toast_update_available", "Update available: v{1}", $sLatest), 0, $iTaskbarY + $iTaskbarH + 4, 3000, $TOAST_INFO)
     EndIf
 EndFunc
 
@@ -82,7 +82,7 @@ Func __UC_FetchReleaseJson($sLabel)
             InetClose($hInet)
             FileDelete($sTmp)
             GUIDelete($hDlg)
-            _Theme_Toast("Connection timed out", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
+            _Theme_Toast(_i18n("Toasts.toast_connection_timeout", "Connection timed out"), 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
             Return ""
         EndIf
         Sleep(50)
@@ -92,7 +92,7 @@ Func __UC_FetchReleaseJson($sLabel)
     Local $sJson = FileRead($sTmp)
     FileDelete($sTmp)
     If $sJson = "" Then
-        _Theme_Toast("Connection failed", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
+        _Theme_Toast(_i18n("Toasts.toast_connection_failed", "Connection failed"), 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
     EndIf
     Return $sJson
 EndFunc
@@ -102,7 +102,7 @@ EndFunc
 Func _UC_CheckNow()
     _Log_Info("Manual update check triggered")
 
-    Local $sJson = __UC_FetchReleaseJson("Checking for updates")
+    Local $sJson = __UC_FetchReleaseJson(_i18n("Updates.upd_checking", "Checking for updates"))
     If $sJson = "" Then Return
 
     Local $aVer = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
@@ -114,7 +114,7 @@ Func _UC_CheckNow()
     If Not @error And UBound($aDate) >= 1 Then $sDate = $aDate[0]
 
     If $sLatest = "unknown" Then
-        _Theme_Toast("Could not parse release info", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_WARNING)
+        _Theme_Toast(_i18n("Toasts.toast_parse_error", "Could not parse release info"), 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_WARNING)
         Return
     EndIf
 
@@ -126,34 +126,34 @@ Func _UC_CheckNow()
         (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
 
     If $bUpdateAvailable Then
-        GUICtrlCreateLabel(ChrW(0x2B06) & " Update available!", 14, 10, $iDlgW - 28, 20)
+        GUICtrlCreateLabel(ChrW(0x2B06) & " " & _i18n("Updates.upd_available", "Update available!"), 14, 10, $iDlgW - 28, 20)
     Else
-        GUICtrlCreateLabel(ChrW(0x2713) & " You're up to date!", 14, 10, $iDlgW - 28, 20)
+        GUICtrlCreateLabel(ChrW(0x2713) & " " & _i18n("Updates.upd_up_to_date", "You're up to date!"), 14, 10, $iDlgW - 28, 20)
     EndIf
     GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $TOAST_SUCCESS)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
-    GUICtrlCreateLabel("Current: v" & $APP_VERSION & "  |  Latest: v" & $sLatest, 14, 34, $iDlgW - 28, 16)
+    GUICtrlCreateLabel(_i18n_Format("Updates.upd_current_latest", "Current: v{1}  |  Latest: v{2}", $APP_VERSION, $sLatest), 14, 34, $iDlgW - 28, 16)
     GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_DIM)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
-    GUICtrlCreateLabel("Released: " & $sDate, 14, 52, $iDlgW - 28, 16)
+    GUICtrlCreateLabel(_i18n_Format("Updates.upd_released", "Released: {1}", $sDate), 14, 52, $iDlgW - 28, 16)
     GUICtrlSetFont(-1, 7, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_LABEL)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
     Local $idDownload = 0
     If $bUpdateAvailable Then
-        $idDownload = GUICtrlCreateLabel(ChrW(0x2B07) & " Download", 14, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+        $idDownload = GUICtrlCreateLabel(ChrW(0x2B07) & " " & _i18n("General.btn_browse", "Download"), 14, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
         GUICtrlSetFont($idDownload, 9, 400, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor($idDownload, $THEME_FG_MENU)
         GUICtrlSetBkColor($idDownload, $THEME_BG_HOVER)
         GUICtrlSetCursor($idDownload, 0)
     EndIf
 
-    Local $idClose = GUICtrlCreateLabel(ChrW(0x2715) & " Close", $iDlgW - 114, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idClose = GUICtrlCreateLabel(ChrW(0x2715) & " " & _i18n("General.btn_close", "Close"), $iDlgW - 114, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idClose, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idClose, $THEME_FG_MENU)
     GUICtrlSetBkColor($idClose, $THEME_BG_HOVER)
@@ -183,7 +183,7 @@ EndFunc
 Func _UC_DownloadPortable()
     _Log_Info("Download latest portable triggered")
 
-    Local $sJson = __UC_FetchReleaseJson("Fetching release info")
+    Local $sJson = __UC_FetchReleaseJson(_i18n("Updates.upd_fetching", "Fetching release info"))
     If $sJson = "" Then Return
 
     Local $aVer = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
@@ -196,7 +196,7 @@ Func _UC_DownloadPortable()
 
     Local $aPortUrl = StringRegExp($sJson, '"browser_download_url"\s*:\s*"([^"]*Portable[^"]*\.zip)"', 1)
     If @error Or UBound($aPortUrl) < 1 Then
-        _Theme_Toast("No portable download found", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_WARNING)
+        _Theme_Toast(_i18n("Toasts.toast_no_portable", "No portable download found"), 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_WARNING)
         Return
     EndIf
     Local $sDownloadUrl = $aPortUrl[0]
@@ -220,28 +220,28 @@ Func _UC_DownloadPortable()
     Local $hDlg = _Theme_CreatePopup("Download", $iDlgW, $iDlgH, _
         (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
 
-    GUICtrlCreateLabel("Download Portable v" & $sVersion & "?", 14, 10, $iDlgW - 28, 20)
+    GUICtrlCreateLabel(_i18n_Format("Updates.upd_download_title", "Download Portable v{1}?", $sVersion), 14, 10, $iDlgW - 28, 20)
     GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
-    GUICtrlCreateLabel("Size: " & $sSizeStr & "  |  Released: " & $sDate, 14, 34, $iDlgW - 28, 16)
+    GUICtrlCreateLabel(_i18n_Format("Updates.upd_size_released", "Size: {1}  |  Released: {2}", $sSizeStr, $sDate), 14, 34, $iDlgW - 28, 16)
     GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_DIM)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
-    GUICtrlCreateLabel("Save to: " & @UserProfileDir & "\Downloads", 14, 52, $iDlgW - 28, 16)
+    GUICtrlCreateLabel(_i18n_Format("Updates.upd_save_to", "Save to: {1}", @UserProfileDir & "\Downloads"), 14, 52, $iDlgW - 28, 16)
     GUICtrlSetFont(-1, 7, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_LABEL)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
-    Local $idYes = GUICtrlCreateLabel(ChrW(0x2B07) & " Download", 14, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idYes = GUICtrlCreateLabel(ChrW(0x2B07) & " " & _i18n("General.btn_browse", "Download"), 14, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idYes, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idYes, $THEME_FG_MENU)
     GUICtrlSetBkColor($idYes, $THEME_BG_HOVER)
     GUICtrlSetCursor($idYes, 0)
 
-    Local $idNo = GUICtrlCreateLabel(ChrW(0x2715) & " Cancel", $iDlgW - 114, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idNo = GUICtrlCreateLabel(ChrW(0x2715) & " " & _i18n("General.btn_cancel", "Cancel"), $iDlgW - 114, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idNo, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idNo, $THEME_FG_MENU)
     GUICtrlSetBkColor($idNo, $THEME_BG_HOVER)
@@ -273,7 +273,7 @@ Func _UC_DownloadPortable()
     $hDlg = _Theme_CreatePopup("Downloading", $iDlgW, $iDlgH, _
         (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
 
-    GUICtrlCreateLabel("Downloading v" & $sVersion & "...", 14, 10, $iDlgW - 28, 18)
+    GUICtrlCreateLabel(_i18n_Format("Updates.upd_downloading", "Downloading v{1}...", $sVersion), 14, 10, $iDlgW - 28, 18)
     GUICtrlSetFont(-1, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
@@ -319,28 +319,28 @@ Func _UC_DownloadPortable()
         Local $iFinalSize = FileGetSize($sDestFile)
         Local $sFinalSize = StringFormat("%.1f MB", $iFinalSize / 1048576)
 
-        GUICtrlCreateLabel(ChrW(0x2713) & " Download complete!", 14, 10, $iDlgW - 28, 20)
+        GUICtrlCreateLabel(ChrW(0x2713) & " " & _i18n("Updates.upd_complete", "Download complete!"), 14, 10, $iDlgW - 28, 20)
         GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor(-1, $TOAST_SUCCESS)
         GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
-        GUICtrlCreateLabel("Version: v" & $sVersion & "  |  Size: " & $sFinalSize, 14, 34, $iDlgW - 28, 16)
+        GUICtrlCreateLabel(_i18n_Format("Updates.upd_version_size", "Version: v{1}  |  Size: {2}", $sVersion, $sFinalSize), 14, 34, $iDlgW - 28, 16)
         GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor(-1, $THEME_FG_NORMAL)
         GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
-        GUICtrlCreateLabel("Saved: " & $sDestFile, 14, 52, $iDlgW - 28, 16)
+        GUICtrlCreateLabel(_i18n_Format("Updates.upd_saved", "Saved: {1}", $sDestFile), 14, 52, $iDlgW - 28, 16)
         GUICtrlSetFont(-1, 7, 400, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor(-1, $THEME_FG_DIM)
         GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
     Else
-        GUICtrlCreateLabel(ChrW(0x2715) & " Download failed", 14, 14, $iDlgW - 28, 20)
+        GUICtrlCreateLabel(ChrW(0x2715) & " " & _i18n("Updates.upd_failed", "Download failed"), 14, 14, $iDlgW - 28, 20)
         GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor(-1, $TOAST_ERROR)
         GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
     EndIf
 
-    Local $idClose = GUICtrlCreateLabel(ChrW(0x2715) & " Close", ($iDlgW - 80) / 2, $iDlgH - 36, 80, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idClose = GUICtrlCreateLabel(ChrW(0x2715) & " " & _i18n("General.btn_close", "Close"), ($iDlgW - 80) / 2, $iDlgH - 36, 80, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idClose, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idClose, $THEME_FG_MENU)
     GUICtrlSetBkColor($idClose, $THEME_BG_HOVER)
