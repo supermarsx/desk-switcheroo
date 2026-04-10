@@ -21,6 +21,7 @@ Global $__g_Test_sCurrentSuite = ""
 #include "..\includes\RenameDialog.au3"
 #include "..\includes\DesktopList.au3"
 #include "..\includes\Logger.au3"
+#include "..\includes\i18n.au3"
 
 ; ---- Include test files ----
 #include "Test_Theme.au3"
@@ -35,6 +36,9 @@ Global $__g_Test_sCurrentSuite = ""
 
 ; ---- Load bundled fonts ----
 _Theme_LoadFonts()
+
+; ---- Initialize i18n ----
+_i18n_Init("en-US")
 
 ; ---- Run all test suites ----
 _RunTest_Config()
