@@ -17,6 +17,8 @@ Global $__g_VD_iCachedCount = 0
 Global $__g_VD_hCountTimer = 0
 Global $__g_VD_aEnumBuf[4096] ; pre-allocated buffer for EnumWindows callback
 Global Const $__g_VD_ENUM_MAX = 16384 ; hard cap on enumerated windows
+Global $__g_VD_hEnumCB = 0   ; persistent DllCallback handle (registered once, reused)
+Global $__g_VD_pEnumCB = 0   ; callback function pointer
 
 ; #INTERNAL HELPERS# ============================================
 
@@ -249,14 +251,17 @@ EndFunc
 Func __VD_EnumAllWindows()
     If UBound($__g_VD_aEnumBuf) < 4096 Then ReDim $__g_VD_aEnumBuf[4096]
     $__g_VD_aEnumBuf[0] = 0
-    Local $hCB = DllCallbackRegister("__VD_EnumWindowsCB", "bool", "hwnd;lparam")
-    If $hCB = 0 Then
-        _Log_Error("EnumAllWindows: DllCallbackRegister failed")
-        Local $aEmpty[1] = [0]
-        Return $aEmpty
+    ; Register callback once and reuse (avoid alloc/free per call)
+    If $__g_VD_hEnumCB = 0 Then
+        $__g_VD_hEnumCB = DllCallbackRegister("__VD_EnumWindowsCB", "bool", "hwnd;lparam")
+        If $__g_VD_hEnumCB = 0 Then
+            _Log_Error("EnumAllWindows: DllCallbackRegister failed")
+            Local $aEmpty[1] = [0]
+            Return $aEmpty
+        EndIf
+        $__g_VD_pEnumCB = DllCallbackGetPtr($__g_VD_hEnumCB)
     EndIf
-    DllCall("user32.dll", "bool", "EnumWindows", "ptr", DllCallbackGetPtr($hCB), "lparam", 0)
-    DllCallbackFree($hCB)
+    DllCall("user32.dll", "bool", "EnumWindows", "ptr", $__g_VD_pEnumCB, "lparam", 0)
     ReDim $__g_VD_aEnumBuf[$__g_VD_aEnumBuf[0] + 1]
     Return $__g_VD_aEnumBuf
 EndFunc
@@ -460,6 +465,11 @@ EndFunc
 ; Name:        _VD_Shutdown
 ; Description: Closes the DLL handle
 Func _VD_Shutdown()
+    If $__g_VD_hEnumCB <> 0 Then
+        DllCallbackFree($__g_VD_hEnumCB)
+        $__g_VD_hEnumCB = 0
+        $__g_VD_pEnumCB = 0
+    EndIf
     If $__g_VD_hDLL <> -1 Then
         DllClose($__g_VD_hDLL)
         $__g_VD_hDLL = -1

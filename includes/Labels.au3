@@ -13,6 +13,8 @@ Global $__g_Labels_IniPath = ""
 Global $__g_Labels_bSyncOS = False
 Global $__g_Labels_iLastCount = 0
 Global $__g_Labels_sLastHash = ""
+Global $__g_Labels_aCache[21]  ; in-memory cache, index 1-20
+Global $__g_Labels_bCacheDirty = True
 
 ; #FUNCTIONS# ===================================================
 
@@ -50,11 +52,26 @@ EndFunc
 ; Parameters:  $iIndex - desktop index (1-based)
 ; Return:      Label string, or "" if not set
 Func _Labels_Load($iIndex)
+    ; Return from cache if valid
+    If Not $__g_Labels_bCacheDirty And $iIndex >= 1 And $iIndex <= 20 Then
+        Return $__g_Labels_aCache[$iIndex]
+    EndIf
     If $__g_Labels_bSyncOS Then
         Local $sOsName = _VD_GetName($iIndex)
-        If $sOsName <> "" Then Return $sOsName
+        If $sOsName <> "" Then
+            If $iIndex >= 1 And $iIndex <= 20 Then $__g_Labels_aCache[$iIndex] = $sOsName
+            Return $sOsName
+        EndIf
     EndIf
-    Return IniRead($__g_Labels_IniPath, "Labels", "desktop_" & $iIndex, "")
+    Local $sLabel = IniRead($__g_Labels_IniPath, "Labels", "desktop_" & $iIndex, "")
+    If $iIndex >= 1 And $iIndex <= 20 Then $__g_Labels_aCache[$iIndex] = $sLabel
+    Return $sLabel
+EndFunc
+
+; Name:        _Labels_InvalidateCache
+; Description: Marks label cache as dirty so next Load reads from source
+Func _Labels_InvalidateCache()
+    $__g_Labels_bCacheDirty = True
 EndFunc
 
 ; Name:        _Labels_Save
@@ -65,6 +82,8 @@ EndFunc
 Func _Labels_Save($iIndex, $sText)
     If $__g_Labels_bSyncOS Then _VD_SetName($iIndex, $sText)
     IniWrite($__g_Labels_IniPath, "Labels", "desktop_" & $iIndex, $sText)
+    ; Update cache
+    If $iIndex >= 1 And $iIndex <= 20 Then $__g_Labels_aCache[$iIndex] = $sText
 EndFunc
 
 ; Name:        _Labels_SyncFromOS
@@ -97,7 +116,7 @@ Func _Labels_SyncFromOS()
     If $sHash = $__g_Labels_sLastHash Then Return False
     $__g_Labels_sLastHash = $sHash
 
-    ; Normal poll — pull non-empty OS names into INI
+    ; Normal poll — pull non-empty OS names into INI + update cache
     For $i = 1 To $iCount
         Local $sOsName = $aNames[$i]
         ; Skip empty OS reads — don't erase INI labels due to read failures
@@ -108,7 +127,9 @@ Func _Labels_SyncFromOS()
             IniWrite($__g_Labels_IniPath, "Labels", "desktop_" & $i, $sOsName)
             $bChanged = True
         EndIf
+        If $i <= 20 Then $__g_Labels_aCache[$i] = $sOsName
     Next
+    $__g_Labels_bCacheDirty = False
     Return $bChanged
 EndFunc
 
