@@ -516,6 +516,14 @@ Func _DL_GetGUI()
     Return $__g_DL_hGUI
 EndFunc
 
+Func _DL_GetScrollOffset()
+    Return $__g_DL_iScrollOffset
+EndFunc
+
+Func _DL_SetScrollOffset($i)
+    $__g_DL_iScrollOffset = $i
+EndFunc
+
 ; Name:        _DL_GetCount
 ; Description: Returns the desktop count at time of list creation
 ; Return:      Integer

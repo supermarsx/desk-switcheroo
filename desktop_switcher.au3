@@ -249,6 +249,13 @@ If _Cfg_GetAutoUpdateEnabled() Then
     AdlibRegister("_AdlibCheckUpdate", _Cfg_GetAutoUpdateInterval())
 EndIf
 
+; ---- Restore persisted window state ----
+Local $sStateFile = @ScriptDir & "\desk_switcheroo_state.ini"
+If FileExists($sStateFile) Then
+    Local $iSavedScroll = Int(IniRead($sStateFile, "State", "scroll_offset", 0))
+    If $iSavedScroll > 0 Then _DL_SetScrollOffset($iSavedScroll)
+EndIf
+
 _Log_Info("Startup complete")
 
 ; ---- Startup update check (if enabled and enough days have passed) ----
@@ -2403,6 +2410,11 @@ Func _Shutdown()
         If Not _Theme_Confirm("Quit Desk Switcheroo?", "Are you sure you want to exit?") Then Return
     EndIf
     $__g_bShuttingDown = True
+    ; Persist window state for next launch
+    Local $sStateFile = @ScriptDir & "\desk_switcheroo_state.ini"
+    IniWrite($sStateFile, "State", "last_desktop", $iDesktop)
+    IniWrite($sStateFile, "State", "list_visible", _DL_IsVisible())
+    IniWrite($sStateFile, "State", "scroll_offset", _DL_GetScrollOffset())
     _UnregisterHotkeys()
     AdlibUnRegister("_ForceTopMost")
     AdlibUnRegister("_AdlibSyncNames")
