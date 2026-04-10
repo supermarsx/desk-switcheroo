@@ -366,7 +366,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                     Local $sDelCurName = _Labels_Load($iDesktop)
                     Local $sDelCurLabel = "Desktop " & $iDesktop
                     If $sDelCurName <> "" Then $sDelCurLabel &= ' ("' & $sDelCurName & '")'
-                    If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm("Delete " & $sDelCurLabel & "?", _
+                    If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm(_i18n_Format("Dialogs.confirm_delete_title", "Delete {1}?", $sDelCurLabel), _
                             _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
                         _VD_RemoveDesktop($iDesktop)
                         Sleep(100)
@@ -447,7 +447,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                     Local $sDelName = _Labels_Load($iCtxTarget)
                     Local $sDelLabel = "Desktop " & $iCtxTarget
                     If $sDelName <> "" Then $sDelLabel &= ' ("' & $sDelName & '")'
-                    If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm("Delete " & $sDelLabel & "?", _
+                    If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm(_i18n_Format("Dialogs.confirm_delete_title", "Delete {1}?", $sDelLabel), _
                         _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
                         _VD_RemoveDesktop($iCtxTarget)
                         Sleep(100)
@@ -588,7 +588,7 @@ Func _ProcessMouseInput()
                     Local $sDelMCName = _Labels_Load($iMiddleClickRow)
                     Local $sDelMCLabel = "Desktop " & $iMiddleClickRow
                     If $sDelMCName <> "" Then $sDelMCLabel &= ' ("' & $sDelMCName & '")'
-                    If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm("Delete " & $sDelMCLabel & "?", _
+                    If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm(_i18n_Format("Dialogs.confirm_delete_title", "Delete {1}?", $sDelMCLabel), _
                         _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
                         _VD_RemoveDesktop($iMiddleClickRow)
                         Sleep(100)
@@ -1764,20 +1764,20 @@ Func __ShowCrashDialog($sReason, $sDetails, $sCrashFile)
     GUICtrlSetBkColor(-1, 0x2A2A2A)
 
     ; Crash log path
-    GUICtrlCreateLabel("Crash log: " & $sCrashFile, 14, 164, $iW - 28, 14)
+    GUICtrlCreateLabel(_i18n_Format("Errors.err_crash_log", "Crash log: {1}", $sCrashFile), 14, 164, $iW - 28, 14)
     GUICtrlSetFont(-1, 7, 400, 0, "Segoe UI")
     GUICtrlSetColor(-1, 0x888888)
     GUICtrlSetBkColor(-1, 0x1E1E1E)
 
     ; Buttons
     Local $iBtnY = $iH - 44
-    Local $idCopy = GUICtrlCreateLabel("Copy Report", 14, $iBtnY, 100, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idCopy = GUICtrlCreateLabel(_i18n("Errors.err_copy_report", "Copy Report"), 14, $iBtnY, 100, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idCopy, 9, 400, 0, "Segoe UI")
     GUICtrlSetColor($idCopy, 0xDDDDDD)
     GUICtrlSetBkColor($idCopy, 0x333333)
     GUICtrlSetCursor($idCopy, 0)
 
-    Local $idOpen = GUICtrlCreateLabel("Open Log", 124, $iBtnY, 100, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idOpen = GUICtrlCreateLabel(_i18n("Errors.err_open_log", "Open Log"), 124, $iBtnY, 100, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idOpen, 9, 400, 0, "Segoe UI")
     GUICtrlSetColor($idOpen, 0x6699CC)
     GUICtrlSetBkColor($idOpen, 0x333333)
@@ -1789,7 +1789,7 @@ Func __ShowCrashDialog($sReason, $sDetails, $sCrashFile)
     GUICtrlSetBkColor($idRestart, 0x333333)
     GUICtrlSetCursor($idRestart, 0)
 
-    Local $idClose = GUICtrlCreateLabel("Close", $iW - 84, $iBtnY, 70, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idClose = GUICtrlCreateLabel(_i18n("General.btn_close", "Close"), $iW - 84, $iBtnY, 70, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idClose, 9, 400, 0, "Segoe UI")
     GUICtrlSetColor($idClose, 0xDDDDDD)
     GUICtrlSetBkColor($idClose, 0x333333)
