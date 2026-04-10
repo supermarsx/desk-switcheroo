@@ -16,8 +16,9 @@ Global $__g_Cfg_bStartWithWindows  = False
 Global $__g_Cfg_bWrapNavigation    = True
 Global $__g_Cfg_bAutoCreateDesktop = False
 Global $__g_Cfg_iNumberPadding     = 2
-Global $__g_Cfg_sWidgetPosition    = "left"
+Global $__g_Cfg_sWidgetPosition    = "bottom-left"
 Global $__g_Cfg_iWidgetOffsetX     = 0
+Global $__g_Cfg_iWidgetOffsetY     = 0
 Global $__g_Cfg_bWidgetDragEnabled = False
 Global $__g_Cfg_bWidgetColorBar   = False
 Global $__g_Cfg_iWidgetColorBarH  = 2
@@ -150,8 +151,10 @@ Func _Cfg_Load()
     $__g_Cfg_bWrapNavigation    = __Cfg_ReadBool($f, "General", "wrap_navigation", True)
     $__g_Cfg_bAutoCreateDesktop = __Cfg_ReadBool($f, "General", "auto_create_desktop", False)
     $__g_Cfg_iNumberPadding     = __Cfg_ReadInt($f, "General", "number_padding", 2, 1, 4)
-    $__g_Cfg_sWidgetPosition    = __Cfg_ReadEnum($f, "General", "widget_position", "left", "left|center|right")
+    $__g_Cfg_sWidgetPosition    = __Cfg_ReadEnum($f, "General", "widget_position", "bottom-left", _
+        "bottom-left|bottom-center|bottom-right|middle-left|middle-right|top-left|top-center|top-right|left|center|right")
     $__g_Cfg_iWidgetOffsetX     = __Cfg_ReadInt($f, "General", "widget_offset_x", 0, -9999, 9999)
+    $__g_Cfg_iWidgetOffsetY     = __Cfg_ReadInt($f, "General", "widget_offset_y", 0, -9999, 9999)
     $__g_Cfg_bWidgetDragEnabled = __Cfg_ReadBool($f, "General", "widget_drag_enabled", False)
     $__g_Cfg_bWidgetColorBar   = __Cfg_ReadBool($f, "General", "widget_color_bar", False)
     $__g_Cfg_iWidgetColorBarH  = __Cfg_ReadInt($f, "General", "widget_color_bar_height", 2, 1, 10)
@@ -255,6 +258,7 @@ Func _Cfg_Save()
     IniWrite($f, "General", "number_padding", $__g_Cfg_iNumberPadding)
     IniWrite($f, "General", "widget_position", $__g_Cfg_sWidgetPosition)
     IniWrite($f, "General", "widget_offset_x", $__g_Cfg_iWidgetOffsetX)
+    IniWrite($f, "General", "widget_offset_y", $__g_Cfg_iWidgetOffsetY)
     __Cfg_WriteBool($f, "General", "widget_drag_enabled", $__g_Cfg_bWidgetDragEnabled)
     __Cfg_WriteBool($f, "General", "widget_color_bar", $__g_Cfg_bWidgetColorBar)
     IniWrite($f, "General", "widget_color_bar_height", $__g_Cfg_iWidgetColorBarH)
@@ -355,8 +359,9 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "General", "wrap_navigation", True)
     __Cfg_DefaultBool($f, "General", "auto_create_desktop", False)
     __Cfg_DefaultVal($f, "General", "number_padding", 2)
-    __Cfg_DefaultVal($f, "General", "widget_position", "left")
+    __Cfg_DefaultVal($f, "General", "widget_position", "bottom-left")
     __Cfg_DefaultVal($f, "General", "widget_offset_x", 0)
+    __Cfg_DefaultVal($f, "General", "widget_offset_y", 0)
     __Cfg_DefaultBool($f, "General", "widget_drag_enabled", False)
     __Cfg_DefaultBool($f, "General", "widget_color_bar", False)
     __Cfg_DefaultVal($f, "General", "widget_color_bar_height", 2)
@@ -450,6 +455,10 @@ Func _Cfg_GetNumberPadding()
     Return $__g_Cfg_iNumberPadding
 EndFunc
 Func _Cfg_GetWidgetPosition()
+    ; Normalize legacy values on read
+    If $__g_Cfg_sWidgetPosition = "left" Then Return "bottom-left"
+    If $__g_Cfg_sWidgetPosition = "center" Then Return "bottom-center"
+    If $__g_Cfg_sWidgetPosition = "right" Then Return "bottom-right"
     Return $__g_Cfg_sWidgetPosition
 EndFunc
 Func _Cfg_GetWidgetOffsetX()
@@ -690,11 +699,22 @@ Func _Cfg_SetNumberPadding($i)
     $__g_Cfg_iNumberPadding = $i
 EndFunc
 Func _Cfg_SetWidgetPosition($s)
-    If $s <> "left" And $s <> "center" And $s <> "right" Then $s = "left"
+    ; Accept legacy values
+    If $s = "left" Then $s = "bottom-left"
+    If $s = "center" Then $s = "bottom-center"
+    If $s = "right" Then $s = "bottom-right"
+    Local $sValid = "bottom-left|bottom-center|bottom-right|middle-left|middle-right|top-left|top-center|top-right"
+    If Not StringInStr("|" & $sValid & "|", "|" & $s & "|") Then $s = "bottom-left"
     $__g_Cfg_sWidgetPosition = $s
 EndFunc
 Func _Cfg_SetWidgetOffsetX($i)
     $__g_Cfg_iWidgetOffsetX = Int($i)
+EndFunc
+Func _Cfg_GetWidgetOffsetY()
+    Return $__g_Cfg_iWidgetOffsetY
+EndFunc
+Func _Cfg_SetWidgetOffsetY($i)
+    $__g_Cfg_iWidgetOffsetY = Int($i)
 EndFunc
 Func _Cfg_SetWidgetDragEnabled($b)
     $__g_Cfg_bWidgetDragEnabled = $b

@@ -404,8 +404,8 @@ Func __CD_BuildTabGeneral()
     _Theme_SetTooltip($__g_CD_idInpPadding, "Zero-pad desktop numbers (2 = '01', 3 = '001')")
     $iY += 30
 
-    $__g_CD_idLblPosition = __CD_CreateCycleLabel("Widget position:", $iX, $iY, 165, 90, $t)
-    _Theme_SetTooltip($__g_CD_idLblPosition, "Click to cycle: left, center, or right on taskbar")
+    $__g_CD_idLblPosition = __CD_CreateCycleLabel("Widget anchor:", $iX, $iY, 165, 110, $t)
+    _Theme_SetTooltip($__g_CD_idLblPosition, "Click to cycle screen anchor: bottom-left, bottom-center, bottom-right, middle-left, middle-right, top-left, top-center, top-right")
     $iY += 30
 
     $idLbl = GUICtrlCreateLabel("Widget X offset (px):", $iX, $iY + 2, 165, 18)
@@ -1170,7 +1170,7 @@ Func __CD_MessageLoop()
             __CD_HandleHotkeyBuildClick($id)
 
             ; Cycle label clicks
-            If $id = $__g_CD_idLblPosition Then __CD_CycleValue($id, "left|center|right")
+            If $id = $__g_CD_idLblPosition Then __CD_CycleValue($id, "bottom-left|bottom-center|bottom-right|middle-left|middle-right|top-left|top-center|top-right")
             If $id = $__g_CD_idLblScrollDir Then __CD_CycleValue($id, "normal|inverted")
             If $id = $__g_CD_idLblListAction Then __CD_CycleValue($id, "switch|scroll")
             If $id = $__g_CD_idLblTheme Then __CD_CycleValue($id, _Theme_GetAvailableSchemes())

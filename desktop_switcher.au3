@@ -161,7 +161,8 @@ Local $iCenterX = $iBtnW
 Local $iCenterW = $THEME_MAIN_WIDTH - (2 * $iBtnW)
 
 ; ---- Create main GUI ----
-$gui = GUICreate(String($iDesktop), $THEME_MAIN_WIDTH, $iInnerH, 0, $iTaskbarY + $iTopMargin, _
+Local $aInitPos = __CalcWidgetXY()
+$gui = GUICreate(String($iDesktop), $THEME_MAIN_WIDTH, $iInnerH, $aInitPos[0], $aInitPos[1], _
     $WS_POPUP, BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW, $WS_EX_LAYERED))
 GUISetBkColor($THEME_BG_MAIN)
 _WinAPI_SetLayeredWindowAttributes($gui, 0, _Cfg_GetThemeAlphaMain(), $LWA_ALPHA)
@@ -640,21 +641,39 @@ Func _ProcessMouseInput()
     If Not $bLeftDown And $bLeftWasDown Then
         ; Widget drag end
         If $__g_bWidgetDragging Then
-            ; On drag release, determine position name from final X
+            ; On drag release, determine anchor from final position
             Local $aFinalPos = WinGetPos($gui)
             Local $iFinalX = $aFinalPos[0]
+            Local $iFinalY = $aFinalPos[1]
             Local $iScreenW = @DesktopWidth
-            Local $iThird = $iScreenW / 3
-            If $iFinalX < $iThird Then
-                _Cfg_SetWidgetPosition("left")
-                _Cfg_SetWidgetOffsetX($iFinalX)
-            ElseIf $iFinalX > $iThird * 2 Then
-                _Cfg_SetWidgetPosition("right")
-                _Cfg_SetWidgetOffsetX($iFinalX - ($iScreenW - $THEME_MAIN_WIDTH))
-            Else
-                _Cfg_SetWidgetPosition("center")
-                _Cfg_SetWidgetOffsetX($iFinalX - ($iScreenW / 2 - $THEME_MAIN_WIDTH / 2))
+            Local $iScreenH = @DesktopHeight
+            Local $iThirdX = $iScreenW / 3
+            Local $iThirdY = $iScreenH / 3
+            ; Determine vertical zone
+            Local $sV = "bottom"
+            If $iFinalY < $iThirdY Then
+                $sV = "top"
+            ElseIf $iFinalY < $iThirdY * 2 Then
+                $sV = "middle"
             EndIf
+            ; Determine horizontal zone
+            Local $sH = "left"
+            If $iFinalX > $iThirdX * 2 Then
+                $sH = "right"
+            ElseIf $iFinalX > $iThirdX Then
+                $sH = "center"
+            EndIf
+            ; middle-center is not a valid anchor — snap to bottom-center
+            Local $sAnchor = $sV & "-" & $sH
+            If $sAnchor = "middle-center" Then $sAnchor = "bottom-center"
+            _Cfg_SetWidgetPosition($sAnchor)
+            ; Compute offsets relative to the new anchor
+            Local $aRef = __CalcWidgetXY() ; recalc with offsets=0 would be ideal, but we already set the anchor
+            _Cfg_SetWidgetOffsetX(0)
+            _Cfg_SetWidgetOffsetY(0)
+            Local $aBase = __CalcWidgetXY()
+            _Cfg_SetWidgetOffsetX($iFinalX - $aBase[0])
+            _Cfg_SetWidgetOffsetY($iFinalY - $aBase[1])
             _Cfg_Save()
             $__g_bWidgetDragging = False
             $__g_bWidgetDragPending = False
@@ -1468,6 +1487,56 @@ EndFunc
 ; TOPMOST ENFORCEMENT
 ; =============================================
 
+; Name:        __CalcWidgetXY
+; Description: Calculates widget X,Y position based on anchor setting + offsets.
+; Return:      2-element array [X, Y]
+Func __CalcWidgetXY()
+    Local $sAnchor = _Cfg_GetWidgetPosition()
+    Local $iOX = _Cfg_GetWidgetOffsetX()
+    Local $iOY = _Cfg_GetWidgetOffsetY()
+    Local $iSW = @DesktopWidth
+    Local $iSH = @DesktopHeight
+    Local $iWW = $THEME_MAIN_WIDTH
+    Local $iWH = $iTaskbarH - 2
+    Local $aXY[2] = [0, $iTaskbarY + 2]
+
+    ; Legacy compat
+    If $sAnchor = "left" Then $sAnchor = "bottom-left"
+    If $sAnchor = "center" Then $sAnchor = "bottom-center"
+    If $sAnchor = "right" Then $sAnchor = "bottom-right"
+
+    Switch $sAnchor
+        Case "bottom-left"
+            $aXY[0] = $iOX
+            $aXY[1] = $iTaskbarY + 2 + $iOY
+        Case "bottom-center"
+            $aXY[0] = ($iSW / 2) - ($iWW / 2) + $iOX
+            $aXY[1] = $iTaskbarY + 2 + $iOY
+        Case "bottom-right"
+            $aXY[0] = $iSW - $iWW + $iOX
+            $aXY[1] = $iTaskbarY + 2 + $iOY
+        Case "middle-left"
+            $aXY[0] = $iOX
+            $aXY[1] = ($iSH / 2) - ($iWH / 2) + $iOY
+        Case "middle-right"
+            $aXY[0] = $iSW - $iWW + $iOX
+            $aXY[1] = ($iSH / 2) - ($iWH / 2) + $iOY
+        Case "top-left"
+            $aXY[0] = $iOX
+            $aXY[1] = $iOY
+        Case "top-center"
+            $aXY[0] = ($iSW / 2) - ($iWW / 2) + $iOX
+            $aXY[1] = $iOY
+        Case "top-right"
+            $aXY[0] = $iSW - $iWW + $iOX
+            $aXY[1] = $iOY
+        Case Else
+            $aXY[0] = $iOX
+            $aXY[1] = $iTaskbarY + 2 + $iOY
+    EndSwitch
+    Return $aXY
+EndFunc
+
 ; Name:        _ForceTopMost
 ; Description: Taskbar tracking and topmost enforcement for the widget
 Func _ForceTopMost()
@@ -1496,23 +1565,10 @@ Func _ForceTopMost()
 
     ; Only reposition if taskbar moved
     If $bTaskbarMoved Then
-        Local $iWidgetX = 0
-        Local $sPos = _Cfg_GetWidgetPosition()
-        Local $iOffset = _Cfg_GetWidgetOffsetX()
-        Switch $sPos
-            Case "left"
-                $iWidgetX = $iOffset
-            Case "center"
-                $iWidgetX = (@DesktopWidth / 2) - ($THEME_MAIN_WIDTH / 2) + $iOffset
-            Case "right"
-                $iWidgetX = @DesktopWidth - $THEME_MAIN_WIDTH + $iOffset
-            Case Else
-                $iWidgetX = $iOffset
-        EndSwitch
-
+        Local $aPos = __CalcWidgetXY()
         DllCall("user32.dll", "bool", "SetWindowPos", _
             "hwnd", $gui, "hwnd", $HWND_TOPMOST, _
-            "int", $iWidgetX, "int", $iTaskbarY + 2, _
+            "int", $aPos[0], "int", $aPos[1], _
             "int", $THEME_MAIN_WIDTH, "int", $iTaskbarH - 2, _
             "uint", BitOR($SWP_NOACTIVATE, $SWP_SHOWWINDOW))
     EndIf
@@ -1521,23 +1577,10 @@ Func _ForceTopMost()
     Local $iStyle = _WinAPI_GetWindowLong($gui, $GWL_EXSTYLE)
     If BitAND($iStyle, $WS_EX_TOPMOST) = 0 Then
         _WinAPI_SetWindowLong($gui, $GWL_EXSTYLE, BitOR($iStyle, $WS_EX_TOPMOST))
-        ; Lost topmost - force full reposition to recover
-        Local $iWidgetX2 = 0
-        Local $sPos2 = _Cfg_GetWidgetPosition()
-        Local $iOffset2 = _Cfg_GetWidgetOffsetX()
-        Switch $sPos2
-            Case "left"
-                $iWidgetX2 = $iOffset2
-            Case "center"
-                $iWidgetX2 = (@DesktopWidth / 2) - ($THEME_MAIN_WIDTH / 2) + $iOffset2
-            Case "right"
-                $iWidgetX2 = @DesktopWidth - $THEME_MAIN_WIDTH + $iOffset2
-            Case Else
-                $iWidgetX2 = $iOffset2
-        EndSwitch
+        Local $aPos2 = __CalcWidgetXY()
         DllCall("user32.dll", "bool", "SetWindowPos", _
             "hwnd", $gui, "hwnd", $HWND_TOPMOST, _
-            "int", $iWidgetX2, "int", $iTaskbarY + 2, _
+            "int", $aPos2[0], "int", $aPos2[1], _
             "int", $THEME_MAIN_WIDTH, "int", $iTaskbarH - 2, _
             "uint", BitOR($SWP_NOACTIVATE, $SWP_SHOWWINDOW))
     EndIf
