@@ -317,6 +317,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
             Case $GUI_EVENT_CLOSE
                 _Shutdown()
             Case $lblLeft
+                _Log_Debug("Click: left arrow (prev desktop)")
                 Local $iCount = _VD_GetCount()
                 If $iDesktop > 1 Then
                     _VD_GoTo($iDesktop - 1)
@@ -326,6 +327,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 Sleep(50)
                 _RefreshIndex()
             Case $lblRight
+                _Log_Debug("Click: right arrow (next desktop)")
                 Local $iCount2 = _VD_GetCount()
                 If $iDesktop < $iCount2 Then
                     _VD_GoTo($iDesktop + 1)
@@ -344,10 +346,13 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 _RefreshIndex()
             Case $lblNum, $lblName
                 If _Cfg_GetQuickAccessEnabled() And $msg = $lblNum And $__g_iClickCount >= 2 Then
+                    _Log_Debug("Click: quick-access mode activated")
                     _QuickAccess_Show()
                 ElseIf _DL_IsVisible() And Not _DL_IsPinned() Then
+                    _Log_Debug("Click: widget number — closing desktop list")
                     _DL_Destroy()
                 Else
+                    _Log_Debug("Click: widget number — opening desktop list")
                     _DL_ShowTemp($iTaskbarY, $iDesktop)
                 EndIf
         EndSwitch
@@ -356,6 +361,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
     ; Context menu events
     If _CM_IsVisible() And $hFrom = _CM_GetGUI() Then
         Local $sAction = _CM_HandleClick($msg)
+        If $sAction <> "" Then _Log_Debug("Context menu: " & $sAction)
         Switch $sAction
             Case "edit"
                 _CM_Destroy()
@@ -415,6 +421,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
             ; Scroll down arrow clicked
             _DL_ScrollDown($iTaskbarY, $iDesktop)
         ElseIf $iTarget > 0 Then
+            _Log_Debug("Click: desktop list item " & $iTarget & " — switching")
             _DL_CtxDestroy()
             _VD_GoTo($iTarget)
             Sleep(50)
@@ -426,6 +433,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
     If _DL_CtxIsVisible() And $hFrom = _DL_CtxGetGUI() Then
         Local $sDLAction = _DL_CtxHandleClick($msg)
         Local $iCtxTarget = _DL_CtxGetTarget()
+        If $sDLAction <> "" Then _Log_Debug("List context menu: " & $sDLAction & " (target=" & $iCtxTarget & ")")
         Switch $sDLAction
             Case "switch"
                 _DL_CtxDestroy()
@@ -563,8 +571,10 @@ Func _ProcessMouseInput()
                $aCursorPos[1] >= $aWinPos[1] And $aCursorPos[1] < $aWinPos[1] + $aWinPos[3] Then
                 _DL_CtxDestroy()
                 If _CM_IsVisible() Then
+                    _Log_Debug("Click: right-click — closing context menu")
                     _CM_Destroy()
                 Else
+                    _Log_Debug("Click: right-click — opening context menu")
                     _CM_Show($iTaskbarY, _DL_IsVisible())
                 EndIf
 
@@ -1002,7 +1012,9 @@ EndFunc
 ; Name:        _RefreshIndex
 ; Description: Gets current desktop from OS and updates display
 Func _RefreshIndex()
+    Local $iOld = $iDesktop
     $iDesktop = _VD_GetCurrent()
+    If $iDesktop <> $iOld Then _Log_Debug("Desktop changed: " & $iOld & " -> " & $iDesktop)
     _ApplyDesktopChange()
     _ForceTopMost()
 EndFunc
