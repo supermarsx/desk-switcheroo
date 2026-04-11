@@ -1859,7 +1859,7 @@ Func __CD_ShowHotkeyBuilder()
                     GUICtrlSetColor($idChkWin, $bWin ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
                 Case $idCapture
                     ; Set input to "Press a key..." and capture
-                    GUICtrlSetData($idKeyInput, "Press a key...")
+                    GUICtrlSetData($idKeyInput, _i18n("HotkeyBuilder.hkb_press_key", "Press a key..."))
                     Local $sCaptured = __CD_CaptureKeyPress()
                     If $sCaptured <> "" Then
                         GUICtrlSetData($idKeyInput, $sCaptured)

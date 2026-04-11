@@ -1837,7 +1837,7 @@ Func __ShowCrashDialog($sReason, $sDetails, $sCrashFile)
                     Return
                 Case $idCopy
                     ClipPut(FileRead($sCrashFile))
-                    GUICtrlSetData($idCopy, "Copied!")
+                    GUICtrlSetData($idCopy, _i18n("Errors.err_copied", "Copied!"))
                     GUICtrlSetColor($idCopy, 0x4AFF7E)
                 Case $idOpen
                     ShellExecute($sCrashFile)
