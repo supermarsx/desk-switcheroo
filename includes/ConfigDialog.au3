@@ -516,8 +516,15 @@ Func __CD_BuildTabGeneral()
     $__g_CD_idChkListKeyNav = __CD_CreateCheckbox(_i18n("Settings.General.chk_list_key_nav", "Keyboard nav in list"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkListKeyNav, _i18n("Settings.General.tip_list_key_nav", "Use Up/Down arrow keys to navigate when the desktop list is open"))
     $iY += 34
-    $__g_CD_idLblLanguage = __CD_CreateCycleLabel(_i18n("Settings.General.lbl_language", "Language:"), $iX, $iY, 80, 250, $t)
-    _Theme_SetTooltip($__g_CD_idLblLanguage, _i18n("Settings.General.tip_language", "Click to cycle available languages (requires restart)"))
+    Local $idLangLbl = GUICtrlCreateLabel(_i18n("Settings.General.lbl_language", "Language:"), $iX, $iY + 2, 80, 18)
+    GUICtrlSetFont($idLangLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLangLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLangLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLangLbl)
+    $__g_CD_idLblLanguage = GUICtrlCreateCombo("", $iX + 85, $iY, 310, 22, 0x0003) ; CBS_DROPDOWNLIST
+    GUICtrlSetFont($__g_CD_idLblLanguage, 8, 400, 0, $THEME_FONT_MAIN)
+    __CD_RegCtrl($t, $__g_CD_idLblLanguage)
+    _Theme_SetTooltip($__g_CD_idLblLanguage, _i18n("Settings.General.tip_language", "Select a language (requires restart)"))
 EndFunc
 
 Func __CD_BuildTabDisplay()
@@ -1199,12 +1206,20 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkAutoCreate, _Cfg_GetAutoCreateDesktop())
     GUICtrlSetData($__g_CD_idInpPadding, _Cfg_GetNumberPadding())
     GUICtrlSetData($__g_CD_idLblPosition, _Cfg_GetWidgetPosition())
-    ; Show "code — name" for current language
+    ; Populate language dropdown with all available locales
     Local $sLangCode = _Cfg_GetLanguage()
-    Local $sLocaleDir = @ScriptDir & "\locales"
-    If Not FileExists($sLocaleDir) Then $sLocaleDir = StringRegExpReplace(@ScriptDir, "\\[^\\]+$", "") & "\locales"
-    Local $sLangName = IniRead($sLocaleDir & "\" & $sLangCode & ".ini", "Meta", "name", $sLangCode)
-    GUICtrlSetData($__g_CD_idLblLanguage, $sLangCode & " — " & $sLangName)
+    Local $sAllDisplay = _i18n_GetAvailableDisplay()
+    Local $sCurrentDisplay = ""
+    ; Build combo items (pipe-delimited) and find current
+    Local $aLangs = StringSplit($sAllDisplay, "|")
+    Local $sComboList = ""
+    Local $iL
+    For $iL = 1 To $aLangs[0]
+        If $sComboList <> "" Then $sComboList &= "|"
+        $sComboList &= $aLangs[$iL]
+        If StringLeft($aLangs[$iL], StringLen($sLangCode)) = $sLangCode Then $sCurrentDisplay = $aLangs[$iL]
+    Next
+    GUICtrlSetData($__g_CD_idLblLanguage, $sComboList, $sCurrentDisplay)
     GUICtrlSetData($__g_CD_idInpOffsetX, _Cfg_GetWidgetOffsetX())
     __CD_SetCheckState($__g_CD_idChkWidgetDrag, _Cfg_GetWidgetDragEnabled())
     __CD_SetCheckState($__g_CD_idChkWidgetColorBar, _Cfg_GetWidgetColorBar())
@@ -1359,7 +1374,7 @@ Func __CD_MessageLoop()
             If $id = $__g_CD_idLblTheme Then __CD_CycleValue($id, _Theme_GetAvailableSchemes())
             If $id = $__g_CD_idLblLogLevel Then __CD_CycleValue($id, "error|warn|info|debug")
             If $id = $__g_CD_idLblLogDateFormat Then __CD_CycleValue($id, "iso|us|eu")
-            If $id = $__g_CD_idLblLanguage Then __CD_CycleValue($id, _i18n_GetAvailableDisplay())
+            ; Language is now a dropdown combo — no cycle handler needed
         EndIf
 
         ; Escape closes
