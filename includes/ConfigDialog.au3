@@ -440,11 +440,11 @@ EndFunc
 Func __CD_BuildTabDisplay()
     Local $t = 2, $iX = 20, $iY = 50
 
-    $__g_CD_idChkShowCount = __CD_CreateCheckbox("Show desktop count (2/5)", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkShowCount, "Show total count next to current number (e.g. '2/5')")
+    $__g_CD_idChkShowCount = __CD_CreateCheckbox(_i18n("Settings.Display.chk_show_count", "Show desktop count (2/5)"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkShowCount, _i18n("Settings.Display.tip_show_count", "Show total count next to current number (e.g. '2/5')"))
     $iY += 34
 
-    Local $idLbl = GUICtrlCreateLabel("Count font size:", $iX, $iY + 2, 165, 18)
+    Local $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_count_font", "Count font size:"), $iX, $iY + 2, 165, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -454,10 +454,10 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpCountFont, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpCountFont, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpCountFont)
-    _Theme_SetTooltip($__g_CD_idInpCountFont, "Font size for the desktop number on the widget")
+    _Theme_SetTooltip($__g_CD_idInpCountFont, _i18n("Settings.Display.tip_count_font", "Font size for the desktop number on the widget"))
     $iY += 30
 
-    $idLbl = GUICtrlCreateLabel("Widget opacity (50-255):", $iX, $iY + 2, 165, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_opacity", "Widget opacity (50-255):"), $iX, $iY + 2, 165, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -467,25 +467,25 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpOpacity, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpOpacity, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpOpacity)
-    _Theme_SetTooltip($__g_CD_idInpOpacity, "Widget transparency (50 = very transparent, 255 = fully opaque)")
+    _Theme_SetTooltip($__g_CD_idInpOpacity, _i18n("Settings.Display.tip_opacity", "Widget transparency (50 = very transparent, 255 = fully opaque)"))
     $iY += 30
 
-    $__g_CD_idLblTheme = __CD_CreateCycleLabel("Theme:", $iX, $iY, 165, 90, $t)
-    _Theme_SetTooltip($__g_CD_idLblTheme, "Click to cycle color scheme (requires restart)")
+    $__g_CD_idLblTheme = __CD_CreateCycleLabel(_i18n("Settings.Display.lbl_theme", "Theme:"), $iX, $iY, 165, 90, $t)
+    _Theme_SetTooltip($__g_CD_idLblTheme, _i18n("Settings.Display.tip_theme", "Click to cycle color scheme (requires restart)"))
     $iY += 26
 
-    Local $idThemeHint = GUICtrlCreateLabel("Theme change requires restart", $iX + 20, $iY, 250, 16)
+    Local $idThemeHint = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_theme_hint", "Theme change requires restart"), $iX + 20, $iY, 250, 16)
     GUICtrlSetFont($idThemeHint, 7, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idThemeHint, $THEME_FG_LABEL)
     GUICtrlSetBkColor($idThemeHint, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $idThemeHint)
     $iY += 30
 
-    $__g_CD_idChkThumbnails = __CD_CreateCheckbox("Show desktop thumbnails on hover", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkThumbnails, "Show a preview popup with window list when hovering a desktop")
+    $__g_CD_idChkThumbnails = __CD_CreateCheckbox(_i18n("Settings.Display.chk_thumbnails", "Show desktop thumbnails on hover"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkThumbnails, _i18n("Settings.Display.tip_thumbnails", "Show a preview popup with window list when hovering a desktop"))
     $iY += 34
 
-    $idLbl = GUICtrlCreateLabel("Thumbnail width (px):", $iX, $iY + 2, 165, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_thumb_width", "Thumbnail width (px):"), $iX, $iY + 2, 165, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -495,10 +495,10 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpThumbW, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpThumbW, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpThumbW)
-    _Theme_SetTooltip($__g_CD_idInpThumbW, "Size of the thumbnail preview popup in pixels")
+    _Theme_SetTooltip($__g_CD_idInpThumbW, _i18n("Settings.Display.tip_thumb_width", "Size of the thumbnail preview popup in pixels"))
     $iY += 30
 
-    $idLbl = GUICtrlCreateLabel("Thumbnail height (px):", $iX, $iY + 2, 165, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_thumb_height", "Thumbnail height (px):"), $iX, $iY + 2, 165, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -508,14 +508,14 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpThumbH, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpThumbH, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpThumbH)
-    _Theme_SetTooltip($__g_CD_idInpThumbH, "Size of the thumbnail preview popup in pixels")
+    _Theme_SetTooltip($__g_CD_idInpThumbH, _i18n("Settings.Display.tip_thumb_height", "Size of the thumbnail preview popup in pixels"))
     $iY += 30
 
-    $__g_CD_idChkThumbScreenshot = __CD_CreateCheckbox("Use real desktop screenshots", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkThumbScreenshot, "Capture actual desktop screenshots instead of text preview (briefly switches desktops)")
+    $__g_CD_idChkThumbScreenshot = __CD_CreateCheckbox(_i18n("Settings.Display.chk_thumb_screenshot", "Use real desktop screenshots"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkThumbScreenshot, _i18n("Settings.Display.tip_thumb_screenshot", "Capture actual desktop screenshots instead of text preview (briefly switches desktops)"))
     $iY += 34
 
-    $idLbl = GUICtrlCreateLabel("Screenshot cache TTL (s):", $iX, $iY + 2, 165, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_thumb_cache_ttl", "Screenshot cache TTL (s):"), $iX, $iY + 2, 165, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -525,10 +525,10 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpThumbCacheTTL, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpThumbCacheTTL, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpThumbCacheTTL)
-    _Theme_SetTooltip($__g_CD_idInpThumbCacheTTL, "How many seconds before cached screenshots expire (5-300)")
+    _Theme_SetTooltip($__g_CD_idInpThumbCacheTTL, _i18n("Settings.Display.tip_thumb_cache_ttl", "How many seconds before cached screenshots expire (5-300)"))
     $iY += 30
 
-    $idLbl = GUICtrlCreateLabel("List font name:", $iX, $iY + 2, 165, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_list_font", "List font name:"), $iX, $iY + 2, 165, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -538,10 +538,10 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpListFont, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpListFont, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpListFont)
-    _Theme_SetTooltip($__g_CD_idInpListFont, "Font for desktop list items (empty = default Fira Code/Consolas)")
+    _Theme_SetTooltip($__g_CD_idInpListFont, _i18n("Settings.Display.tip_list_font", "Font for desktop list items (empty = default Fira Code/Consolas)"))
     $iY += 30
 
-    $idLbl = GUICtrlCreateLabel("List font size (6-14):", $iX, $iY + 2, 165, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_list_font_size", "List font size (6-14):"), $iX, $iY + 2, 165, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -551,14 +551,14 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpListFontSize, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpListFontSize, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpListFontSize)
-    _Theme_SetTooltip($__g_CD_idInpListFontSize, "Font size for desktop list items")
+    _Theme_SetTooltip($__g_CD_idInpListFontSize, _i18n("Settings.Display.tip_list_font_size", "Font size for desktop list items"))
     $iY += 34
 
-    $__g_CD_idChkListScrollable = __CD_CreateCheckbox("Scrollable desktop list", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkListScrollable, "Enable scrolling when many desktops (shows scroll arrows)")
+    $__g_CD_idChkListScrollable = __CD_CreateCheckbox(_i18n("Settings.Display.chk_list_scrollable", "Scrollable desktop list"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkListScrollable, _i18n("Settings.Display.tip_list_scrollable", "Enable scrolling when many desktops (shows scroll arrows)"))
     $iY += 30
 
-    $idLbl = GUICtrlCreateLabel("Max visible items (3-30):", $iX + 20, $iY + 2, 165, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_list_max_visible", "Max visible items (3-30):"), $iX + 20, $iY + 2, 165, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -568,10 +568,10 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpListMaxVisible, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpListMaxVisible, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpListMaxVisible)
-    _Theme_SetTooltip($__g_CD_idInpListMaxVisible, "Maximum items visible before scrolling activates")
+    _Theme_SetTooltip($__g_CD_idInpListMaxVisible, _i18n("Settings.Display.tip_list_max_visible", "Maximum items visible before scrolling activates"))
     $iY += 30
 
-    $idLbl = GUICtrlCreateLabel("Scroll speed (items, 1-5):", $iX + 20, $iY + 2, 165, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_list_scroll_speed", "Scroll speed (items, 1-5):"), $iX + 20, $iY + 2, 165, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -581,10 +581,10 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpListScrollSpeed, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpListScrollSpeed, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpListScrollSpeed)
-    _Theme_SetTooltip($__g_CD_idInpListScrollSpeed, "Number of items to scroll per step")
+    _Theme_SetTooltip($__g_CD_idInpListScrollSpeed, _i18n("Settings.Display.tip_list_scroll_speed", "Number of items to scroll per step"))
     $iY += 30
 
-    $idLbl = GUICtrlCreateLabel("Tooltip font size (6-12):", $iX, $iY + 2, 185, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_tooltip_font", "Tooltip font size (6-12):"), $iX, $iY + 2, 185, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -594,7 +594,7 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($__g_CD_idInpTooltipFontSize, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpTooltipFontSize, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpTooltipFontSize)
-    _Theme_SetTooltip($__g_CD_idInpTooltipFontSize, "Font size for dark-themed tooltips")
+    _Theme_SetTooltip($__g_CD_idInpTooltipFontSize, _i18n("Settings.Display.tip_tooltip_font", "Font size for dark-themed tooltips"))
 EndFunc
 
 Func __CD_BuildTabScroll()
