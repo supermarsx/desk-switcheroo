@@ -146,7 +146,7 @@ Func _UC_CheckNow()
 
     Local $idDownload = 0
     If $bUpdateAvailable Then
-        $idDownload = GUICtrlCreateLabel(ChrW(0x2B07) & " " & _i18n("General.btn_browse", "Download"), 14, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+        $idDownload = GUICtrlCreateLabel(ChrW(0x2B07) & " " & _i18n("Settings.Updates.btn_download", "Download Latest"), 14, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
         GUICtrlSetFont($idDownload, 9, 400, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor($idDownload, $THEME_FG_MENU)
         GUICtrlSetBkColor($idDownload, $THEME_BG_HOVER)
@@ -161,6 +161,7 @@ Func _UC_CheckNow()
 
     GUISetState(@SW_SHOW, $hDlg)
 
+    Local $iHovered = 0
     While 1
         Local $aMsg = GUIGetMsg(1)
         If $aMsg[1] = $hDlg Then
@@ -173,6 +174,20 @@ Func _UC_CheckNow()
         EndIf
         Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
         If Not @error And IsArray($retEsc) And BitAND($retEsc[0], $VK_KEYDOWN) <> 0 Then ExitLoop
+
+        ; Button hover
+        Local $aCursor = GUIGetCursorInfo($hDlg)
+        If Not @error Then
+            Local $iFound = 0
+            If $aCursor[4] = $idClose Then $iFound = $idClose
+            If $idDownload <> 0 And $aCursor[4] = $idDownload Then $iFound = $idDownload
+            If $iFound <> $iHovered Then
+                If $iHovered <> 0 Then _Theme_RemoveHover($iHovered, $THEME_FG_MENU, $THEME_BG_HOVER)
+                $iHovered = $iFound
+                If $iHovered <> 0 Then _Theme_ApplyHover($iHovered, $THEME_FG_WHITE, $THEME_BG_BTN_HOV)
+            EndIf
+        EndIf
+
         Sleep(10)
     WEnd
     GUIDelete($hDlg)
@@ -235,7 +250,7 @@ Func _UC_DownloadPortable()
     GUICtrlSetColor(-1, $THEME_FG_LABEL)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
-    Local $idYes = GUICtrlCreateLabel(ChrW(0x2B07) & " " & _i18n("General.btn_browse", "Download"), 14, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idYes = GUICtrlCreateLabel(ChrW(0x2B07) & " " & _i18n("Settings.Updates.btn_download", "Download Latest"), 14, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idYes, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idYes, $THEME_FG_MENU)
     GUICtrlSetBkColor($idYes, $THEME_BG_HOVER)
@@ -250,6 +265,7 @@ Func _UC_DownloadPortable()
     GUISetState(@SW_SHOW, $hDlg)
 
     Local $bProceed = False
+    Local $iHovered = 0
     While 1
         Local $aMsg = GUIGetMsg(1)
         If $aMsg[1] = $hDlg Then
@@ -261,6 +277,20 @@ Func _UC_DownloadPortable()
         EndIf
         Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
         If Not @error And IsArray($retEsc) And BitAND($retEsc[0], $VK_KEYDOWN) <> 0 Then ExitLoop
+
+        ; Button hover
+        Local $aCursor = GUIGetCursorInfo($hDlg)
+        If Not @error Then
+            Local $iFound = 0
+            If $aCursor[4] = $idYes Then $iFound = $idYes
+            If $aCursor[4] = $idNo Then $iFound = $idNo
+            If $iFound <> $iHovered Then
+                If $iHovered <> 0 Then _Theme_RemoveHover($iHovered, $THEME_FG_MENU, $THEME_BG_HOVER)
+                $iHovered = $iFound
+                If $iHovered <> 0 Then _Theme_ApplyHover($iHovered, $THEME_FG_WHITE, $THEME_BG_BTN_HOV)
+            EndIf
+        EndIf
+
         Sleep(10)
     WEnd
     GUIDelete($hDlg)
@@ -347,6 +377,7 @@ Func _UC_DownloadPortable()
     GUICtrlSetCursor($idClose, 0)
 
     GUISetState(@SW_SHOW, $hDlg)
+    Local $iHovered = 0
     While 1
         Local $aMsg2 = GUIGetMsg(1)
         If $aMsg2[1] = $hDlg Then
@@ -354,6 +385,19 @@ Func _UC_DownloadPortable()
         EndIf
         Local $retEsc2 = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
         If Not @error And IsArray($retEsc2) And BitAND($retEsc2[0], $VK_KEYDOWN) <> 0 Then ExitLoop
+
+        ; Button hover
+        Local $aCursor = GUIGetCursorInfo($hDlg)
+        If Not @error Then
+            Local $iFound = 0
+            If $aCursor[4] = $idClose Then $iFound = $idClose
+            If $iFound <> $iHovered Then
+                If $iHovered <> 0 Then _Theme_RemoveHover($iHovered, $THEME_FG_MENU, $THEME_BG_HOVER)
+                $iHovered = $iFound
+                If $iHovered <> 0 Then _Theme_ApplyHover($iHovered, $THEME_FG_WHITE, $THEME_BG_BTN_HOV)
+            EndIf
+        EndIf
+
         Sleep(10)
     WEnd
     GUIDelete($hDlg)
