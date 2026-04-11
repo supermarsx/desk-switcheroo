@@ -129,13 +129,19 @@ Func _CD_Show()
         $__g_CD_aiTabCtrlCount[$t] = 0
     Next
 
-    ; Create custom tab bar
+    ; Create custom tab bar (2 rows: 5 + 4 tabs)
     Local $aNames = StringSplit($__g_CD_aTabNames, ",")
-    Local $iTabW = 52, $iTabH = 26, $iTabX = 10, $iTabY = 8
+    Local $iTabW = 84, $iTabH = 24, $iTabX = 10, $iTabY = 8
+    Local $iTabsPerRow = 5
     For $t = 1 To $aNames[0]
+        If $t = $iTabsPerRow + 1 Then
+            ; Start second row
+            $iTabX = 10
+            $iTabY += $iTabH + 2
+        EndIf
         $__g_CD_aidTabBtn[$t] = GUICtrlCreateLabel($aNames[$t], $iTabX, $iTabY, $iTabW, $iTabH, _
             BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-        GUICtrlSetFont($__g_CD_aidTabBtn[$t], 8, 400, 0, $THEME_FONT_MAIN)
+        GUICtrlSetFont($__g_CD_aidTabBtn[$t], 7, 400, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor($__g_CD_aidTabBtn[$t], $THEME_FG_DIM)
         GUICtrlSetBkColor($__g_CD_aidTabBtn[$t], $THEME_BG_MAIN)
         GUICtrlSetCursor($__g_CD_aidTabBtn[$t], 0)
@@ -143,9 +149,9 @@ Func _CD_Show()
     Next
 
     ; Content area background (disabled so it doesn't intercept clicks on controls above)
-    $__g_CD_iContentH = $iH - 120 ; leave room for tab bar + buttons
+    $__g_CD_iContentH = $iH - 146 ; leave room for 2-row tab bar + buttons
     Local $iContentH = $__g_CD_iContentH
-    Local $idContentBg = GUICtrlCreateLabel("", 8, 38, $iW - 16, $iContentH)
+    Local $idContentBg = GUICtrlCreateLabel("", 8, 62, $iW - 16, $iContentH)
     GUICtrlSetBkColor($idContentBg, $THEME_BG_MAIN)
     GUICtrlSetState($idContentBg, $GUI_DISABLE)
 
@@ -387,7 +393,7 @@ EndFunc
 ; =============================================
 
 Func __CD_BuildTabGeneral()
-    Local $t = 1, $iX = 20, $iY = 50
+    Local $t = 1, $iX = 20, $iY = 72
 
     $__g_CD_idChkStartWin = __CD_CreateCheckbox(_i18n("Settings.General.chk_start_windows", "Start with Windows"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkStartWin, _i18n("Settings.General.tip_start_windows", "Launch Desk Switcheroo automatically when you log in"))
@@ -449,7 +455,7 @@ Func __CD_BuildTabGeneral()
 EndFunc
 
 Func __CD_BuildTabDisplay()
-    Local $t = 2, $iX = 20, $iY = 50
+    Local $t = 2, $iX = 20, $iY = 72
 
     $__g_CD_idChkShowCount = __CD_CreateCheckbox(_i18n("Settings.Display.chk_show_count", "Show desktop count (2/5)"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkShowCount, _i18n("Settings.Display.tip_show_count", "Show total count next to current number (e.g. '2/5')"))
@@ -609,7 +615,7 @@ Func __CD_BuildTabDisplay()
 EndFunc
 
 Func __CD_BuildTabScroll()
-    Local $t = 3, $iX = 20, $iY = 50
+    Local $t = 3, $iX = 20, $iY = 72
 
     $__g_CD_idChkScroll = __CD_CreateCheckbox(_i18n("Settings.Scroll.chk_scroll_enabled", "Scroll wheel on widget"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkScroll, _i18n("Settings.Scroll.tip_scroll_enabled", "Use mouse wheel on the widget to cycle desktops"))
@@ -628,7 +634,7 @@ Func __CD_BuildTabScroll()
 EndFunc
 
 Func __CD_BuildTabHotkeys()
-    Local $t = 4, $iX = 20, $iY = 50
+    Local $t = 4, $iX = 20, $iY = 72
     Local $iLblW = 100, $iInpW = 130, $iBtnBuildW = 24, $i
 
     ; Dynamic label: "Desktop N:" generated per iteration below
@@ -734,7 +740,7 @@ Func __CD_BuildTabHotkeys()
 EndFunc
 
 Func __CD_BuildTabBehavior()
-    Local $t = 5, $iX = 20, $iY = 50
+    Local $t = 5, $iX = 20, $iY = 72
 
     $__g_CD_idChkConfirmDel = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_confirm_delete", "Confirm before delete"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkConfirmDel, _i18n("Settings.Behavior.tip_confirm_delete", "Show confirmation dialog before deleting a desktop"))
@@ -846,7 +852,7 @@ EndFunc
 
 
 Func __CD_BuildTabLogging()
-    Local $t = 6, $iX = 20, $iY = 50
+    Local $t = 6, $iX = 20, $iY = 72
 
     $__g_CD_idChkLogging = __CD_CreateCheckbox(_i18n("Settings.Logging.chk_logging", "Enable logging"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkLogging, _i18n("Settings.Logging.tip_logging", "Write debug information to a log file for troubleshooting"))
@@ -918,7 +924,7 @@ Func __CD_BuildTabLogging()
 EndFunc
 
 Func __CD_BuildTabUpdates()
-    Local $t = 7, $iX = 20, $iY = 50
+    Local $t = 7, $iX = 20, $iY = 72
 
     ; Current version display
     Local $idVerLbl = GUICtrlCreateLabel(_i18n_Format("Settings.Updates.lbl_current_version", "Current version: v{1}", $APP_VERSION), $iX, $iY, 300, 18)
@@ -980,7 +986,7 @@ Func __CD_BuildTabUpdates()
 EndFunc
 
 Func __CD_BuildTabDesktops()
-    Local $t = 8, $iX = 20, $iY = 50
+    Local $t = 8, $iX = 20, $iY = 72
 
     ; Enable desktop colors checkbox (moved from removed Colors tab)
     $__g_CD_idChkColorsEnabled = __CD_CreateCheckbox(_i18n("Settings.Desktops.chk_colors_enabled", "Enable desktop colors"), $iX, $iY, 300, $t)
@@ -1039,7 +1045,7 @@ EndFunc
 ; =============================================
 
 Func __CD_BuildTabAnimations()
-    Local $t = 9, $iX = 20, $iY = 50
+    Local $t = 9, $iX = 20, $iY = 72
 
     $__g_CD_idChkAnimEnabled = __CD_CreateCheckbox(_i18n("Settings.Animations.chk_enabled", "Enable animations"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkAnimEnabled, _i18n("Settings.Animations.tip_enabled", "Master toggle for all fade-in/fade-out animations"))
