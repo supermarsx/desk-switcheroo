@@ -133,6 +133,7 @@ Func _CD_Show()
     Local $t
     For $t = 1 To 9
         $__g_CD_aiTabCtrlCount[$t] = 0
+        $__g_CD_aiTabScroll[$t] = 0
     Next
 
     ; Create custom tab bar (2 rows: 5 + 4 tabs)
@@ -305,13 +306,6 @@ EndFunc
 Func __CD_RegCtrl($iTab, $idCtrl)
     Local $c = $__g_CD_aiTabCtrlCount[$iTab]
     $__g_CD_aidTabCtrls[$iTab][$c] = $idCtrl
-    ; Save original Y position for scroll support
-    Local $aPos = ControlGetPos($__g_CD_hGUI, "", $idCtrl)
-    If Not @error And IsArray($aPos) Then
-        $__g_CD_aiTabCtrlY[$iTab][$c] = $aPos[1]
-    Else
-        $__g_CD_aiTabCtrlY[$iTab][$c] = 0
-    EndIf
     $__g_CD_aiTabCtrlCount[$iTab] = $c + 1
 EndFunc
 
@@ -320,13 +314,25 @@ EndFunc
 ; Parameters:  $iDelta - positive = scroll down (content moves up), negative = scroll up
 Func __CD_ScrollTab($iDelta)
     Local $iTab = $__g_CD_iActiveTab
+    Local $c
+
+    ; Lazy-init: capture original Y positions on first scroll attempt
+    If $__g_CD_aiTabCtrlY[$iTab][0] = 0 And $__g_CD_aiTabCtrlCount[$iTab] > 0 Then
+        For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
+            Local $aInit = ControlGetPos($__g_CD_hGUI, "", $__g_CD_aidTabCtrls[$iTab][$c])
+            If Not @error And IsArray($aInit) Then
+                $__g_CD_aiTabCtrlY[$iTab][$c] = $aInit[1]
+            EndIf
+        Next
+    EndIf
+
     Local $iNewScroll = $__g_CD_aiTabScroll[$iTab] + $iDelta
 
     ; Clamp: don't scroll above 0 (top)
     If $iNewScroll < 0 Then $iNewScroll = 0
 
     ; Clamp: find max content Y to determine max scroll
-    Local $iMaxY = 0, $c
+    Local $iMaxY = 0
     For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
         If $__g_CD_aiTabCtrlY[$iTab][$c] > $iMaxY Then $iMaxY = $__g_CD_aiTabCtrlY[$iTab][$c]
     Next
