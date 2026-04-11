@@ -103,6 +103,7 @@ Global $__g_CD_aChkIDs[80]     ; control IDs (2 per checkbox: box + text)
 Global $__g_CD_aChkStates[80]  ; boolean states
 Global $__g_CD_aChkTexts[80]   ; original text per checkbox
 Global $__g_CD_iChkCount = 0
+Global $__g_CD_hBrushCombo = 0 ; GDI brush for combo dropdown theming
 
 ; -- Tab 9: Desktops --
 Global $__g_CD_aidDeskLabel[21]   ; input fields for desktop labels, index 1-20
@@ -117,6 +118,7 @@ Global $__g_CD_idBtnReset
 ; #FUNCTIONS# ===================================================
 
 Func _CD_Show()
+    _Log_Info("Settings dialog opened")
     Local $iW = 460
     ; Dynamic height: use up to 85% of screen, minimum 600
     Local $iMaxH = Int(@DesktopHeight * 0.85)
@@ -233,6 +235,11 @@ Func _CD_Show()
     ; Show first tab
     __CD_SwitchTab(1)
 
+    ; Create GDI brush for combo dropdown theming
+    Local $aBrush = DllCall("gdi32.dll", "handle", "CreateSolidBrush", "dword", $THEME_BG_INPUT)
+    If Not @error And IsArray($aBrush) Then $__g_CD_hBrushCombo = $aBrush[0]
+    GUIRegisterMsg(0x0134, "__CD_WM_CTLCOLORLISTBOX") ; WM_CTLCOLORLISTBOX
+
     _Theme_FadeIn($__g_CD_hGUI, $THEME_ALPHA_DIALOG, "dialog")
     $__g_CD_bVisible = True
 
@@ -241,6 +248,12 @@ Func _CD_Show()
 EndFunc
 
 Func _CD_Destroy()
+    _Log_Info("Settings dialog closed")
+    GUIRegisterMsg(0x0134, "") ; unregister WM_CTLCOLORLISTBOX
+    If $__g_CD_hBrushCombo <> 0 Then
+        DllCall("gdi32.dll", "bool", "DeleteObject", "handle", $__g_CD_hBrushCombo)
+        $__g_CD_hBrushCombo = 0
+    EndIf
     If $__g_CD_hGUI <> 0 Then _Theme_FadeOut($__g_CD_hGUI, "dialog")
     $__g_CD_hGUI = 0
     $__g_CD_bVisible = False
@@ -259,6 +272,7 @@ EndFunc
 ; =============================================
 
 Func __CD_SwitchTab($iTab)
+    _Log_Debug("Settings: switched to tab " & $iTab)
     $__g_CD_iActiveTab = $iTab
 
     ; Reset scroll for the new tab (restore controls to original Y)
@@ -523,6 +537,8 @@ Func __CD_BuildTabGeneral()
     __CD_RegCtrl($t, $idLangLbl)
     $__g_CD_idLblLanguage = GUICtrlCreateCombo("", $iX + 85, $iY, 310, 22, 0x0003) ; CBS_DROPDOWNLIST
     GUICtrlSetFont($__g_CD_idLblLanguage, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idLblLanguage, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idLblLanguage, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idLblLanguage)
     _Theme_SetTooltip($__g_CD_idLblLanguage, _i18n("Settings.General.tip_language", "Select a language (requires restart)"))
 EndFunc
@@ -1446,6 +1462,7 @@ EndFunc
 
 Func __CD_ApplyChanges()
     If $__g_CD_hGUI = 0 Then Return
+    _Log_Info("Settings: applying changes")
     Local $i
     Local $bOldStartup = _Cfg_IsStartupEnabled()
 
@@ -1565,12 +1582,14 @@ Func __CD_ApplyChanges()
     Next
 
     If Not _Cfg_Save() Then
+        _Log_Error("Settings: failed to save config file")
         Local $aErrPos = WinGetPos($__g_CD_hGUI)
         If Not @error Then
             _Theme_Toast(_i18n("Toasts.toast_save_failed", "Failed to save settings"), $aErrPos[0], $aErrPos[1] + $aErrPos[3] + 4, 2000, $TOAST_ERROR)
         EndIf
         Return
     EndIf
+    _Log_Info("Settings: saved successfully")
 
     ; Animations
     _Cfg_SetAnimationsEnabled(__CD_GetCheckState($__g_CD_idChkAnimEnabled))
@@ -1658,7 +1677,12 @@ Func __CD_UpdateColorPreviews()
 EndFunc
 
 Func __CD_ResetDefaults()
-    If Not _Theme_Confirm(_i18n("Dialogs.confirm_reset_title", "Reset Settings"), _i18n("Dialogs.confirm_reset_msg", "Reset all settings to defaults?")) Then Return
+    _Log_Info("Settings: reset to defaults requested")
+    If Not _Theme_Confirm(_i18n("Dialogs.confirm_reset_title", "Reset Settings"), _i18n("Dialogs.confirm_reset_msg", "Reset all settings to defaults?")) Then
+        _Log_Info("Settings: reset cancelled by user")
+        Return
+    EndIf
+    _Log_Info("Settings: resetting to defaults")
 
     Local $sPath = _Cfg_GetPath()
     FileDelete($sPath)
@@ -1675,8 +1699,13 @@ EndFunc
 ; Description: Opens a file dialog to import settings from an external INI file
 Func __CD_ImportSettings()
     Local $sPath = FileOpenDialog("Import Settings", @DesktopDir, "INI Files (*.ini)", 1, "", $__g_CD_hGUI)
-    If $sPath = "" Or @error Then Return
+    If $sPath = "" Or @error Then
+        _Log_Debug("Settings: import cancelled")
+        Return
+    EndIf
+    _Log_Info("Settings: importing from " & $sPath)
     If _Cfg_Import($sPath) Then
+        _Log_Info("Settings: import successful")
         _ApplySettingsLive()
         __CD_PopulateControls()
         Local $aPos = WinGetPos($__g_CD_hGUI)
@@ -1695,7 +1724,11 @@ EndFunc
 ; Description: Opens a file dialog to export current settings to an INI file
 Func __CD_ExportSettings()
     Local $sPath = FileSaveDialog("Export Settings", @DesktopDir, "INI Files (*.ini)", 16, "desk_switcheroo.ini", $__g_CD_hGUI)
-    If $sPath = "" Or @error Then Return
+    If $sPath = "" Or @error Then
+        _Log_Debug("Settings: export cancelled")
+        Return
+    EndIf
+    _Log_Info("Settings: exporting to " & $sPath)
     ; Ensure .ini extension
     If StringRight($sPath, 4) <> ".ini" Then $sPath &= ".ini"
     If _Cfg_Export($sPath) Then
@@ -2118,4 +2151,14 @@ Func __CD_RestartApp()
     EndIf
     Run($sCmd)
     _Shutdown()
+EndFunc
+
+; Name:        __CD_WM_CTLCOLORLISTBOX
+; Description: WM handler to theme combo dropdown list with dark colors
+Func __CD_WM_CTLCOLORLISTBOX($hWnd, $iMsg, $wParam, $lParam)
+    If $__g_CD_hBrushCombo = 0 Then Return $GUI_RUNDEFMSG
+    ; Set text and background colors for the dropdown list
+    DllCall("gdi32.dll", "int", "SetTextColor", "handle", $wParam, "dword", $THEME_FG_TEXT)
+    DllCall("gdi32.dll", "int", "SetBkColor", "handle", $wParam, "dword", $THEME_BG_INPUT)
+    Return $__g_CD_hBrushCombo
 EndFunc
