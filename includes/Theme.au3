@@ -74,7 +74,21 @@ Global Const $THEME_TIMER_POLL     = 400
 Global Const $THEME_TIMER_BOUNCE   = 500
 Global Const $THEME_TIMER_TEMPLIST = 3000
 
+; -- Frame-level cursor cache (call _Theme_CacheFrameState once per main loop tick) --
+Global $__g_Theme_iCachedCursorX = 0
+Global $__g_Theme_iCachedCursorY = 0
+
 ; #FUNCTIONS# ===================================================
+
+; Name:        _Theme_CacheFrameState
+; Description: Caches cursor position once per frame. Call at the top of the main loop.
+;              All subsequent _Theme_IsCursorOverWindow calls use the cached position,
+;              eliminating ~20 redundant MouseGetPos() API calls per frame.
+Func _Theme_CacheFrameState()
+    Local $aMP = MouseGetPos()
+    $__g_Theme_iCachedCursorX = $aMP[0]
+    $__g_Theme_iCachedCursorY = $aMP[1]
+EndFunc
 
 ; -- Tooltip registry for themed tooltips --
 Global $__g_Theme_aTipIDs[200]
@@ -427,11 +441,10 @@ EndFunc
 ; Return:      True if cursor is over the window, False otherwise
 Func _Theme_IsCursorOverWindow($hWnd)
     If $hWnd = 0 Then Return False
-    Local $aMP = MouseGetPos()
     Local $aWP = WinGetPos($hWnd)
     If @error Then Return False
-    If $aMP[0] >= $aWP[0] And $aMP[0] < $aWP[0] + $aWP[2] And _
-       $aMP[1] >= $aWP[1] And $aMP[1] < $aWP[1] + $aWP[3] Then Return True
+    If $__g_Theme_iCachedCursorX >= $aWP[0] And $__g_Theme_iCachedCursorX < $aWP[0] + $aWP[2] And _
+       $__g_Theme_iCachedCursorY >= $aWP[1] And $__g_Theme_iCachedCursorY < $aWP[1] + $aWP[3] Then Return True
     Return False
 EndFunc
 

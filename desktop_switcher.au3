@@ -129,6 +129,7 @@ Global $__g_sInetTempFile = ""  ; temp file for update check
 Global $bDesktopChanged = False
 Global $bNamesChanged = False
 Global $__g_iLastCursorX = -1, $__g_iLastCursorY = -1
+Global $__g_hFgTrackTimer = 0
 Global Const $WM_VD_NOTIFY = 0x04C8 ; WM_USER + 200
 
 ; -- Triple-click to edit --
@@ -297,6 +298,7 @@ Global $bLeftWasDown = False
 Global $bMiddleWasDown = False
 
 While 1
+    _Theme_CacheFrameState()
     Local $aMsg = GUIGetMsg(1)
     _CheckTrayMessages()
     _ProcessGUIEvents($aMsg[0], $aMsg[1])
@@ -563,12 +565,11 @@ Func _ProcessMouseInput()
         If _DL_IsDragging() Then
             _DL_DragCancel($iDesktop)
         Else
-            Local $aCursorPos = MouseGetPos()
             Local $aWinPos = WinGetPos($gui)
 
             ; Right-click over main widget -> toggle widget context menu
-            If $aCursorPos[0] >= $aWinPos[0] And $aCursorPos[0] < $aWinPos[0] + $aWinPos[2] And _
-               $aCursorPos[1] >= $aWinPos[1] And $aCursorPos[1] < $aWinPos[1] + $aWinPos[3] Then
+            If $__g_Theme_iCachedCursorX >= $aWinPos[0] And $__g_Theme_iCachedCursorX < $aWinPos[0] + $aWinPos[2] And _
+               $__g_Theme_iCachedCursorY >= $aWinPos[1] And $__g_Theme_iCachedCursorY < $aWinPos[1] + $aWinPos[3] Then
                 _DL_CtxDestroy()
                 If _CM_IsVisible() Then
                     _Log_Debug("Click: right-click — closing context menu")
@@ -657,9 +658,8 @@ Func _ProcessMouseInput()
             Local $aCurWidget = GUIGetCursorInfo($gui)
             If Not @error And $aCurWidget[4] <> $lblLeft And $aCurWidget[4] <> $lblRight Then
                 Local $aWPDrag = WinGetPos($gui)
-                Local $aMPDrag = MouseGetPos()
-                $__g_iWidgetDragOffsetX = $aMPDrag[0] - $aWPDrag[0]
-                $__g_iWidgetDragStartX = $aMPDrag[0]
+                $__g_iWidgetDragOffsetX = $__g_Theme_iCachedCursorX - $aWPDrag[0]
+                $__g_iWidgetDragStartX = $__g_Theme_iCachedCursorX
                 $__g_bWidgetDragPending = True
                 $__g_bWidgetDragging = False
             EndIf
@@ -672,15 +672,13 @@ Func _ProcessMouseInput()
 
     ; Widget drag: check threshold and move
     If $bLeftDown And $__g_bWidgetDragPending And Not $__g_bWidgetDragging Then
-        Local $aMPWD = MouseGetPos()
-        If Abs($aMPWD[0] - $__g_iWidgetDragStartX) >= 5 Then
+        If Abs($__g_Theme_iCachedCursorX - $__g_iWidgetDragStartX) >= 5 Then
             $__g_bWidgetDragging = True
         EndIf
     EndIf
 
     If $bLeftDown And $__g_bWidgetDragging Then
-        Local $aMPWD2 = MouseGetPos()
-        Local $iNewX = $aMPWD2[0] - $__g_iWidgetDragOffsetX
+        Local $iNewX = $__g_Theme_iCachedCursorX - $__g_iWidgetDragOffsetX
         ; Clamp to screen bounds
         If $iNewX < 0 Then $iNewX = 0
         If $iNewX + $__g_iWidgetW > @DesktopWidth Then $iNewX = @DesktopWidth - $__g_iWidgetW
@@ -798,14 +796,17 @@ Func _ProcessEventFlags()
         _ApplyDesktopChange()
     EndIf
 
-    ; Track last external foreground window (for Move Window Here)
-    Local $hFg = WinGetHandle("[ACTIVE]")
-    If $hFg <> 0 And $hFg <> $gui And (Not _DL_IsVisible() Or $hFg <> _DL_GetGUI()) And _
-       (Not _CM_IsVisible() Or $hFg <> _CM_GetGUI()) And _
-       (Not _DL_CtxIsVisible() Or $hFg <> _DL_CtxGetGUI()) And _
-       (Not _RD_IsVisible() Or $hFg <> _RD_GetGUI()) And _
-       (Not _CD_IsVisible() Or $hFg <> _CD_GetGUI()) Then
-        $hLastExternalWindow = $hFg
+    ; Track last external foreground window (for Move Window Here) — debounced to 200ms
+    If TimerDiff($__g_hFgTrackTimer) >= 200 Then
+        $__g_hFgTrackTimer = TimerInit()
+        Local $hFg = WinGetHandle("[ACTIVE]")
+        If $hFg <> 0 And $hFg <> $gui And (Not _DL_IsVisible() Or $hFg <> _DL_GetGUI()) And _
+           (Not _CM_IsVisible() Or $hFg <> _CM_GetGUI()) And _
+           (Not _DL_CtxIsVisible() Or $hFg <> _DL_CtxGetGUI()) And _
+           (Not _RD_IsVisible() Or $hFg <> _RD_GetGUI()) And _
+           (Not _CD_IsVisible() Or $hFg <> _CD_GetGUI()) Then
+            $hLastExternalWindow = $hFg
+        EndIf
     EndIf
 EndFunc
 
@@ -814,11 +815,10 @@ EndFunc
 ; Return:      True if cursor is over any of our windows (for sleep decision)
 Func _ProcessHoverAndVisuals()
     ; Lazy hover check: skip when cursor hasn't moved and no state changed
-    Local $aCurPos = MouseGetPos()
-    Local $bCursorMoved = ($aCurPos[0] <> $__g_iLastCursorX Or $aCurPos[1] <> $__g_iLastCursorY)
+    Local $bCursorMoved = ($__g_Theme_iCachedCursorX <> $__g_iLastCursorX Or $__g_Theme_iCachedCursorY <> $__g_iLastCursorY)
     If $bCursorMoved Then
-        $__g_iLastCursorX = $aCurPos[0]
-        $__g_iLastCursorY = $aCurPos[1]
+        $__g_iLastCursorX = $__g_Theme_iCachedCursorX
+        $__g_iLastCursorY = $__g_Theme_iCachedCursorY
     EndIf
 
     ; Skip all hit-testing when nothing changed (cursor still, no events, no drag)

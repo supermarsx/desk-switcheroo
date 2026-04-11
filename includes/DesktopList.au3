@@ -654,9 +654,8 @@ Func _DL_DragMouseDown()
     $__g_DL_iDragState = 1
     $__g_DL_iDragSource = $iRow
     $__g_DL_iDragTarget = 0
-    Local $aMP = MouseGetPos()
-    $__g_DL_iDragStartX = $aMP[0]
-    $__g_DL_iDragStartY = $aMP[1]
+    $__g_DL_iDragStartX = $__g_Theme_iCachedCursorX
+    $__g_DL_iDragStartY = $__g_Theme_iCachedCursorY
 EndFunc
 
 ; Name:        _DL_DragMouseMove
@@ -664,12 +663,10 @@ EndFunc
 ;              Transitions from pending to dragging when threshold is met,
 ;              and updates the drop target highlight while dragging.
 Func _DL_DragMouseMove()
-    Local $aMP = MouseGetPos()
-
     If $__g_DL_iDragState = 1 Then
         ; Check threshold
-        Local $iDX = Abs($aMP[0] - $__g_DL_iDragStartX)
-        Local $iDY = Abs($aMP[1] - $__g_DL_iDragStartY)
+        Local $iDX = Abs($__g_Theme_iCachedCursorX - $__g_DL_iDragStartX)
+        Local $iDY = Abs($__g_Theme_iCachedCursorY - $__g_DL_iDragStartY)
         If $iDX < $__g_DL_DRAG_THRESHOLD And $iDY < $__g_DL_DRAG_THRESHOLD Then Return
         ; Activate drag
         $__g_DL_iDragState = 2
@@ -805,16 +802,15 @@ EndFunc
 ; Return:      Desktop index (1-based), or 0 if none
 Func _DL_GetItemAtPos()
     If Not $__g_DL_bVisible Or $__g_DL_hGUI = 0 Then Return 0
-    Local $aMP = MouseGetPos()
     Local $aWP = WinGetPos($__g_DL_hGUI)
     If @error Then Return 0
-    If $aMP[0] < $aWP[0] Or $aMP[0] >= $aWP[0] + $aWP[2] Then Return 0
-    If $aMP[1] < $aWP[1] Or $aMP[1] >= $aWP[1] + $aWP[3] Then Return 0
+    If $__g_Theme_iCachedCursorX < $aWP[0] Or $__g_Theme_iCachedCursorX >= $aWP[0] + $aWP[2] Then Return 0
+    If $__g_Theme_iCachedCursorY < $aWP[1] Or $__g_Theme_iCachedCursorY >= $aWP[1] + $aWP[3] Then Return 0
     ; Account for scroll arrow height at top (arrows only present when scroll mode is active)
     Local $iArrowH = 0
     If $__g_DL_idScrollUp <> 0 Then $iArrowH = 16
     ; Items start at Y=3+arrowH within the list, each $THEME_ITEM_HEIGHT tall
-    Local $iRelY = $aMP[1] - $aWP[1] - 3 - $iArrowH
+    Local $iRelY = $__g_Theme_iCachedCursorY - $aWP[1] - 3 - $iArrowH
     If $iRelY < 0 Then Return 0
     Local $iSlot = Int($iRelY / $THEME_ITEM_HEIGHT) + 1
     Local $iVisibleCount = $__g_DL_aItems[0]
@@ -839,11 +835,10 @@ Func _DL_CtxShow($iTarget)
     If _Cfg_GetMoveWindowEnabled() Then $iItemCount += 1
     Local $iMenuH = $iItemCount * $THEME_MENU_ITEM_H + $iSepH + 12
 
-    Local $aMP = MouseGetPos()
-    Local $iMenuX = $aMP[0]
-    Local $iMenuY = $aMP[1] - $iMenuH
+    Local $iMenuX = $__g_Theme_iCachedCursorX
+    Local $iMenuY = $__g_Theme_iCachedCursorY - $iMenuH
     ; Keep menu on screen
-    If $iMenuY < 0 Then $iMenuY = $aMP[1]
+    If $iMenuY < 0 Then $iMenuY = $__g_Theme_iCachedCursorY
 
     $__g_DL_hCtxGUI = _Theme_CreatePopup("DLCtx", $iMenuW, $iMenuH, $iMenuX, $iMenuY, $THEME_BG_POPUP, $THEME_ALPHA_MENU)
     If $__g_DL_hCtxGUI = 0 Then
@@ -1028,9 +1023,8 @@ Func _DL_ColorPickerShow($iTarget)
     EndIf
     If $iPickerX = 0 Then
         ; Fallback: position near cursor (called from main context menu)
-        Local $aMP = MouseGetPos()
-        $iPickerX = $aMP[0] + 8
-        $iPickerY = $aMP[1] - $iPickerH
+        $iPickerX = $__g_Theme_iCachedCursorX + 8
+        $iPickerY = $__g_Theme_iCachedCursorY - $iPickerH
     EndIf
     ; Keep on screen
     If $iPickerX + $iPickerW > @DesktopWidth Then $iPickerX = @DesktopWidth - $iPickerW - 4
