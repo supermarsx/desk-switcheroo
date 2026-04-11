@@ -381,17 +381,17 @@ EndFunc
 Func __CD_BuildTabGeneral()
     Local $t = 1, $iX = 20, $iY = 50
 
-    $__g_CD_idChkStartWin = __CD_CreateCheckbox("Start with Windows", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkStartWin, "Launch Desk Switcheroo automatically when you log in")
+    $__g_CD_idChkStartWin = __CD_CreateCheckbox(_i18n("Settings.General.chk_start_windows", "Start with Windows"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkStartWin, _i18n("Settings.General.tip_start_windows", "Launch Desk Switcheroo automatically when you log in"))
     $iY += 26
-    $__g_CD_idChkWrapNav = __CD_CreateCheckbox("Wrap navigation at ends", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkWrapNav, "Left arrow on first desktop goes to last, and vice versa")
+    $__g_CD_idChkWrapNav = __CD_CreateCheckbox(_i18n("Settings.General.chk_wrap_nav", "Wrap navigation at ends"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkWrapNav, _i18n("Settings.General.tip_wrap_nav", "Left arrow on first desktop goes to last, and vice versa"))
     $iY += 26
-    $__g_CD_idChkAutoCreate = __CD_CreateCheckbox("Auto-create desktop past end", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkAutoCreate, "Right arrow on last desktop creates a new one")
+    $__g_CD_idChkAutoCreate = __CD_CreateCheckbox(_i18n("Settings.General.chk_auto_create", "Auto-create desktop past end"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkAutoCreate, _i18n("Settings.General.tip_auto_create", "Right arrow on last desktop creates a new one"))
     $iY += 34
 
-    Local $idLbl = GUICtrlCreateLabel("Number padding (1-4):", $iX, $iY + 2, 165, 18)
+    Local $idLbl = GUICtrlCreateLabel(_i18n("Settings.General.lbl_padding", "Number padding (1-4):"), $iX, $iY + 2, 165, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -401,14 +401,14 @@ Func __CD_BuildTabGeneral()
     GUICtrlSetColor($__g_CD_idInpPadding, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpPadding, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpPadding)
-    _Theme_SetTooltip($__g_CD_idInpPadding, "Zero-pad desktop numbers (2 = '01', 3 = '001')")
+    _Theme_SetTooltip($__g_CD_idInpPadding, _i18n("Settings.General.tip_padding", "Zero-pad desktop numbers (2 = '01', 3 = '001')"))
     $iY += 30
 
-    $__g_CD_idLblPosition = __CD_CreateCycleLabel("Widget anchor:", $iX, $iY, 165, 110, $t)
-    _Theme_SetTooltip($__g_CD_idLblPosition, "Click to cycle screen anchor: bottom-left, bottom-center, bottom-right, middle-left, middle-right, top-left, top-center, top-right")
+    $__g_CD_idLblPosition = __CD_CreateCycleLabel(_i18n("Settings.General.lbl_widget_anchor", "Widget anchor:"), $iX, $iY, 165, 110, $t)
+    _Theme_SetTooltip($__g_CD_idLblPosition, _i18n("Settings.General.tip_widget_anchor", "Click to cycle screen anchor position"))
     $iY += 30
 
-    $idLbl = GUICtrlCreateLabel("Widget X offset (px):", $iX, $iY + 2, 165, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.General.lbl_widget_offset_x", "Widget X offset (px):"), $iX, $iY + 2, 165, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -418,23 +418,23 @@ Func __CD_BuildTabGeneral()
     GUICtrlSetColor($__g_CD_idInpOffsetX, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpOffsetX, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpOffsetX)
-    _Theme_SetTooltip($__g_CD_idInpOffsetX, "Fine-tune widget position in pixels")
+    _Theme_SetTooltip($__g_CD_idInpOffsetX, _i18n("Settings.General.tip_widget_offset", "Fine-tune widget position in pixels"))
     $iY += 34
 
-    $__g_CD_idChkWidgetDrag = __CD_CreateCheckbox("Enable widget drag", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkWidgetDrag, "Hold and drag the widget to reposition it on the taskbar")
+    $__g_CD_idChkWidgetDrag = __CD_CreateCheckbox(_i18n("Settings.General.chk_widget_drag", "Enable widget drag"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkWidgetDrag, _i18n("Settings.General.tip_widget_drag", "Hold and drag the widget to reposition it on the taskbar"))
     $iY += 26
-    $__g_CD_idChkWidgetColorBar = __CD_CreateCheckbox("Widget color bar", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkWidgetColorBar, "Show a colored accent on the widget matching the current desktop color")
+    $__g_CD_idChkWidgetColorBar = __CD_CreateCheckbox(_i18n("Settings.General.chk_color_bar", "Widget color bar"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkWidgetColorBar, _i18n("Settings.General.tip_color_bar", "Show a colored accent on the widget matching the current desktop color"))
     $iY += 26
-    $__g_CD_idChkTrayMode = __CD_CreateCheckbox("Tray icon mode", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkTrayMode, "Run as system tray icon instead of taskbar widget (requires restart)")
+    $__g_CD_idChkTrayMode = __CD_CreateCheckbox(_i18n("Settings.General.chk_tray_mode", "Tray icon mode"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkTrayMode, _i18n("Settings.General.tip_tray_mode", "Run as system tray icon instead of taskbar widget (requires restart)"))
     $iY += 26
-    $__g_CD_idChkQuickAccess = __CD_CreateCheckbox("Quick-access number input", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkQuickAccess, "Double-click the number to type a desktop number (1-9) to jump to")
+    $__g_CD_idChkQuickAccess = __CD_CreateCheckbox(_i18n("Settings.General.chk_quick_access", "Quick-access number input"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkQuickAccess, _i18n("Settings.General.tip_quick_access", "Double-click the number to type a desktop number (1-9) to jump to"))
     $iY += 26
-    $__g_CD_idChkListKeyNav = __CD_CreateCheckbox("Keyboard nav in list", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkListKeyNav, "Use Up/Down arrow keys to navigate when the desktop list is open")
+    $__g_CD_idChkListKeyNav = __CD_CreateCheckbox(_i18n("Settings.General.chk_list_key_nav", "Keyboard nav in list"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkListKeyNav, _i18n("Settings.General.tip_list_key_nav", "Use Up/Down arrow keys to navigate when the desktop list is open"))
 EndFunc
 
 Func __CD_BuildTabDisplay()
