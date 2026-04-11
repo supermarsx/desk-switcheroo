@@ -837,11 +837,11 @@ EndFunc
 Func __CD_BuildTabLogging()
     Local $t = 6, $iX = 20, $iY = 50
 
-    $__g_CD_idChkLogging = __CD_CreateCheckbox("Enable logging", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkLogging, "Write debug information to a log file for troubleshooting")
+    $__g_CD_idChkLogging = __CD_CreateCheckbox(_i18n("Settings.Logging.chk_logging", "Enable logging"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkLogging, _i18n("Settings.Logging.tip_logging", "Write debug information to a log file for troubleshooting"))
     $iY += 34
 
-    Local $idLbl = GUICtrlCreateLabel("Log folder:", $iX, $iY + 2, 100, 18)
+    Local $idLbl = GUICtrlCreateLabel(_i18n("Settings.Logging.lbl_log_folder", "Log folder:"), $iX, $iY + 2, 100, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -851,8 +851,8 @@ Func __CD_BuildTabLogging()
     GUICtrlSetColor($__g_CD_idInpLogPath, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpLogPath, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpLogPath)
-    _Theme_SetTooltip($__g_CD_idInpLogPath, "Folder for log files (empty = script folder). Supports %APPDATA%, %TEMP%, %SCRIPTDIR%")
-    $__g_CD_idBtnLogBrowse = GUICtrlCreateLabel("Browse", $iX + 105 + 252, $iY, 48, 22, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    _Theme_SetTooltip($__g_CD_idInpLogPath, _i18n("Settings.Logging.tip_log_folder", "Folder for log files (empty = script folder). Supports %APPDATA%, %TEMP%, %SCRIPTDIR%"))
+    $__g_CD_idBtnLogBrowse = GUICtrlCreateLabel(_i18n("General.btn_browse", "Browse"), $iX + 105 + 252, $iY, 48, 22, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnLogBrowse, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnLogBrowse, $THEME_FG_DIM)
     GUICtrlSetBkColor($__g_CD_idBtnLogBrowse, $THEME_BG_HOVER)
@@ -860,11 +860,11 @@ Func __CD_BuildTabLogging()
     __CD_RegCtrl($t, $__g_CD_idBtnLogBrowse)
     $iY += 30
 
-    $__g_CD_idLblLogLevel = __CD_CreateCycleLabel("Log level:", $iX, $iY, 100, 90, $t)
-    _Theme_SetTooltip($__g_CD_idLblLogLevel, "Click to cycle: error, warn, info, debug (debug is most verbose)")
+    $__g_CD_idLblLogLevel = __CD_CreateCycleLabel(_i18n("Settings.Logging.lbl_log_level", "Log level:"), $iX, $iY, 100, 90, $t)
+    _Theme_SetTooltip($__g_CD_idLblLogLevel, _i18n("Settings.Logging.tip_log_level", "Click to cycle: error, warn, info, debug (debug is most verbose)"))
     $iY += 30
 
-    $idLbl = GUICtrlCreateLabel("Max log size (MB):", $iX, $iY + 2, 165, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Logging.lbl_log_max_size", "Max log size (MB):"), $iX, $iY + 2, 165, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -874,10 +874,10 @@ Func __CD_BuildTabLogging()
     GUICtrlSetColor($__g_CD_idInpLogMaxSize, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpLogMaxSize, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpLogMaxSize)
-    _Theme_SetTooltip($__g_CD_idInpLogMaxSize, "Rotate log file when it exceeds this size")
+    _Theme_SetTooltip($__g_CD_idInpLogMaxSize, _i18n("Settings.Logging.tip_log_max_size", "Rotate log file when it exceeds this size"))
     $iY += 30
 
-    $idLbl = GUICtrlCreateLabel("Rotate count (1-10):", $iX, $iY + 2, 165, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Logging.lbl_log_rotate", "Rotate count (1-10):"), $iX, $iY + 2, 165, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -887,41 +887,41 @@ Func __CD_BuildTabLogging()
     GUICtrlSetColor($__g_CD_idInpLogRotateCount, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpLogRotateCount, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpLogRotateCount)
-    _Theme_SetTooltip($__g_CD_idInpLogRotateCount, "Number of rotated log files to keep (1-10)")
+    _Theme_SetTooltip($__g_CD_idInpLogRotateCount, _i18n("Settings.Logging.tip_log_rotate", "Number of rotated log files to keep (1-10)"))
     $iY += 30
 
-    $__g_CD_idChkLogCompress = __CD_CreateCheckbox("Compress old logs", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkLogCompress, "Zip old log files when rotating (uses PowerShell)")
+    $__g_CD_idChkLogCompress = __CD_CreateCheckbox(_i18n("Settings.Logging.chk_log_compress", "Compress old logs"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkLogCompress, _i18n("Settings.Logging.tip_log_compress", "Zip old log files when rotating (uses PowerShell)"))
     $iY += 34
 
-    $__g_CD_idChkLogPID = __CD_CreateCheckbox("Include PID in log", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkLogPID, "Add process ID [PID:XXXX] to each log line after the timestamp")
+    $__g_CD_idChkLogPID = __CD_CreateCheckbox(_i18n("Settings.Logging.chk_log_pid", "Include PID in log"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkLogPID, _i18n("Settings.Logging.tip_log_pid", "Add process ID [PID:XXXX] to each log line after the timestamp"))
     $iY += 34
 
-    $__g_CD_idLblLogDateFormat = __CD_CreateCycleLabel("Date format:", $iX, $iY, 100, 90, $t)
-    _Theme_SetTooltip($__g_CD_idLblLogDateFormat, "Click to cycle: iso (YYYY-MM-DD), us (MM/DD/YYYY), eu (DD/MM/YYYY)")
+    $__g_CD_idLblLogDateFormat = __CD_CreateCycleLabel(_i18n("Settings.Logging.lbl_log_date", "Date format:"), $iX, $iY, 100, 90, $t)
+    _Theme_SetTooltip($__g_CD_idLblLogDateFormat, _i18n("Settings.Logging.tip_log_date", "Click to cycle: iso (YYYY-MM-DD), us (MM/DD/YYYY), eu (DD/MM/YYYY)"))
     $iY += 30
 
-    $__g_CD_idChkLogFlush = __CD_CreateCheckbox("Flush immediately", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkLogFlush, "Flush log file after every write (vs buffered I/O)")
+    $__g_CD_idChkLogFlush = __CD_CreateCheckbox(_i18n("Settings.Logging.chk_log_flush", "Flush immediately"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkLogFlush, _i18n("Settings.Logging.tip_log_flush", "Flush log file after every write (vs buffered I/O)"))
 EndFunc
 
 Func __CD_BuildTabUpdates()
     Local $t = 7, $iX = 20, $iY = 50
 
     ; Current version display
-    Local $idVerLbl = GUICtrlCreateLabel("Current version: v" & $APP_VERSION, $iX, $iY, 300, 18)
+    Local $idVerLbl = GUICtrlCreateLabel(_i18n_Format("Settings.Updates.lbl_current_version", "Current version: v{1}", $APP_VERSION), $iX, $iY, 300, 18)
     GUICtrlSetFont($idVerLbl, 9, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idVerLbl, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor($idVerLbl, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $idVerLbl)
     $iY += 26
 
-    $__g_CD_idChkAutoUpdate = __CD_CreateCheckbox("Auto-check for updates", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkAutoUpdate, "Periodically check GitHub for new releases")
+    $__g_CD_idChkAutoUpdate = __CD_CreateCheckbox(_i18n("Settings.Updates.chk_auto_update", "Auto-check for updates"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkAutoUpdate, _i18n("Settings.Updates.tip_auto_update", "Periodically check GitHub for new releases"))
     $iY += 34
 
-    Local $idLbl = GUICtrlCreateLabel("Check interval (hours):", $iX, $iY + 2, 165, 18)
+    Local $idLbl = GUICtrlCreateLabel(_i18n("Settings.Updates.lbl_update_interval", "Check interval (hours):"), $iX, $iY + 2, 165, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -931,14 +931,14 @@ Func __CD_BuildTabUpdates()
     GUICtrlSetColor($__g_CD_idInpUpdateInterval, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpUpdateInterval, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpUpdateInterval)
-    _Theme_SetTooltip($__g_CD_idInpUpdateInterval, "How often to check for updates (in hours)")
+    _Theme_SetTooltip($__g_CD_idInpUpdateInterval, _i18n("Settings.Updates.tip_update_interval", "How often to check for updates (in hours)"))
     $iY += 34
 
-    $__g_CD_idChkUpdateOnStartup = __CD_CreateCheckbox("Check on startup", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkUpdateOnStartup, "Check for updates when the application starts (respects day interval)")
+    $__g_CD_idChkUpdateOnStartup = __CD_CreateCheckbox(_i18n("Settings.Updates.chk_check_startup", "Check on startup"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkUpdateOnStartup, _i18n("Settings.Updates.tip_check_startup", "Check for updates when the application starts (respects day interval)"))
     $iY += 34
 
-    Local $idLblDays = GUICtrlCreateLabel("Check every (days):", $iX, $iY + 2, 165, 18)
+    Local $idLblDays = GUICtrlCreateLabel(_i18n("Settings.Updates.lbl_check_days", "Check every (days):"), $iX, $iY + 2, 165, 18)
     GUICtrlSetFont($idLblDays, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLblDays, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLblDays, $GUI_BKCOLOR_TRANSPARENT)
@@ -948,32 +948,32 @@ Func __CD_BuildTabUpdates()
     GUICtrlSetColor($__g_CD_idInpUpdateCheckDays, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpUpdateCheckDays, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpUpdateCheckDays)
-    _Theme_SetTooltip($__g_CD_idInpUpdateCheckDays, "Minimum days between startup update checks (1-90)")
+    _Theme_SetTooltip($__g_CD_idInpUpdateCheckDays, _i18n("Settings.Updates.tip_check_days", "Minimum days between startup update checks (1-90)"))
     $iY += 34
 
-    $__g_CD_idBtnCheckNow = GUICtrlCreateLabel(ChrW(0x21BB) & " Check Now", $iX, $iY, 120, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    $__g_CD_idBtnCheckNow = GUICtrlCreateLabel(ChrW(0x21BB) & " " & _i18n("Settings.Updates.btn_check_now", "Check Now"), $iX, $iY, 120, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnCheckNow, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnCheckNow, $THEME_FG_MENU)
     GUICtrlSetBkColor($__g_CD_idBtnCheckNow, $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnCheckNow, 0)
     __CD_RegCtrl($t, $__g_CD_idBtnCheckNow)
-    _Theme_SetTooltip($__g_CD_idBtnCheckNow, "Check for updates right now")
+    _Theme_SetTooltip($__g_CD_idBtnCheckNow, _i18n("Settings.Updates.tip_check_now", "Check for updates right now"))
 
-    $__g_CD_idBtnDownloadLatest = GUICtrlCreateLabel(ChrW(0x2B07) & " Download Latest", $iX + 130, $iY, 140, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    $__g_CD_idBtnDownloadLatest = GUICtrlCreateLabel(ChrW(0x2B07) & " " & _i18n("Settings.Updates.btn_download", "Download Latest"), $iX + 130, $iY, 140, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnDownloadLatest, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnDownloadLatest, $THEME_FG_LINK)
     GUICtrlSetBkColor($__g_CD_idBtnDownloadLatest, $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnDownloadLatest, 0)
     __CD_RegCtrl($t, $__g_CD_idBtnDownloadLatest)
-    _Theme_SetTooltip($__g_CD_idBtnDownloadLatest, "Download the latest portable version to your Downloads folder")
+    _Theme_SetTooltip($__g_CD_idBtnDownloadLatest, _i18n("Settings.Updates.tip_download", "Download the latest portable version to your Downloads folder"))
 EndFunc
 
 Func __CD_BuildTabDesktops()
     Local $t = 8, $iX = 20, $iY = 50
 
     ; Enable desktop colors checkbox (moved from removed Colors tab)
-    $__g_CD_idChkColorsEnabled = __CD_CreateCheckbox("Enable desktop colors", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkColorsEnabled, "Show colored indicators next to desktop names in the list")
+    $__g_CD_idChkColorsEnabled = __CD_CreateCheckbox(_i18n("Settings.Desktops.chk_colors_enabled", "Enable desktop colors"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkColorsEnabled, _i18n("Settings.Desktops.tip_colors_enabled", "Show colored indicators next to desktop names in the list"))
     $iY += 28
 
     ; Get current desktop count, limit to what fits in content area
@@ -985,7 +985,7 @@ Func __CD_BuildTabDesktops()
     $__g_CD_iDeskCount = $iCount
 
     ; Header
-    Local $idHdr = GUICtrlCreateLabel("Desktop    Label                     Color", $iX, $iY, 400, 16)
+    Local $idHdr = GUICtrlCreateLabel(_i18n("Settings.Desktops.lbl_desktop_header", "Desktop    Label                     Color"), $iX, $iY, 400, 16)
     GUICtrlSetFont($idHdr, 7, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idHdr, $THEME_FG_DIM)
     GUICtrlSetBkColor($idHdr, $GUI_BKCOLOR_TRANSPARENT)
