@@ -99,9 +99,9 @@ Global $__g_CD_idBtnApply, $__g_CD_idBtnClose
 Global $__g_CD_idBtnImport, $__g_CD_idBtnExport, $__g_CD_idBtnRestart
 
 ; -- Checkbox state tracking --
-Global $__g_CD_aChkIDs[30]     ; control IDs
-Global $__g_CD_aChkStates[30]  ; boolean states
-Global $__g_CD_aChkTexts[30]   ; original text per checkbox
+Global $__g_CD_aChkIDs[80]     ; control IDs (2 per checkbox: box + text)
+Global $__g_CD_aChkStates[80]  ; boolean states
+Global $__g_CD_aChkTexts[80]   ; original text per checkbox
 Global $__g_CD_iChkCount = 0
 
 ; -- Tab 9: Desktops --
