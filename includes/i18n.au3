@@ -22,6 +22,10 @@ Global $__g_i18n_sLocaleDir = ""
 ; Return:      True on success
 Func _i18n_Init($sLang = "en-US")
     $__g_i18n_sLocaleDir = @ScriptDir & "\locales"
+    ; Fallback: if locales/ not found (e.g. running from tests/), try parent dir
+    If Not FileExists($__g_i18n_sLocaleDir) Then
+        $__g_i18n_sLocaleDir = StringRegExpReplace(@ScriptDir, "\\[^\\]+$", "") & "\locales"
+    EndIf
     $__g_i18n_sLang = $sLang
 
     ; Always load English as fallback

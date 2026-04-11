@@ -33,6 +33,7 @@ Global $__g_Test_sCurrentSuite = ""
 #include "Test_RenameDialog.au3"
 #include "Test_Config.au3"
 #include "Test_Logger.au3"
+#include "Test_i18n.au3"
 
 ; ---- Load bundled fonts ----
 _Theme_LoadFonts()
@@ -50,6 +51,7 @@ _RunTest_DesktopList()
 _RunTest_ContextMenu()
 _RunTest_RenameDialog()
 _RunTest_Logger()
+_RunTest_i18n()
 
 ; ---- Cleanup ----
 _VD_Shutdown()

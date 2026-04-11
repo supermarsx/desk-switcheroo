@@ -52,6 +52,7 @@ Global $__g_CD_idBtnHkBuild[13]    ; index 0-11 for each hotkey row "..." button
 ; -- Tab 1 extras: General --
 Global $__g_CD_idChkWidgetDrag, $__g_CD_idChkWidgetColorBar, $__g_CD_idChkTrayMode, $__g_CD_idChkQuickAccess
 Global $__g_CD_idChkListKeyNav
+Global $__g_CD_idLblLanguage
 
 ; -- Tab 8: Updates --
 Global $__g_CD_idChkAutoUpdate, $__g_CD_idInpUpdateInterval
@@ -435,6 +436,9 @@ Func __CD_BuildTabGeneral()
     $iY += 26
     $__g_CD_idChkListKeyNav = __CD_CreateCheckbox(_i18n("Settings.General.chk_list_key_nav", "Keyboard nav in list"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkListKeyNav, _i18n("Settings.General.tip_list_key_nav", "Use Up/Down arrow keys to navigate when the desktop list is open"))
+    $iY += 34
+    $__g_CD_idLblLanguage = __CD_CreateCycleLabel(_i18n("Settings.General.lbl_language", "Language:"), $iX, $iY, 165, 110, $t)
+    _Theme_SetTooltip($__g_CD_idLblLanguage, _i18n("Settings.General.tip_language", "Click to cycle available languages (requires restart)"))
 EndFunc
 
 Func __CD_BuildTabDisplay()
@@ -1035,6 +1039,7 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkAutoCreate, _Cfg_GetAutoCreateDesktop())
     GUICtrlSetData($__g_CD_idInpPadding, _Cfg_GetNumberPadding())
     GUICtrlSetData($__g_CD_idLblPosition, _Cfg_GetWidgetPosition())
+    GUICtrlSetData($__g_CD_idLblLanguage, _Cfg_GetLanguage())
     GUICtrlSetData($__g_CD_idInpOffsetX, _Cfg_GetWidgetOffsetX())
     __CD_SetCheckState($__g_CD_idChkWidgetDrag, _Cfg_GetWidgetDragEnabled())
     __CD_SetCheckState($__g_CD_idChkWidgetColorBar, _Cfg_GetWidgetColorBar())
@@ -1176,6 +1181,7 @@ Func __CD_MessageLoop()
             If $id = $__g_CD_idLblTheme Then __CD_CycleValue($id, _Theme_GetAvailableSchemes())
             If $id = $__g_CD_idLblLogLevel Then __CD_CycleValue($id, "error|warn|info|debug")
             If $id = $__g_CD_idLblLogDateFormat Then __CD_CycleValue($id, "iso|us|eu")
+            If $id = $__g_CD_idLblLanguage Then __CD_CycleValue($id, _i18n_GetAvailable())
         EndIf
 
         ; Escape closes
@@ -1244,6 +1250,8 @@ Func __CD_ApplyChanges()
     Local $s = GUICtrlRead($__g_CD_idInpPadding)
     If StringIsInt($s) Then _Cfg_SetNumberPadding(Int($s))
     _Cfg_SetWidgetPosition(GUICtrlRead($__g_CD_idLblPosition))
+    Local $sOldLang = _Cfg_GetLanguage()
+    _Cfg_SetLanguage(GUICtrlRead($__g_CD_idLblLanguage))
     $s = GUICtrlRead($__g_CD_idInpOffsetX)
     If $s <> "" And StringIsInt($s) Then _Cfg_SetWidgetOffsetX(Int($s))
     _Cfg_SetWidgetDragEnabled(__CD_GetCheckState($__g_CD_idChkWidgetDrag))
@@ -1391,6 +1399,12 @@ Func __CD_ApplyChanges()
     ; Theme change notification
     If _Cfg_GetTheme() <> $sOldTheme Then
         $sToastMsg = _i18n("Toasts.toast_theme_changed", "Theme changed (restart required)")
+        $iToastIcon = $TOAST_WARNING
+    EndIf
+
+    ; Language change notification
+    If _Cfg_GetLanguage() <> $sOldLang Then
+        $sToastMsg = _i18n("Toasts.toast_language_changed", "Language changed (restart required)")
         $iToastIcon = $TOAST_WARNING
     EndIf
 
