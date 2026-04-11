@@ -153,6 +153,49 @@ Func _Theme_CreatePopup($sTitle, $iW, $iH, $iX, $iY, $iBgColor = $THEME_BG_POPUP
     Return $hGUI
 EndFunc
 
+; Name:        _Theme_FadeIn
+; Description: Fades a layered window from alpha 0 to target. Respects animation config.
+; Parameters:  $hGUI - window handle
+;              $iTargetAlpha - target opacity (default: THEME_ALPHA_POPUP)
+Func _Theme_FadeIn($hGUI, $iTargetAlpha = Default)
+    If $iTargetAlpha = Default Then $iTargetAlpha = $THEME_ALPHA_POPUP
+    If Not _Cfg_GetAnimationsEnabled() Then
+        _WinAPI_SetLayeredWindowAttributes($hGUI, 0, $iTargetAlpha, $LWA_ALPHA)
+        GUISetState(@SW_SHOW, $hGUI)
+        Return
+    EndIf
+    _WinAPI_SetLayeredWindowAttributes($hGUI, 0, 0, $LWA_ALPHA)
+    GUISetState(@SW_SHOW, $hGUI)
+    Local $iStep = _Cfg_GetFadeStep()
+    Local $iSleep = _Cfg_GetFadeSleepMs()
+    Local $i
+    For $i = 0 To $iTargetAlpha Step $iStep
+        _WinAPI_SetLayeredWindowAttributes($hGUI, 0, $i, $LWA_ALPHA)
+        Sleep($iSleep)
+    Next
+    _WinAPI_SetLayeredWindowAttributes($hGUI, 0, $iTargetAlpha, $LWA_ALPHA)
+EndFunc
+
+; Name:        _Theme_FadeOut
+; Description: Fades a layered window from current alpha to 0 then deletes it.
+; Parameters:  $hGUI - window handle (will be GUIDeleted after fade)
+Func _Theme_FadeOut($hGUI)
+    If $hGUI = 0 Then Return
+    If Not _Cfg_GetAnimationsEnabled() Then
+        GUIDelete($hGUI)
+        Return
+    EndIf
+    Local $iAlpha = $THEME_ALPHA_POPUP
+    Local $iStep = _Cfg_GetFadeStep()
+    Local $iSleep = _Cfg_GetFadeSleepMs()
+    Local $i
+    For $i = $iAlpha To 0 Step -$iStep
+        _WinAPI_SetLayeredWindowAttributes($hGUI, 0, $i, $LWA_ALPHA)
+        Sleep($iSleep)
+    Next
+    GUIDelete($hGUI)
+EndFunc
+
 ; Name:        _Theme_ApplyHover
 ; Description: Sets hover colors on a control
 ; Parameters:  $iCtrl - control ID
@@ -230,7 +273,7 @@ Func _Theme_Confirm($sTitle, $sMessage)
     GUICtrlSetBkColor($idNo, $THEME_BG_HOVER)
     GUICtrlSetCursor($idNo, 0)
 
-    GUISetState(@SW_SHOW, $hDlg)
+    _Theme_FadeIn($hDlg, $THEME_ALPHA_DIALOG)
 
     ; Blocking message loop
     Local $iHovered = 0
@@ -281,7 +324,7 @@ Func _Theme_Confirm($sTitle, $sMessage)
         Sleep(10)
     WEnd
 
-    GUIDelete($hDlg)
+    _Theme_FadeOut($hDlg)
     Return $bResult
 EndFunc
 
@@ -318,7 +361,7 @@ Func _Theme_Alert($sTitle, $sMessage, $iTimeout = 5000)
     GUICtrlSetBkColor($idClose, $THEME_BG_HOVER)
     GUICtrlSetCursor($idClose, 0)
 
-    GUISetState(@SW_SHOW, $hDlg)
+    _Theme_FadeIn($hDlg, $THEME_ALPHA_DIALOG)
 
     Local $iHovered = 0
     Local $hTimer = TimerInit()
@@ -352,7 +395,7 @@ Func _Theme_Alert($sTitle, $sMessage, $iTimeout = 5000)
         Sleep(10)
     WEnd
 
-    GUIDelete($hDlg)
+    _Theme_FadeOut($hDlg)
 EndFunc
 
 ; Name:        _Theme_IsCursorOverWindow
@@ -423,8 +466,21 @@ Func _Theme_Toast($sText, $iX, $iY, $iDuration = 2000, $iIconColor = -1)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
     $__g_Toast_iAlpha = 230
-    _WinAPI_SetLayeredWindowAttributes($__g_Toast_hGUI, 0, $__g_Toast_iAlpha, $LWA_ALPHA)
-    GUISetState(@SW_SHOWNOACTIVATE, $__g_Toast_hGUI)
+    If _Cfg_GetAnimationsEnabled() Then
+        _WinAPI_SetLayeredWindowAttributes($__g_Toast_hGUI, 0, 0, $LWA_ALPHA)
+        GUISetState(@SW_SHOWNOACTIVATE, $__g_Toast_hGUI)
+        Local $iToastStep = _Cfg_GetFadeStep()
+        Local $iToastSleep = _Cfg_GetFadeSleepMs()
+        Local $iTS
+        For $iTS = 0 To $__g_Toast_iAlpha Step $iToastStep
+            _WinAPI_SetLayeredWindowAttributes($__g_Toast_hGUI, 0, $iTS, $LWA_ALPHA)
+            Sleep($iToastSleep)
+        Next
+        _WinAPI_SetLayeredWindowAttributes($__g_Toast_hGUI, 0, $__g_Toast_iAlpha, $LWA_ALPHA)
+    Else
+        _WinAPI_SetLayeredWindowAttributes($__g_Toast_hGUI, 0, $__g_Toast_iAlpha, $LWA_ALPHA)
+        GUISetState(@SW_SHOWNOACTIVATE, $__g_Toast_hGUI)
+    EndIf
 
     $__g_Toast_hTimer = TimerInit()
     $__g_Toast_iDuration = $iDuration
@@ -442,10 +498,12 @@ Func _Theme_ToastTick()
     ; Visible phase
     If $iElapsed < $__g_Toast_iDuration Then Return True
 
-    ; Fade-out phase (300ms)
+    ; Fade-out phase (configurable duration)
     Local $iFadeElapsed = $iElapsed - $__g_Toast_iDuration
-    If $iFadeElapsed < 300 Then
-        Local $iNewAlpha = 230 - Int(230 * $iFadeElapsed / 300)
+    Local $iFadeMs = _Cfg_GetToastFadeOutDuration()
+    If $iFadeMs < 1 Then $iFadeMs = 1
+    If $iFadeElapsed < $iFadeMs Then
+        Local $iNewAlpha = 230 - Int(230 * $iFadeElapsed / $iFadeMs)
         If $iNewAlpha < 0 Then $iNewAlpha = 0
         If $iNewAlpha <> $__g_Toast_iAlpha Then
             $__g_Toast_iAlpha = $iNewAlpha

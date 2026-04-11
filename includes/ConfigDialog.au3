@@ -213,7 +213,7 @@ Func _CD_Show()
     ; Show first tab
     __CD_SwitchTab(1)
 
-    GUISetState(@SW_SHOW, $__g_CD_hGUI)
+    _Theme_FadeIn($__g_CD_hGUI, $THEME_ALPHA_DIALOG)
     $__g_CD_bVisible = True
 
     ; Blocking loop
@@ -221,7 +221,7 @@ Func _CD_Show()
 EndFunc
 
 Func _CD_Destroy()
-    If $__g_CD_hGUI <> 0 Then GUIDelete($__g_CD_hGUI)
+    If $__g_CD_hGUI <> 0 Then _Theme_FadeOut($__g_CD_hGUI)
     $__g_CD_hGUI = 0
     $__g_CD_bVisible = False
 EndFunc

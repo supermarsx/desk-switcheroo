@@ -92,6 +92,14 @@ Global $__g_Cfg_bDebugMode         = False
 Global $__g_Cfg_sListFontName      = ""
 Global $__g_Cfg_iListFontSize      = 8
 
+; [Animations]
+Global $__g_Cfg_bAnimationsEnabled = True
+Global $__g_Cfg_iFadeInDuration    = 80   ; ms total for fade-in
+Global $__g_Cfg_iFadeOutDuration   = 80   ; ms total for fade-out
+Global $__g_Cfg_iFadeStep          = 30   ; alpha increment per frame
+Global $__g_Cfg_iToastFadeOutMs    = 300  ; toast fade-out duration
+Global $__g_Cfg_iFadeSleepMs       = 8    ; sleep per fade frame
+
 ; [Logging]
 Global $__g_Cfg_bLoggingEnabled    = False
 Global $__g_Cfg_sLogFolder          = ""
@@ -232,6 +240,14 @@ Func _Cfg_Load()
     $__g_Cfg_bDebugMode         = __Cfg_ReadBool($f, "Behavior", "debug_mode", False)
 
     ; [Logging]
+    ; [Animations]
+    $__g_Cfg_bAnimationsEnabled = __Cfg_ReadBool($f, "Animations", "animations_enabled", True)
+    $__g_Cfg_iFadeInDuration    = __Cfg_ReadInt($f, "Animations", "fade_in_duration", 80, 0, 500)
+    $__g_Cfg_iFadeOutDuration   = __Cfg_ReadInt($f, "Animations", "fade_out_duration", 80, 0, 500)
+    $__g_Cfg_iFadeStep          = __Cfg_ReadInt($f, "Animations", "fade_step", 30, 5, 255)
+    $__g_Cfg_iToastFadeOutMs    = __Cfg_ReadInt($f, "Animations", "toast_fade_out_duration", 300, 0, 1000)
+    $__g_Cfg_iFadeSleepMs       = __Cfg_ReadInt($f, "Animations", "fade_sleep_ms", 8, 1, 50)
+
     $__g_Cfg_bLoggingEnabled    = __Cfg_ReadBool($f, "Logging", "logging_enabled", False)
     $__g_Cfg_sLogFolder         = IniRead($f, "Logging", "log_folder", "")
     $__g_Cfg_sLogLevel          = __Cfg_ReadEnum($f, "Logging", "log_level", "info", "error|warn|info|debug")
@@ -345,6 +361,14 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "Behavior", "debug_mode", $__g_Cfg_bDebugMode)
 
     ; [Logging]
+    ; [Animations]
+    __Cfg_WriteBool($f, "Animations", "animations_enabled", $__g_Cfg_bAnimationsEnabled)
+    IniWrite($f, "Animations", "fade_in_duration", $__g_Cfg_iFadeInDuration)
+    IniWrite($f, "Animations", "fade_out_duration", $__g_Cfg_iFadeOutDuration)
+    IniWrite($f, "Animations", "fade_step", $__g_Cfg_iFadeStep)
+    IniWrite($f, "Animations", "toast_fade_out_duration", $__g_Cfg_iToastFadeOutMs)
+    IniWrite($f, "Animations", "fade_sleep_ms", $__g_Cfg_iFadeSleepMs)
+
     __Cfg_WriteBool($f, "Logging", "logging_enabled", $__g_Cfg_bLoggingEnabled)
     IniWrite($f, "Logging", "log_folder", $__g_Cfg_sLogFolder)
     IniWrite($f, "Logging", "log_level", $__g_Cfg_sLogLevel)
@@ -447,6 +471,13 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Behavior", "update_poll_interval", 500)
     __Cfg_DefaultBool($f, "Behavior", "confirm_quit", False)
     __Cfg_DefaultBool($f, "Behavior", "debug_mode", False)
+
+    __Cfg_DefaultBool($f, "Animations", "animations_enabled", True)
+    __Cfg_DefaultVal($f, "Animations", "fade_in_duration", 80)
+    __Cfg_DefaultVal($f, "Animations", "fade_out_duration", 80)
+    __Cfg_DefaultVal($f, "Animations", "fade_step", 30)
+    __Cfg_DefaultVal($f, "Animations", "toast_fade_out_duration", 300)
+    __Cfg_DefaultVal($f, "Animations", "fade_sleep_ms", 8)
 
     __Cfg_DefaultBool($f, "Logging", "logging_enabled", False)
     __Cfg_DefaultVal($f, "Logging", "log_folder", "")
@@ -673,6 +704,24 @@ Func _Cfg_GetDebugMode()
 EndFunc
 
 ; [Logging]
+Func _Cfg_GetAnimationsEnabled()
+    Return $__g_Cfg_bAnimationsEnabled
+EndFunc
+Func _Cfg_GetFadeInDuration()
+    Return $__g_Cfg_iFadeInDuration
+EndFunc
+Func _Cfg_GetFadeOutDuration()
+    Return $__g_Cfg_iFadeOutDuration
+EndFunc
+Func _Cfg_GetFadeStep()
+    Return $__g_Cfg_iFadeStep
+EndFunc
+Func _Cfg_GetToastFadeOutDuration()
+    Return $__g_Cfg_iToastFadeOutMs
+EndFunc
+Func _Cfg_GetFadeSleepMs()
+    Return $__g_Cfg_iFadeSleepMs
+EndFunc
 Func _Cfg_GetLoggingEnabled()
     Return $__g_Cfg_bLoggingEnabled
 EndFunc

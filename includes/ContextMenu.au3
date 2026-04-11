@@ -88,7 +88,7 @@ Func _CM_Show($iTaskbarY, $bListVisible)
 
     $__g_CM_iQuitID = _Theme_CreateMenuItem("  " & _i18n("ContextMenu.cm_quit", "Quit"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
 
-    GUISetState(@SW_SHOW, $__g_CM_hGUI)
+    _Theme_FadeIn($__g_CM_hGUI, $THEME_ALPHA_MENU)
     $__g_CM_bVisible = True
 EndFunc
 
@@ -96,7 +96,7 @@ EndFunc
 ; Description: Destroys the context menu GUI and resets state
 Func _CM_Destroy()
     If $__g_CM_hGUI <> 0 Then
-        GUIDelete($__g_CM_hGUI)
+        _Theme_FadeOut($__g_CM_hGUI)
         $__g_CM_hGUI = 0
     EndIf
     $__g_CM_bVisible = False
