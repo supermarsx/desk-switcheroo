@@ -725,14 +725,14 @@ EndFunc
 Func __CD_BuildTabBehavior()
     Local $t = 5, $iX = 20, $iY = 50
 
-    $__g_CD_idChkConfirmDel = __CD_CreateCheckbox("Confirm before delete", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkConfirmDel, "Show confirmation dialog before deleting a desktop")
+    $__g_CD_idChkConfirmDel = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_confirm_delete", "Confirm before delete"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkConfirmDel, _i18n("Settings.Behavior.tip_confirm_delete", "Show confirmation dialog before deleting a desktop"))
     $iY += 26
-    $__g_CD_idChkMidClick = __CD_CreateCheckbox("Middle-click to delete", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkMidClick, "Middle-click a desktop in the list to delete it")
+    $__g_CD_idChkMidClick = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_middle_click", "Middle-click to delete"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkMidClick, _i18n("Settings.Behavior.tip_middle_click", "Middle-click a desktop in the list to delete it"))
     $iY += 26
-    $__g_CD_idChkMoveWin = __CD_CreateCheckbox("Move Window Here in menu", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkMoveWin, "Show 'Move Window Here' in the desktop right-click menu")
+    $__g_CD_idChkMoveWin = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_move_window", "Move Window Here in menu"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkMoveWin, _i18n("Settings.Behavior.tip_move_window", "Show 'Move Window Here' in the desktop right-click menu"))
     $iY += 34
 
     Local $aFields[5][2] = [["Peek delay (ms):", ""], ["Auto-hide timeout (ms):", ""], _
@@ -744,7 +744,7 @@ Func __CD_BuildTabBehavior()
     $aFields[3][1] = "cmdelay"
 
     Local $idLbl
-    $idLbl = GUICtrlCreateLabel("Peek delay (ms):", $iX, $iY + 2, 175, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_peek_delay", "Peek delay (ms):"), $iX, $iY + 2, 175, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -754,10 +754,10 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetColor($__g_CD_idInpPeekDelay, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpPeekDelay, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpPeekDelay)
-    _Theme_SetTooltip($__g_CD_idInpPeekDelay, "Time in milliseconds (1000ms = 1 second)")
+    _Theme_SetTooltip($__g_CD_idInpPeekDelay, _i18n("Settings.Behavior.tip_ms_hint", "Time in milliseconds (1000ms = 1 second)"))
     $iY += 28
 
-    $idLbl = GUICtrlCreateLabel("Auto-hide timeout (ms):", $iX, $iY + 2, 175, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_auto_hide", "Auto-hide timeout (ms):"), $iX, $iY + 2, 175, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -767,10 +767,10 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetColor($__g_CD_idInpAutoHide, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpAutoHide, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpAutoHide)
-    _Theme_SetTooltip($__g_CD_idInpAutoHide, "Time in milliseconds (1000ms = 1 second)")
+    _Theme_SetTooltip($__g_CD_idInpAutoHide, _i18n("Settings.Behavior.tip_ms_hint", "Time in milliseconds (1000ms = 1 second)"))
     $iY += 28
 
-    $idLbl = GUICtrlCreateLabel("Topmost interval (ms):", $iX, $iY + 2, 175, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_topmost", "Topmost interval (ms):"), $iX, $iY + 2, 175, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -780,10 +780,10 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetColor($__g_CD_idInpTopmost, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpTopmost, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpTopmost)
-    _Theme_SetTooltip($__g_CD_idInpTopmost, "Time in milliseconds (1000ms = 1 second)")
+    _Theme_SetTooltip($__g_CD_idInpTopmost, _i18n("Settings.Behavior.tip_ms_hint", "Time in milliseconds (1000ms = 1 second)"))
     $iY += 28
 
-    $idLbl = GUICtrlCreateLabel("Menu hide delay (ms):", $iX, $iY + 2, 175, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_cm_delay", "Menu hide delay (ms):"), $iX, $iY + 2, 175, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -793,14 +793,14 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetColor($__g_CD_idInpCmDelay, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpCmDelay, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpCmDelay)
-    _Theme_SetTooltip($__g_CD_idInpCmDelay, "Time in milliseconds (1000ms = 1 second)")
+    _Theme_SetTooltip($__g_CD_idInpCmDelay, _i18n("Settings.Behavior.tip_ms_hint", "Time in milliseconds (1000ms = 1 second)"))
     $iY += 34
 
-    $__g_CD_idChkConfigWatcher = __CD_CreateCheckbox("Config file watcher", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkConfigWatcher, "Automatically reload settings when the INI file changes")
+    $__g_CD_idChkConfigWatcher = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_config_watcher", "Config file watcher"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkConfigWatcher, _i18n("Settings.Behavior.tip_config_watcher", "Automatically reload settings when the INI file changes"))
     $iY += 28
 
-    $idLbl = GUICtrlCreateLabel("Watcher interval (ms):", $iX, $iY + 2, 175, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_watcher_interval", "Watcher interval (ms):"), $iX, $iY + 2, 175, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -810,10 +810,10 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetColor($__g_CD_idInpWatcherInterval, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpWatcherInterval, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpWatcherInterval)
-    _Theme_SetTooltip($__g_CD_idInpWatcherInterval, "Time in milliseconds (1000ms = 1 second)")
+    _Theme_SetTooltip($__g_CD_idInpWatcherInterval, _i18n("Settings.Behavior.tip_ms_hint", "Time in milliseconds (1000ms = 1 second)"))
     $iY += 28
 
-    $idLbl = GUICtrlCreateLabel("Count cache TTL (ms):", $iX, $iY + 2, 175, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_count_cache", "Count cache TTL (ms):"), $iX, $iY + 2, 175, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -823,14 +823,14 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetColor($__g_CD_idInpCountCacheTTL, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpCountCacheTTL, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpCountCacheTTL)
-    _Theme_SetTooltip($__g_CD_idInpCountCacheTTL, "How long to cache desktop count before re-querying (ms)")
+    _Theme_SetTooltip($__g_CD_idInpCountCacheTTL, _i18n("Settings.Behavior.tip_count_cache", "How long to cache desktop count before re-querying (ms)"))
     $iY += 30
 
-    $__g_CD_idChkConfirmQuit = __CD_CreateCheckbox("Confirm before quitting", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkConfirmQuit, "Show a confirmation dialog before exiting Desk Switcheroo")
+    $__g_CD_idChkConfirmQuit = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_confirm_quit", "Confirm before quitting"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkConfirmQuit, _i18n("Settings.Behavior.tip_confirm_quit", "Show a confirmation dialog before exiting Desk Switcheroo"))
     $iY += 26
-    $__g_CD_idChkDebugMode = __CD_CreateCheckbox("Debug mode", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkDebugMode, "Enables debug features: Trigger Crash in context menu, verbose logging")
+    $__g_CD_idChkDebugMode = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_debug_mode", "Debug mode"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkDebugMode, _i18n("Settings.Behavior.tip_debug_mode", "Enables debug features: Trigger Crash in context menu, verbose logging"))
 EndFunc
 
 
