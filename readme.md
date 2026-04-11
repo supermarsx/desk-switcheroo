@@ -1,135 +1,110 @@
 # Desk Switcheroo
 
-<img width="881" height="256" alt="image" src="https://github.com/user-attachments/assets/f6b2545a-554d-4e8a-8d93-0fd0e0430662" />
-
+<img width="881" height="256" alt="Desk Switcheroo" src="https://github.com/user-attachments/assets/f6b2545a-554d-4e8a-8d93-0fd0e0430662" />
 
 [![CI](https://img.shields.io/github/actions/workflow/status/supermarsx/desk-switcheroo/ci.yml?style=flat-square&label=CI)](https://github.com/supermarsx/desk-switcheroo/actions/workflows/ci.yml)
 [![Latest Release](https://img.shields.io/github/v/release/supermarsx/desk-switcheroo?style=flat-square&label=latest)](https://github.com/supermarsx/desk-switcheroo/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/supermarsx/desk-switcheroo/total?style=flat-square)](https://github.com/supermarsx/desk-switcheroo/releases)
+[![Stars](https://img.shields.io/github/stars/supermarsx/desk-switcheroo?style=flat-square)](https://github.com/supermarsx/desk-switcheroo/stargazers)
+[![Forks](https://img.shields.io/github/forks/supermarsx/desk-switcheroo?style=flat-square)](https://github.com/supermarsx/desk-switcheroo/network/members)
+[![Watchers](https://img.shields.io/github/watchers/supermarsx/desk-switcheroo?style=flat-square)](https://github.com/supermarsx/desk-switcheroo/watchers)
+[![Built with AutoIt](https://img.shields.io/badge/built%20with-AutoIt-blue?style=flat-square)](https://www.autoitscript.com/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
-
-A lightweight Windows virtual desktop switcher that sits in your taskbar. Built with AutoIt.
+A lightweight Windows virtual desktop switcher widget for your taskbar. Navigate, rename, peek, and manage desktops from a compact dark-themed overlay.
 
 ## Requirements
 
 - **Windows 10 or 11** (64-bit only)
-- [AutoIt v3](https://www.autoitscript.com/) (64-bit) — only needed to run the .au3 source; compiled .exe works standalone
-- [VirtualDesktopAccessor.dll](https://github.com/Ciantic/VirtualDesktopAccessor) — bundled, must match your Windows build
+- [VirtualDesktopAccessor.dll](https://github.com/Ciantic/VirtualDesktopAccessor) (bundled)
+
+> To run from source, you also need [AutoIt v3](https://www.autoitscript.com/) (64-bit). The compiled `.exe` works standalone.
+
+## Installation
+
+### Portable (recommended)
+
+1. Download the latest `DeskSwitcheroo_Portable.zip` from [Releases](https://github.com/supermarsx/desk-switcheroo/releases/latest)
+2. Extract anywhere
+3. Run `DeskSwitcheroo.exe`
+
+### Installer
+
+Download `DeskSwitcheroo_Setup.exe` from [Releases](https://github.com/supermarsx/desk-switcheroo/releases/latest). Includes optional Start Menu shortcut, desktop shortcut, and start-with-Windows.
+
+### From source
+
+```
+git clone https://github.com/supermarsx/desk-switcheroo.git
+cd desk-switcheroo
+AutoIt3_x64.exe desktop_switcher.au3
+```
+
+## Quick Start
+
+1. The widget appears at the bottom-left of your taskbar
+2. **Click arrows** to switch between desktops
+3. **Click the number** to open the full desktop list
+4. **Right-click** the widget for options (edit label, settings, quit)
+5. **Right-click a desktop** in the list for per-desktop actions (rename, peek, delete, set color, move window)
 
 ## Features
 
-- **Taskbar widget** — compact overlay docked to the taskbar showing your current desktop number and custom label
-- **Arrow navigation** — click left/right arrows to move between desktops
-- **Desktop list panel** — click the desktop number to pop open a list of all desktops; auto-hides after 3 seconds of inactivity
-- **Per-desktop context menu** — right-click any desktop in the list to switch, rename, peek, or delete it (delete requires confirmation)
-- **Persistent list toggle** — right-click menu option to keep the desktop list pinned open
-- **Desktop peek** — hover over the eye icon next to any desktop in the list to temporarily preview it; move away and it snaps back after 500ms
-- **Custom labels with OS sync** — name your desktops (e.g. "Work", "Music", "Chat") via the right-click > Edit Label dialog. On Windows 11, names sync with the OS — renaming in Desk Switcheroo updates Task View, and Task View changes are detected within a few seconds. Falls back to local `desktop_labels.ini` storage on Windows 10
-- **Dark themed UI** — all popups, menus, dialogs, and hover states use a consistent dark color scheme
-- **Always on top** — the widget aggressively stays above other windows, including fullscreen apps
-- **Singleton enforcement** — relaunching the script kills the previous instance automatically
-- **External desktop changes detected** — polls every 400ms so keyboard shortcuts (Win+Ctrl+arrows) and Task View switches are reflected in the widget
-- **Fully configurable** — all behaviors configurable via Settings dialog or INI file
-- **Scroll wheel navigation** — scroll on widget to cycle desktops (configurable, off by default)
-- **Global hotkeys** — configurable keyboard shortcuts for desktop switching (off by default)
-- **Desktop count display** — optionally show "2/5" format (off by default)
-- **Move window to desktop** — right-click context menu option to move the active window
-- **Start with Windows** — configurable auto-start via Settings
-- **Desktop indicator colors** — assign accent colors per desktop (off by default)
-- **Middle-click to delete** — quick delete from the list (off by default)
-- **Widget positioning** — place widget left/center/right on taskbar
+- **Compact taskbar widget** with desktop number and custom label
+- **Desktop list panel** with click-to-switch, drag-to-reorder, and auto-hide
+- **Desktop peek** — hover the eye icon to temporarily preview a desktop
+- **Custom labels** with Windows 11 OS name sync (falls back to INI on Win10)
+- **5 dark themes** — dark, darker, midnight, midday, sunset
+- **Per-desktop colors** — assign accent colors visible in the list and widget
+- **9-position screen anchoring** — place the widget anywhere on screen
+- **Global hotkeys** — configurable keyboard shortcuts (Ctrl+Alt+S opens Settings)
+- **Scroll wheel navigation** — scroll on widget or list to cycle desktops
+- **Move window to desktop** — right-click context menu option
+- **Start with Windows** — configurable auto-start
+- **System tray mode** — run as a tray icon instead of taskbar widget
+- **Fade animations** — configurable fade-in/out on all popups, menus, and dialogs
+- **Auto-update checker** — periodic or manual check for new releases
+- **Logging** — configurable debug logging with rotation and compression
+- **80+ settings** across 9 tabs in the Settings dialog
 
-## Requirements
+## Localization
 
-- Windows 10/11 with virtual desktops enabled
-- [AutoIt v3](https://www.autoitscript.com/)
+Desk Switcheroo supports 17 languages out of the box:
 
-## Third-Party
+| Language | Code | Language | Code |
+|----------|------|----------|------|
+| English (US) | en-US | Hungarian | hu-HU |
+| English (GB) | en-GB | Icelandic | is-IS |
+| Arabic | ar-SA | Italian | it-IT |
+| Chinese (Simplified) | zh-CN | Dutch | nl-NL |
+| Chinese (Traditional) | zh-TW | Portuguese (BR) | pt-BR |
+| French | fr-FR | Portuguese (PT) | pt-PT |
+| German | de-DE | Russian | ru-RU |
+| Hindi | hi-IN | Ukrainian | uk-UA |
+| Spanish | es-ES | | |
 
-- **[VirtualDesktopAccessor.dll](https://github.com/Ciantic/VirtualDesktopAccessor)** by **Jari Pennanen (Ciantic)** — Rust library that exposes Windows' undocumented virtual desktop COM interfaces. Licensed under the MIT License. Make sure the DLL version matches your Windows build.
-- **[Fira Code](https://github.com/tonsky/FiraCode)** by **Nikita Prokopov** — Monospaced font with programming ligatures, used for the desktop list. Licensed under the SIL Open Font License (OFL). Bundled in `fonts/`.
-
-## Usage
-
-1. Place `VirtualDesktopAccessor.dll` in the same directory as the script
-2. Run `desktop_switcher.au3` with AutoIt, or compile it to an `.exe`
-3. The widget appears at the left edge of your taskbar
-4. Left-click arrows to switch desktops, click the number to see the full list
-5. Right-click the widget for options (edit label, toggle list, quit)
+Change language in **Settings > General > Language**. To add your own translation, copy `locales/en-US.ini`, rename it (e.g. `ja-JP.ini`), translate the values, and it will appear automatically in the language picker.
 
 ## Configuration
 
-Settings are accessible via right-click on the widget and selecting **Settings**. All settings are stored in `desk_switcheroo.ini`, which is auto-created with sensible defaults on first run.
+All settings are accessible via **right-click > Settings** or the hotkey **Ctrl+Alt+S**. Settings are stored in `desk_switcheroo.ini` (auto-created on first run).
 
-The INI file is organized into the following sections:
+Example configurations are provided in the `examples/` folder:
+- `desk_switcheroo.prod.ini` — conservative defaults for daily use
+- `desk_switcheroo.debug.ini` — all features enabled for testing
 
-| Section | Description |
-|---------|-------------|
-| `[General]` | Core behavior: polling interval, startup options, singleton mode |
-| `[Display]` | Widget appearance: position, desktop count format, label visibility |
-| `[Scroll]` | Scroll wheel navigation: enable/disable, direction, wrap-around |
-| `[Hotkeys]` | Global keyboard shortcuts for switching desktops |
-| `[Behavior]` | Interaction options: middle-click delete, move window, confirmations |
-| `[DesktopColors]` | Per-desktop accent colors (mapped by desktop index) |
+See [Power User Guide](docs/POWER_USER.md) for advanced configuration details.
 
-You can edit the INI file directly or use the Settings dialog for a guided experience. Changes made in the dialog are written to the INI immediately.
+## Third-Party
 
-## Project Structure
+- **[VirtualDesktopAccessor.dll](https://github.com/Ciantic/VirtualDesktopAccessor)** by Jari Pennanen (Ciantic) — MIT License
+- **[Fira Code](https://github.com/tonsky/FiraCode)** by Nikita Prokopov — SIL Open Font License
 
-```
-desk-switcheroo/
-├── desktop_switcher.au3          Main script (singleton, GUI, event loop)
-├── includes/
-│   ├── Theme.au3                 Dark theme constants and UI helpers
-│   ├── Labels.au3                Desktop label persistence (INI)
-│   ├── VirtualDesktop.au3        VirtualDesktopAccessor.dll wrapper
-│   ├── Peek.au3                  Desktop peek state machine
-│   ├── DesktopList.au3           Desktop list panel
-│   ├── ContextMenu.au3           Right-click context menu
-│   ├── RenameDialog.au3          Rename label dialog
-│   ├── Config.au3                Configuration management (INI-backed)
-│   └── ConfigDialog.au3          Settings dialog GUI
-├── tests/
-│   ├── TestRunner.au3            Test harness and runner
-│   ├── Test_Theme.au3            Theme constant validation
-│   ├── Test_Labels.au3           Label persistence tests
-│   ├── Test_VirtualDesktop.au3   DLL wrapper integration tests
-│   ├── Test_Peek.au3             Peek state machine tests
-│   ├── Test_DesktopList.au3      Desktop list GUI tests
-│   ├── Test_ContextMenu.au3      Context menu GUI tests
-│   ├── Test_RenameDialog.au3     Rename dialog GUI tests
-│   ├── Test_Config.au3           Configuration tests
-│   ├── E2E_Sandbox.au3           End-to-end sandbox tests
-│   ├── sandbox.wsb               Windows Sandbox config
-│   └── sandbox_setup.ps1         Sandbox test runner script
-├── fonts/
-│   ├── FiraCode-Regular.ttf      Bundled monospace font (OFL)
-│   └── FiraCode-Bold.ttf         Bundled monospace font (OFL)
-├── VirtualDesktopAccessor.dll    Third-party DLL
-├── desktop_labels.ini            Auto-generated label storage (git-ignored)
-├── desk_switcheroo.ini           Auto-generated settings (git-ignored)
-├── README.md
-└── LICENSE
-```
+## Documentation
 
-## Testing
+- [Power User Guide](docs/POWER_USER.md) — advanced configuration, INI reference, scripting
+- [Development Guide](docs/DEVELOPMENT.md) — building, testing, architecture, contributing
 
-Run the full test suite from the project root (use the 64-bit runner since the DLL is x64):
+## License
 
-```
-AutoIt3_x64.exe tests\TestRunner.au3
-```
-
-Or if compiled (as x64):
-
-```
-tests\TestRunner.exe
-```
-
-The runner outputs results to the console and exits with code 0 (all pass) or 1 (failures).
-
-**Test categories:**
-- **Unit tests** (Theme, Labels, Peek, Config) — pure logic, no GUI windows needed
-- **Integration tests** (VirtualDesktop) — requires the DLL and a desktop session
-- **GUI tests** (DesktopList, ContextMenu, RenameDialog, ConfigDialog) — create actual windows, require a desktop session
-- **E2E sandbox tests** — run the full application in an isolated Windows Sandbox. Double-click `tests\sandbox.wsb` to launch (requires the Windows Sandbox feature to be enabled). Results are written to `tests\results\`
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
