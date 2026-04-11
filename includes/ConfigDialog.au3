@@ -159,21 +159,21 @@ Func _CD_Show()
     Local $iRow1TotalW = $iBtnW * 3 + $iGap * 2
     Local $iRow1X = ($iW - $iRow1TotalW) / 2
 
-    $__g_CD_idBtnImport = GUICtrlCreateLabel(ChrW(0x2B07) & " Import", $iRow1X, $iRow1Y, $iBtnW, $iBtnH, _
+    $__g_CD_idBtnImport = GUICtrlCreateLabel(ChrW(0x2B07) & " " & _i18n("General.btn_import", "Import"), $iRow1X, $iRow1Y, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnImport, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnImport, $THEME_FG_DIM)
     GUICtrlSetBkColor($__g_CD_idBtnImport, $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnImport, 0)
 
-    $__g_CD_idBtnExport = GUICtrlCreateLabel(ChrW(0x2B06) & " Export", $iRow1X + $iBtnW + $iGap, $iRow1Y, $iBtnW, $iBtnH, _
+    $__g_CD_idBtnExport = GUICtrlCreateLabel(ChrW(0x2B06) & " " & _i18n("General.btn_export", "Export"), $iRow1X + $iBtnW + $iGap, $iRow1Y, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnExport, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnExport, $THEME_FG_DIM)
     GUICtrlSetBkColor($__g_CD_idBtnExport, $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnExport, 0)
 
-    $__g_CD_idBtnRestart = GUICtrlCreateLabel(ChrW(0x21BB) & " Restart", $iRow1X + ($iBtnW + $iGap) * 2, $iRow1Y, $iBtnW, $iBtnH, _
+    $__g_CD_idBtnRestart = GUICtrlCreateLabel(ChrW(0x21BB) & " " & _i18n("General.btn_restart", "Restart"), $iRow1X + ($iBtnW + $iGap) * 2, $iRow1Y, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnRestart, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnRestart, $THEME_FG_LINK)
@@ -185,21 +185,21 @@ Func _CD_Show()
     Local $iTotalW = $iBtnW * 3 + $iGap * 2
     Local $iBtnX = ($iW - $iTotalW) / 2
 
-    $__g_CD_idBtnApply = GUICtrlCreateLabel(ChrW(0x2713) & " Apply", $iBtnX, $iRow2Y, $iBtnW, $iBtnH, _
+    $__g_CD_idBtnApply = GUICtrlCreateLabel(ChrW(0x2713) & " " & _i18n("General.btn_apply", "Apply"), $iBtnX, $iRow2Y, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnApply, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnApply, $THEME_FG_MENU)
     GUICtrlSetBkColor($__g_CD_idBtnApply, $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnApply, 0)
 
-    $__g_CD_idBtnReset = GUICtrlCreateLabel(ChrW(0x21BA) & " Reset", $iBtnX + $iBtnW + $iGap, $iRow2Y, $iBtnW, $iBtnH, _
+    $__g_CD_idBtnReset = GUICtrlCreateLabel(ChrW(0x21BA) & " " & _i18n("General.btn_reset", "Reset"), $iBtnX + $iBtnW + $iGap, $iRow2Y, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnReset, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnReset, 0xCC6666)
     GUICtrlSetBkColor($__g_CD_idBtnReset, $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnReset, 0)
 
-    $__g_CD_idBtnClose = GUICtrlCreateLabel(ChrW(0x2715) & " Close", $iBtnX + ($iBtnW + $iGap) * 2, $iRow2Y, $iBtnW, $iBtnH, _
+    $__g_CD_idBtnClose = GUICtrlCreateLabel(ChrW(0x2715) & " " & _i18n("General.btn_close", "Close"), $iBtnX + ($iBtnW + $iGap) * 2, $iRow2Y, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnClose, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnClose, $THEME_FG_MENU)
@@ -1353,7 +1353,7 @@ Func __CD_ApplyChanges()
     If Not _Cfg_Save() Then
         Local $aErrPos = WinGetPos($__g_CD_hGUI)
         If Not @error Then
-            _Theme_Toast("Failed to save settings", $aErrPos[0], $aErrPos[1] + $aErrPos[3] + 4, 2000, $TOAST_ERROR)
+            _Theme_Toast(_i18n("Toasts.toast_save_failed", "Failed to save settings"), $aErrPos[0], $aErrPos[1] + $aErrPos[3] + 4, 2000, $TOAST_ERROR)
         EndIf
         Return
     EndIf
@@ -1368,21 +1368,21 @@ Func __CD_ApplyChanges()
     EndIf
 
     ; Startup toggle with verification
-    Local $sToastMsg = "Settings saved"
+    Local $sToastMsg = _i18n("Toasts.toast_saved", "Settings saved")
     Local $iToastIcon = $TOAST_SUCCESS
     If _Cfg_GetStartWithWindows() <> $bOldStartup Then
         If _Cfg_GetStartWithWindows() Then
             If _Cfg_EnableStartup() Then
-                $sToastMsg = "Settings saved — startup enabled"
+                $sToastMsg = _i18n("Toasts.toast_saved_startup_on", "Settings saved (startup enabled)")
             Else
-                $sToastMsg = "Settings saved — startup failed"
+                $sToastMsg = _i18n("Toasts.toast_saved_startup_fail", "Settings saved (startup failed)")
                 $iToastIcon = $TOAST_ERROR
             EndIf
         Else
             If _Cfg_DisableStartup() Then
-                $sToastMsg = "Settings saved — startup disabled"
+                $sToastMsg = _i18n("Toasts.toast_saved_startup_off", "Settings saved (startup disabled)")
             Else
-                $sToastMsg = "Settings saved — startup removal failed"
+                $sToastMsg = _i18n("Toasts.toast_saved_startup_remove_fail", "Settings saved (startup removal failed)")
                 $iToastIcon = $TOAST_ERROR
             EndIf
         EndIf
@@ -1390,7 +1390,7 @@ Func __CD_ApplyChanges()
 
     ; Theme change notification
     If _Cfg_GetTheme() <> $sOldTheme Then
-        $sToastMsg = "Theme changed — restart required"
+        $sToastMsg = _i18n("Toasts.toast_theme_changed", "Theme changed (restart required)")
         $iToastIcon = $TOAST_WARNING
     EndIf
 
@@ -1434,7 +1434,7 @@ Func __CD_ResetDefaults()
 
     Local $aPos = WinGetPos($__g_CD_hGUI)
     If Not @error Then
-        _Theme_Toast("Reset to defaults", $aPos[0], $aPos[1] + $aPos[3] + 4, 1500, $TOAST_WARNING)
+        _Theme_Toast(_i18n("Toasts.toast_reset", "Reset to defaults"), $aPos[0], $aPos[1] + $aPos[3] + 4, 1500, $TOAST_WARNING)
     EndIf
 EndFunc
 
@@ -1448,12 +1448,12 @@ Func __CD_ImportSettings()
         __CD_PopulateControls()
         Local $aPos = WinGetPos($__g_CD_hGUI)
         If Not @error Then
-            _Theme_Toast("Settings imported", $aPos[0], $aPos[1] + $aPos[3] + 4, 1500, $TOAST_SUCCESS)
+            _Theme_Toast(_i18n("Toasts.toast_imported", "Settings imported"), $aPos[0], $aPos[1] + $aPos[3] + 4, 1500, $TOAST_SUCCESS)
         EndIf
     Else
         Local $aPos2 = WinGetPos($__g_CD_hGUI)
         If Not @error Then
-            _Theme_Toast("Import failed", $aPos2[0], $aPos2[1] + $aPos2[3] + 4, 1500, $TOAST_ERROR)
+            _Theme_Toast(_i18n("Toasts.toast_import_failed", "Import failed"), $aPos2[0], $aPos2[1] + $aPos2[3] + 4, 1500, $TOAST_ERROR)
         EndIf
     EndIf
 EndFunc
@@ -1468,12 +1468,12 @@ Func __CD_ExportSettings()
     If _Cfg_Export($sPath) Then
         Local $aPos = WinGetPos($__g_CD_hGUI)
         If Not @error Then
-            _Theme_Toast("Settings exported", $aPos[0], $aPos[1] + $aPos[3] + 4, 1500, $TOAST_SUCCESS)
+            _Theme_Toast(_i18n("Toasts.toast_exported", "Settings exported"), $aPos[0], $aPos[1] + $aPos[3] + 4, 1500, $TOAST_SUCCESS)
         EndIf
     Else
         Local $aPos2 = WinGetPos($__g_CD_hGUI)
         If Not @error Then
-            _Theme_Toast("Export failed", $aPos2[0], $aPos2[1] + $aPos2[3] + 4, 1500, $TOAST_ERROR)
+            _Theme_Toast(_i18n("Toasts.toast_export_failed", "Export failed"), $aPos2[0], $aPos2[1] + $aPos2[3] + 4, 1500, $TOAST_ERROR)
         EndIf
     EndIf
 EndFunc
