@@ -1521,7 +1521,7 @@ Func __CD_ShowHotkeyBuilder()
     Local $hDlg = _Theme_CreatePopup("HotkeyBuilder", $iDlgW, $iDlgH, $iDlgX, $iDlgY, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
 
     ; Title label
-    Local $idTitle = GUICtrlCreateLabel("Hotkey Builder", 10, 8, $iDlgW - 20, 18)
+    Local $idTitle = GUICtrlCreateLabel(_i18n("HotkeyBuilder.hkb_title", "Hotkey Builder"), 10, 8, $iDlgW - 20, 18)
     GUICtrlSetFont($idTitle, 9, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idTitle, $THEME_FG_WHITE)
     GUICtrlSetBkColor($idTitle, $GUI_BKCOLOR_TRANSPARENT)
@@ -1555,7 +1555,7 @@ Func __CD_ShowHotkeyBuilder()
 
     ; Key input
     Local $iKeyY = $iChkY + 32
-    Local $idKeyLbl = GUICtrlCreateLabel("Key:", 16, $iKeyY + 2, 35, 18)
+    Local $idKeyLbl = GUICtrlCreateLabel(_i18n("HotkeyBuilder.hkb_key", "Key:"), 16, $iKeyY + 2, 35, 18)
     GUICtrlSetFont($idKeyLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idKeyLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idKeyLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -1572,7 +1572,7 @@ Func __CD_ShowHotkeyBuilder()
     GUICtrlSetColor($idCapture, $THEME_FG_MENU)
     GUICtrlSetBkColor($idCapture, $THEME_BG_HOVER)
     GUICtrlSetCursor($idCapture, 0)
-    _Theme_SetTooltip($idCapture, "Press to capture a key (waits 5 seconds)")
+    _Theme_SetTooltip($idCapture, _i18n("HotkeyBuilder.hkb_tip_capture", "Press to capture a key (waits 5 seconds)"))
 
     ; Hint
     Local $idHint = GUICtrlCreateLabel("e.g.: LEFT, RIGHT, F1-F12, 1-9, A-Z", 16, $iKeyY + 26, 250, 14)
@@ -1582,7 +1582,7 @@ Func __CD_ShowHotkeyBuilder()
 
     ; Preview
     Local $iPreviewY = $iKeyY + 48
-    Local $idPreviewLbl = GUICtrlCreateLabel("Preview:", 16, $iPreviewY + 2, 50, 18)
+    Local $idPreviewLbl = GUICtrlCreateLabel(_i18n("HotkeyBuilder.hkb_preview", "Preview:"), 16, $iPreviewY + 2, 50, 18)
     GUICtrlSetFont($idPreviewLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idPreviewLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idPreviewLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -1595,14 +1595,14 @@ Func __CD_ShowHotkeyBuilder()
     ; OK / Cancel buttons
     Local $iBtnW = 60, $iBtnH = 26
     Local $iBtnY = $iDlgH - 38
-    Local $idOK = GUICtrlCreateLabel("OK", ($iDlgW / 2) - $iBtnW - 8, $iBtnY, $iBtnW, $iBtnH, _
+    Local $idOK = GUICtrlCreateLabel(_i18n("General.btn_ok", "OK"), ($iDlgW / 2) - $iBtnW - 8, $iBtnY, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idOK, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idOK, $THEME_FG_MENU)
     GUICtrlSetBkColor($idOK, $THEME_BG_HOVER)
     GUICtrlSetCursor($idOK, 0)
 
-    Local $idCancel = GUICtrlCreateLabel("Cancel", ($iDlgW / 2) + 8, $iBtnY, $iBtnW, $iBtnH, _
+    Local $idCancel = GUICtrlCreateLabel(_i18n("General.btn_cancel", "Cancel"), ($iDlgW / 2) + 8, $iBtnY, $iBtnW, $iBtnH, _
         BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idCancel, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idCancel, $THEME_FG_MENU)
