@@ -915,7 +915,9 @@ EndFunc
 ; Name:        _ApplyDesktopChange
 ; Description: Updates widget display labels and list after desktop change
 Func _ApplyDesktopChange()
-    ; Update content directly — no animation (prevents flicker)
+    ; Lock window to batch all updates into a single repaint (prevents flicker)
+    DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", $gui)
+
     If _Cfg_GetShowCount() Then
         Local $iTotal = _VD_GetCount()
         GUICtrlSetData($lblNum, String($iDesktop) & "/" & String($iTotal))
@@ -927,6 +929,9 @@ Func _ApplyDesktopChange()
     GUICtrlSetData($lblName, _Labels_Load($iDesktop))
     _UpdateWidgetColorBar()
     WinSetTitle($gui, "", String($iDesktop))
+
+    ; Unlock — triggers a single repaint with all changes applied
+    DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", 0)
     _DL_Refresh($iTaskbarY, $iDesktop)
     If $__g_bTrayMode Then TraySetToolTip(_i18n_Format("Tray.tray_tooltip", "Desk Switcheroo - Desktop {1}", $iDesktop))
 EndFunc
