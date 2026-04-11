@@ -600,20 +600,20 @@ EndFunc
 Func __CD_BuildTabScroll()
     Local $t = 3, $iX = 20, $iY = 50
 
-    $__g_CD_idChkScroll = __CD_CreateCheckbox("Scroll wheel on widget", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkScroll, "Use mouse wheel on the widget to cycle desktops")
+    $__g_CD_idChkScroll = __CD_CreateCheckbox(_i18n("Settings.Scroll.chk_scroll_enabled", "Scroll wheel on widget"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkScroll, _i18n("Settings.Scroll.tip_scroll_enabled", "Use mouse wheel on the widget to cycle desktops"))
     $iY += 26
-    $__g_CD_idLblScrollDir = __CD_CreateCycleLabel("Direction:", $iX + 20, $iY, 145, 90, $t)
-    _Theme_SetTooltip($__g_CD_idLblScrollDir, "Click to toggle: normal or inverted scroll direction")
+    $__g_CD_idLblScrollDir = __CD_CreateCycleLabel(_i18n("Settings.Scroll.lbl_scroll_dir", "Direction:"), $iX + 20, $iY, 145, 90, $t)
+    _Theme_SetTooltip($__g_CD_idLblScrollDir, _i18n("Settings.Scroll.tip_scroll_dir", "Click to toggle: normal or inverted scroll direction"))
     $iY += 26
-    $__g_CD_idChkScrollWrap = __CD_CreateCheckbox("Wrap at ends", $iX + 20, $iY, 280, $t)
-    _Theme_SetTooltip($__g_CD_idChkScrollWrap, "Scroll past last desktop wraps to first")
+    $__g_CD_idChkScrollWrap = __CD_CreateCheckbox(_i18n("Settings.Scroll.chk_scroll_wrap", "Wrap at ends"), $iX + 20, $iY, 280, $t)
+    _Theme_SetTooltip($__g_CD_idChkScrollWrap, _i18n("Settings.Scroll.tip_scroll_wrap", "Scroll past last desktop wraps to first"))
     $iY += 34
-    $__g_CD_idChkListScroll = __CD_CreateCheckbox("Scroll on desktop list", $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkListScroll, "Use mouse wheel on the desktop list panel")
+    $__g_CD_idChkListScroll = __CD_CreateCheckbox(_i18n("Settings.Scroll.chk_list_scroll", "Scroll on desktop list"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkListScroll, _i18n("Settings.Scroll.tip_list_scroll", "Use mouse wheel on the desktop list panel"))
     $iY += 26
-    $__g_CD_idLblListAction = __CD_CreateCycleLabel("List action:", $iX + 20, $iY, 145, 90, $t)
-    _Theme_SetTooltip($__g_CD_idLblListAction, "Click to toggle: 'switch' changes desktops, 'scroll' scrolls the list")
+    $__g_CD_idLblListAction = __CD_CreateCycleLabel(_i18n("Settings.Scroll.lbl_list_scroll_action", "List action:"), $iX + 20, $iY, 145, 90, $t)
+    _Theme_SetTooltip($__g_CD_idLblListAction, _i18n("Settings.Scroll.tip_list_scroll_action", "Click to toggle: 'switch' changes desktops, 'scroll' scrolls the list"))
 EndFunc
 
 Func __CD_BuildTabHotkeys()
