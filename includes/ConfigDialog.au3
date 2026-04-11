@@ -239,6 +239,7 @@ Func _CD_Show()
     Local $aBrush = DllCall("gdi32.dll", "handle", "CreateSolidBrush", "dword", $THEME_BG_INPUT)
     If Not @error And IsArray($aBrush) Then $__g_CD_hBrushCombo = $aBrush[0]
     GUIRegisterMsg(0x0134, "__CD_WM_CTLCOLORLISTBOX") ; WM_CTLCOLORLISTBOX
+    GUIRegisterMsg(0x0138, "__CD_WM_CTLCOLORSTATIC")  ; WM_CTLCOLORSTATIC (combo face for CBS_DROPDOWNLIST)
 
     _Theme_FadeIn($__g_CD_hGUI, $THEME_ALPHA_DIALOG, "dialog")
     $__g_CD_bVisible = True
@@ -250,6 +251,7 @@ EndFunc
 Func _CD_Destroy()
     _Log_Info("Settings dialog closed")
     GUIRegisterMsg(0x0134, "") ; unregister WM_CTLCOLORLISTBOX
+    GUIRegisterMsg(0x0138, "") ; unregister WM_CTLCOLORSTATIC
     If $__g_CD_hBrushCombo <> 0 Then
         DllCall("gdi32.dll", "bool", "DeleteObject", "handle", $__g_CD_hBrushCombo)
         $__g_CD_hBrushCombo = 0
@@ -2157,8 +2159,23 @@ EndFunc
 ; Description: WM handler to theme combo dropdown list with dark colors
 Func __CD_WM_CTLCOLORLISTBOX($hWnd, $iMsg, $wParam, $lParam)
     If $__g_CD_hBrushCombo = 0 Then Return $GUI_RUNDEFMSG
-    ; Set text and background colors for the dropdown list
     DllCall("gdi32.dll", "int", "SetTextColor", "handle", $wParam, "dword", $THEME_FG_TEXT)
     DllCall("gdi32.dll", "int", "SetBkColor", "handle", $wParam, "dword", $THEME_BG_INPUT)
+    DllCall("gdi32.dll", "int", "SetBkMode", "handle", $wParam, "int", 1) ; OPAQUE
+    Return $__g_CD_hBrushCombo
+EndFunc
+
+; Name:        __CD_WM_CTLCOLORSTATIC
+; Description: WM handler to theme the combo face (CBS_DROPDOWNLIST uses STATIC control)
+Func __CD_WM_CTLCOLORSTATIC($hWnd, $iMsg, $wParam, $lParam)
+    ; Only theme the combo — check if lParam is a child of our settings GUI
+    If $__g_CD_hBrushCombo = 0 Or $__g_CD_hGUI = 0 Then Return $GUI_RUNDEFMSG
+    ; Check if this static control belongs to the combo
+    Local $hParent = DllCall("user32.dll", "hwnd", "GetParent", "hwnd", $lParam)
+    If @error Or Not IsArray($hParent) Then Return $GUI_RUNDEFMSG
+    If $hParent[0] <> $__g_CD_hGUI Then Return $GUI_RUNDEFMSG
+    DllCall("gdi32.dll", "int", "SetTextColor", "handle", $wParam, "dword", $THEME_FG_TEXT)
+    DllCall("gdi32.dll", "int", "SetBkColor", "handle", $wParam, "dword", $THEME_BG_INPUT)
+    DllCall("gdi32.dll", "int", "SetBkMode", "handle", $wParam, "int", 1) ; OPAQUE
     Return $__g_CD_hBrushCombo
 EndFunc
