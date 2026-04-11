@@ -52,8 +52,8 @@ Func _CM_Show($iTaskbarY, $bListVisible)
         $iY += $THEME_MENU_ITEM_H
     EndIf
 
-    Local $sToggle = "  " & _i18n("ContextMenu.cm_show_list", "Show Desktop List")
-    If $bListVisible Then $sToggle = "  " & _i18n("ContextMenu.cm_hide_list", "Hide Desktop List")
+    Local $sToggle = "  " & _i18n("ContextMenu.cm_pin_list", "Pin Desktop List")
+    If _DL_IsPinned() Then $sToggle = "  " & _i18n("ContextMenu.cm_unpin_list", "Unpin Desktop List")
     $__g_CM_iToggleID = _Theme_CreateMenuItem($sToggle, 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 

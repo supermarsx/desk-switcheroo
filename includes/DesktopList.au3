@@ -526,6 +526,10 @@ EndFunc
 ; Name:        _DL_GetScrollOffset
 ; Description: Returns the current scroll offset
 ; Return:      Integer (0-based offset)
+Func _DL_IsPinned()
+    Return ($__g_DL_bVisible And Not $__g_DL_bTemp)
+EndFunc
+
 Func _DL_GetScrollOffset()
     Return $__g_DL_iScrollOffset
 EndFunc

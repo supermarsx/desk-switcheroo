@@ -345,6 +345,8 @@ Func _ProcessGUIEvents($msg, $hFrom)
             Case $lblNum, $lblName
                 If _Cfg_GetQuickAccessEnabled() And $msg = $lblNum And $__g_iClickCount >= 2 Then
                     _QuickAccess_Show()
+                ElseIf _DL_IsVisible() And Not _DL_IsPinned() Then
+                    _DL_Destroy()
                 Else
                     _DL_ShowTemp($iTaskbarY, $iDesktop)
                 EndIf
