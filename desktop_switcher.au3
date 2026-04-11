@@ -897,11 +897,14 @@ Func _ProcessTimersAndSleep($bCursorActive)
     _CM_CheckAutoHide($gui)
     _DL_CtxCheckAutoHide()
 
-    ; Dynamic sleep: responsive when active, lightweight when idle
+    ; Dynamic sleep: responsive when interactive, lightweight when idle
+    ; 3 tiers: active hover (5ms), popups visible (15ms), fully idle (100ms)
     If $bCursorActive Then
         Sleep(5)
+    ElseIf _DL_IsVisible() Or _CM_IsVisible() Or _DL_CtxIsVisible() Or _DL_ColorPickerIsVisible() Then
+        Sleep(15)
     Else
-        Sleep(30)
+        Sleep(100)
     EndIf
 EndFunc
 
