@@ -1638,7 +1638,7 @@ Func __CD_UpdateColorPreviews()
 EndFunc
 
 Func __CD_ResetDefaults()
-    If Not _Theme_Confirm("Reset Settings", "Reset all settings to defaults?") Then Return
+    If Not _Theme_Confirm(_i18n("Dialogs.confirm_reset_title", "Reset Settings"), _i18n("Dialogs.confirm_reset_msg", "Reset all settings to defaults?")) Then Return
 
     Local $sPath = _Cfg_GetPath()
     FileDelete($sPath)
