@@ -915,15 +915,7 @@ EndFunc
 ; Name:        _ApplyDesktopChange
 ; Description: Updates widget display labels and list after desktop change
 Func _ApplyDesktopChange()
-    ; Smooth label transition: fade text color to background, update, fade back
-    If __Theme_ShouldAnimate("widget") Then
-        ; Fade labels to invisible (set color to match background)
-        GUICtrlSetColor($lblNum, $THEME_BG_MAIN)
-        GUICtrlSetColor($lblName, $THEME_BG_MAIN)
-        Sleep(30)
-    EndIf
-
-    ; Update content
+    ; Update content directly — no animation (prevents flicker)
     If _Cfg_GetShowCount() Then
         Local $iTotal = _VD_GetCount()
         GUICtrlSetData($lblNum, String($iDesktop) & "/" & String($iTotal))
@@ -935,14 +927,6 @@ Func _ApplyDesktopChange()
     GUICtrlSetData($lblName, _Labels_Load($iDesktop))
     _UpdateWidgetColorBar()
     WinSetTitle($gui, "", String($iDesktop))
-
-    ; Restore label colors (text appears with new content)
-    If __Theme_ShouldAnimate("widget") Then
-        Sleep(20)
-    EndIf
-    GUICtrlSetColor($lblNum, $THEME_FG_PRIMARY)
-    GUICtrlSetColor($lblName, $THEME_FG_LABEL)
-
     _DL_Refresh($iTaskbarY, $iDesktop)
     If $__g_bTrayMode Then TraySetToolTip(_i18n_Format("Tray.tray_tooltip", "Desk Switcheroo - Desktop {1}", $iDesktop))
 EndFunc
