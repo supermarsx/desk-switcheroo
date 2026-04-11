@@ -915,6 +915,21 @@ EndFunc
 ; Name:        _ApplyDesktopChange
 ; Description: Updates widget display labels and list after desktop change
 Func _ApplyDesktopChange()
+    ; Fade-out widget labels on desktop change (quick crossfade)
+    Local $iWidgetAlpha = _Cfg_GetThemeAlphaMain()
+    If __Theme_ShouldAnimate("widget") Then
+        Local $iFadeStep = _Cfg_GetFadeStep() * 2 ; faster for widget transition
+        Local $iFadeSleep = _Cfg_GetFadeSleepMs()
+        ; Fade out
+        Local $iA
+        For $iA = $iWidgetAlpha To 0 Step -$iFadeStep
+            _WinAPI_SetLayeredWindowAttributes($gui, 0, $iA, $LWA_ALPHA)
+            Sleep($iFadeSleep)
+        Next
+        _WinAPI_SetLayeredWindowAttributes($gui, 0, 0, $LWA_ALPHA)
+    EndIf
+
+    ; Update content while invisible/transparent
     If _Cfg_GetShowCount() Then
         Local $iTotal = _VD_GetCount()
         GUICtrlSetData($lblNum, String($iDesktop) & "/" & String($iTotal))
@@ -926,6 +941,16 @@ Func _ApplyDesktopChange()
     GUICtrlSetData($lblName, _Labels_Load($iDesktop))
     _UpdateWidgetColorBar()
     WinSetTitle($gui, "", String($iDesktop))
+
+    ; Fade back in
+    If __Theme_ShouldAnimate("widget") Then
+        For $iA = 0 To $iWidgetAlpha Step $iFadeStep
+            _WinAPI_SetLayeredWindowAttributes($gui, 0, $iA, $LWA_ALPHA)
+            Sleep($iFadeSleep)
+        Next
+        _WinAPI_SetLayeredWindowAttributes($gui, 0, $iWidgetAlpha, $LWA_ALPHA)
+    EndIf
+
     _DL_Refresh($iTaskbarY, $iDesktop)
     If $__g_bTrayMode Then TraySetToolTip(_i18n_Format("Tray.tray_tooltip", "Desk Switcheroo - Desktop {1}", $iDesktop))
 EndFunc

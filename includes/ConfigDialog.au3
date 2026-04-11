@@ -24,9 +24,13 @@ Global $__g_CD_iActiveTab = 0
 Global $__g_CD_aidTabBtn[10] ; index 1-9
 Global Const $__g_CD_aTabNames = "General,Display,Scroll,Hotkeys,Behavior,Logging,Updates,Desktops,Animations"
 
-; -- Controls per tab (arrays of IDs to show/hide) --
+; -- Controls per tab (arrays of IDs to show/hide + scroll) --
 Global $__g_CD_aidTabCtrls[10][100] ; [tab 1-9][up to 100 controls per tab]
-Global $__g_CD_aiTabCtrlCount[10]  ; how many controls per tab
+Global $__g_CD_aiTabCtrlY[10][100]  ; original Y position per control
+Global $__g_CD_aiTabCtrlCount[10]   ; how many controls per tab
+Global $__g_CD_aiTabScroll[10]      ; current scroll offset per tab (px)
+Global $__g_CD_iContentTop = 62     ; top of content area
+Global $__g_CD_iScrollStep = 30     ; pixels per scroll step
 
 ; -- Tab 1: General --
 Global $__g_CD_idChkStartWin, $__g_CD_idChkWrapNav, $__g_CD_idChkAutoCreate
@@ -256,6 +260,19 @@ EndFunc
 Func __CD_SwitchTab($iTab)
     $__g_CD_iActiveTab = $iTab
 
+    ; Reset scroll for the new tab (restore controls to original Y)
+    If $__g_CD_aiTabScroll[$iTab] <> 0 Then
+        $__g_CD_aiTabScroll[$iTab] = 0
+        Local $sc
+        For $sc = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
+            Local $idSc = $__g_CD_aidTabCtrls[$iTab][$sc]
+            Local $aSc = ControlGetPos($__g_CD_hGUI, "", $idSc)
+            If Not @error And IsArray($aSc) Then
+                GUICtrlSetPos($idSc, $aSc[0], $__g_CD_aiTabCtrlY[$iTab][$sc], $aSc[2], $aSc[3])
+            EndIf
+        Next
+    EndIf
+
     ; Lock window to prevent repaint during bulk control state changes
     DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", $__g_CD_hGUI)
 
@@ -288,7 +305,48 @@ EndFunc
 Func __CD_RegCtrl($iTab, $idCtrl)
     Local $c = $__g_CD_aiTabCtrlCount[$iTab]
     $__g_CD_aidTabCtrls[$iTab][$c] = $idCtrl
+    ; Save original Y position for scroll support
+    Local $aPos = ControlGetPos($__g_CD_hGUI, "", $idCtrl)
+    If Not @error And IsArray($aPos) Then
+        $__g_CD_aiTabCtrlY[$iTab][$c] = $aPos[1]
+    Else
+        $__g_CD_aiTabCtrlY[$iTab][$c] = 0
+    EndIf
     $__g_CD_aiTabCtrlCount[$iTab] = $c + 1
+EndFunc
+
+; Name:        __CD_ScrollTab
+; Description: Scrolls the active tab's controls by a pixel delta
+; Parameters:  $iDelta - positive = scroll down (content moves up), negative = scroll up
+Func __CD_ScrollTab($iDelta)
+    Local $iTab = $__g_CD_iActiveTab
+    Local $iNewScroll = $__g_CD_aiTabScroll[$iTab] + $iDelta
+
+    ; Clamp: don't scroll above 0 (top)
+    If $iNewScroll < 0 Then $iNewScroll = 0
+
+    ; Clamp: find max content Y to determine max scroll
+    Local $iMaxY = 0, $c
+    For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
+        If $__g_CD_aiTabCtrlY[$iTab][$c] > $iMaxY Then $iMaxY = $__g_CD_aiTabCtrlY[$iTab][$c]
+    Next
+    Local $iMaxScroll = $iMaxY - $__g_CD_iContentTop - $__g_CD_iContentH + 60
+    If $iMaxScroll < 0 Then $iMaxScroll = 0
+    If $iNewScroll > $iMaxScroll Then $iNewScroll = $iMaxScroll
+
+    If $iNewScroll = $__g_CD_aiTabScroll[$iTab] Then Return ; no change
+
+    $__g_CD_aiTabScroll[$iTab] = $iNewScroll
+
+    ; Move all controls for this tab
+    For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
+        Local $idCtrl = $__g_CD_aidTabCtrls[$iTab][$c]
+        Local $iOrigY = $__g_CD_aiTabCtrlY[$iTab][$c]
+        Local $aCtrlPos = ControlGetPos($__g_CD_hGUI, "", $idCtrl)
+        If Not @error And IsArray($aCtrlPos) Then
+            GUICtrlSetPos($idCtrl, $aCtrlPos[0], $iOrigY - $iNewScroll, $aCtrlPos[2], $aCtrlPos[3])
+        EndIf
+    Next
 EndFunc
 
 ; =============================================
@@ -1296,6 +1354,19 @@ Func __CD_MessageLoop()
         ; Escape closes
         Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
         If Not @error And IsArray($retEsc) And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
+
+        ; Scroll tab content with mouse wheel (peek for WM_MOUSEWHEEL)
+        Local $tMsg = DllStructCreate("uint msg;hwnd hwnd;uint wParam;long lParam;dword time;int x;int y")
+        Local $aPeek = DllCall("user32.dll", "bool", "PeekMessageW", "struct*", $tMsg, "hwnd", $__g_CD_hGUI, "uint", 0x020A, "uint", 0x020A, "uint", 1)
+        If Not @error And IsArray($aPeek) And $aPeek[0] Then
+            Local $iWheelDelta = BitShift(BitAND(DllStructGetData($tMsg, "wParam"), 0xFFFF0000), 16)
+            If $iWheelDelta > 32767 Then $iWheelDelta -= 65536
+            If $iWheelDelta > 0 Then
+                __CD_ScrollTab(-$__g_CD_iScrollStep)
+            ElseIf $iWheelDelta < 0 Then
+                __CD_ScrollTab($__g_CD_iScrollStep)
+            EndIf
+        EndIf
 
         ; Button hover
         Local $aCursor = GUIGetCursorInfo($__g_CD_hGUI)
