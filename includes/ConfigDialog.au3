@@ -1199,7 +1199,12 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkAutoCreate, _Cfg_GetAutoCreateDesktop())
     GUICtrlSetData($__g_CD_idInpPadding, _Cfg_GetNumberPadding())
     GUICtrlSetData($__g_CD_idLblPosition, _Cfg_GetWidgetPosition())
-    GUICtrlSetData($__g_CD_idLblLanguage, _Cfg_GetLanguage())
+    ; Show "code — name" for current language
+    Local $sLangCode = _Cfg_GetLanguage()
+    Local $sLocaleDir = @ScriptDir & "\locales"
+    If Not FileExists($sLocaleDir) Then $sLocaleDir = StringRegExpReplace(@ScriptDir, "\\[^\\]+$", "") & "\locales"
+    Local $sLangName = IniRead($sLocaleDir & "\" & $sLangCode & ".ini", "Meta", "name", $sLangCode)
+    GUICtrlSetData($__g_CD_idLblLanguage, $sLangCode & " — " & $sLangName)
     GUICtrlSetData($__g_CD_idInpOffsetX, _Cfg_GetWidgetOffsetX())
     __CD_SetCheckState($__g_CD_idChkWidgetDrag, _Cfg_GetWidgetDragEnabled())
     __CD_SetCheckState($__g_CD_idChkWidgetColorBar, _Cfg_GetWidgetColorBar())
@@ -1354,7 +1359,7 @@ Func __CD_MessageLoop()
             If $id = $__g_CD_idLblTheme Then __CD_CycleValue($id, _Theme_GetAvailableSchemes())
             If $id = $__g_CD_idLblLogLevel Then __CD_CycleValue($id, "error|warn|info|debug")
             If $id = $__g_CD_idLblLogDateFormat Then __CD_CycleValue($id, "iso|us|eu")
-            If $id = $__g_CD_idLblLanguage Then __CD_CycleValue($id, _i18n_GetAvailable())
+            If $id = $__g_CD_idLblLanguage Then __CD_CycleValue($id, _i18n_GetAvailableDisplay())
         EndIf
 
         ; Escape closes
@@ -1437,7 +1442,7 @@ Func __CD_ApplyChanges()
     If StringIsInt($s) Then _Cfg_SetNumberPadding(Int($s))
     _Cfg_SetWidgetPosition(GUICtrlRead($__g_CD_idLblPosition))
     Local $sOldLang = _Cfg_GetLanguage()
-    _Cfg_SetLanguage(GUICtrlRead($__g_CD_idLblLanguage))
+    _Cfg_SetLanguage(_i18n_DisplayToCode(GUICtrlRead($__g_CD_idLblLanguage)))
     $s = GUICtrlRead($__g_CD_idInpOffsetX)
     If $s <> "" And StringIsInt($s) Then _Cfg_SetWidgetOffsetX(Int($s))
     _Cfg_SetWidgetDragEnabled(__CD_GetCheckState($__g_CD_idChkWidgetDrag))

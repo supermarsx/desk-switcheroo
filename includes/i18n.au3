@@ -87,7 +87,7 @@ EndFunc
 
 ; Name:        _i18n_GetAvailable
 ; Description: Scans locales/ folder for available language files.
-; Return:      Pipe-delimited string of language codes (e.g. "en|pt-PT|es")
+; Return:      Pipe-delimited string of language codes (e.g. "en-US|pt-PT|en-GB")
 Func _i18n_GetAvailable()
     Local $sResult = ""
     Local $hSearch = FileFindFirstFile($__g_i18n_sLocaleDir & "\*.ini")
@@ -102,6 +102,36 @@ Func _i18n_GetAvailable()
     FileClose($hSearch)
     If $sResult = "" Then $sResult = "en-US"
     Return $sResult
+EndFunc
+
+; Name:        _i18n_GetAvailableDisplay
+; Description: Returns pipe-delimited "code — name" strings for the language picker.
+; Return:      e.g. "en-US — English (US)|pt-PT — Português (PT)|en-GB — English (GB)"
+Func _i18n_GetAvailableDisplay()
+    Local $sResult = ""
+    Local $hSearch = FileFindFirstFile($__g_i18n_sLocaleDir & "\*.ini")
+    If $hSearch = -1 Then Return "en-US"
+    While 1
+        Local $sFile = FileFindNextFile($hSearch)
+        If @error Then ExitLoop
+        Local $sCode = StringTrimRight($sFile, 4)
+        Local $sName = IniRead($__g_i18n_sLocaleDir & "\" & $sFile, "Meta", "name", $sCode)
+        If $sResult <> "" Then $sResult &= "|"
+        $sResult &= $sCode & " — " & $sName
+    WEnd
+    FileClose($hSearch)
+    If $sResult = "" Then $sResult = "en-US"
+    Return $sResult
+EndFunc
+
+; Name:        _i18n_DisplayToCode
+; Description: Extracts locale code from a display string ("en-US — English (US)" -> "en-US")
+; Parameters:  $sDisplay - display string from the picker
+; Return:      Locale code string
+Func _i18n_DisplayToCode($sDisplay)
+    Local $iPos = StringInStr($sDisplay, " — ")
+    If $iPos > 0 Then Return StringLeft($sDisplay, $iPos - 1)
+    Return $sDisplay ; fallback: already a code
 EndFunc
 
 ; Name:        _i18n_GetCurrent
