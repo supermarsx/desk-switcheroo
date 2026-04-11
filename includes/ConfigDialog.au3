@@ -516,7 +516,7 @@ Func __CD_BuildTabGeneral()
     $__g_CD_idChkListKeyNav = __CD_CreateCheckbox(_i18n("Settings.General.chk_list_key_nav", "Keyboard nav in list"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkListKeyNav, _i18n("Settings.General.tip_list_key_nav", "Use Up/Down arrow keys to navigate when the desktop list is open"))
     $iY += 34
-    $__g_CD_idLblLanguage = __CD_CreateCycleLabel(_i18n("Settings.General.lbl_language", "Language:"), $iX, $iY, 165, 110, $t)
+    $__g_CD_idLblLanguage = __CD_CreateCycleLabel(_i18n("Settings.General.lbl_language", "Language:"), $iX, $iY, 80, 250, $t)
     _Theme_SetTooltip($__g_CD_idLblLanguage, _i18n("Settings.General.tip_language", "Click to cycle available languages (requires restart)"))
 EndFunc
 
