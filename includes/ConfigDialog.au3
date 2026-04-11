@@ -239,7 +239,10 @@ Func _CD_Show()
     Local $aBrush = DllCall("gdi32.dll", "handle", "CreateSolidBrush", "dword", $THEME_BG_INPUT)
     If Not @error And IsArray($aBrush) Then $__g_CD_hBrushCombo = $aBrush[0]
     GUIRegisterMsg(0x0134, "__CD_WM_CTLCOLORLISTBOX") ; WM_CTLCOLORLISTBOX
-    GUIRegisterMsg(0x0138, "__CD_WM_CTLCOLORSTATIC")  ; WM_CTLCOLORSTATIC (combo face for CBS_DROPDOWNLIST)
+    ; NOTE: WM_CTLCOLORSTATIC (0x0138) intentionally NOT registered here.
+    ; Registering it breaks runtime GUICtrlSetBkColor on ALL label controls
+    ; (AutoIt returns stale brushes via $GUI_RUNDEFMSG), which kills button/tab hover.
+    ; The combo face is already themed via GUICtrlSetColor/BkColor at creation.
 
     _Theme_FadeIn($__g_CD_hGUI, $THEME_ALPHA_DIALOG, "dialog")
     $__g_CD_bVisible = True
@@ -251,7 +254,6 @@ EndFunc
 Func _CD_Destroy()
     _Log_Info("Settings dialog closed")
     GUIRegisterMsg(0x0134, "") ; unregister WM_CTLCOLORLISTBOX
-    GUIRegisterMsg(0x0138, "") ; unregister WM_CTLCOLORSTATIC
     If $__g_CD_hBrushCombo <> 0 Then
         DllCall("gdi32.dll", "bool", "DeleteObject", "handle", $__g_CD_hBrushCombo)
         $__g_CD_hBrushCombo = 0
@@ -1340,7 +1342,7 @@ EndFunc
 ; =============================================
 
 Func __CD_MessageLoop()
-    Local $iHovered = 0, $t
+    Local $iHovered = 0, $iTabHovered = 0, $t
 
     While 1
         Local $aMsg = GUIGetMsg(1)
@@ -1374,6 +1376,7 @@ Func __CD_MessageLoop()
             ; Tab button clicks
             For $t = 1 To 9
                 If $id = $__g_CD_aidTabBtn[$t] Then
+                    $iTabHovered = 0
                     __CD_SwitchTab($t)
                     ExitLoop
                 EndIf
@@ -1412,6 +1415,10 @@ Func __CD_MessageLoop()
             EndIf
         EndIf
 
+        ; Ensure ConfigDialog is the "current" GUI for GUIGetCursorInfo
+        ; (tooltip creation via GUICreate switches it away, breaking $aCursor[4])
+        GUISwitch($__g_CD_hGUI)
+
         ; Button hover
         Local $aCursor = GUIGetCursorInfo($__g_CD_hGUI)
         If Not @error Then
@@ -1438,6 +1445,28 @@ Func __CD_MessageLoop()
                 EndIf
                 $iHovered = $iFound
                 If $iHovered <> 0 Then _Theme_ApplyHover($iHovered, $THEME_FG_WHITE, $THEME_BG_BTN_HOV)
+            EndIf
+
+            ; Tab hover (inactive tabs highlight on mouseover)
+            Local $iTabFound = 0
+            For $t = 1 To 9
+                If $aCursor[4] = $__g_CD_aidTabBtn[$t] And $t <> $__g_CD_iActiveTab Then
+                    $iTabFound = $t
+                    ExitLoop
+                EndIf
+            Next
+            If $iTabFound <> $iTabHovered Then
+                ; Remove old tab hover
+                If $iTabHovered <> 0 And $iTabHovered <> $__g_CD_iActiveTab Then
+                    GUICtrlSetColor($__g_CD_aidTabBtn[$iTabHovered], $THEME_FG_DIM)
+                    GUICtrlSetBkColor($__g_CD_aidTabBtn[$iTabHovered], $THEME_BG_MAIN)
+                EndIf
+                $iTabHovered = $iTabFound
+                ; Apply new tab hover
+                If $iTabHovered <> 0 Then
+                    GUICtrlSetColor($__g_CD_aidTabBtn[$iTabHovered], $THEME_FG_NORMAL)
+                    GUICtrlSetBkColor($__g_CD_aidTabBtn[$iTabHovered], $THEME_BG_HOVER)
+                EndIf
             EndIf
         EndIf
 
@@ -1966,6 +1995,7 @@ Func __CD_ShowHotkeyBuilder()
         EndIf
 
         ; Button hover
+        GUISwitch($hDlg)
         Local $aCursor = GUIGetCursorInfo($hDlg)
         If Not @error Then
             Local $iFound = 0
@@ -2165,17 +2195,3 @@ Func __CD_WM_CTLCOLORLISTBOX($hWnd, $iMsg, $wParam, $lParam)
     Return $__g_CD_hBrushCombo
 EndFunc
 
-; Name:        __CD_WM_CTLCOLORSTATIC
-; Description: WM handler to theme the combo face (CBS_DROPDOWNLIST uses STATIC control)
-Func __CD_WM_CTLCOLORSTATIC($hWnd, $iMsg, $wParam, $lParam)
-    ; Only theme the combo — check if lParam is a child of our settings GUI
-    If $__g_CD_hBrushCombo = 0 Or $__g_CD_hGUI = 0 Then Return $GUI_RUNDEFMSG
-    ; Check if this static control belongs to the combo
-    Local $hParent = DllCall("user32.dll", "hwnd", "GetParent", "hwnd", $lParam)
-    If @error Or Not IsArray($hParent) Then Return $GUI_RUNDEFMSG
-    If $hParent[0] <> $__g_CD_hGUI Then Return $GUI_RUNDEFMSG
-    DllCall("gdi32.dll", "int", "SetTextColor", "handle", $wParam, "dword", $THEME_FG_TEXT)
-    DllCall("gdi32.dll", "int", "SetBkColor", "handle", $wParam, "dword", $THEME_BG_INPUT)
-    DllCall("gdi32.dll", "int", "SetBkMode", "handle", $wParam, "int", 1) ; OPAQUE
-    Return $__g_CD_hBrushCombo
-EndFunc
