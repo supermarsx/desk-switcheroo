@@ -1939,21 +1939,51 @@ Func _Shutdown()
         If Not _Theme_Confirm(_i18n("Dialogs.confirm_quit_title", "Quit Desk Switcheroo?"), _i18n("Dialogs.confirm_quit_msg", "Are you sure you want to exit?")) Then Return
     EndIf
     $__g_bShuttingDown = True
-    ; Persist window state for next launch
-    Local $sStateFile = @ScriptDir & "\desk_switcheroo_state.ini"
-    IniWrite($sStateFile, "State", "last_desktop", $iDesktop)
-    IniWrite($sStateFile, "State", "list_visible", _DL_IsVisible())
-    IniWrite($sStateFile, "State", "scroll_offset", _DL_GetScrollOffset())
+
+    ; Stop all periodic tasks first (prevent interference during fade)
     _UnregisterHotkeys()
     AdlibUnRegister("_ForceTopMost")
     AdlibUnRegister("_AdlibSyncNames")
     AdlibUnRegister("_AdlibConfigWatcher")
     AdlibUnRegister("_UC_AdlibCheck")
+    AdlibUnRegister("_CheckDLLHealth")
+
+    ; Gracefully close visible popups (no animation — just clean up)
+    If _DL_CtxIsVisible() Then _DL_CtxDestroy()
+    If _CM_IsVisible() Then _CM_Destroy()
+    If _RD_IsVisible() Then _RD_Destroy()
+    _Theme_ToastDestroy()
+
+    ; Fade out desktop list if visible
+    If _DL_IsVisible() Then _DL_Destroy()
+
+    ; Fade out main widget
+    If $gui And Not $__g_bTrayMode Then
+        If __Theme_ShouldAnimate("widget") Then
+            Local $iAlpha = _Cfg_GetThemeAlphaMain()
+            Local $iStep = _Cfg_GetFadeStep() * 2
+            Local $iSleep = _Cfg_GetFadeSleepMs()
+            Local $i
+            For $i = $iAlpha To 0 Step -$iStep
+                _WinAPI_SetLayeredWindowAttributes($gui, 0, $i, $LWA_ALPHA)
+                Sleep($iSleep)
+            Next
+        EndIf
+    EndIf
+
+    ; Persist window state for next launch
+    Local $sStateFile = @ScriptDir & "\desk_switcheroo_state.ini"
+    IniWrite($sStateFile, "State", "last_desktop", $iDesktop)
+    IniWrite($sStateFile, "State", "list_visible", False)
+    IniWrite($sStateFile, "State", "scroll_offset", _DL_GetScrollOffset())
+
+    ; Clean up resources
     If $gui Then _VD_UnregisterNotify($gui)
     _DL_ThumbClearCache()
     _RD_Shutdown()
     _VD_Shutdown()
     _Theme_UnloadFonts()
+    _Log_Info("Shutdown complete — exiting gracefully")
     _Log_Shutdown()
     Exit
 EndFunc
