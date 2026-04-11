@@ -722,6 +722,34 @@ EndFunc
 Func _Cfg_GetFadeSleepMs()
     Return $__g_Cfg_iFadeSleepMs
 EndFunc
+Func _Cfg_SetAnimationsEnabled($b)
+    $__g_Cfg_bAnimationsEnabled = $b
+EndFunc
+Func _Cfg_SetFadeInDuration($i)
+    If $i < 0 Then $i = 0
+    If $i > 500 Then $i = 500
+    $__g_Cfg_iFadeInDuration = $i
+EndFunc
+Func _Cfg_SetFadeOutDuration($i)
+    If $i < 0 Then $i = 0
+    If $i > 500 Then $i = 500
+    $__g_Cfg_iFadeOutDuration = $i
+EndFunc
+Func _Cfg_SetFadeStep($i)
+    If $i < 5 Then $i = 5
+    If $i > 255 Then $i = 255
+    $__g_Cfg_iFadeStep = $i
+EndFunc
+Func _Cfg_SetToastFadeOutDuration($i)
+    If $i < 0 Then $i = 0
+    If $i > 1000 Then $i = 1000
+    $__g_Cfg_iToastFadeOutMs = $i
+EndFunc
+Func _Cfg_SetFadeSleepMs($i)
+    If $i < 1 Then $i = 1
+    If $i > 50 Then $i = 50
+    $__g_Cfg_iFadeSleepMs = $i
+EndFunc
 Func _Cfg_GetLoggingEnabled()
     Return $__g_Cfg_bLoggingEnabled
 EndFunc

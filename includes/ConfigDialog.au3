@@ -21,8 +21,8 @@ Global $__g_CD_bVisible = False
 Global $__g_CD_iActiveTab = 0
 
 ; -- Tab button IDs --
-Global $__g_CD_aidTabBtn[9] ; index 1-9
-Global Const $__g_CD_aTabNames = "General,Display,Scroll,Hotkeys,Behavior,Logging,Updates,Desktops"
+Global $__g_CD_aidTabBtn[10] ; index 1-9
+Global Const $__g_CD_aTabNames = "General,Display,Scroll,Hotkeys,Behavior,Logging,Updates,Desktops,Animations"
 
 ; -- Controls per tab (arrays of IDs to show/hide) --
 Global $__g_CD_aidTabCtrls[9][100] ; [tab 1-9][up to 40 controls per tab]
@@ -59,6 +59,12 @@ Global $__g_CD_idChkAutoUpdate, $__g_CD_idInpUpdateInterval
 Global $__g_CD_idChkUpdateOnStartup, $__g_CD_idInpUpdateCheckDays
 Global $__g_CD_idBtnCheckNow, $__g_CD_idBtnDownloadLatest
 Global $__g_CD_iContentH = 450
+
+; -- Tab 9: Animations --
+Global $__g_CD_idChkAnimEnabled
+Global $__g_CD_idInpFadeIn, $__g_CD_idInpFadeOut
+Global $__g_CD_idInpFadeStep, $__g_CD_idInpFadeSleep
+Global $__g_CD_idInpToastFadeOut
 
 ; -- Tab 5: Behavior --
 Global $__g_CD_idChkConfirmDel, $__g_CD_idChkMidClick, $__g_CD_idChkMoveWin
@@ -119,7 +125,7 @@ Func _CD_Show()
     ; Reset state
     $__g_CD_iChkCount = 0
     Local $t
-    For $t = 1 To 8
+    For $t = 1 To 9
         $__g_CD_aiTabCtrlCount[$t] = 0
     Next
 
@@ -152,6 +158,7 @@ Func _CD_Show()
     __CD_BuildTabLogging()
     __CD_BuildTabUpdates()
     __CD_BuildTabDesktops()
+    __CD_BuildTabAnimations()
 
     ; Import + Export + Restart buttons (top row)
     Local $iBtnW = 80, $iBtnH = 26
@@ -246,7 +253,7 @@ Func __CD_SwitchTab($iTab)
 
     ; Update tab button styles
     Local $t, $c
-    For $t = 1 To 8
+    For $t = 1 To 9
         If $t = $iTab Then
             GUICtrlSetColor($__g_CD_aidTabBtn[$t], $THEME_FG_WHITE)
             GUICtrlSetBkColor($__g_CD_aidTabBtn[$t], $THEME_BG_ACTIVE)
@@ -258,7 +265,7 @@ Func __CD_SwitchTab($iTab)
         EndIf
     Next
     ; Show/hide controls per tab
-    For $t = 1 To 8
+    For $t = 1 To 9
         Local $iState = $GUI_HIDE
         If $t = $iTab Then $iState = $GUI_SHOW
         For $c = 0 To $__g_CD_aiTabCtrlCount[$t] - 1
@@ -1031,6 +1038,78 @@ EndFunc
 ; POPULATE FROM CONFIG
 ; =============================================
 
+Func __CD_BuildTabAnimations()
+    Local $t = 9, $iX = 20, $iY = 50
+
+    $__g_CD_idChkAnimEnabled = __CD_CreateCheckbox(_i18n("Settings.Animations.chk_enabled", "Enable animations"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkAnimEnabled, _i18n("Settings.Animations.tip_enabled", "Master toggle for all fade-in/fade-out animations"))
+    $iY += 34
+
+    Local $idLbl = GUICtrlCreateLabel(_i18n("Settings.Animations.lbl_fade_in", "Fade-in duration (ms):"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpFadeIn = GUICtrlCreateInput("", $iX + 180, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpFadeIn, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpFadeIn, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpFadeIn, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpFadeIn)
+    _Theme_SetTooltip($__g_CD_idInpFadeIn, _i18n("Settings.Animations.tip_fade_in", "Total time for fade-in effect in milliseconds (0 = instant)"))
+    $iY += 28
+
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Animations.lbl_fade_out", "Fade-out duration (ms):"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpFadeOut = GUICtrlCreateInput("", $iX + 180, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpFadeOut, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpFadeOut, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpFadeOut, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpFadeOut)
+    _Theme_SetTooltip($__g_CD_idInpFadeOut, _i18n("Settings.Animations.tip_fade_out", "Total time for fade-out effect in milliseconds (0 = instant)"))
+    $iY += 28
+
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Animations.lbl_fade_step", "Fade step (alpha, 5-255):"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpFadeStep = GUICtrlCreateInput("", $iX + 180, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpFadeStep, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpFadeStep, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpFadeStep, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpFadeStep)
+    _Theme_SetTooltip($__g_CD_idInpFadeStep, _i18n("Settings.Animations.tip_fade_step", "Alpha increment per frame (higher = faster, fewer frames)"))
+    $iY += 28
+
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Animations.lbl_fade_sleep", "Frame delay (ms, 1-50):"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpFadeSleep = GUICtrlCreateInput("", $iX + 180, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpFadeSleep, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpFadeSleep, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpFadeSleep, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpFadeSleep)
+    _Theme_SetTooltip($__g_CD_idInpFadeSleep, _i18n("Settings.Animations.tip_fade_sleep", "Sleep between fade frames (lower = smoother but more CPU)"))
+    $iY += 28
+
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Animations.lbl_toast_fade", "Toast fade-out (ms):"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpToastFadeOut = GUICtrlCreateInput("", $iX + 180, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpToastFadeOut, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpToastFadeOut, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpToastFadeOut, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpToastFadeOut)
+    _Theme_SetTooltip($__g_CD_idInpToastFadeOut, _i18n("Settings.Animations.tip_toast_fade", "Duration of toast notification fade-out in milliseconds"))
+EndFunc
+
 Func __CD_PopulateControls()
     Local $i
     ; General
@@ -1122,6 +1201,14 @@ Func __CD_PopulateControls()
             GUICtrlSetBkColor($__g_CD_aidDeskPreview[$i], $THEME_BG_INPUT)
         EndIf
     Next
+
+    ; Animations
+    __CD_SetCheckState($__g_CD_idChkAnimEnabled, _Cfg_GetAnimationsEnabled())
+    GUICtrlSetData($__g_CD_idInpFadeIn, _Cfg_GetFadeInDuration())
+    GUICtrlSetData($__g_CD_idInpFadeOut, _Cfg_GetFadeOutDuration())
+    GUICtrlSetData($__g_CD_idInpFadeStep, _Cfg_GetFadeStep())
+    GUICtrlSetData($__g_CD_idInpFadeSleep, _Cfg_GetFadeSleepMs())
+    GUICtrlSetData($__g_CD_idInpToastFadeOut, _Cfg_GetToastFadeOutDuration())
 EndFunc
 
 ; =============================================
@@ -1161,7 +1248,7 @@ Func __CD_MessageLoop()
             EndSwitch
 
             ; Tab button clicks
-            For $t = 1 To 8
+            For $t = 1 To 9
                 If $id = $__g_CD_aidTabBtn[$t] Then
                     __CD_SwitchTab($t)
                     ExitLoop
@@ -1365,6 +1452,14 @@ Func __CD_ApplyChanges()
         EndIf
         Return
     EndIf
+
+    ; Animations
+    _Cfg_SetAnimationsEnabled(__CD_GetCheckState($__g_CD_idChkAnimEnabled))
+    _Cfg_SetFadeInDuration(Int(GUICtrlRead($__g_CD_idInpFadeIn)))
+    _Cfg_SetFadeOutDuration(Int(GUICtrlRead($__g_CD_idInpFadeOut)))
+    _Cfg_SetFadeStep(Int(GUICtrlRead($__g_CD_idInpFadeStep)))
+    _Cfg_SetFadeSleepMs(Int(GUICtrlRead($__g_CD_idInpFadeSleep)))
+    _Cfg_SetToastFadeOutDuration(Int(GUICtrlRead($__g_CD_idInpToastFadeOut)))
 
     ; Apply changes live to the running app
     _ApplySettingsLive()
