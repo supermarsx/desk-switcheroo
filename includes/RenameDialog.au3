@@ -76,7 +76,7 @@ Func _RD_Show($iDesktop, $iTaskbarY)
     GUICtrlSetBkColor($__g_RD_iBtnCancel, $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_RD_iBtnCancel, 0)
 
-    _Theme_FadeIn($__g_RD_hGUI, $THEME_ALPHA_DIALOG)
+    _Theme_FadeIn($__g_RD_hGUI, $THEME_ALPHA_DIALOG, "dialog")
     GUICtrlSetState($__g_RD_iInputField, $GUI_FOCUS)
     $__g_RD_bVisible = True
     $__g_RD_iHovered = 0
@@ -99,7 +99,7 @@ EndFunc
 ; Description: Destroys the rename dialog and resets state
 Func _RD_Destroy()
     If $__g_RD_hGUI <> 0 Then
-        _Theme_FadeOut($__g_RD_hGUI)
+        _Theme_FadeOut($__g_RD_hGUI, "dialog")
         $__g_RD_hGUI = 0
     EndIf
     $__g_RD_bVisible = False

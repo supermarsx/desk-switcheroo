@@ -214,7 +214,22 @@ Local $iBarH = _Cfg_GetWidgetColorBarHeight()
 $lblColorBar = GUICtrlCreateLabel("", 0, $__g_iWidgetH - $iBarH, $__g_iWidgetW, $iBarH)
 _UpdateWidgetColorBar()
 
-GUISetState(@SW_SHOW)
+; Widget fade-in on startup
+If __Theme_ShouldAnimate("widget") Then
+    _WinAPI_SetLayeredWindowAttributes($gui, 0, 0, $LWA_ALPHA)
+    GUISetState(@SW_SHOW)
+    Local $iWStep = _Cfg_GetFadeStep()
+    Local $iWSleep = _Cfg_GetFadeSleepMs()
+    Local $iWTarget = _Cfg_GetThemeAlphaMain()
+    Local $iWS
+    For $iWS = 0 To $iWTarget Step $iWStep
+        _WinAPI_SetLayeredWindowAttributes($gui, 0, $iWS, $LWA_ALPHA)
+        Sleep($iWSleep)
+    Next
+    _WinAPI_SetLayeredWindowAttributes($gui, 0, $iWTarget, $LWA_ALPHA)
+Else
+    GUISetState(@SW_SHOW)
+EndIf
 
 ; Start minimized if autostart flag or config says so
 If $bAutoStart Or _Cfg_GetStartMinimized() Then

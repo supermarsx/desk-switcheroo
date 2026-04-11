@@ -85,7 +85,7 @@ Func _ShowAbout()
     GUICtrlSetBkColor($idClose, $THEME_BG_HOVER)
     GUICtrlSetCursor($idClose, 0)
 
-    _Theme_FadeIn($hDlg, $THEME_ALPHA_DIALOG)
+    _Theme_FadeIn($hDlg, $THEME_ALPHA_DIALOG, "dialog")
 
     Local $iHovered = 0
     Local $hTimer = TimerInit()
@@ -127,5 +127,5 @@ Func _ShowAbout()
         Sleep(10)
     WEnd
 
-    _Theme_FadeOut($hDlg)
+    _Theme_FadeOut($hDlg, "dialog")
 EndFunc

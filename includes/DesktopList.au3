@@ -258,7 +258,7 @@ Func _DL_Show($iTaskbarY, $iCurrentDesktop)
         GUICtrlSetCursor($__g_DL_idScrollDown, 0)
     EndIf
 
-    _Theme_FadeIn($__g_DL_hGUI)
+    _Theme_FadeIn($__g_DL_hGUI, Default, "list")
     $__g_DL_bVisible = True
     $__g_DL_iCount = $iCount
 EndFunc
@@ -271,7 +271,7 @@ Func _DL_Destroy()
     _DL_CtxDestroy()
     _Peek_End()
     If $__g_DL_hGUI <> 0 Then
-        _Theme_FadeOut($__g_DL_hGUI)
+        _Theme_FadeOut($__g_DL_hGUI, "list")
         $__g_DL_hGUI = 0
     EndIf
     $__g_DL_bVisible = False

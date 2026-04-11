@@ -153,13 +153,35 @@ Func _Theme_CreatePopup($sTitle, $iW, $iH, $iX, $iY, $iBgColor = $THEME_BG_POPUP
     Return $hGUI
 EndFunc
 
+; Name:        __Theme_ShouldAnimate
+; Description: Checks if animation is enabled for a given location type
+; Parameters:  $sType - "list", "menu", "dialog", "toast", "widget" (default: checks master only)
+; Return:      True if animation should play
+Func __Theme_ShouldAnimate($sType = "")
+    If Not _Cfg_GetAnimationsEnabled() Then Return False
+    Switch $sType
+        Case "list"
+            Return _Cfg_GetAnimList()
+        Case "menu"
+            Return _Cfg_GetAnimMenus()
+        Case "dialog"
+            Return _Cfg_GetAnimDialogs()
+        Case "toast"
+            Return _Cfg_GetAnimToasts()
+        Case "widget"
+            Return _Cfg_GetAnimWidget()
+    EndSwitch
+    Return True
+EndFunc
+
 ; Name:        _Theme_FadeIn
-; Description: Fades a layered window from alpha 0 to target. Respects animation config.
+; Description: Fades a layered window from alpha 0 to target. Respects per-location animation config.
 ; Parameters:  $hGUI - window handle
 ;              $iTargetAlpha - target opacity (default: THEME_ALPHA_POPUP)
-Func _Theme_FadeIn($hGUI, $iTargetAlpha = Default)
+;              $sType - animation location type for per-location toggle
+Func _Theme_FadeIn($hGUI, $iTargetAlpha = Default, $sType = "")
     If $iTargetAlpha = Default Then $iTargetAlpha = $THEME_ALPHA_POPUP
-    If Not _Cfg_GetAnimationsEnabled() Then
+    If Not __Theme_ShouldAnimate($sType) Then
         _WinAPI_SetLayeredWindowAttributes($hGUI, 0, $iTargetAlpha, $LWA_ALPHA)
         GUISetState(@SW_SHOW, $hGUI)
         Return
@@ -179,9 +201,10 @@ EndFunc
 ; Name:        _Theme_FadeOut
 ; Description: Fades a layered window from current alpha to 0 then deletes it.
 ; Parameters:  $hGUI - window handle (will be GUIDeleted after fade)
-Func _Theme_FadeOut($hGUI)
+;              $sType - animation location type for per-location toggle
+Func _Theme_FadeOut($hGUI, $sType = "")
     If $hGUI = 0 Then Return
-    If Not _Cfg_GetAnimationsEnabled() Then
+    If Not __Theme_ShouldAnimate($sType) Then
         GUIDelete($hGUI)
         Return
     EndIf
@@ -273,7 +296,7 @@ Func _Theme_Confirm($sTitle, $sMessage)
     GUICtrlSetBkColor($idNo, $THEME_BG_HOVER)
     GUICtrlSetCursor($idNo, 0)
 
-    _Theme_FadeIn($hDlg, $THEME_ALPHA_DIALOG)
+    _Theme_FadeIn($hDlg, $THEME_ALPHA_DIALOG, "dialog")
 
     ; Blocking message loop
     Local $iHovered = 0
@@ -324,7 +347,7 @@ Func _Theme_Confirm($sTitle, $sMessage)
         Sleep(10)
     WEnd
 
-    _Theme_FadeOut($hDlg)
+    _Theme_FadeOut($hDlg, "dialog")
     Return $bResult
 EndFunc
 
@@ -361,7 +384,7 @@ Func _Theme_Alert($sTitle, $sMessage, $iTimeout = 5000)
     GUICtrlSetBkColor($idClose, $THEME_BG_HOVER)
     GUICtrlSetCursor($idClose, 0)
 
-    _Theme_FadeIn($hDlg, $THEME_ALPHA_DIALOG)
+    _Theme_FadeIn($hDlg, $THEME_ALPHA_DIALOG, "dialog")
 
     Local $iHovered = 0
     Local $hTimer = TimerInit()
@@ -395,7 +418,7 @@ Func _Theme_Alert($sTitle, $sMessage, $iTimeout = 5000)
         Sleep(10)
     WEnd
 
-    _Theme_FadeOut($hDlg)
+    _Theme_FadeOut($hDlg, "dialog")
 EndFunc
 
 ; Name:        _Theme_IsCursorOverWindow

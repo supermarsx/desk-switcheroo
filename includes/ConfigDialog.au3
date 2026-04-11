@@ -62,6 +62,8 @@ Global $__g_CD_iContentH = 450
 
 ; -- Tab 9: Animations --
 Global $__g_CD_idChkAnimEnabled
+Global $__g_CD_idChkAnimList, $__g_CD_idChkAnimMenus, $__g_CD_idChkAnimDialogs
+Global $__g_CD_idChkAnimToasts, $__g_CD_idChkAnimWidget
 Global $__g_CD_idInpFadeIn, $__g_CD_idInpFadeOut
 Global $__g_CD_idInpFadeStep, $__g_CD_idInpFadeSleep
 Global $__g_CD_idInpToastFadeOut
@@ -112,11 +114,11 @@ Global $__g_CD_idBtnReset
 
 Func _CD_Show()
     Local $iW = 460
-    ; Dynamic height: use up to 80% of screen, minimum 570
-    Local $iMaxH = Int(@DesktopHeight * 0.8)
-    Local $iH = 620
+    ; Dynamic height: use up to 85% of screen, minimum 600
+    Local $iMaxH = Int(@DesktopHeight * 0.85)
+    Local $iH = 700
     If $iH > $iMaxH Then $iH = $iMaxH
-    If $iH < 570 Then $iH = 570
+    If $iH < 600 Then $iH = 600
     Local $iX = (@DesktopWidth - $iW) / 2
     Local $iY = (@DesktopHeight - $iH) / 2
 
@@ -226,7 +228,7 @@ Func _CD_Show()
     ; Show first tab
     __CD_SwitchTab(1)
 
-    _Theme_FadeIn($__g_CD_hGUI, $THEME_ALPHA_DIALOG)
+    _Theme_FadeIn($__g_CD_hGUI, $THEME_ALPHA_DIALOG, "dialog")
     $__g_CD_bVisible = True
 
     ; Blocking loop
@@ -234,7 +236,7 @@ Func _CD_Show()
 EndFunc
 
 Func _CD_Destroy()
-    If $__g_CD_hGUI <> 0 Then _Theme_FadeOut($__g_CD_hGUI)
+    If $__g_CD_hGUI <> 0 Then _Theme_FadeOut($__g_CD_hGUI, "dialog")
     $__g_CD_hGUI = 0
     $__g_CD_bVisible = False
 EndFunc
@@ -1049,6 +1051,15 @@ Func __CD_BuildTabAnimations()
 
     $__g_CD_idChkAnimEnabled = __CD_CreateCheckbox(_i18n("Settings.Animations.chk_enabled", "Enable animations"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkAnimEnabled, _i18n("Settings.Animations.tip_enabled", "Master toggle for all fade-in/fade-out animations"))
+    $iY += 28
+
+    ; Per-location toggles
+    $__g_CD_idChkAnimList = __CD_CreateCheckbox(_i18n("Settings.Animations.chk_list", "Desktop list"), $iX + 20, $iY, 130, $t)
+    $__g_CD_idChkAnimMenus = __CD_CreateCheckbox(_i18n("Settings.Animations.chk_menus", "Menus"), $iX + 155, $iY, 100, $t)
+    $__g_CD_idChkAnimDialogs = __CD_CreateCheckbox(_i18n("Settings.Animations.chk_dialogs", "Dialogs"), $iX + 260, $iY, 100, $t)
+    $iY += 24
+    $__g_CD_idChkAnimToasts = __CD_CreateCheckbox(_i18n("Settings.Animations.chk_toasts", "Toasts"), $iX + 20, $iY, 130, $t)
+    $__g_CD_idChkAnimWidget = __CD_CreateCheckbox(_i18n("Settings.Animations.chk_widget", "Widget"), $iX + 155, $iY, 100, $t)
     $iY += 34
 
     Local $idLbl = GUICtrlCreateLabel(_i18n("Settings.Animations.lbl_fade_in", "Fade-in duration (ms):"), $iX, $iY + 2, 175, 18)
@@ -1210,6 +1221,11 @@ Func __CD_PopulateControls()
 
     ; Animations
     __CD_SetCheckState($__g_CD_idChkAnimEnabled, _Cfg_GetAnimationsEnabled())
+    __CD_SetCheckState($__g_CD_idChkAnimList, _Cfg_GetAnimList())
+    __CD_SetCheckState($__g_CD_idChkAnimMenus, _Cfg_GetAnimMenus())
+    __CD_SetCheckState($__g_CD_idChkAnimDialogs, _Cfg_GetAnimDialogs())
+    __CD_SetCheckState($__g_CD_idChkAnimToasts, _Cfg_GetAnimToasts())
+    __CD_SetCheckState($__g_CD_idChkAnimWidget, _Cfg_GetAnimWidget())
     GUICtrlSetData($__g_CD_idInpFadeIn, _Cfg_GetFadeInDuration())
     GUICtrlSetData($__g_CD_idInpFadeOut, _Cfg_GetFadeOutDuration())
     GUICtrlSetData($__g_CD_idInpFadeStep, _Cfg_GetFadeStep())
@@ -1461,6 +1477,11 @@ Func __CD_ApplyChanges()
 
     ; Animations
     _Cfg_SetAnimationsEnabled(__CD_GetCheckState($__g_CD_idChkAnimEnabled))
+    _Cfg_SetAnimList(__CD_GetCheckState($__g_CD_idChkAnimList))
+    _Cfg_SetAnimMenus(__CD_GetCheckState($__g_CD_idChkAnimMenus))
+    _Cfg_SetAnimDialogs(__CD_GetCheckState($__g_CD_idChkAnimDialogs))
+    _Cfg_SetAnimToasts(__CD_GetCheckState($__g_CD_idChkAnimToasts))
+    _Cfg_SetAnimWidget(__CD_GetCheckState($__g_CD_idChkAnimWidget))
     _Cfg_SetFadeInDuration(Int(GUICtrlRead($__g_CD_idInpFadeIn)))
     _Cfg_SetFadeOutDuration(Int(GUICtrlRead($__g_CD_idInpFadeOut)))
     _Cfg_SetFadeStep(Int(GUICtrlRead($__g_CD_idInpFadeStep)))
