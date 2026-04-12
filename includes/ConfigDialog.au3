@@ -132,7 +132,7 @@ Global $__g_CD_idInpLogRotateCount, $__g_CD_idChkLogCompress
 Global $__g_CD_idChkLogPID, $__g_CD_idLblLogDateFormat, $__g_CD_idChkLogFlush
 
 ; -- Tab 5: Behavior extras --
-Global $__g_CD_idChkConfirmQuit, $__g_CD_idChkDebugMode
+Global $__g_CD_idChkConfirmQuit, $__g_CD_idChkConfirmRestart, $__g_CD_idChkDebugMode
 
 ; -- Buttons --
 Global $__g_CD_idBtnApply, $__g_CD_idBtnClose
@@ -1261,6 +1261,9 @@ Func __CD_BuildTabBehavior()
     $__g_CD_idChkConfirmQuit = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_confirm_quit", "Confirm before quitting"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkConfirmQuit, _i18n("Settings.Behavior.tip_confirm_quit", "Show a confirmation dialog before exiting Desk Switcheroo"))
     $iY += 26
+    $__g_CD_idChkConfirmRestart = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_confirm_restart", "Confirm before restarting"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkConfirmRestart, _i18n("Settings.Behavior.tip_confirm_restart", "Show confirmation dialog before restarting the application"))
+    $iY += 26
     $__g_CD_idChkDebugMode = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_debug_mode", "Debug mode"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkDebugMode, _i18n("Settings.Behavior.tip_debug_mode", "Enables debug features: Trigger Crash in context menu, verbose logging"))
 EndFunc
@@ -1966,6 +1969,7 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpWatcherInterval, _Cfg_GetConfigWatcherInterval())
     GUICtrlSetData($__g_CD_idInpCountCacheTTL, _Cfg_GetCountCacheTTL())
     __CD_SetCheckState($__g_CD_idChkConfirmQuit, _Cfg_GetConfirmQuit())
+    __CD_SetCheckState($__g_CD_idChkConfirmRestart, _Cfg_GetConfirmRestart())
     __CD_SetCheckState($__g_CD_idChkDebugMode, _Cfg_GetDebugMode())
 
     ; Logging
@@ -2104,8 +2108,10 @@ Func __CD_MessageLoop()
                     ExitLoop
                 Case $__g_CD_idBtnCheckNow
                     _UC_CheckNow()
+                    GUISwitch($__g_CD_hGUI) ; restore active GUI after update dialogs
                 Case $__g_CD_idBtnDownloadLatest
                     _UC_DownloadPortable()
+                    GUISwitch($__g_CD_hGUI) ; restore active GUI after download dialogs
                 Case $__g_CD_idBtnLogBrowse
                     Local $sFolder = FileSelectFolder("Select log folder", "", 7, GUICtrlRead($__g_CD_idInpLogPath), $__g_CD_hGUI)
                     If $sFolder <> "" Then GUICtrlSetData($__g_CD_idInpLogPath, $sFolder)
@@ -2382,6 +2388,7 @@ Func __CD_ApplyChanges()
     $s = GUICtrlRead($__g_CD_idInpCountCacheTTL)
     If StringIsInt($s) Then _Cfg_SetCountCacheTTL(Int($s))
     _Cfg_SetConfirmQuit(__CD_GetCheckState($__g_CD_idChkConfirmQuit))
+    _Cfg_SetConfirmRestart(__CD_GetCheckState($__g_CD_idChkConfirmRestart))
     _Cfg_SetDebugMode(__CD_GetCheckState($__g_CD_idChkDebugMode))
 
     ; Logging
@@ -3064,6 +3071,12 @@ EndFunc
 ; Name:        __CD_RestartApp
 ; Description: Relaunches the application and exits the current instance
 Func __CD_RestartApp()
+    If _Cfg_GetConfirmRestart() Then
+        If Not _Theme_Confirm(_i18n("Dialogs.confirm_restart_title", "Restart Desk Switcheroo?"), _
+                _i18n("Dialogs.confirm_restart_msg", "The application will restart. Unsaved changes will be lost.")) Then
+            Return
+        EndIf
+    EndIf
     _CD_Destroy()
     Local $sCmd
     If @Compiled Then

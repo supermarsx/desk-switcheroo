@@ -116,6 +116,14 @@ Func __UC_FetchReleaseJson($sLabel)
             _Theme_Toast(_i18n("Toasts.toast_connection_timeout", "Connection timed out"), 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
             Return ""
         EndIf
+        ; Pump messages to prevent GUI corruption when called from another dialog's loop
+        Local $aFetchMsg = GUIGetMsg(1)
+        If $aFetchMsg[1] = $hDlg And $aFetchMsg[0] = $GUI_EVENT_CLOSE Then
+            InetClose($hInet)
+            FileDelete($sTmp)
+            GUIDelete($hDlg)
+            Return ""
+        EndIf
         Sleep(50)
     WEnd
     InetClose($hInet)
