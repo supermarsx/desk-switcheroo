@@ -1476,6 +1476,13 @@ Func __CD_MessageLoop()
             If $aCursor[4] = $__g_CD_idBtnDownloadLatest Then $iFound = $__g_CD_idBtnDownloadLatest
             If $aCursor[4] = $__g_CD_idBtnLogBrowse Then $iFound = $__g_CD_idBtnLogBrowse
             If $__g_CD_idComboOverlay <> 0 And $aCursor[4] = $__g_CD_idComboOverlay Then $iFound = $__g_CD_idComboOverlay
+            ; Cycle labels
+            If $aCursor[4] = $__g_CD_idLblPosition Then $iFound = $__g_CD_idLblPosition
+            If $aCursor[4] = $__g_CD_idLblScrollDir Then $iFound = $__g_CD_idLblScrollDir
+            If $aCursor[4] = $__g_CD_idLblListAction Then $iFound = $__g_CD_idLblListAction
+            If $aCursor[4] = $__g_CD_idLblTheme Then $iFound = $__g_CD_idLblTheme
+            If $aCursor[4] = $__g_CD_idLblLogLevel Then $iFound = $__g_CD_idLblLogLevel
+            If $aCursor[4] = $__g_CD_idLblLogDateFormat Then $iFound = $__g_CD_idLblLogDateFormat
             If $iFound <> $iHovered Then
                 If $iHovered <> 0 Then
                     Local $iFgRestore = $THEME_FG_MENU
@@ -1486,8 +1493,14 @@ Func __CD_MessageLoop()
                     If $iHovered = $__g_CD_idBtnDownloadLatest Then $iFgRestore = $THEME_FG_LINK
                     If $iHovered = $__g_CD_idBtnLogBrowse Then $iFgRestore = $THEME_FG_DIM
                     If $iHovered = $__g_CD_idComboOverlay Then $iFgRestore = $THEME_FG_TEXT
+                    If $iHovered = $__g_CD_idLblPosition Or $iHovered = $__g_CD_idLblScrollDir Or _
+                       $iHovered = $__g_CD_idLblListAction Or $iHovered = $__g_CD_idLblTheme Or _
+                       $iHovered = $__g_CD_idLblLogLevel Or $iHovered = $__g_CD_idLblLogDateFormat Then $iFgRestore = $THEME_FG_PRIMARY
                     Local $iBgRestore = $THEME_BG_HOVER
-                    If $iHovered = $__g_CD_idComboOverlay Then $iBgRestore = $THEME_BG_INPUT
+                    If $iHovered = $__g_CD_idComboOverlay Or $iHovered = $__g_CD_idLblPosition Or _
+                       $iHovered = $__g_CD_idLblScrollDir Or $iHovered = $__g_CD_idLblListAction Or _
+                       $iHovered = $__g_CD_idLblTheme Or $iHovered = $__g_CD_idLblLogLevel Or _
+                       $iHovered = $__g_CD_idLblLogDateFormat Then $iBgRestore = $THEME_BG_INPUT
                     _Theme_RemoveHover($iHovered, $iFgRestore, $iBgRestore)
                 EndIf
                 $iHovered = $iFound
@@ -2067,8 +2080,20 @@ Func __CD_ShowHotkeyBuilder()
             If $aCursor[4] = $idOK Then $iFound = $idOK
             If $aCursor[4] = $idCancel Then $iFound = $idCancel
             If $aCursor[4] = $idCapture Then $iFound = $idCapture
+            If $aCursor[4] = $idChkCtrl Then $iFound = $idChkCtrl
+            If $aCursor[4] = $idChkAlt Then $iFound = $idChkAlt
+            If $aCursor[4] = $idChkShift Then $iFound = $idChkShift
+            If $aCursor[4] = $idChkWin Then $iFound = $idChkWin
             If $iFound <> $iHovered Then
-                If $iHovered <> 0 Then _Theme_RemoveHover($iHovered, $THEME_FG_MENU, $THEME_BG_HOVER)
+                If $iHovered <> 0 Then
+                    Local $iFgR = $THEME_FG_MENU
+                    ; Checkboxes restore to their toggle color
+                    If $iHovered = $idChkCtrl Then $iFgR = ($bCtrl ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
+                    If $iHovered = $idChkAlt Then $iFgR = ($bAlt ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
+                    If $iHovered = $idChkShift Then $iFgR = ($bShift ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
+                    If $iHovered = $idChkWin Then $iFgR = ($bWin ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
+                    _Theme_RemoveHover($iHovered, $iFgR, $THEME_BG_HOVER)
+                EndIf
                 $iHovered = $iFound
                 If $iHovered <> 0 Then _Theme_ApplyHover($iHovered, $THEME_FG_WHITE, $THEME_BG_BTN_HOV)
             EndIf

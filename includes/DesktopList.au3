@@ -403,8 +403,9 @@ Func _DL_CheckHover($iCurrentDesktop)
         EndIf
     EndIf
 
-    ; Auto-scroll on arrow hover
+    ; Auto-scroll on arrow hover (with visual feedback)
     If $__g_DL_idScrollUp <> 0 And $aCursor[4] = $__g_DL_idScrollUp Then
+        GUICtrlSetColor($__g_DL_idScrollUp, $THEME_FG_WHITE)
         If $__g_DL_iScrollAutoDir <> -1 Then
             $__g_DL_iScrollAutoDir = -1
             $__g_DL_hScrollAutoTimer = TimerInit()
@@ -413,6 +414,7 @@ Func _DL_CheckHover($iCurrentDesktop)
             $__g_DL_hScrollAutoTimer = TimerInit()
         EndIf
     ElseIf $__g_DL_idScrollDown <> 0 And $aCursor[4] = $__g_DL_idScrollDown Then
+        GUICtrlSetColor($__g_DL_idScrollDown, $THEME_FG_WHITE)
         If $__g_DL_iScrollAutoDir <> 1 Then
             $__g_DL_iScrollAutoDir = 1
             $__g_DL_hScrollAutoTimer = TimerInit()
@@ -422,6 +424,8 @@ Func _DL_CheckHover($iCurrentDesktop)
         EndIf
     Else
         $__g_DL_iScrollAutoDir = 0
+        If $__g_DL_idScrollUp <> 0 Then GUICtrlSetColor($__g_DL_idScrollUp, $THEME_FG_DIM)
+        If $__g_DL_idScrollDown <> 0 Then GUICtrlSetColor($__g_DL_idScrollDown, $THEME_FG_DIM)
     EndIf
 EndFunc
 
