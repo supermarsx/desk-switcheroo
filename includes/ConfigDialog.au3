@@ -94,6 +94,7 @@ Global $__g_CD_idChkExpBackoff, $__g_CD_idInpMaxRetryDelay
 Global $__g_CD_idChkAutoRestart, $__g_CD_idInpRestartDelay
 
 ; -- Tab 13: Notifications --
+Global $__g_CD_idChkNotificationsEnabled
 Global $__g_CD_idChkNotifyMoved, $__g_CD_idChkNotifyCreated, $__g_CD_idChkNotifyDeleted, $__g_CD_idChkNotifyPinned
 Global $__g_CD_idChkNotifyUnpinned, $__g_CD_idChkNotifyExplorerRecov, $__g_CD_idChkNotifyExplorerCrash
 Global $__g_CD_idLblWLScope
@@ -1753,6 +1754,10 @@ EndFunc
 Func __CD_BuildTabNotifications()
     Local $t = 13, $iX = 20, $iY = 94
 
+    $__g_CD_idChkNotificationsEnabled = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_notifications_enabled", "Enable notifications"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkNotificationsEnabled, _i18n("Settings.Notifications.tip_notifications_enabled", "Master toggle for all toast notifications"))
+    $iY += 34  ; extra spacing to visually separate from individual toggles
+
     $__g_CD_idChkNotifyMoved = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_notify_moved", "Window sent to desktop"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkNotifyMoved, _i18n("Settings.Notifications.tip_notify_moved", "Show a toast when a window is moved to another desktop"))
     $iY += 26
@@ -2063,6 +2068,7 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkExplorerNotify, _Cfg_GetExplorerNotifyRecovery())
 
     ; Notifications
+    __CD_SetCheckState($__g_CD_idChkNotificationsEnabled, _Cfg_GetNotificationsEnabled())
     __CD_SetCheckState($__g_CD_idChkNotifyMoved, _Cfg_GetNotifyWindowMoved())
     __CD_SetCheckState($__g_CD_idChkNotifyCreated, _Cfg_GetNotifyDesktopCreated())
     __CD_SetCheckState($__g_CD_idChkNotifyDeleted, _Cfg_GetNotifyDesktopDeleted())
@@ -2492,6 +2498,7 @@ Func __CD_ApplyChanges()
     _Cfg_SetExplorerNotifyRecovery(__CD_GetCheckState($__g_CD_idChkExplorerNotify))
 
     ; Notifications
+    _Cfg_SetNotificationsEnabled(__CD_GetCheckState($__g_CD_idChkNotificationsEnabled))
     _Cfg_SetNotifyWindowMoved(__CD_GetCheckState($__g_CD_idChkNotifyMoved))
     _Cfg_SetNotifyDesktopCreated(__CD_GetCheckState($__g_CD_idChkNotifyCreated))
     _Cfg_SetNotifyDesktopDeleted(__CD_GetCheckState($__g_CD_idChkNotifyDeleted))

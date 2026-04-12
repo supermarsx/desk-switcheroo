@@ -407,7 +407,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                     Else
                         _VD_CreateDesktop()
                         Sleep(100)
-                        If _Cfg_GetNotifyDesktopCreated() Then
+                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
                             _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
                         EndIf
                         _VD_GoTo($iDesktop + 1)
@@ -455,7 +455,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 Else
                     _VD_CreateDesktop()
                     Sleep(100)
-                    If _Cfg_GetNotifyDesktopCreated() Then
+                    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
                         _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
                     EndIf
                     _RefreshIndex()
@@ -472,7 +472,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                             _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
                         _VD_RemoveDesktop($iDesktop)
                         Sleep(100)
-                        If _Cfg_GetNotifyDesktopDeleted() Then
+                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopDeleted() Then
                             _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
                         EndIf
                         _RefreshIndex()
@@ -551,7 +551,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 Else
                     _VD_CreateDesktop()
                     Sleep(100)
-                    If _Cfg_GetNotifyDesktopCreated() Then
+                    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
                         _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
                     EndIf
                     _RefreshIndex()
@@ -568,7 +568,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                         _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
                         _VD_RemoveDesktop($iCtxTarget)
                         Sleep(100)
-                        If _Cfg_GetNotifyDesktopDeleted() Then
+                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopDeleted() Then
                             _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
                         EndIf
                         _RefreshIndex()
@@ -627,7 +627,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 If $iWLNext > _VD_GetCount() And _Cfg_GetWrapNavigation() Then $iWLNext = 1
                 If $iWLNext >= 1 And $iWLNext <= _VD_GetCount() Then
                     _VD_MoveWindowToDesktop($hWLTarget, $iWLNext)
-                    If _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLNext), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLNext), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
                     _WL_Refresh($iDesktop)
                 EndIf
             Case "send_prev"
@@ -635,7 +635,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 If $iWLPrev < 1 And _Cfg_GetWrapNavigation() Then $iWLPrev = _VD_GetCount()
                 If $iWLPrev >= 1 And $iWLPrev <= _VD_GetCount() Then
                     _VD_MoveWindowToDesktop($hWLTarget, $iWLPrev)
-                    If _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLPrev), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLPrev), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
                     _WL_Refresh($iDesktop)
                 EndIf
             Case "send_new"
@@ -644,16 +644,16 @@ Func _ProcessGUIEvents($msg, $hFrom)
                     Sleep(100)
                     Local $iWLNew = _VD_GetCount()
                     _VD_MoveWindowToDesktop($hWLTarget, $iWLNew)
-                    If _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLNew), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLNew), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
                     _WL_Refresh($iDesktop)
                 EndIf
             Case "pin"
                 If _Cfg_GetPinningEnabled() Then
                     Local $bWasPinnedWL = _VD_IsPinnedWindow($hWLTarget)
                     _VD_TogglePinWindow($hWLTarget)
-                    If Not $bWasPinnedWL And _Cfg_GetNotifyWindowPinned() Then
+                    If _Cfg_GetNotificationsEnabled() And Not $bWasPinnedWL And _Cfg_GetNotifyWindowPinned() Then
                         _Theme_Toast(_i18n("Toasts.toast_window_pinned", "Window pinned to all desktops"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
-                    ElseIf $bWasPinnedWL And _Cfg_GetNotifyWindowUnpinned() Then
+                    ElseIf _Cfg_GetNotificationsEnabled() And $bWasPinnedWL And _Cfg_GetNotifyWindowUnpinned() Then
                         _Theme_Toast(_i18n("Toasts.toast_window_unpinned", "Window unpinned"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
                     EndIf
                     _WL_Refresh($iDesktop)
@@ -667,7 +667,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 EndIf
             Case "pull"
                 _VD_MoveWindowToDesktop($hWLTarget, $iDesktop)
-                If _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iDesktop), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iDesktop), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
                 _WL_Refresh($iDesktop)
             Case "minimize"
                 WinSetState($hWLTarget, "", @SW_MINIMIZE)
@@ -789,7 +789,7 @@ Func _ProcessMouseInput()
                         _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
                         _VD_RemoveDesktop($iMiddleClickRow)
                         Sleep(100)
-                        If _Cfg_GetNotifyDesktopDeleted() Then
+                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopDeleted() Then
                             _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
                         EndIf
                         _RefreshIndex()
@@ -957,7 +957,7 @@ EndFunc
 ; Description: Processes event-driven flags (desktop change, name sync, explorer recovery)
 Func _ProcessEventFlags()
     ; Explorer crash notification
-    If _EM_CheckCrash() And _Cfg_GetNotifyExplorerCrash() Then
+    If _EM_CheckCrash() And _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyExplorerCrash() Then
         _Theme_Toast(_i18n("Toasts.toast_explorer_crashed", "Shell process crashed"), 0, $iTaskbarY + $iTaskbarH + 4, 3000, $TOAST_ERROR)
     EndIf
 
@@ -968,7 +968,7 @@ Func _ProcessEventFlags()
         ; Re-register desktop change hook
         _VD_RegisterNotify($gui, $WM_VD_NOTIFY)
         ; Show notification
-        If _Cfg_GetExplorerNotifyRecovery() Or _Cfg_GetNotifyExplorerRecovery() Then
+        If _Cfg_GetNotificationsEnabled() And (_Cfg_GetExplorerNotifyRecovery() Or _Cfg_GetNotifyExplorerRecovery()) Then
             _Theme_Toast(_i18n("Toasts.toast_explorer_recovered", "Explorer recovered — reinitializing"), 0, $iTaskbarY + $iTaskbarH + 4, 3000, $TOAST_WARNING)
         EndIf
     EndIf
@@ -1685,7 +1685,7 @@ Func _HK_Next()
         Else
             _VD_CreateDesktop()
             Sleep(100)
-            If _Cfg_GetNotifyDesktopCreated() Then
+            If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
                 _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
             EndIf
             _VD_GoTo($iDesktop + 1)
@@ -1819,7 +1819,7 @@ Func _HK_MoveFollowNext()
     _VD_GoTo($iTarget)
     Sleep(50)
     _RefreshIndex()
-    If _Cfg_GetNotifyWindowMoved() Then
+    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
         Local $sTitle = WinGetTitle($hWnd)
         If $sTitle = "" Then $sTitle = "Window"
         _Theme_Toast($sTitle & " -> Desktop " & $iTarget, 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
@@ -1845,7 +1845,7 @@ Func _HK_MoveFollowPrev()
     _VD_GoTo($iTarget)
     Sleep(50)
     _RefreshIndex()
-    If _Cfg_GetNotifyWindowMoved() Then
+    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
         Local $sTitle = WinGetTitle($hWnd)
         If $sTitle = "" Then $sTitle = "Window"
         _Theme_Toast($sTitle & " -> Desktop " & $iTarget, 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
@@ -1868,7 +1868,7 @@ Func _HK_MoveNext()
     EndIf
     _Log_Debug("Hotkey: move next -> window " & $hWnd & " to desktop " & $iTarget)
     _VD_MoveWindowToDesktop($hWnd, $iTarget)
-    If _Cfg_GetNotifyWindowMoved() Then
+    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
         Local $sTitle = WinGetTitle($hWnd)
         If $sTitle = "" Then $sTitle = "Window"
         _Theme_Toast($sTitle & " -> Desktop " & $iTarget, 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
@@ -1891,7 +1891,7 @@ Func _HK_MovePrev()
     EndIf
     _Log_Debug("Hotkey: move prev -> window " & $hWnd & " to desktop " & $iTarget)
     _VD_MoveWindowToDesktop($hWnd, $iTarget)
-    If _Cfg_GetNotifyWindowMoved() Then
+    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
         Local $sTitle = WinGetTitle($hWnd)
         If $sTitle = "" Then $sTitle = "Window"
         _Theme_Toast($sTitle & " -> Desktop " & $iTarget, 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
@@ -1910,13 +1910,13 @@ Func _HK_SendNewDesktop()
     _Log_Debug("Hotkey: send to new desktop -> window " & $hWnd)
     _VD_CreateDesktop()
     Sleep(100)
-    If _Cfg_GetNotifyDesktopCreated() Then
+    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
         _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
     EndIf
     Local $iNewDesk = _VD_GetCount()
     _VD_MoveWindowToDesktop($hWnd, $iNewDesk)
     _RefreshIndex()
-    If _Cfg_GetNotifyWindowMoved() Then
+    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
         Local $sTitle = WinGetTitle($hWnd)
         If $sTitle = "" Then $sTitle = "Window"
         _Theme_Toast($sTitle & " -> Desktop " & $iNewDesk, 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
@@ -1931,9 +1931,9 @@ Func _HK_PinWindow()
     If $hWnd = $gui Then Return
     _Log_Debug("Hotkey: toggle pin window -> " & $hWnd)
     Local $bPinned = _VD_TogglePinWindow($hWnd)
-    If $bPinned And _Cfg_GetNotifyWindowPinned() Then
+    If _Cfg_GetNotificationsEnabled() And $bPinned And _Cfg_GetNotifyWindowPinned() Then
         _Theme_Toast(_i18n("Toasts.toast_window_pinned", "Window pinned to all desktops"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
-    ElseIf Not $bPinned And _Cfg_GetNotifyWindowUnpinned() Then
+    ElseIf _Cfg_GetNotificationsEnabled() And Not $bPinned And _Cfg_GetNotifyWindowUnpinned() Then
         _Theme_Toast(_i18n("Toasts.toast_window_unpinned", "Window unpinned"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
     EndIf
 EndFunc
@@ -2000,7 +2000,7 @@ Func _CheckTrayMessages()
             Else
                 _VD_CreateDesktop()
                 Sleep(100)
-                If _Cfg_GetNotifyDesktopCreated() Then
+                If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
                     _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
                 EndIf
                 _RefreshIndex()
@@ -2010,7 +2010,7 @@ Func _CheckTrayMessages()
                 If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm("Delete Desktop " & $iDesktop & "?", _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
                     _VD_RemoveDesktop($iDesktop)
                     Sleep(100)
-                    If _Cfg_GetNotifyDesktopDeleted() Then
+                    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopDeleted() Then
                         _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
                     EndIf
                     _RefreshIndex()
