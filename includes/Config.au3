@@ -58,6 +58,7 @@ Global $__g_Cfg_iListScrollSpeed   = 1
 Global $__g_Cfg_iTooltipFontSize   = 8
 Global $__g_Cfg_bThumbnailUseScreenshot = False
 Global $__g_Cfg_iThumbnailCacheTTL = 30
+Global $__g_Cfg_bDesktopListShowNumbers = True
 Global $__g_Cfg_iHotkeyDesktopCount = 9
 
 ; [Scroll]
@@ -282,6 +283,7 @@ Func _Cfg_Load()
     $__g_Cfg_iTooltipFontSize   = __Cfg_ReadInt($f, "Display", "tooltip_font_size", 8, 6, 12)
     $__g_Cfg_bThumbnailUseScreenshot = __Cfg_ReadBool($f, "Display", "thumbnail_use_screenshot", False)
     $__g_Cfg_iThumbnailCacheTTL = __Cfg_ReadInt($f, "Display", "thumbnail_cache_ttl", 30, 5, 300)
+    $__g_Cfg_bDesktopListShowNumbers = __Cfg_ReadBool($f, "Display", "desktop_list_show_numbers", True)
 
     ; [Scroll]
     $__g_Cfg_bScrollEnabled     = __Cfg_ReadBool($f, "Scroll", "scroll_enabled", False)
@@ -469,6 +471,7 @@ Func _Cfg_Save()
     IniWrite($f, "Display", "tooltip_font_size", $__g_Cfg_iTooltipFontSize)
     __Cfg_WriteBool($f, "Display", "thumbnail_use_screenshot", $__g_Cfg_bThumbnailUseScreenshot)
     IniWrite($f, "Display", "thumbnail_cache_ttl", $__g_Cfg_iThumbnailCacheTTL)
+    __Cfg_WriteBool($f, "Display", "desktop_list_show_numbers", $__g_Cfg_bDesktopListShowNumbers)
 
     ; [Scroll]
     __Cfg_WriteBool($f, "Scroll", "scroll_enabled", $__g_Cfg_bScrollEnabled)
@@ -647,6 +650,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Display", "tooltip_font_size", 8)
     __Cfg_DefaultBool($f, "Display", "thumbnail_use_screenshot", False)
     __Cfg_DefaultVal($f, "Display", "thumbnail_cache_ttl", 30)
+    __Cfg_DefaultBool($f, "Display", "desktop_list_show_numbers", True)
 
     __Cfg_DefaultBool($f, "Scroll", "scroll_enabled", False)
     __Cfg_DefaultVal($f, "Scroll", "scroll_direction", "normal")
@@ -888,6 +892,9 @@ Func _Cfg_GetThumbnailUseScreenshot()
 EndFunc
 Func _Cfg_GetThumbnailCacheTTL()
     Return $__g_Cfg_iThumbnailCacheTTL
+EndFunc
+Func _Cfg_GetDesktopListShowNumbers()
+    Return $__g_Cfg_bDesktopListShowNumbers
 EndFunc
 
 ; [Scroll]
@@ -1424,6 +1431,9 @@ Func _Cfg_SetThumbnailCacheTTL($i)
     If $i < 5 Then $i = 5
     If $i > 300 Then $i = 300
     $__g_Cfg_iThumbnailCacheTTL = $i
+EndFunc
+Func _Cfg_SetDesktopListShowNumbers($b)
+    $__g_Cfg_bDesktopListShowNumbers = $b
 EndFunc
 
 ; [Scroll]

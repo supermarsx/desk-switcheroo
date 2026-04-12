@@ -122,6 +122,7 @@ Global $__g_CD_idChkColorsEnabled
 ; -- Tab 2: Display extras --
 Global $__g_CD_idInpListFont, $__g_CD_idInpListFontSize, $__g_CD_idInpTooltipFontSize
 Global $__g_CD_idChkListScrollable, $__g_CD_idInpListMaxVisible, $__g_CD_idInpListScrollSpeed
+Global $__g_CD_idChkDLShowNumbers
 
 ; -- Tab 7: Logging --
 Global $__g_CD_idChkLogging, $__g_CD_idInpLogPath, $__g_CD_idBtnLogBrowse, $__g_CD_idLblLogLevel
@@ -749,6 +750,10 @@ Func __CD_BuildTabDisplay()
     __CD_RegCtrl($t, $__g_CD_idInpListFontSize)
     _Theme_SetTooltip($__g_CD_idInpListFontSize, _i18n("Settings.Display.tip_list_font_size", "Font size for desktop list items"))
     $iY += 34
+
+    $__g_CD_idChkDLShowNumbers = __CD_CreateCheckbox(_i18n("Settings.Display.chk_dl_numbers", "Show desktop numbers in list"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkDLShowNumbers, _i18n("Settings.Display.tip_dl_numbers", "Show desktop number prefix (1, 2, 3...) in the desktop list"))
+    $iY += 26
 
     $__g_CD_idChkListScrollable = __CD_CreateCheckbox(_i18n("Settings.Display.chk_list_scrollable", "Scrollable desktop list"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkListScrollable, _i18n("Settings.Display.tip_list_scrollable", "Enable scrolling when many desktops (shows scroll arrows)"))
@@ -1836,6 +1841,7 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpListFont, _Cfg_GetListFontName())
     GUICtrlSetData($__g_CD_idInpListFontSize, _Cfg_GetListFontSize())
     GUICtrlSetData($__g_CD_idInpTooltipFontSize, _Cfg_GetTooltipFontSize())
+    __CD_SetCheckState($__g_CD_idChkDLShowNumbers, _Cfg_GetDesktopListShowNumbers())
     __CD_SetCheckState($__g_CD_idChkListScrollable, _Cfg_GetListScrollable())
     GUICtrlSetData($__g_CD_idInpListMaxVisible, _Cfg_GetListMaxVisible())
     GUICtrlSetData($__g_CD_idInpListScrollSpeed, _Cfg_GetListScrollSpeed())
@@ -2236,6 +2242,7 @@ Func __CD_ApplyChanges()
     If StringIsInt($s) Then _Cfg_SetListFontSize(Int($s))
     $s = GUICtrlRead($__g_CD_idInpTooltipFontSize)
     If StringIsInt($s) Then _Cfg_SetTooltipFontSize(Int($s))
+    _Cfg_SetDesktopListShowNumbers(__CD_GetCheckState($__g_CD_idChkDLShowNumbers))
     _Cfg_SetListScrollable(__CD_GetCheckState($__g_CD_idChkListScrollable))
     $s = GUICtrlRead($__g_CD_idInpListMaxVisible)
     If StringIsInt($s) Then _Cfg_SetListMaxVisible(Int($s))
