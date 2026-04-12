@@ -28,6 +28,7 @@ Global Const $DESKTOP_LIMIT = 20
 #include "includes\ContextMenu.au3"
 #include "includes\RenameDialog.au3"
 #include "includes\DesktopList.au3"
+#include "includes\WindowList.au3"
 #include "includes\ConfigDialog.au3"
 #include "includes\AboutDialog.au3"
 #include "includes\UpdateChecker.au3"
@@ -572,6 +573,79 @@ Func _ProcessGUIEvents($msg, $hFrom)
         EndIf
     EndIf
 
+    ; Window list events
+    If _WL_IsVisible() And $hFrom = _WL_GetGUI() Then
+        Local $hClickedWnd = _WL_HandleClick($msg)
+        If $hClickedWnd <> 0 Then
+            ; Single click on a window item — activate it
+            WinActivate($hClickedWnd)
+        EndIf
+    EndIf
+
+    ; Window list context menu events
+    If _WL_CtxIsVisible() And $hFrom = _WL_CtxGetGUI() Then
+        Local $sWLAction = _WL_CtxHandleClick($msg)
+        Local $hWLTarget = _WL_GetCtxTarget()
+        If $sWLAction <> "" Then _Log_Debug("WindowList ctx: " & $sWLAction)
+        Switch $sWLAction
+            Case "send_next"
+                Local $iWLNext = $iDesktop + 1
+                If $iWLNext > _VD_GetCount() And _Cfg_GetWrapNavigation() Then $iWLNext = 1
+                If $iWLNext >= 1 And $iWLNext <= _VD_GetCount() Then
+                    _VD_MoveWindowToDesktop($hWLTarget, $iWLNext)
+                    If _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLNext), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                    _WL_Refresh($iDesktop)
+                EndIf
+            Case "send_prev"
+                Local $iWLPrev = $iDesktop - 1
+                If $iWLPrev < 1 And _Cfg_GetWrapNavigation() Then $iWLPrev = _VD_GetCount()
+                If $iWLPrev >= 1 And $iWLPrev <= _VD_GetCount() Then
+                    _VD_MoveWindowToDesktop($hWLTarget, $iWLPrev)
+                    If _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLPrev), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                    _WL_Refresh($iDesktop)
+                EndIf
+            Case "send_new"
+                If _VD_GetCount() < $DESKTOP_LIMIT Then
+                    _VD_CreateDesktop()
+                    Sleep(100)
+                    Local $iWLNew = _VD_GetCount()
+                    _VD_MoveWindowToDesktop($hWLTarget, $iWLNew)
+                    If _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLNew), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                    _WL_Refresh($iDesktop)
+                EndIf
+            Case "pin"
+                If _Cfg_GetPinningEnabled() Then
+                    _VD_TogglePinWindow($hWLTarget)
+                    If _Cfg_GetNotifyWindowPinned() Then
+                        If _VD_IsPinnedWindow($hWLTarget) Then
+                            _Theme_Toast(_i18n("Toasts.toast_window_pinned", "Window pinned to all desktops"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                        Else
+                            _Theme_Toast(_i18n("Toasts.toast_window_unpinned", "Window unpinned"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                        EndIf
+                    EndIf
+                    _WL_Refresh($iDesktop)
+                EndIf
+            Case "goto"
+                Local $iWinDesk = _VD_GetWindowDesktopNumber($hWLTarget)
+                If $iWinDesk > 0 And $iWinDesk <> $iDesktop Then
+                    _VD_GoTo($iWinDesk)
+                    Sleep(50)
+                    _RefreshIndex()
+                EndIf
+            Case "minimize"
+                WinSetState($hWLTarget, "", @SW_MINIMIZE)
+            Case "maximize"
+                WinSetState($hWLTarget, "", @SW_MAXIMIZE)
+            Case "restore"
+                WinSetState($hWLTarget, "", @SW_RESTORE)
+            Case "close"
+                WinClose($hWLTarget)
+                Sleep(200)
+                _WL_Refresh($iDesktop)
+        EndSwitch
+        _WL_CtxDestroy()
+    EndIf
+
     ; Rename dialog events
     If _RD_IsVisible() And $hFrom = _RD_GetGUI() Then
         Local $sRDAction = _RD_HandleEvent($msg)
@@ -906,7 +980,9 @@ Func _ProcessHoverAndVisuals()
     Local $bOverCP = (_DL_ColorPickerIsVisible() And _Theme_IsCursorOverWindow(_DL_ColorPickerGetGUI()))
     Local $bOverRD = (_RD_IsVisible() And _Theme_IsCursorOverWindow(_RD_GetGUI()))
     Local $bOverThumb = (_DL_ThumbIsVisible() And _Theme_IsCursorOverWindow(_DL_ThumbGetGUI()))
-    Local $bCursorActive = ($bOverWidget Or $bOverDL Or $bOverCM Or $bOverCtx Or $bOverCP Or $bOverRD Or $bOverThumb)
+    Local $bOverWL = (_WL_IsVisible() And _Theme_IsCursorOverWindow(_WL_GetGUI()))
+    Local $bOverWLCtx = (_WL_CtxIsVisible() And _Theme_IsCursorOverWindow(_WL_CtxGetGUI()))
+    Local $bCursorActive = ($bOverWidget Or $bOverDL Or $bOverCM Or $bOverCtx Or $bOverCP Or $bOverRD Or $bOverThumb Or $bOverWL Or $bOverWLCtx)
 
     ; Hover effects — reuse hit-test results (no redundant WinGetPos calls)
     If $bCursorActive And $bStateChanged Then
@@ -916,6 +992,8 @@ Func _ProcessHoverAndVisuals()
         If $bOverCtx Then _DL_CtxCheckHover()
         If $bOverCP Then _DL_ColorPickerCheckHover()
         If $bOverRD Then _RD_CheckHover()
+        If $bOverWL Then _WL_CheckHover()
+        If $bOverWLCtx Then _WL_CtxCheckHover()
     EndIf
 
     ; Clear hover states when cursor leaves all windows (prevents stuck highlights)
@@ -972,6 +1050,14 @@ Func _ProcessTimersAndSleep($bCursorActive)
     _DL_CheckAutoHide($gui)
     _CM_CheckAutoHide($gui)
     _DL_CtxCheckAutoHide()
+
+    ; Window list auto-hide, auto-refresh, search polling
+    If _WL_IsVisible() Then
+        _WL_CheckAutoHide($gui)
+        _WL_CheckAutoRefresh($iDesktop)
+        _WL_CheckSearchInput()
+    EndIf
+    _WL_CtxCheckAutoHide()
 
     ; Dynamic sleep: responsive when interactive, lightweight when idle
     ; 3 tiers: active hover (5ms), popups visible (15ms), fully idle (100ms)
@@ -1098,6 +1184,7 @@ Func _RefreshIndex()
         If $iOld > 0 Then $iPrevDesktop = $iOld
         If _Cfg_GetAutoFocusAfterSwitch() Then _AutoFocusTopWindow()
         _WP_OnDesktopChanged($iDesktop)
+        If _WL_IsVisible() Then _WL_Refresh($iDesktop)
     EndIf
     _ApplyDesktopChange()
     _ForceTopMost()
@@ -1812,7 +1899,8 @@ EndFunc
 ; Description: Hotkey callback to toggle the window list panel (placeholder - WindowList.au3 not yet created)
 Func _HK_ToggleWindowList()
     If Not _Cfg_GetWindowListEnabled() Then Return
-    _Log_Debug("Hotkey: toggle window list (not yet implemented)")
+    _Log_Debug("Hotkey: toggle window list")
+    _WL_Toggle($iDesktop)
 EndFunc
 
 ; About dialog extracted to includes\AboutDialog.au3
@@ -2285,7 +2373,8 @@ Func _Shutdown()
     If _RD_IsVisible() Then _RD_Destroy()
     _Theme_ToastDestroy()
 
-    ; Fade out desktop list if visible
+    ; Fade out window list and desktop list if visible
+    If _WL_IsVisible() Then _WL_Destroy()
     If _DL_IsVisible() Then _DL_Destroy()
 
     ; Fade out main widget
