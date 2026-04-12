@@ -633,7 +633,7 @@ Func _WL_SearchFilter($sQuery)
             ; Check if window title contains query (case-insensitive)
             Local $hWnd = $__g_WL_aHWNDs[$iIdx]
             Local $sTitle = WinGetTitle($hWnd)
-            If StringInStr($sTitle, $sQuery) Then
+            If StringInStr(StringLower($sTitle), StringLower($sQuery)) Then
                 GUICtrlSetState($__g_WL_aItemIDs[$iSlot], $GUI_SHOW)
             Else
                 GUICtrlSetState($__g_WL_aItemIDs[$iSlot], $GUI_HIDE)
@@ -684,7 +684,7 @@ Func _WL_CtxShow($hTargetWnd)
     Local $iMenuW = 200
     Local $iSepH = 1
     Local $iItemCount = 4 ; send_next, send_prev, send_new, pin
-    If $bDifferentDesktop Then $iItemCount += 1 ; goto
+    If $bDifferentDesktop Then $iItemCount += 2 ; goto + pull
 
     ; Window state actions: always show at least one of minimize/maximize/restore
     If $bMinimized Then
@@ -741,6 +741,13 @@ Func _WL_CtxShow($hTargetWnd)
     $__g_WL_iCtxSendNew = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_send_new", "Send to New Desktop"), _
         4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
+
+    ; Pull to current (only if window is on a different desktop)
+    If $bDifferentDesktop Then
+        $__g_WL_iCtxPull = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_pull_to_current", "Pull to Current Desktop"), _
+            4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+        $iY += $THEME_MENU_ITEM_H
+    EndIf
 
     ; Separator
     GUICtrlCreateLabel("", 8, $iY + 2, $iMenuW - 16, $iSepH)

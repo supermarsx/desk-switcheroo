@@ -639,6 +639,10 @@ Func _ProcessGUIEvents($msg, $hFrom)
                     Sleep(50)
                     _RefreshIndex()
                 EndIf
+            Case "pull"
+                _VD_MoveWindowToDesktop($hWLTarget, $iDesktop)
+                If _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iDesktop), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                _WL_Refresh($iDesktop)
             Case "minimize"
                 WinSetState($hWLTarget, "", @SW_MINIMIZE)
             Case "maximize"
@@ -1891,19 +1895,17 @@ Func _HK_PinWindow()
     If $hWnd = $gui Then Return
     _Log_Debug("Hotkey: toggle pin window -> " & $hWnd)
     Local $bPinned = _VD_TogglePinWindow($hWnd)
-    If _Cfg_GetNotifyWindowMoved() Then
-        Local $sTitle = WinGetTitle($hWnd)
-        If $sTitle = "" Then $sTitle = "Window"
+    If _Cfg_GetNotifyWindowPinned() Then
         If $bPinned Then
-            _Theme_Toast($sTitle & " pinned to all desktops", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+            _Theme_Toast(_i18n("Toasts.toast_window_pinned", "Window pinned to all desktops"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
         Else
-            _Theme_Toast($sTitle & " unpinned", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+            _Theme_Toast(_i18n("Toasts.toast_window_unpinned", "Window unpinned"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
         EndIf
     EndIf
 EndFunc
 
 ; Name:        _HK_ToggleWindowList
-; Description: Hotkey callback to toggle the window list panel (placeholder - WindowList.au3 not yet created)
+; Description: Hotkey callback to toggle the window list panel
 Func _HK_ToggleWindowList()
     If Not _Cfg_GetWindowListEnabled() Then Return
     _Log_Debug("Hotkey: toggle window list")
