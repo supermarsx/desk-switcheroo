@@ -27,10 +27,14 @@ Global Const $__g_CD_aTabNames = "General,Display,Scroll,Hotkeys,Behavior,Loggin
 ; -- Controls per tab (arrays of IDs to show/hide + scroll) --
 Global $__g_CD_aidTabCtrls[14][100] ; [tab 1-13][up to 100 controls per tab]
 Global $__g_CD_aiTabCtrlY[14][100]  ; original Y position per control
+Global $__g_CD_aiTabCtrlX[14][100]  ; cached X position per control
+Global $__g_CD_aiTabCtrlW[14][100]  ; cached width per control
+Global $__g_CD_aiTabCtrlH[14][100]  ; cached height per control
 Global $__g_CD_aiTabCtrlCount[14]   ; how many controls per tab
 Global $__g_CD_aiTabScroll[14]      ; current scroll offset per tab (px)
 Global $__g_CD_abTabYInit[14]       ; True once original Y positions captured for this tab
 Global $__g_CD_iContentTop = 84     ; top of content area (3-row tab bar)
+Global $__g_CD_iContentBottom = 0   ; bottom of content area (set in _CD_Show)
 Global $__g_CD_iScrollStep = 30     ; pixels per scroll step
 
 ; -- Scroll indicator labels --
@@ -205,6 +209,7 @@ Func _CD_Show()
 
     ; Content area background (disabled so it doesn't intercept clicks on controls above)
     $__g_CD_iContentH = $iH - 168 ; leave room for 3-row tab bar + buttons
+    $__g_CD_iContentBottom = $__g_CD_iContentTop + $__g_CD_iContentH ; bottom of visible content area
     Local $iContentH = $__g_CD_iContentH
     Local $idContentBg = GUICtrlCreateLabel("", 8, 84, $iW - 16, $iContentH)
     GUICtrlSetBkColor($idContentBg, $THEME_BG_MAIN)
@@ -363,7 +368,7 @@ Func __CD_SwitchTab($iTab)
     DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", $__g_CD_hGUI)
 
     ; Update tab button styles
-    Local $t, $c
+    Local $t, $c, $idSc, $iNewY, $iCtrlH
     For $t = 1 To 13
         If $t = $iTab Then
             GUICtrlSetColor($__g_CD_aidTabBtn[$t], $THEME_FG_WHITE)
@@ -375,25 +380,33 @@ Func __CD_SwitchTab($iTab)
             GUICtrlSetFont($__g_CD_aidTabBtn[$t], 8, 400, 0, $THEME_FONT_MAIN)
         EndIf
     Next
-    ; Show/hide controls per tab, applying saved scroll offset for active tab
+    ; Hide all inactive tab controls; show active tab with bounds checking
     Local $iScroll = $__g_CD_aiTabScroll[$iTab]
     For $t = 1 To 13
-        Local $iState = $GUI_HIDE
-        If $t = $iTab Then $iState = $GUI_SHOW
-        For $c = 0 To $__g_CD_aiTabCtrlCount[$t] - 1
-            GUICtrlSetState($__g_CD_aidTabCtrls[$t][$c], $iState)
-        Next
+        If $t <> $iTab Then
+            ; Hide all controls on inactive tabs
+            For $c = 0 To $__g_CD_aiTabCtrlCount[$t] - 1
+                GUICtrlSetState($__g_CD_aidTabCtrls[$t][$c], $GUI_HIDE)
+            Next
+        Else
+            ; Show active tab controls with scroll offset and bounds checking
+            For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
+                $idSc = $__g_CD_aidTabCtrls[$iTab][$c]
+                $iNewY = $__g_CD_aiTabCtrlY[$iTab][$c] - $iScroll
+                $iCtrlH = $__g_CD_aiTabCtrlH[$iTab][$c]
+                ; Hide controls that are completely outside the visible content area
+                If ($iNewY + $iCtrlH) < $__g_CD_iContentTop Or $iNewY > $__g_CD_iContentBottom Then
+                    GUICtrlSetState($idSc, $GUI_HIDE)
+                Else
+                    GUICtrlSetState($idSc, $GUI_SHOW)
+                    If $iScroll <> 0 Then
+                        GUICtrlSetPos($idSc, $__g_CD_aiTabCtrlX[$iTab][$c], $iNewY, _
+                            $__g_CD_aiTabCtrlW[$iTab][$c], $iCtrlH)
+                    EndIf
+                EndIf
+            Next
+        EndIf
     Next
-    ; Restore scroll positions for the active tab (apply saved offset)
-    If $iScroll <> 0 Then
-        For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
-            Local $idSc = $__g_CD_aidTabCtrls[$iTab][$c]
-            Local $aSc = ControlGetPos($__g_CD_hGUI, "", $idSc)
-            If Not @error And IsArray($aSc) Then
-                GUICtrlSetPos($idSc, $aSc[0], $__g_CD_aiTabCtrlY[$iTab][$c] - $iScroll, $aSc[2], $aSc[3])
-            EndIf
-        Next
-    EndIf
 
     ; Unlock window — triggers a single repaint with all changes applied
     DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", 0)
@@ -405,30 +418,39 @@ EndFunc
 Func __CD_RegCtrl($iTab, $idCtrl)
     Local $c = $__g_CD_aiTabCtrlCount[$iTab]
     $__g_CD_aidTabCtrls[$iTab][$c] = $idCtrl
-    ; Capture original Y position immediately (controls exist when registered)
+    ; Capture original position and dimensions immediately (controls exist when registered)
     Local $aPos = ControlGetPos($__g_CD_hGUI, "", $idCtrl)
     If Not @error And IsArray($aPos) Then
+        $__g_CD_aiTabCtrlX[$iTab][$c] = $aPos[0]
         $__g_CD_aiTabCtrlY[$iTab][$c] = $aPos[1]
+        $__g_CD_aiTabCtrlW[$iTab][$c] = $aPos[2]
+        $__g_CD_aiTabCtrlH[$iTab][$c] = $aPos[3]
+        $__g_CD_abTabYInit[$iTab] = True
     EndIf
     $__g_CD_aiTabCtrlCount[$iTab] = $c + 1
 EndFunc
 
 ; Name:        __CD_EnsureYInit
-; Description: Captures original Y positions for a tab if not already done.
+; Description: Captures original positions/dimensions for a tab if not already done.
 ;              Needed as a fallback when controls are created before the GUI is visible.
 Func __CD_EnsureYInit($iTab)
     If $__g_CD_abTabYInit[$iTab] Then Return
-    $__g_CD_abTabYInit[$iTab] = True
-    Local $c
+    Local $c, $bAllValid = True, $aInit
     For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
-        ; Only capture if not already set (non-zero from __CD_RegCtrl)
-        If $__g_CD_aiTabCtrlY[$iTab][$c] = 0 Then
-            Local $aInit = ControlGetPos($__g_CD_hGUI, "", $__g_CD_aidTabCtrls[$iTab][$c])
+        ; Re-capture from ControlGetPos if dimensions are missing (W=0 means not cached)
+        If $__g_CD_aiTabCtrlW[$iTab][$c] = 0 Then
+            $aInit = ControlGetPos($__g_CD_hGUI, "", $__g_CD_aidTabCtrls[$iTab][$c])
             If Not @error And IsArray($aInit) Then
+                $__g_CD_aiTabCtrlX[$iTab][$c] = $aInit[0]
                 $__g_CD_aiTabCtrlY[$iTab][$c] = $aInit[1]
+                $__g_CD_aiTabCtrlW[$iTab][$c] = $aInit[2]
+                $__g_CD_aiTabCtrlH[$iTab][$c] = $aInit[3]
+            Else
+                $bAllValid = False
             EndIf
         EndIf
     Next
+    If $bAllValid Then $__g_CD_abTabYInit[$iTab] = True
 EndFunc
 
 ; Name:        __CD_GetTabMaxScroll
@@ -472,7 +494,7 @@ EndFunc
 Func __CD_ScrollTab($iDelta)
     Local $iTab = $__g_CD_iActiveTab
 
-    ; Ensure Y positions are captured
+    ; Ensure positions/dimensions are captured
     __CD_EnsureYInit($iTab)
 
     Local $iNewScroll = $__g_CD_aiTabScroll[$iTab] + $iDelta
@@ -491,14 +513,20 @@ Func __CD_ScrollTab($iDelta)
     ; Lock window to prevent flicker during bulk repositioning
     DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", $__g_CD_hGUI)
 
-    ; Move all controls for this tab
-    Local $c
+    ; Move all controls for this tab, hiding those outside visible content area
+    Local $c, $iNewY, $iCtrlH, $idCtrl, $iOrigY
     For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
-        Local $idCtrl = $__g_CD_aidTabCtrls[$iTab][$c]
-        Local $iOrigY = $__g_CD_aiTabCtrlY[$iTab][$c]
-        Local $aCtrlPos = ControlGetPos($__g_CD_hGUI, "", $idCtrl)
-        If Not @error And IsArray($aCtrlPos) Then
-            GUICtrlSetPos($idCtrl, $aCtrlPos[0], $iOrigY - $iNewScroll, $aCtrlPos[2], $aCtrlPos[3])
+        $idCtrl = $__g_CD_aidTabCtrls[$iTab][$c]
+        $iOrigY = $__g_CD_aiTabCtrlY[$iTab][$c]
+        $iNewY = $iOrigY - $iNewScroll
+        $iCtrlH = $__g_CD_aiTabCtrlH[$iTab][$c]
+        ; Hide controls that are completely outside the visible content area
+        If ($iNewY + $iCtrlH) < $__g_CD_iContentTop Or $iNewY > $__g_CD_iContentBottom Then
+            GUICtrlSetState($idCtrl, $GUI_HIDE)
+        Else
+            GUICtrlSetState($idCtrl, $GUI_SHOW)
+            GUICtrlSetPos($idCtrl, $__g_CD_aiTabCtrlX[$iTab][$c], $iNewY, _
+                $__g_CD_aiTabCtrlW[$iTab][$c], $iCtrlH)
         EndIf
     Next
 
