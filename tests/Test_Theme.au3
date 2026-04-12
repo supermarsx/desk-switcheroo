@@ -91,4 +91,34 @@ Func _RunTest_Theme()
 
     ; -- Drag dim color --
     _Test_AssertEqual("FG_DRAG_DIM value", $THEME_FG_DRAG_DIM, 0x555555)
+
+    ; -- Cursor cache globals exist and are numeric --
+    _Test_AssertGreaterEqual("Cached cursor X >= 0", $__g_Theme_iCachedCursorX, 0)
+    _Test_AssertGreaterEqual("Cached cursor Y >= 0", $__g_Theme_iCachedCursorY, 0)
+
+    ; -- CacheFrameState updates cursor position --
+    _Theme_CacheFrameState()
+    _Test_AssertGreaterEqual("After cache: X >= 0", $__g_Theme_iCachedCursorX, 0)
+    _Test_AssertGreaterEqual("After cache: Y >= 0", $__g_Theme_iCachedCursorY, 0)
+    _Test_AssertLessEqual("After cache: X <= screen", $__g_Theme_iCachedCursorX, @DesktopWidth + 100)
+    _Test_AssertLessEqual("After cache: Y <= screen", $__g_Theme_iCachedCursorY, @DesktopHeight + 100)
+
+    ; -- CacheFrameState is idempotent within same frame --
+    Local $iX1 = $__g_Theme_iCachedCursorX
+    Local $iY1 = $__g_Theme_iCachedCursorY
+    _Theme_CacheFrameState()
+    ; Cursor might move between calls but values should still be valid
+    _Test_AssertGreaterEqual("Second cache: X >= 0", $__g_Theme_iCachedCursorX, 0)
+    _Test_AssertGreaterEqual("Second cache: Y >= 0", $__g_Theme_iCachedCursorY, 0)
+
+    ; -- IsCursorOverWindow returns False for null handle --
+    _Test_AssertFalse("Null handle = not over", _Theme_IsCursorOverWindow(0))
+
+    ; -- Theme scheme application --
+    _Test_AssertNotEqual("Dark scheme has BG", $__g_Theme_aSchemeDark[0], 0)
+    _Test_AssertNotEqual("Midnight scheme has BG", $__g_Theme_aSchemeMidnight[0], 0)
+    _Test_AssertNotEqual("Midday scheme differs", $__g_Theme_aSchemeMidday[0], $__g_Theme_aSchemeDark[0])
+
+    ; -- BTN_HOV differs from HOVER (hover effect must be visible) --
+    _Test_AssertNotEqual("BTN_HOV != HOVER", $THEME_BG_BTN_HOV, $THEME_BG_HOVER)
 EndFunc

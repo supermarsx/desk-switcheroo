@@ -51,6 +51,38 @@ Func _RunTest_i18n()
 
     ; Restore
     _i18n_Init("en-US")
+
+    ; -- GetAvailableDisplay returns formatted strings --
+    Local $sDisplay = _i18n_GetAvailableDisplay()
+    _Test_AssertTrue("Display list non-empty", StringLen($sDisplay) > 10)
+    _Test_AssertTrue("Display has pipe separator", StringInStr($sDisplay, "|") > 0)
+
+    ; -- DisplayToCode extracts locale code --
+    Local $sCode = _i18n_DisplayToCode("en-US " & ChrW(0x2014) & " English (United States)")
+    _Test_AssertEqual("DisplayToCode en-US", $sCode, "en-US")
+
+    ; -- DisplayToCode with unknown format returns input --
+    Local $sRaw = _i18n_DisplayToCode("garbage")
+    _Test_AssertEqual("DisplayToCode passthrough", $sRaw, "garbage")
+
+    ; -- All 33 locale files exist and have >= 200 keys --
+    Local $aLocales[34] = [33, "ar-EG", "ar-SA", "bn-IN", "da-DK", "de-DE", "en-CA", "en-GB", "en-IN", "en-US", _
+        "es-AR", "es-ES", "es-MX", "fr-CA", "fr-FR", "hi-IN", "hu-HU", "id-ID", "is-IS", "it-IT", _
+        "ko-KR", "nl-NL", "pl-PL", "pt-BR", "pt-PT", "ro-RO", "ru-RU", "sv-SE", "th-TH", "tr-TR", _
+        "uk-UA", "vi-VN", "zh-CN", "zh-TW"]
+    Local $sLocaleDir = @ScriptDir & "\..\locales\"
+    Local $iL
+    For $iL = 1 To $aLocales[0]
+        Local $sFile = $sLocaleDir & $aLocales[$iL] & ".ini"
+        _Test_AssertTrue("Locale file exists: " & $aLocales[$iL], FileExists($sFile))
+        Local $iKeys = __Test_CountLocaleKeys($sFile)
+        _Test_AssertGreaterEqual("Locale " & $aLocales[$iL] & " has >= 200 keys", $iKeys, 200)
+    Next
+
+    ; -- Format with {3} placeholder --
+    Local $sFmt3 = _i18n_Format("NonExistent.test", "a={1} b={2} c={3}", "X", "Y", "Z")
+    _Test_AssertTrue("Format {3} replaced", StringInStr($sFmt3, "Z") > 0)
+    _Test_AssertFalse("No leftover {3}", StringInStr($sFmt3, "{3}") > 0)
 EndFunc
 
 ; Helper: count total keys in a locale INI file (excluding [Meta])

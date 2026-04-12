@@ -11,6 +11,17 @@ Global $__g_Test_iPass = 0
 Global $__g_Test_iFail = 0
 Global $__g_Test_sCurrentSuite = ""
 
+; ---- Stubs for globals/functions defined in desktop_switcher.au3 ----
+; These are needed by ConfigDialog, AboutDialog, UpdateChecker includes
+Global $APP_VERSION = "test"
+Global Const $VK_RETURN = 0x0D, $VK_ESCAPE = 0x1B, $VK_KEYDOWN = 0x8000
+Global $iTaskbarY = 0, $iTaskbarH = 0
+Global $__g_hInetDownload = 0, $__g_sInetTempFile = ""
+Func _ApplySettingsLive()
+EndFunc
+Func _Shutdown()
+EndFunc
+
 ; ---- Include modules under test ----
 #include "..\includes\Config.au3"
 #include "..\includes\Theme.au3"
@@ -22,6 +33,9 @@ Global $__g_Test_sCurrentSuite = ""
 #include "..\includes\DesktopList.au3"
 #include "..\includes\Logger.au3"
 #include "..\includes\i18n.au3"
+#include "..\includes\ConfigDialog.au3"
+#include "..\includes\AboutDialog.au3"
+#include "..\includes\UpdateChecker.au3"
 
 ; ---- Include test files ----
 #include "Test_Theme.au3"
@@ -34,6 +48,9 @@ Global $__g_Test_sCurrentSuite = ""
 #include "Test_Config.au3"
 #include "Test_Logger.au3"
 #include "Test_i18n.au3"
+#include "Test_ConfigDialog.au3"
+#include "Test_UpdateChecker.au3"
+#include "Test_AboutDialog.au3"
 
 ; ---- Load bundled fonts ----
 _Theme_LoadFonts()
@@ -52,6 +69,9 @@ _RunTest_ContextMenu()
 _RunTest_RenameDialog()
 _RunTest_Logger()
 _RunTest_i18n()
+_RunTest_ConfigDialog()
+_RunTest_UpdateChecker()
+_RunTest_AboutDialog()
 
 ; ---- Cleanup ----
 _VD_Shutdown()
