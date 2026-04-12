@@ -23,6 +23,7 @@ Global Const $DESKTOP_LIMIT = 20
 #include "includes\Theme.au3"
 #include "includes\Labels.au3"
 #include "includes\VirtualDesktop.au3"
+#include "includes\Wallpaper.au3"
 #include "includes\Peek.au3"
 #include "includes\ContextMenu.au3"
 #include "includes\RenameDialog.au3"
@@ -30,6 +31,7 @@ Global Const $DESKTOP_LIMIT = 20
 #include "includes\ConfigDialog.au3"
 #include "includes\AboutDialog.au3"
 #include "includes\UpdateChecker.au3"
+#include "includes\ExplorerMonitor.au3"
 #include "includes\i18n.au3"
 
 ; ---- App version (read from VERSION file or fallback) ----
@@ -48,18 +50,27 @@ Global $__g_oErrorHandler = ObjEvent("AutoIt.Error", "_OnAutoItError")
 OnAutoItExitRegister("_OnExit")
 
 ; ---- Singleton: kill previous instance on relaunch ----
-Local $sMutexName = "DesktopSwitcherMutex_7F3A"
-Local $hMutex = DllCall("kernel32.dll", "handle", "CreateMutexW", "ptr", 0, "bool", True, "wstr", $sMutexName)
-Local $aLastErr = DllCall("kernel32.dll", "dword", "GetLastError")
-If Not @error And IsArray($aLastErr) And $aLastErr[0] = 183 Then
-    Local $aProcs = ProcessList(@AutoItExe)
-    Local $p
-    For $p = 1 To $aProcs[0][0]
-        If $aProcs[$p][1] <> @AutoItPID Then
-            ProcessClose($aProcs[$p][1])
-        EndIf
-    Next
-    Sleep(200)
+; Read singleton_enabled directly from INI (before _Cfg_Init)
+Local $__sSingletonIni = @ScriptDir & "\desk_switcheroo.ini"
+Local $__bSingleton = True
+If FileExists($__sSingletonIni) Then
+    Local $__sVal = StringLower(IniRead($__sSingletonIni, "General", "singleton_enabled", "true"))
+    If $__sVal = "false" Or $__sVal = "0" Then $__bSingleton = False
+EndIf
+If $__bSingleton Then
+    Local $sMutexName = "DesktopSwitcherMutex_7F3A"
+    Local $hMutex = DllCall("kernel32.dll", "handle", "CreateMutexW", "ptr", 0, "bool", True, "wstr", $sMutexName)
+    Local $aLastErr = DllCall("kernel32.dll", "dword", "GetLastError")
+    If Not @error And IsArray($aLastErr) And $aLastErr[0] = 183 Then
+        Local $aProcs = ProcessList(@AutoItExe)
+        Local $p
+        For $p = 1 To $aProcs[0][0]
+            If $aProcs[$p][1] <> @AutoItPID Then
+                ProcessClose($aProcs[$p][1])
+            EndIf
+        Next
+        Sleep(200)
+    EndIf
 EndIf
 
 ; ---- Load bundled fonts ----
@@ -77,8 +88,14 @@ _Theme_ApplyScheme(_Cfg_GetTheme())
 ; ---- Tray icon visibility ----
 If Not _Cfg_GetTrayIconMode() Then Opt("TrayIconHide", 1)
 
+; ---- Initialize wallpaper management ----
+_WP_Init()
+
 ; ---- Initialize logging ----
 _Log_Init()
+
+; ---- Start explorer crash monitor ----
+_EM_Start()
 
 ; ---- Startup checks ----
 _RunStartupChecks()
@@ -116,8 +133,26 @@ EndIf
 _Labels_Init()
 _RD_Init()
 
+; ---- Auto-ensure minimum desktops ----
+Local $__iMinDesktops = _Cfg_GetMinDesktops()
+If $__iMinDesktops > 0 Then
+    Local $__iCurCount = _VD_GetCount()
+    If $__iCurCount < $__iMinDesktops Then
+        Local $__iCreated = 0
+        While _VD_GetCount() < $__iMinDesktops And _VD_GetCount() < $DESKTOP_LIMIT
+            _VD_CreateDesktop()
+            $__iCreated += 1
+            Sleep(100)
+        WEnd
+        If $__iCreated > 0 Then
+            _Log_Info("Auto-created " & $__iCreated & " desktop(s) to meet minimum of " & $__iMinDesktops)
+        EndIf
+    EndIf
+EndIf
+
 ; ---- Globals ----
 Global $iDesktop = _VD_GetCurrent()
+Global $iPrevDesktop = 1
 Global $gui, $lblNum, $lblName, $lblLeft, $lblRight, $lblColorBar
 Global $iTaskbarH, $iTaskbarY
 Global $bHoverLeft = False, $bHoverRight = False
@@ -249,6 +284,14 @@ If _Cfg_GetScrollEnabled() Or _Cfg_GetListScrollEnabled() Then GUIRegisterMsg(0x
 _VD_RegisterNotify($gui, $WM_VD_NOTIFY)
 GUIRegisterMsg($WM_VD_NOTIFY, "_WM_DESKTOPCHANGE")
 
+; ---- Register TaskbarCreated message for explorer restart detection ----
+Global $__g_iWM_TaskbarCreated = 0
+Local $aRegMsg = DllCall("user32.dll", "uint", "RegisterWindowMessageW", "wstr", "TaskbarCreated")
+If Not @error And IsArray($aRegMsg) Then
+    $__g_iWM_TaskbarCreated = $aRegMsg[0]
+    If $__g_iWM_TaskbarCreated <> 0 Then GUIRegisterMsg($__g_iWM_TaskbarCreated, "_WM_TASKBARCREATED")
+EndIf
+
 ; ---- Periodic tasks (adlib) ----
 AdlibRegister("_ForceTopMost", _Cfg_GetTopmostInterval())
 AdlibRegister("_AdlibSyncNames", _Cfg_GetNameSyncInterval())
@@ -339,6 +382,9 @@ Func _ProcessGUIEvents($msg, $hFrom)
                     Else
                         _VD_CreateDesktop()
                         Sleep(100)
+                        If _Cfg_GetNotifyDesktopCreated() Then
+                            _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
+                        EndIf
                         _VD_GoTo($iDesktop + 1)
                     EndIf
                 ElseIf _Cfg_GetWrapNavigation() Then
@@ -381,6 +427,9 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 Else
                     _VD_CreateDesktop()
                     Sleep(100)
+                    If _Cfg_GetNotifyDesktopCreated() Then
+                        _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
+                    EndIf
                     _RefreshIndex()
                 EndIf
             Case "delete"
@@ -395,6 +444,9 @@ Func _ProcessGUIEvents($msg, $hFrom)
                             _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
                         _VD_RemoveDesktop($iDesktop)
                         Sleep(100)
+                        If _Cfg_GetNotifyDesktopDeleted() Then
+                            _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                        EndIf
                         _RefreshIndex()
                     EndIf
                 EndIf
@@ -464,6 +516,9 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 Else
                     _VD_CreateDesktop()
                     Sleep(100)
+                    If _Cfg_GetNotifyDesktopCreated() Then
+                        _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
+                    EndIf
                     _RefreshIndex()
                 EndIf
             Case "delete"
@@ -478,6 +533,9 @@ Func _ProcessGUIEvents($msg, $hFrom)
                         _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
                         _VD_RemoveDesktop($iCtxTarget)
                         Sleep(100)
+                        If _Cfg_GetNotifyDesktopDeleted() Then
+                            _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                        EndIf
                         _RefreshIndex()
                     EndIf
                 EndIf
@@ -620,6 +678,9 @@ Func _ProcessMouseInput()
                         _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
                         _VD_RemoveDesktop($iMiddleClickRow)
                         Sleep(100)
+                        If _Cfg_GetNotifyDesktopDeleted() Then
+                            _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                        EndIf
                         _RefreshIndex()
                     EndIf
                 EndIf
@@ -782,8 +843,20 @@ Func _ProcessKeyboardInput()
 EndFunc
 
 ; Name:        _ProcessEventFlags
-; Description: Processes event-driven flags (desktop change, name sync)
+; Description: Processes event-driven flags (desktop change, name sync, explorer recovery)
 Func _ProcessEventFlags()
+    ; Explorer crash recovery
+    If _EM_CheckRecovery() Then
+        _Log_Info("Explorer recovery: reinitializing")
+        _VD_Init()
+        ; Re-register desktop change hook
+        _VD_RegisterNotify($gui, $WM_VD_NOTIFY)
+        ; Show notification
+        If _Cfg_GetExplorerNotifyRecovery() Then
+            _Theme_Toast(_i18n("Toasts.toast_explorer_recovered", "Explorer recovered — reinitializing"), 0, $iTaskbarY + $iTaskbarH + 4, 3000, $TOAST_WARNING)
+        EndIf
+    EndIf
+
     ; Event-driven desktop change (flag set by _WM_DESKTOPCHANGE)
     If $bDesktopChanged And Not _Peek_IsActive() Then
         $bDesktopChanged = False
@@ -891,6 +964,9 @@ Func _ProcessTimersAndSleep($bCursorActive)
         EndIf
         $__g_bPeekWasActive = $bPeekNow
     EndIf
+
+    ; Wallpaper debounce tick
+    _WP_Tick()
 
     ; Auto-hide temp list and context menus
     _DL_CheckAutoHide($gui)
@@ -1013,13 +1089,34 @@ Func _ApplySettingsLive()
 EndFunc
 
 ; Name:        _RefreshIndex
-; Description: Gets current desktop from OS and updates display
+; Description: Gets current desktop from OS, tracks previous desktop, auto-focuses, and updates display
 Func _RefreshIndex()
     Local $iOld = $iDesktop
     $iDesktop = _VD_GetCurrent()
-    If $iDesktop <> $iOld Then _Log_Debug("Desktop changed: " & $iOld & " -> " & $iDesktop)
+    If $iDesktop <> $iOld Then
+        _Log_Debug("Desktop changed: " & $iOld & " -> " & $iDesktop)
+        If $iOld > 0 Then $iPrevDesktop = $iOld
+        If _Cfg_GetAutoFocusAfterSwitch() Then _AutoFocusTopWindow()
+        _WP_OnDesktopChanged($iDesktop)
+    EndIf
     _ApplyDesktopChange()
     _ForceTopMost()
+EndFunc
+
+; Name:        _AutoFocusTopWindow
+; Description: Activates the topmost visible, non-minimized window on the current desktop
+Func _AutoFocusTopWindow()
+    Local $aWindows = _VD_EnumWindowsOnDesktop($iDesktop)
+    If Not IsArray($aWindows) Or $aWindows[0] = 0 Then Return
+    Local $i
+    For $i = 1 To $aWindows[0]
+        Local $hW = $aWindows[$i]
+        Local $iState = WinGetState($hW)
+        If $iState <> 0 And BitAND($iState, 16) = 0 Then ; visible and not minimized
+            WinActivate($hW)
+            Return
+        EndIf
+    Next
 EndFunc
 
 ; =============================================
@@ -1089,6 +1186,16 @@ EndFunc
 Func _WM_DESKTOPCHANGE($hWnd, $iMsg, $wParam, $lParam)
     _VD_InvalidateCountCache()
     $bDesktopChanged = True  ; Always set flag; main loop checks peek state
+    Return $GUI_RUNDEFMSG
+EndFunc
+
+; Name:        _WM_TASKBARCREATED
+; Description: WM handler for explorer.exe restart (TaskbarCreated broadcast)
+; Parameters:  $hWnd, $iMsg, $wParam, $lParam - standard Windows message params
+; Return:      $GUI_RUNDEFMSG
+Func _WM_TASKBARCREATED($hWnd, $iMsg, $wParam, $lParam)
+    _Log_Info("WM_TASKBARCREATED received — explorer restarted")
+    $__g_EM_bRecoveryPending = True
     Return $GUI_RUNDEFMSG
 EndFunc
 
@@ -1356,6 +1463,46 @@ Func _RegisterHotkeys()
         $iRet = HotKeySet($sKey, "_HK_ToggleList")
         If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (toggle list)")
     EndIf
+    $sKey = _Cfg_GetHotkeyToggleLast()
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_ToggleLast")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (toggle last)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyMoveFollowNext()
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_MoveFollowNext")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (move+follow next)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyMoveFollowPrev()
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_MoveFollowPrev")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (move+follow prev)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyMoveNext()
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_MoveNext")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (move next)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyMovePrev()
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_MovePrev")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (move prev)")
+    EndIf
+    $sKey = _Cfg_GetHotkeySendNewDesktop()
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_SendNewDesktop")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (send new desktop)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyPinWindow()
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_PinWindow")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (pin window)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyToggleWindowList()
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_ToggleWindowList")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (toggle window list)")
+    EndIf
     ; Settings shortcut (always registered, not configurable)
     HotKeySet("^!s", "_HK_OpenSettings")
 EndFunc
@@ -1374,6 +1521,22 @@ Func _UnregisterHotkeys()
     Next
     $sKey = _Cfg_GetHotkeyToggleList()
     If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyToggleLast()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyMoveFollowNext()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyMoveFollowPrev()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyMoveNext()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyMovePrev()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeySendNewDesktop()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyPinWindow()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyToggleWindowList()
+    If $sKey <> "" Then HotKeySet($sKey)
     HotKeySet("^!s")
 EndFunc
 
@@ -1389,6 +1552,9 @@ Func _HK_Next()
         Else
             _VD_CreateDesktop()
             Sleep(100)
+            If _Cfg_GetNotifyDesktopCreated() Then
+                _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
+            EndIf
             _VD_GoTo($iDesktop + 1)
         EndIf
     ElseIf _Cfg_GetWrapNavigation() Then
@@ -1489,6 +1655,166 @@ Func _HK_OpenSettings()
     If Not _CD_IsVisible() Then _CD_Show()
 EndFunc
 
+; Name:        _HK_ToggleLast
+; Description: Hotkey callback to switch to the previously active desktop
+Func _HK_ToggleLast()
+    If $iPrevDesktop > 0 And $iPrevDesktop <> $iDesktop And $iPrevDesktop <= _VD_GetCount() Then
+        _Log_Debug("Hotkey: toggle last -> desktop " & $iPrevDesktop)
+        _VD_GoTo($iPrevDesktop)
+        Sleep(50)
+        _RefreshIndex()
+    EndIf
+EndFunc
+
+; Name:        _HK_MoveFollowNext
+; Description: Hotkey callback to move the active window to the next desktop and follow it
+Func _HK_MoveFollowNext()
+    Local $hWnd = WinGetHandle("[ACTIVE]")
+    If $hWnd = $gui Then Return
+    Local $iCount = _VD_GetCount()
+    Local $iTarget = $iDesktop + 1
+    If $iTarget > $iCount Then
+        If _Cfg_GetWrapNavigation() Then
+            $iTarget = 1
+        Else
+            Return
+        EndIf
+    EndIf
+    _Log_Debug("Hotkey: move+follow next -> window " & $hWnd & " to desktop " & $iTarget)
+    _VD_MoveWindowToDesktop($hWnd, $iTarget)
+    _VD_GoTo($iTarget)
+    Sleep(50)
+    _RefreshIndex()
+    If _Cfg_GetNotifyWindowMoved() Then
+        Local $sTitle = WinGetTitle($hWnd)
+        If $sTitle = "" Then $sTitle = "Window"
+        _Theme_Toast($sTitle & " -> Desktop " & $iTarget, 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+    EndIf
+EndFunc
+
+; Name:        _HK_MoveFollowPrev
+; Description: Hotkey callback to move the active window to the previous desktop and follow it
+Func _HK_MoveFollowPrev()
+    Local $hWnd = WinGetHandle("[ACTIVE]")
+    If $hWnd = $gui Then Return
+    Local $iCount = _VD_GetCount()
+    Local $iTarget = $iDesktop - 1
+    If $iTarget < 1 Then
+        If _Cfg_GetWrapNavigation() Then
+            $iTarget = $iCount
+        Else
+            Return
+        EndIf
+    EndIf
+    _Log_Debug("Hotkey: move+follow prev -> window " & $hWnd & " to desktop " & $iTarget)
+    _VD_MoveWindowToDesktop($hWnd, $iTarget)
+    _VD_GoTo($iTarget)
+    Sleep(50)
+    _RefreshIndex()
+    If _Cfg_GetNotifyWindowMoved() Then
+        Local $sTitle = WinGetTitle($hWnd)
+        If $sTitle = "" Then $sTitle = "Window"
+        _Theme_Toast($sTitle & " -> Desktop " & $iTarget, 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+    EndIf
+EndFunc
+
+; Name:        _HK_MoveNext
+; Description: Hotkey callback to move the active window to the next desktop (stay on current)
+Func _HK_MoveNext()
+    Local $hWnd = WinGetHandle("[ACTIVE]")
+    If $hWnd = $gui Then Return
+    Local $iCount = _VD_GetCount()
+    Local $iTarget = $iDesktop + 1
+    If $iTarget > $iCount Then
+        If _Cfg_GetWrapNavigation() Then
+            $iTarget = 1
+        Else
+            Return
+        EndIf
+    EndIf
+    _Log_Debug("Hotkey: move next -> window " & $hWnd & " to desktop " & $iTarget)
+    _VD_MoveWindowToDesktop($hWnd, $iTarget)
+    If _Cfg_GetNotifyWindowMoved() Then
+        Local $sTitle = WinGetTitle($hWnd)
+        If $sTitle = "" Then $sTitle = "Window"
+        _Theme_Toast($sTitle & " -> Desktop " & $iTarget, 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+    EndIf
+EndFunc
+
+; Name:        _HK_MovePrev
+; Description: Hotkey callback to move the active window to the previous desktop (stay on current)
+Func _HK_MovePrev()
+    Local $hWnd = WinGetHandle("[ACTIVE]")
+    If $hWnd = $gui Then Return
+    Local $iCount = _VD_GetCount()
+    Local $iTarget = $iDesktop - 1
+    If $iTarget < 1 Then
+        If _Cfg_GetWrapNavigation() Then
+            $iTarget = $iCount
+        Else
+            Return
+        EndIf
+    EndIf
+    _Log_Debug("Hotkey: move prev -> window " & $hWnd & " to desktop " & $iTarget)
+    _VD_MoveWindowToDesktop($hWnd, $iTarget)
+    If _Cfg_GetNotifyWindowMoved() Then
+        Local $sTitle = WinGetTitle($hWnd)
+        If $sTitle = "" Then $sTitle = "Window"
+        _Theme_Toast($sTitle & " -> Desktop " & $iTarget, 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+    EndIf
+EndFunc
+
+; Name:        _HK_SendNewDesktop
+; Description: Hotkey callback to create a new desktop and move the active window to it
+Func _HK_SendNewDesktop()
+    Local $hWnd = WinGetHandle("[ACTIVE]")
+    If $hWnd = $gui Then Return
+    If _VD_GetCount() >= $DESKTOP_LIMIT Then
+        _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+        Return
+    EndIf
+    _Log_Debug("Hotkey: send to new desktop -> window " & $hWnd)
+    _VD_CreateDesktop()
+    Sleep(100)
+    If _Cfg_GetNotifyDesktopCreated() Then
+        _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
+    EndIf
+    Local $iNewDesk = _VD_GetCount()
+    _VD_MoveWindowToDesktop($hWnd, $iNewDesk)
+    _RefreshIndex()
+    If _Cfg_GetNotifyWindowMoved() Then
+        Local $sTitle = WinGetTitle($hWnd)
+        If $sTitle = "" Then $sTitle = "Window"
+        _Theme_Toast($sTitle & " -> Desktop " & $iNewDesk, 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+    EndIf
+EndFunc
+
+; Name:        _HK_PinWindow
+; Description: Hotkey callback to toggle pin state of the active window across all desktops
+Func _HK_PinWindow()
+    If Not _Cfg_GetPinningEnabled() Then Return
+    Local $hWnd = WinGetHandle("[ACTIVE]")
+    If $hWnd = $gui Then Return
+    _Log_Debug("Hotkey: toggle pin window -> " & $hWnd)
+    Local $bPinned = _VD_TogglePinWindow($hWnd)
+    If _Cfg_GetNotifyWindowMoved() Then
+        Local $sTitle = WinGetTitle($hWnd)
+        If $sTitle = "" Then $sTitle = "Window"
+        If $bPinned Then
+            _Theme_Toast($sTitle & " pinned to all desktops", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+        Else
+            _Theme_Toast($sTitle & " unpinned", 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+        EndIf
+    EndIf
+EndFunc
+
+; Name:        _HK_ToggleWindowList
+; Description: Hotkey callback to toggle the window list panel (placeholder - WindowList.au3 not yet created)
+Func _HK_ToggleWindowList()
+    If Not _Cfg_GetWindowListEnabled() Then Return
+    _Log_Debug("Hotkey: toggle window list (not yet implemented)")
+EndFunc
+
 ; About dialog extracted to includes\AboutDialog.au3
 
 
@@ -1543,6 +1869,9 @@ Func _CheckTrayMessages()
             Else
                 _VD_CreateDesktop()
                 Sleep(100)
+                If _Cfg_GetNotifyDesktopCreated() Then
+                    _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
+                EndIf
                 _RefreshIndex()
             EndIf
         Case $__g_iTrayDelDesktop
@@ -1550,6 +1879,9 @@ Func _CheckTrayMessages()
                 If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm("Delete Desktop " & $iDesktop & "?", _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
                     _VD_RemoveDesktop($iDesktop)
                     Sleep(100)
+                    If _Cfg_GetNotifyDesktopDeleted() Then
+                        _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                    EndIf
                     _RefreshIndex()
                 EndIf
             EndIf
@@ -1939,6 +2271,7 @@ Func _Shutdown()
     $__g_bShuttingDown = True
 
     ; Stop all periodic tasks first (prevent interference during fade)
+    _EM_Stop()
     _UnregisterHotkeys()
     AdlibUnRegister("_ForceTopMost")
     AdlibUnRegister("_AdlibSyncNames")
