@@ -88,6 +88,9 @@ Global $__g_CD_idChkWLAutoRefresh, $__g_CD_idInpWLRefreshInterval
 
 ; -- Tab 12: Explorer --
 Global $__g_CD_idChkExplorerMonitor, $__g_CD_idInpExplorerInterval, $__g_CD_idChkExplorerNotify
+Global $__g_CD_idInpShellProcess, $__g_CD_idInpMaxRetries, $__g_CD_idInpRetryDelay
+Global $__g_CD_idChkExpBackoff, $__g_CD_idInpMaxRetryDelay
+Global $__g_CD_idChkAutoRestart, $__g_CD_idInpRestartDelay
 
 ; -- Tab 13: Notifications --
 Global $__g_CD_idChkNotifyMoved, $__g_CD_idChkNotifyCreated, $__g_CD_idChkNotifyDeleted, $__g_CD_idChkNotifyPinned
@@ -1468,25 +1471,107 @@ EndFunc
 Func __CD_BuildTabExplorer()
     Local $t = 12, $iX = 20, $iY = 94
 
-    $__g_CD_idChkExplorerMonitor = __CD_CreateCheckbox(_i18n("Settings.Explorer.chk_explorer_monitor", "Enable explorer monitor"), $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkExplorerMonitor, _i18n("Settings.Explorer.tip_explorer_monitor", "Monitor explorer.exe and attempt recovery if it crashes"))
+    $__g_CD_idChkExplorerMonitor = __CD_CreateCheckbox(_i18n("Settings.Explorer.chk_explorer_monitor", "Enable shell monitor"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkExplorerMonitor, _i18n("Settings.Explorer.tip_explorer_monitor", "Monitor the shell process and attempt recovery on crash"))
     $iY += 34
 
-    Local $idLbl = GUICtrlCreateLabel(_i18n("Settings.Explorer.lbl_explorer_interval", "Check interval (ms, 2000-60000):"), $iX, $iY + 2, 200, 18)
+    ; Shell process name
+    Local $idLblProc = GUICtrlCreateLabel(_i18n("Settings.Explorer.lbl_shell_process", "Shell process:"), $iX, $iY + 2, 120, 18)
+    GUICtrlSetFont($idLblProc, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblProc, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblProc, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblProc)
+    $__g_CD_idInpShellProcess = GUICtrlCreateInput("", $iX + 125, $iY, 160, 22)
+    GUICtrlSetFont($__g_CD_idInpShellProcess, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpShellProcess, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpShellProcess, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpShellProcess)
+    _Theme_SetTooltip($__g_CD_idInpShellProcess, _i18n("Settings.Explorer.tip_shell_process", "Process name to monitor (default: explorer.exe)"))
+    $iY += 30
+
+    ; Check interval
+    Local $idLbl = GUICtrlCreateLabel(_i18n("Settings.Explorer.lbl_explorer_interval", "Check interval (ms):"), $iX, $iY + 2, 165, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $idLbl)
-    $__g_CD_idInpExplorerInterval = GUICtrlCreateInput("", $iX + 205, $iY, 80, 22, $ES_NUMBER)
+    $__g_CD_idInpExplorerInterval = GUICtrlCreateInput("", $iX + 170, $iY, 80, 22, $ES_NUMBER)
     GUICtrlSetFont($__g_CD_idInpExplorerInterval, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpExplorerInterval, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpExplorerInterval, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpExplorerInterval)
-    _Theme_SetTooltip($__g_CD_idInpExplorerInterval, _i18n("Settings.Explorer.tip_explorer_interval", "How often to check if explorer is alive (ms)"))
+    _Theme_SetTooltip($__g_CD_idInpExplorerInterval, _i18n("Settings.Explorer.tip_explorer_interval", "How often to check if the shell is alive (ms)"))
+    $iY += 30
+
+    ; Auto-restart
+    $__g_CD_idChkAutoRestart = __CD_CreateCheckbox(_i18n("Settings.Explorer.chk_auto_restart", "Auto-restart on crash"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkAutoRestart, _i18n("Settings.Explorer.tip_auto_restart", "Attempt to restart the shell process automatically when a crash is detected"))
+    $iY += 26
+
+    ; Restart delay
+    Local $idLblRD = GUICtrlCreateLabel(_i18n("Settings.Explorer.lbl_restart_delay", "Restart delay (ms):"), $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLblRD, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblRD, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblRD, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblRD)
+    $__g_CD_idInpRestartDelay = GUICtrlCreateInput("", $iX + 170, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpRestartDelay, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpRestartDelay, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpRestartDelay, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpRestartDelay)
+    _Theme_SetTooltip($__g_CD_idInpRestartDelay, _i18n("Settings.Explorer.tip_restart_delay", "Wait this long before attempting restart (ms)"))
     $iY += 34
 
+    ; Max retries
+    Local $idLblMR = GUICtrlCreateLabel(_i18n("Settings.Explorer.lbl_max_retries", "Max retries (0=unlimited):"), $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLblMR, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblMR, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblMR, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblMR)
+    $__g_CD_idInpMaxRetries = GUICtrlCreateInput("", $iX + 170, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpMaxRetries, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpMaxRetries, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpMaxRetries, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpMaxRetries)
+    _Theme_SetTooltip($__g_CD_idInpMaxRetries, _i18n("Settings.Explorer.tip_max_retries", "Maximum restart attempts (0 = unlimited)"))
+    $iY += 30
+
+    ; Retry delay
+    Local $idLblRDl = GUICtrlCreateLabel(_i18n("Settings.Explorer.lbl_retry_delay", "Retry delay (ms):"), $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLblRDl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblRDl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblRDl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblRDl)
+    $__g_CD_idInpRetryDelay = GUICtrlCreateInput("", $iX + 170, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpRetryDelay, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpRetryDelay, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpRetryDelay, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpRetryDelay)
+    _Theme_SetTooltip($__g_CD_idInpRetryDelay, _i18n("Settings.Explorer.tip_retry_delay", "Initial delay between retry attempts (ms)"))
+    $iY += 30
+
+    ; Exponential backoff
+    $__g_CD_idChkExpBackoff = __CD_CreateCheckbox(_i18n("Settings.Explorer.chk_exp_backoff", "Exponential backoff"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkExpBackoff, _i18n("Settings.Explorer.tip_exp_backoff", "Double the retry delay after each failed attempt"))
+    $iY += 26
+
+    ; Max retry delay
+    Local $idLblMD = GUICtrlCreateLabel(_i18n("Settings.Explorer.lbl_max_retry_delay", "Max retry delay (ms):"), $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLblMD, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblMD, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblMD, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblMD)
+    $__g_CD_idInpMaxRetryDelay = GUICtrlCreateInput("", $iX + 170, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpMaxRetryDelay, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpMaxRetryDelay, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpMaxRetryDelay, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpMaxRetryDelay)
+    _Theme_SetTooltip($__g_CD_idInpMaxRetryDelay, _i18n("Settings.Explorer.tip_max_retry_delay", "Maximum delay cap for exponential backoff (ms)"))
+    $iY += 34
+
+    ; Notify on recovery
     $__g_CD_idChkExplorerNotify = __CD_CreateCheckbox(_i18n("Settings.Explorer.chk_explorer_notify", "Notify on recovery"), $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkExplorerNotify, _i18n("Settings.Explorer.tip_explorer_notify", "Show a toast when explorer is recovered after a crash"))
+    _Theme_SetTooltip($__g_CD_idChkExplorerNotify, _i18n("Settings.Explorer.tip_explorer_notify", "Show a toast when the shell is recovered after a crash"))
 EndFunc
 
 Func __CD_BuildTabNotifications()
@@ -1745,7 +1830,14 @@ Func __CD_PopulateControls()
 
     ; Explorer
     __CD_SetCheckState($__g_CD_idChkExplorerMonitor, _Cfg_GetExplorerMonitorEnabled())
+    GUICtrlSetData($__g_CD_idInpShellProcess, _Cfg_GetShellProcessName())
     GUICtrlSetData($__g_CD_idInpExplorerInterval, _Cfg_GetExplorerCheckInterval())
+    __CD_SetCheckState($__g_CD_idChkAutoRestart, _Cfg_GetMonitorAutoRestart())
+    GUICtrlSetData($__g_CD_idInpRestartDelay, _Cfg_GetMonitorRestartDelay())
+    GUICtrlSetData($__g_CD_idInpMaxRetries, _Cfg_GetMonitorMaxRetries())
+    GUICtrlSetData($__g_CD_idInpRetryDelay, _Cfg_GetMonitorRetryDelay())
+    __CD_SetCheckState($__g_CD_idChkExpBackoff, _Cfg_GetMonitorExpBackoff())
+    GUICtrlSetData($__g_CD_idInpMaxRetryDelay, _Cfg_GetMonitorMaxRetryDelay())
     __CD_SetCheckState($__g_CD_idChkExplorerNotify, _Cfg_GetExplorerNotifyRecovery())
 
     ; Notifications
@@ -2158,8 +2250,19 @@ Func __CD_ApplyChanges()
 
     ; Explorer
     _Cfg_SetExplorerMonitorEnabled(__CD_GetCheckState($__g_CD_idChkExplorerMonitor))
+    _Cfg_SetShellProcessName(GUICtrlRead($__g_CD_idInpShellProcess))
     $s = GUICtrlRead($__g_CD_idInpExplorerInterval)
     If StringIsInt($s) Then _Cfg_SetExplorerCheckInterval(Int($s))
+    _Cfg_SetMonitorAutoRestart(__CD_GetCheckState($__g_CD_idChkAutoRestart))
+    $s = GUICtrlRead($__g_CD_idInpRestartDelay)
+    If StringIsInt($s) Then _Cfg_SetMonitorRestartDelay(Int($s))
+    $s = GUICtrlRead($__g_CD_idInpMaxRetries)
+    If StringIsInt($s) Then _Cfg_SetMonitorMaxRetries(Int($s))
+    $s = GUICtrlRead($__g_CD_idInpRetryDelay)
+    If StringIsInt($s) Then _Cfg_SetMonitorRetryDelay(Int($s))
+    _Cfg_SetMonitorExpBackoff(__CD_GetCheckState($__g_CD_idChkExpBackoff))
+    $s = GUICtrlRead($__g_CD_idInpMaxRetryDelay)
+    If StringIsInt($s) Then _Cfg_SetMonitorMaxRetryDelay(Int($s))
     _Cfg_SetExplorerNotifyRecovery(__CD_GetCheckState($__g_CD_idChkExplorerNotify))
 
     ; Notifications
