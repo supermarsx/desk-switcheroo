@@ -840,9 +840,9 @@ Func _WL_CtxShow($hTargetWnd)
     ; Pin / Unpin
     Local $sPinText = ""
     If $bPinned Then
-        $sPinText = "  " & _i18n("WindowList.wl_unpin", "Unpin from All Desktops")
+        $sPinText = "  " & _i18n("WindowList.wl_unpin_window", "Unpin from All Desktops")
     Else
-        $sPinText = "  " & _i18n("WindowList.wl_pin", "Pin to All Desktops")
+        $sPinText = "  " & _i18n("WindowList.wl_pin_window", "Pin to All Desktops")
     EndIf
     $__g_WL_iCtxPin = _Theme_CreateMenuItem($sPinText, 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
