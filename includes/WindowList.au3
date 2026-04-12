@@ -307,6 +307,7 @@ Func _WL_Show($iDesktop)
         GUICtrlSetFont($__g_WL_idSearchInput, 9, 400, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor($__g_WL_idSearchInput, $THEME_FG_TEXT)
         GUICtrlSetBkColor($__g_WL_idSearchInput, $THEME_BG_INPUT)
+        _Theme_FlattenInput($__g_WL_idSearchInput)
         GUICtrlSetTip($__g_WL_idSearchInput, _i18n("WindowList.wl_search_tip", "Type to search windows..."))
         $iContentY += $iSearchH
     EndIf

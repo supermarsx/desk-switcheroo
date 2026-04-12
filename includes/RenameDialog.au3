@@ -61,6 +61,7 @@ Func _RD_Show($iDesktop, $iTaskbarY)
     GUICtrlSetFont($__g_RD_iInputField, 10, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_RD_iInputField, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_RD_iInputField, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_RD_iInputField)
 
     ; OK button
     $__g_RD_iBtnOk = GUICtrlCreateLabel(_i18n("General.btn_ok", "OK"), 12, 74, 56, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))

@@ -750,3 +750,19 @@ Func _Theme_GetSchemeColors($sTheme)
             Return $__g_Theme_aSchemeDark
     EndSwitch
 EndFunc
+
+; Name:        _Theme_FlattenInput
+; Description: Removes the 3D sunken border (WS_EX_CLIENTEDGE) from an input
+;              control so it blends with the dark theme
+; Parameters:  $idCtrl - GUICtrlCreateInput control ID
+Func _Theme_FlattenInput($idCtrl)
+    Local $hWnd = GUICtrlGetHandle($idCtrl)
+    If $hWnd = 0 Then Return
+    Local $aEx = DllCall("user32.dll", "long", "GetWindowLongW", "hwnd", $hWnd, "int", -20) ; GWL_EXSTYLE
+    If @error Or Not IsArray($aEx) Then Return
+    DllCall("user32.dll", "long", "SetWindowLongW", "hwnd", $hWnd, "int", -20, _
+        "long", BitAND($aEx[0], BitNOT(0x200))) ; remove WS_EX_CLIENTEDGE
+    DllCall("user32.dll", "bool", "SetWindowPos", "hwnd", $hWnd, "hwnd", 0, _
+        "int", 0, "int", 0, "int", 0, "int", 0, _
+        "uint", BitOR(0x0001, 0x0002, 0x0004, 0x0020)) ; SWP_NOSIZE|SWP_NOMOVE|SWP_NOZORDER|SWP_FRAMECHANGED
+EndFunc

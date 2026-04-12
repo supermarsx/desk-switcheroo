@@ -1286,6 +1286,9 @@ Func _DL_ColorPickerCustomDialog()
     ; Input field
     Local $idInput = GUICtrlCreateInput($__g_DL_sLastCustomColor, 74, 8, 110, 20)
     GUICtrlSetFont($idInput, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($idInput, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($idInput, $THEME_BG_INPUT)
+    _Theme_FlattenInput($idInput)
 
     ; OK button
     Local $iBtnW = 50, $iBtnH = 24

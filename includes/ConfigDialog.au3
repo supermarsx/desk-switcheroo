@@ -51,7 +51,7 @@ Global $__g_CD_idLblScrollDir, $__g_CD_idLblListAction
 ; -- Tab 4: Hotkeys --
 Global $__g_CD_idInpHkNext, $__g_CD_idInpHkPrev, $__g_CD_idInpHkToggleList
 Global $__g_CD_aidInpHkDesktop[10] ; index 1-9
-Global $__g_CD_idBtnHkBuild[21]    ; index 0-19 for each hotkey row "..." button
+Global $__g_CD_idBtnHkBuild[21]    ; index 0-20 for each hotkey row "..." button
 
 ; -- Tab 1 extras: General --
 Global $__g_CD_idChkWidgetDrag, $__g_CD_idChkWidgetColorBar, $__g_CD_idChkTrayMode, $__g_CD_idChkQuickAccess
@@ -109,6 +109,7 @@ Global $__g_CD_idChkCapslockMod, $__g_CD_idInpMinDesktops
 Global $__g_CD_idInpHkLastDesktop, $__g_CD_idInpHkMoveFollowNext, $__g_CD_idInpHkMoveFollowPrev
 Global $__g_CD_idInpHkMoveToNext, $__g_CD_idInpHkMoveToPrev
 Global $__g_CD_idInpHkSendToNew, $__g_CD_idInpHkPinWindow, $__g_CD_idInpHkToggleWL
+Global $__g_CD_idChkHotkeysEnabled, $__g_CD_idInpHkOpenSettings
 
 ; -- Tab 5: Behavior --
 Global $__g_CD_idChkConfirmDel, $__g_CD_idChkMidClick, $__g_CD_idChkMoveWin
@@ -552,6 +553,7 @@ Func __CD_BuildTabGeneral()
     GUICtrlSetFont($__g_CD_idInpPadding, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpPadding, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpPadding, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpPadding)
     __CD_RegCtrl($t, $__g_CD_idInpPadding)
     _Theme_SetTooltip($__g_CD_idInpPadding, _i18n("Settings.General.tip_padding", "Zero-pad desktop numbers (2 = '01', 3 = '001')"))
     $iY += 30
@@ -569,6 +571,7 @@ Func __CD_BuildTabGeneral()
     GUICtrlSetFont($__g_CD_idInpOffsetX, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpOffsetX, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpOffsetX, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpOffsetX)
     __CD_RegCtrl($t, $__g_CD_idInpOffsetX)
     _Theme_SetTooltip($__g_CD_idInpOffsetX, _i18n("Settings.General.tip_widget_offset", "Fine-tune widget position in pixels"))
     $iY += 34
@@ -630,6 +633,7 @@ Func __CD_BuildTabGeneral()
     GUICtrlSetFont($__g_CD_idInpMinDesktops, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpMinDesktops, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpMinDesktops, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpMinDesktops)
     __CD_RegCtrl($t, $__g_CD_idInpMinDesktops)
     _Theme_SetTooltip($__g_CD_idInpMinDesktops, _i18n("Settings.General.tip_min_desktops", "Ensure at least this many desktops exist on startup"))
 EndFunc
@@ -650,6 +654,7 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetFont($__g_CD_idInpCountFont, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpCountFont, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpCountFont, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpCountFont)
     __CD_RegCtrl($t, $__g_CD_idInpCountFont)
     _Theme_SetTooltip($__g_CD_idInpCountFont, _i18n("Settings.Display.tip_count_font", "Font size for the desktop number on the widget"))
     $iY += 30
@@ -663,12 +668,23 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetFont($__g_CD_idInpOpacity, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpOpacity, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpOpacity, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpOpacity)
     __CD_RegCtrl($t, $__g_CD_idInpOpacity)
     _Theme_SetTooltip($__g_CD_idInpOpacity, _i18n("Settings.Display.tip_opacity", "Widget transparency (50 = very transparent, 255 = fully opaque)"))
     $iY += 30
 
-    $__g_CD_idLblTheme = __CD_CreateCycleLabel(_i18n("Settings.Display.lbl_theme", "Theme:"), $iX, $iY, 165, 90, $t)
-    _Theme_SetTooltip($__g_CD_idLblTheme, _i18n("Settings.Display.tip_theme", "Click to cycle color scheme (requires restart)"))
+    Local $idLblTheme = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_theme", "Theme:"), $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLblTheme, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblTheme, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblTheme, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblTheme)
+    $__g_CD_idLblTheme = GUICtrlCreateCombo("", $iX + 165, $iY, 90, 22, 0x0003) ; CBS_DROPDOWNLIST
+    GUICtrlSetFont($__g_CD_idLblTheme, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idLblTheme, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idLblTheme, $THEME_BG_INPUT)
+    GUICtrlSetCursor($__g_CD_idLblTheme, 0)
+    __CD_RegCtrl($t, $__g_CD_idLblTheme)
+    _Theme_SetTooltip($__g_CD_idLblTheme, _i18n("Settings.Display.tip_theme", "Select color scheme (requires restart)"))
     $iY += 26
 
     Local $idThemeHint = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_theme_hint", "Theme change requires restart"), $iX + 20, $iY, 250, 16)
@@ -691,6 +707,7 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetFont($__g_CD_idInpThumbW, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpThumbW, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpThumbW, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpThumbW)
     __CD_RegCtrl($t, $__g_CD_idInpThumbW)
     _Theme_SetTooltip($__g_CD_idInpThumbW, _i18n("Settings.Display.tip_thumb_width", "Size of the thumbnail preview popup in pixels"))
     $iY += 30
@@ -704,6 +721,7 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetFont($__g_CD_idInpThumbH, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpThumbH, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpThumbH, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpThumbH)
     __CD_RegCtrl($t, $__g_CD_idInpThumbH)
     _Theme_SetTooltip($__g_CD_idInpThumbH, _i18n("Settings.Display.tip_thumb_height", "Size of the thumbnail preview popup in pixels"))
     $iY += 30
@@ -721,6 +739,7 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetFont($__g_CD_idInpThumbCacheTTL, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpThumbCacheTTL, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpThumbCacheTTL, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpThumbCacheTTL)
     __CD_RegCtrl($t, $__g_CD_idInpThumbCacheTTL)
     _Theme_SetTooltip($__g_CD_idInpThumbCacheTTL, _i18n("Settings.Display.tip_thumb_cache_ttl", "How many seconds before cached screenshots expire (5-300)"))
     $iY += 30
@@ -734,6 +753,7 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetFont($__g_CD_idInpListFont, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpListFont, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpListFont, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpListFont)
     __CD_RegCtrl($t, $__g_CD_idInpListFont)
     _Theme_SetTooltip($__g_CD_idInpListFont, _i18n("Settings.Display.tip_list_font", "Font for desktop list items (empty = default Fira Code/Consolas)"))
     $iY += 30
@@ -747,6 +767,7 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetFont($__g_CD_idInpListFontSize, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpListFontSize, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpListFontSize, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpListFontSize)
     __CD_RegCtrl($t, $__g_CD_idInpListFontSize)
     _Theme_SetTooltip($__g_CD_idInpListFontSize, _i18n("Settings.Display.tip_list_font_size", "Font size for desktop list items"))
     $iY += 34
@@ -768,6 +789,7 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetFont($__g_CD_idInpListMaxVisible, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpListMaxVisible, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpListMaxVisible, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpListMaxVisible)
     __CD_RegCtrl($t, $__g_CD_idInpListMaxVisible)
     _Theme_SetTooltip($__g_CD_idInpListMaxVisible, _i18n("Settings.Display.tip_list_max_visible", "Maximum items visible before scrolling activates"))
     $iY += 30
@@ -781,6 +803,7 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetFont($__g_CD_idInpListScrollSpeed, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpListScrollSpeed, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpListScrollSpeed, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpListScrollSpeed)
     __CD_RegCtrl($t, $__g_CD_idInpListScrollSpeed)
     _Theme_SetTooltip($__g_CD_idInpListScrollSpeed, _i18n("Settings.Display.tip_list_scroll_speed", "Number of items to scroll per step"))
     $iY += 30
@@ -794,6 +817,7 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetFont($__g_CD_idInpTooltipFontSize, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpTooltipFontSize, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpTooltipFontSize, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpTooltipFontSize)
     __CD_RegCtrl($t, $__g_CD_idInpTooltipFontSize)
     _Theme_SetTooltip($__g_CD_idInpTooltipFontSize, _i18n("Settings.Display.tip_tooltip_font", "Font size for dark-themed tooltips"))
 EndFunc
@@ -831,8 +855,12 @@ Func __CD_BuildTabHotkeys()
     Local $t = 4, $iX = 20, $iY = 94
     Local $iLblW = 100, $iInpW = 130, $iBtnBuildW = 24, $i
 
-    ; Dynamic label: "Desktop N:" generated per iteration below
+    ; Enable global hotkeys checkbox
+    $__g_CD_idChkHotkeysEnabled = __CD_CreateCheckbox(_i18n("Settings.Hotkeys.chk_hotkeys_enabled", "Enable global hotkeys"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkHotkeysEnabled, _i18n("Settings.Hotkeys.tip_hotkeys_enabled", "Master toggle for all keyboard shortcuts"))
+    $iY += 28
 
+    ; Dynamic label: "Desktop N:" generated per iteration below
     ; Next (build index 0)
     Local $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_hotkey_next", "Next:"), $iX, $iY + 2, $iLblW, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
@@ -843,6 +871,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetFont($__g_CD_idInpHkNext, 9, 400, 0, $THEME_FONT_MONO)
     GUICtrlSetColor($__g_CD_idInpHkNext, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHkNext, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkNext)
     __CD_RegCtrl($t, $__g_CD_idInpHkNext)
     _Theme_SetTooltip($__g_CD_idInpHkNext, _i18n("Settings.Hotkeys.tip_hotkey_format", "AutoIt hotkey format: ^=Ctrl !=Alt +=Shift #=Win e.g. ^!{RIGHT}"))
     $__g_CD_idBtnHkBuild[0] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
@@ -865,6 +894,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetFont($__g_CD_idInpHkPrev, 9, 400, 0, $THEME_FONT_MONO)
     GUICtrlSetColor($__g_CD_idInpHkPrev, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHkPrev, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkPrev)
     __CD_RegCtrl($t, $__g_CD_idInpHkPrev)
     _Theme_SetTooltip($__g_CD_idInpHkPrev, _i18n("Settings.Hotkeys.tip_hotkey_format", "AutoIt hotkey format: ^=Ctrl !=Alt +=Shift #=Win e.g. ^!{RIGHT}"))
     $__g_CD_idBtnHkBuild[1] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
@@ -890,6 +920,7 @@ Func __CD_BuildTabHotkeys()
         GUICtrlSetFont($__g_CD_aidInpHkDesktop[$i], 9, 400, 0, $THEME_FONT_MONO)
         GUICtrlSetColor($__g_CD_aidInpHkDesktop[$i], $THEME_FG_TEXT)
         GUICtrlSetBkColor($__g_CD_aidInpHkDesktop[$i], $THEME_BG_INPUT)
+        _Theme_FlattenInput($__g_CD_aidInpHkDesktop[$i])
         __CD_RegCtrl($t, $__g_CD_aidInpHkDesktop[$i])
         _Theme_SetTooltip($__g_CD_aidInpHkDesktop[$i], _i18n("Settings.Hotkeys.tip_hotkey_format", "AutoIt hotkey format: ^=Ctrl !=Alt +=Shift #=Win e.g. ^!{RIGHT}"))
         $__g_CD_idBtnHkBuild[$i + 1] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
@@ -913,6 +944,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetFont($__g_CD_idInpHkToggleList, 9, 400, 0, $THEME_FONT_MONO)
     GUICtrlSetColor($__g_CD_idInpHkToggleList, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHkToggleList, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkToggleList)
     __CD_RegCtrl($t, $__g_CD_idInpHkToggleList)
     _Theme_SetTooltip($__g_CD_idInpHkToggleList, _i18n("Settings.Hotkeys.tip_hotkey_format", "AutoIt hotkey format: ^=Ctrl !=Alt +=Shift #=Win e.g. ^!{RIGHT}"))
     $__g_CD_idBtnHkBuild[11] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
@@ -936,6 +968,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetFont($__g_CD_idInpHkLastDesktop, 9, 400, 0, $THEME_FONT_MONO)
     GUICtrlSetColor($__g_CD_idInpHkLastDesktop, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHkLastDesktop, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkLastDesktop)
     __CD_RegCtrl($t, $__g_CD_idInpHkLastDesktop)
     $__g_CD_idBtnHkBuild[12] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[12], 8, 700, 0, $THEME_FONT_MAIN)
@@ -955,6 +988,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetFont($__g_CD_idInpHkMoveFollowNext, 9, 400, 0, $THEME_FONT_MONO)
     GUICtrlSetColor($__g_CD_idInpHkMoveFollowNext, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHkMoveFollowNext, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkMoveFollowNext)
     __CD_RegCtrl($t, $__g_CD_idInpHkMoveFollowNext)
     $__g_CD_idBtnHkBuild[13] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[13], 8, 700, 0, $THEME_FONT_MAIN)
@@ -974,6 +1008,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetFont($__g_CD_idInpHkMoveFollowPrev, 9, 400, 0, $THEME_FONT_MONO)
     GUICtrlSetColor($__g_CD_idInpHkMoveFollowPrev, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHkMoveFollowPrev, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkMoveFollowPrev)
     __CD_RegCtrl($t, $__g_CD_idInpHkMoveFollowPrev)
     $__g_CD_idBtnHkBuild[14] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[14], 8, 700, 0, $THEME_FONT_MAIN)
@@ -993,6 +1028,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetFont($__g_CD_idInpHkMoveToNext, 9, 400, 0, $THEME_FONT_MONO)
     GUICtrlSetColor($__g_CD_idInpHkMoveToNext, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHkMoveToNext, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkMoveToNext)
     __CD_RegCtrl($t, $__g_CD_idInpHkMoveToNext)
     $__g_CD_idBtnHkBuild[15] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[15], 8, 700, 0, $THEME_FONT_MAIN)
@@ -1012,6 +1048,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetFont($__g_CD_idInpHkMoveToPrev, 9, 400, 0, $THEME_FONT_MONO)
     GUICtrlSetColor($__g_CD_idInpHkMoveToPrev, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHkMoveToPrev, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkMoveToPrev)
     __CD_RegCtrl($t, $__g_CD_idInpHkMoveToPrev)
     $__g_CD_idBtnHkBuild[16] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[16], 8, 700, 0, $THEME_FONT_MAIN)
@@ -1031,6 +1068,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetFont($__g_CD_idInpHkSendToNew, 9, 400, 0, $THEME_FONT_MONO)
     GUICtrlSetColor($__g_CD_idInpHkSendToNew, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHkSendToNew, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkSendToNew)
     __CD_RegCtrl($t, $__g_CD_idInpHkSendToNew)
     $__g_CD_idBtnHkBuild[17] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[17], 8, 700, 0, $THEME_FONT_MAIN)
@@ -1050,6 +1088,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetFont($__g_CD_idInpHkPinWindow, 9, 400, 0, $THEME_FONT_MONO)
     GUICtrlSetColor($__g_CD_idInpHkPinWindow, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHkPinWindow, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkPinWindow)
     __CD_RegCtrl($t, $__g_CD_idInpHkPinWindow)
     $__g_CD_idBtnHkBuild[18] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[18], 8, 700, 0, $THEME_FONT_MAIN)
@@ -1069,6 +1108,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetFont($__g_CD_idInpHkToggleWL, 9, 400, 0, $THEME_FONT_MONO)
     GUICtrlSetColor($__g_CD_idInpHkToggleWL, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHkToggleWL, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkToggleWL)
     __CD_RegCtrl($t, $__g_CD_idInpHkToggleWL)
     $__g_CD_idBtnHkBuild[19] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[19], 8, 700, 0, $THEME_FONT_MAIN)
@@ -1076,6 +1116,28 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetBkColor($__g_CD_idBtnHkBuild[19], $THEME_BG_HOVER)
     GUICtrlSetCursor($__g_CD_idBtnHkBuild[19], 0)
     __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[19])
+    $iY += 28
+
+    ; Open Settings (build index 20)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_hotkey_settings", "Open Settings:"), $iX, $iY + 2, $iLblW, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpHkOpenSettings = GUICtrlCreateInput("", $iX + $iLblW, $iY, $iInpW, 20)
+    GUICtrlSetFont($__g_CD_idInpHkOpenSettings, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idInpHkOpenSettings, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpHkOpenSettings, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkOpenSettings)
+    __CD_RegCtrl($t, $__g_CD_idInpHkOpenSettings)
+    _Theme_SetTooltip($__g_CD_idInpHkOpenSettings, _i18n("Settings.Hotkeys.tip_hotkey_settings", "Global hotkey to open the settings dialog"))
+    $__g_CD_idBtnHkBuild[20] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBtnHkBuild[20], 8, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBtnHkBuild[20], $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[20], $THEME_BG_HOVER)
+    GUICtrlSetCursor($__g_CD_idBtnHkBuild[20], 0)
+    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[20])
+    _Theme_SetTooltip($__g_CD_idBtnHkBuild[20], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
     $iY += 28
 
     ; Help
@@ -1117,6 +1179,7 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetFont($__g_CD_idInpPeekDelay, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpPeekDelay, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpPeekDelay, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpPeekDelay)
     __CD_RegCtrl($t, $__g_CD_idInpPeekDelay)
     _Theme_SetTooltip($__g_CD_idInpPeekDelay, _i18n("Settings.Behavior.tip_ms_hint", "Time in milliseconds (1000ms = 1 second)"))
     $iY += 28
@@ -1130,6 +1193,7 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetFont($__g_CD_idInpAutoHide, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpAutoHide, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpAutoHide, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpAutoHide)
     __CD_RegCtrl($t, $__g_CD_idInpAutoHide)
     _Theme_SetTooltip($__g_CD_idInpAutoHide, _i18n("Settings.Behavior.tip_ms_hint", "Time in milliseconds (1000ms = 1 second)"))
     $iY += 28
@@ -1143,6 +1207,7 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetFont($__g_CD_idInpTopmost, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpTopmost, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpTopmost, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpTopmost)
     __CD_RegCtrl($t, $__g_CD_idInpTopmost)
     _Theme_SetTooltip($__g_CD_idInpTopmost, _i18n("Settings.Behavior.tip_ms_hint", "Time in milliseconds (1000ms = 1 second)"))
     $iY += 28
@@ -1156,6 +1221,7 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetFont($__g_CD_idInpCmDelay, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpCmDelay, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpCmDelay, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpCmDelay)
     __CD_RegCtrl($t, $__g_CD_idInpCmDelay)
     _Theme_SetTooltip($__g_CD_idInpCmDelay, _i18n("Settings.Behavior.tip_ms_hint", "Time in milliseconds (1000ms = 1 second)"))
     $iY += 34
@@ -1173,6 +1239,7 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetFont($__g_CD_idInpWatcherInterval, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpWatcherInterval, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpWatcherInterval, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpWatcherInterval)
     __CD_RegCtrl($t, $__g_CD_idInpWatcherInterval)
     _Theme_SetTooltip($__g_CD_idInpWatcherInterval, _i18n("Settings.Behavior.tip_ms_hint", "Time in milliseconds (1000ms = 1 second)"))
     $iY += 28
@@ -1186,6 +1253,7 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetFont($__g_CD_idInpCountCacheTTL, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpCountCacheTTL, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpCountCacheTTL, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpCountCacheTTL)
     __CD_RegCtrl($t, $__g_CD_idInpCountCacheTTL)
     _Theme_SetTooltip($__g_CD_idInpCountCacheTTL, _i18n("Settings.Behavior.tip_count_cache", "How long to cache desktop count before re-querying (ms)"))
     $iY += 30
@@ -1214,6 +1282,7 @@ Func __CD_BuildTabLogging()
     GUICtrlSetFont($__g_CD_idInpLogPath, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpLogPath, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpLogPath, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpLogPath)
     __CD_RegCtrl($t, $__g_CD_idInpLogPath)
     _Theme_SetTooltip($__g_CD_idInpLogPath, _i18n("Settings.Logging.tip_log_folder", "Folder for log files (empty = script folder). Supports %APPDATA%, %TEMP%, %SCRIPTDIR%"))
     $__g_CD_idBtnLogBrowse = GUICtrlCreateLabel(_i18n("General.btn_browse", "Browse"), $iX + 105 + 252, $iY, 48, 22, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
@@ -1247,6 +1316,7 @@ Func __CD_BuildTabLogging()
     GUICtrlSetFont($__g_CD_idInpLogMaxSize, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpLogMaxSize, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpLogMaxSize, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpLogMaxSize)
     __CD_RegCtrl($t, $__g_CD_idInpLogMaxSize)
     _Theme_SetTooltip($__g_CD_idInpLogMaxSize, _i18n("Settings.Logging.tip_log_max_size", "Rotate log file when it exceeds this size"))
     $iY += 30
@@ -1260,6 +1330,7 @@ Func __CD_BuildTabLogging()
     GUICtrlSetFont($__g_CD_idInpLogRotateCount, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpLogRotateCount, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpLogRotateCount, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpLogRotateCount)
     __CD_RegCtrl($t, $__g_CD_idInpLogRotateCount)
     _Theme_SetTooltip($__g_CD_idInpLogRotateCount, _i18n("Settings.Logging.tip_log_rotate", "Number of rotated log files to keep (1-10)"))
     $iY += 30
@@ -1314,6 +1385,7 @@ Func __CD_BuildTabUpdates()
     GUICtrlSetFont($__g_CD_idInpUpdateInterval, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpUpdateInterval, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpUpdateInterval, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpUpdateInterval)
     __CD_RegCtrl($t, $__g_CD_idInpUpdateInterval)
     _Theme_SetTooltip($__g_CD_idInpUpdateInterval, _i18n("Settings.Updates.tip_update_interval", "How often to check for updates (in hours)"))
     $iY += 34
@@ -1331,6 +1403,7 @@ Func __CD_BuildTabUpdates()
     GUICtrlSetFont($__g_CD_idInpUpdateCheckDays, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpUpdateCheckDays, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpUpdateCheckDays, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpUpdateCheckDays)
     __CD_RegCtrl($t, $__g_CD_idInpUpdateCheckDays)
     _Theme_SetTooltip($__g_CD_idInpUpdateCheckDays, _i18n("Settings.Updates.tip_check_days", "Minimum days between startup update checks (1-90)"))
     $iY += 34
@@ -1412,6 +1485,7 @@ Func __CD_BuildTabDesktops()
         GUICtrlSetFont($__g_CD_aidDeskLabel[$i], 8, 400, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor($__g_CD_aidDeskLabel[$i], $THEME_FG_TEXT)
         GUICtrlSetBkColor($__g_CD_aidDeskLabel[$i], $THEME_BG_INPUT)
+        _Theme_FlattenInput($__g_CD_aidDeskLabel[$i])
         __CD_RegCtrl($t, $__g_CD_aidDeskLabel[$i])
 
         ; Color hex input
@@ -1419,6 +1493,7 @@ Func __CD_BuildTabDesktops()
         GUICtrlSetFont($__g_CD_aidDeskColor[$i], 8, 400, 0, $THEME_FONT_MONO)
         GUICtrlSetColor($__g_CD_aidDeskColor[$i], $THEME_FG_TEXT)
         GUICtrlSetBkColor($__g_CD_aidDeskColor[$i], $THEME_BG_INPUT)
+        _Theme_FlattenInput($__g_CD_aidDeskColor[$i])
         __CD_RegCtrl($t, $__g_CD_aidDeskColor[$i])
 
         ; Color preview
@@ -1445,6 +1520,7 @@ Func __CD_BuildTabWallpaper()
     GUICtrlSetFont($__g_CD_idInpWallpaperDelay, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpWallpaperDelay, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpWallpaperDelay, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpWallpaperDelay)
     __CD_RegCtrl($t, $__g_CD_idInpWallpaperDelay)
     _Theme_SetTooltip($__g_CD_idInpWallpaperDelay, _i18n("Settings.Wallpaper.tip_wallpaper_delay", "Delay before applying wallpaper after switching (ms)"))
     $iY += 34
@@ -1460,6 +1536,7 @@ Func __CD_BuildTabWallpaper()
         GUICtrlSetFont($__g_CD_aidWallpaperPath[$i], 8, 400, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor($__g_CD_aidWallpaperPath[$i], $THEME_FG_TEXT)
         GUICtrlSetBkColor($__g_CD_aidWallpaperPath[$i], $THEME_BG_INPUT)
+        _Theme_FlattenInput($__g_CD_aidWallpaperPath[$i])
         __CD_RegCtrl($t, $__g_CD_aidWallpaperPath[$i])
         $__g_CD_aidWallpaperBrowse[$i] = GUICtrlCreateLabel("...", $iX + 344, $iY, 24, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
         GUICtrlSetFont($__g_CD_aidWallpaperBrowse[$i], 8, 700, 0, $THEME_FONT_MAIN)
@@ -1515,6 +1592,7 @@ Func __CD_BuildTabWindowList()
     GUICtrlSetFont($__g_CD_idInpWLWidth, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpWLWidth, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpWLWidth, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpWLWidth)
     __CD_RegCtrl($t, $__g_CD_idInpWLWidth)
     _Theme_SetTooltip($__g_CD_idInpWLWidth, _i18n("Settings.WindowList.tip_wl_width", "Width of the window list panel in pixels"))
     $iY += 30
@@ -1528,6 +1606,7 @@ Func __CD_BuildTabWindowList()
     GUICtrlSetFont($__g_CD_idInpWLMaxVisible, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpWLMaxVisible, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpWLMaxVisible, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpWLMaxVisible)
     __CD_RegCtrl($t, $__g_CD_idInpWLMaxVisible)
     _Theme_SetTooltip($__g_CD_idInpWLMaxVisible, _i18n("Settings.WindowList.tip_wl_max_visible", "Maximum number of windows shown before scrolling"))
     $iY += 34
@@ -1551,6 +1630,7 @@ Func __CD_BuildTabWindowList()
     GUICtrlSetFont($__g_CD_idInpWLRefreshInterval, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpWLRefreshInterval, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpWLRefreshInterval, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpWLRefreshInterval)
     __CD_RegCtrl($t, $__g_CD_idInpWLRefreshInterval)
     _Theme_SetTooltip($__g_CD_idInpWLRefreshInterval, _i18n("Settings.WindowList.tip_wl_refresh_interval", "How often to refresh the window list (ms)"))
 EndFunc
@@ -1572,6 +1652,7 @@ Func __CD_BuildTabExplorer()
     GUICtrlSetFont($__g_CD_idInpShellProcess, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpShellProcess, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpShellProcess, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpShellProcess)
     __CD_RegCtrl($t, $__g_CD_idInpShellProcess)
     _Theme_SetTooltip($__g_CD_idInpShellProcess, _i18n("Settings.Explorer.tip_shell_process", "Process name to monitor (default: explorer.exe)"))
     $iY += 30
@@ -1586,6 +1667,7 @@ Func __CD_BuildTabExplorer()
     GUICtrlSetFont($__g_CD_idInpExplorerInterval, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpExplorerInterval, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpExplorerInterval, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpExplorerInterval)
     __CD_RegCtrl($t, $__g_CD_idInpExplorerInterval)
     _Theme_SetTooltip($__g_CD_idInpExplorerInterval, _i18n("Settings.Explorer.tip_explorer_interval", "How often to check if the shell is alive (ms)"))
     $iY += 30
@@ -1605,6 +1687,7 @@ Func __CD_BuildTabExplorer()
     GUICtrlSetFont($__g_CD_idInpRestartDelay, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpRestartDelay, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpRestartDelay, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpRestartDelay)
     __CD_RegCtrl($t, $__g_CD_idInpRestartDelay)
     _Theme_SetTooltip($__g_CD_idInpRestartDelay, _i18n("Settings.Explorer.tip_restart_delay", "Wait this long before attempting restart (ms)"))
     $iY += 34
@@ -1619,6 +1702,7 @@ Func __CD_BuildTabExplorer()
     GUICtrlSetFont($__g_CD_idInpMaxRetries, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpMaxRetries, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpMaxRetries, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpMaxRetries)
     __CD_RegCtrl($t, $__g_CD_idInpMaxRetries)
     _Theme_SetTooltip($__g_CD_idInpMaxRetries, _i18n("Settings.Explorer.tip_max_retries", "Maximum restart attempts (0 = unlimited)"))
     $iY += 30
@@ -1633,6 +1717,7 @@ Func __CD_BuildTabExplorer()
     GUICtrlSetFont($__g_CD_idInpRetryDelay, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpRetryDelay, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpRetryDelay, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpRetryDelay)
     __CD_RegCtrl($t, $__g_CD_idInpRetryDelay)
     _Theme_SetTooltip($__g_CD_idInpRetryDelay, _i18n("Settings.Explorer.tip_retry_delay", "Initial delay between retry attempts (ms)"))
     $iY += 30
@@ -1652,6 +1737,7 @@ Func __CD_BuildTabExplorer()
     GUICtrlSetFont($__g_CD_idInpMaxRetryDelay, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpMaxRetryDelay, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpMaxRetryDelay, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpMaxRetryDelay)
     __CD_RegCtrl($t, $__g_CD_idInpMaxRetryDelay)
     _Theme_SetTooltip($__g_CD_idInpMaxRetryDelay, _i18n("Settings.Explorer.tip_max_retry_delay", "Maximum delay cap for exponential backoff (ms)"))
     $iY += 34
@@ -1715,6 +1801,7 @@ Func __CD_BuildTabAnimations()
     GUICtrlSetFont($__g_CD_idInpFadeIn, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpFadeIn, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpFadeIn, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpFadeIn)
     __CD_RegCtrl($t, $__g_CD_idInpFadeIn)
     _Theme_SetTooltip($__g_CD_idInpFadeIn, _i18n("Settings.Animations.tip_fade_in", "Total time for fade-in effect in milliseconds (0 = instant)"))
     $iY += 28
@@ -1728,6 +1815,7 @@ Func __CD_BuildTabAnimations()
     GUICtrlSetFont($__g_CD_idInpFadeOut, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpFadeOut, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpFadeOut, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpFadeOut)
     __CD_RegCtrl($t, $__g_CD_idInpFadeOut)
     _Theme_SetTooltip($__g_CD_idInpFadeOut, _i18n("Settings.Animations.tip_fade_out", "Total time for fade-out effect in milliseconds (0 = instant)"))
     $iY += 28
@@ -1741,6 +1829,7 @@ Func __CD_BuildTabAnimations()
     GUICtrlSetFont($__g_CD_idInpFadeStep, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpFadeStep, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpFadeStep, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpFadeStep)
     __CD_RegCtrl($t, $__g_CD_idInpFadeStep)
     _Theme_SetTooltip($__g_CD_idInpFadeStep, _i18n("Settings.Animations.tip_fade_step", "Alpha increment per frame (higher = faster, fewer frames)"))
     $iY += 28
@@ -1754,6 +1843,7 @@ Func __CD_BuildTabAnimations()
     GUICtrlSetFont($__g_CD_idInpFadeSleep, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpFadeSleep, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpFadeSleep, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpFadeSleep)
     __CD_RegCtrl($t, $__g_CD_idInpFadeSleep)
     _Theme_SetTooltip($__g_CD_idInpFadeSleep, _i18n("Settings.Animations.tip_fade_sleep", "Sleep between fade frames (lower = smoother but more CPU)"))
     $iY += 28
@@ -1767,6 +1857,7 @@ Func __CD_BuildTabAnimations()
     GUICtrlSetFont($__g_CD_idInpToastFadeOut, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpToastFadeOut, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpToastFadeOut, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpToastFadeOut)
     __CD_RegCtrl($t, $__g_CD_idInpToastFadeOut)
     _Theme_SetTooltip($__g_CD_idInpToastFadeOut, _i18n("Settings.Animations.tip_toast_fade", "Duration of toast notification fade-out in milliseconds"))
     $iY += 28
@@ -1780,6 +1871,7 @@ Func __CD_BuildTabAnimations()
     GUICtrlSetFont($__g_CD_idInpHoverSpeed, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpHoverSpeed, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpHoverSpeed, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHoverSpeed)
     __CD_RegCtrl($t, $__g_CD_idInpHoverSpeed)
     _Theme_SetTooltip($__g_CD_idInpHoverSpeed, _i18n("Settings.Animations.tip_hover_speed", "Hover transition speed in milliseconds (0 = instant)"))
     $iY += 28
@@ -1832,7 +1924,7 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkShowCount, _Cfg_GetShowCount())
     GUICtrlSetData($__g_CD_idInpCountFont, _Cfg_GetCountFontSize())
     GUICtrlSetData($__g_CD_idInpOpacity, _Cfg_GetThemeAlphaMain())
-    GUICtrlSetData($__g_CD_idLblTheme, _Cfg_GetTheme())
+    GUICtrlSetData($__g_CD_idLblTheme, _Theme_GetAvailableSchemes(), _Cfg_GetTheme())
     __CD_SetCheckState($__g_CD_idChkThumbnails, _Cfg_GetThumbnailsEnabled())
     GUICtrlSetData($__g_CD_idInpThumbW, _Cfg_GetThumbnailWidth())
     GUICtrlSetData($__g_CD_idInpThumbH, _Cfg_GetThumbnailHeight())
@@ -1854,6 +1946,7 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idLblListAction, "switch|scroll", _Cfg_GetListScrollAction())
 
     ; Hotkeys
+    __CD_SetCheckState($__g_CD_idChkHotkeysEnabled, _Cfg_GetHotkeysEnabled())
     GUICtrlSetData($__g_CD_idInpHkNext, _Cfg_GetHotkeyNext())
     GUICtrlSetData($__g_CD_idInpHkPrev, _Cfg_GetHotkeyPrev())
     For $i = 1 To 9
@@ -1934,6 +2027,7 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpHkSendToNew, _Cfg_GetHotkeySendNewDesktop())
     GUICtrlSetData($__g_CD_idInpHkPinWindow, _Cfg_GetHotkeyPinWindow())
     GUICtrlSetData($__g_CD_idInpHkToggleWL, _Cfg_GetHotkeyToggleWindowList())
+    GUICtrlSetData($__g_CD_idInpHkOpenSettings, _Cfg_GetHotkeyOpenSettings())
 
     ; Wallpaper
     __CD_SetCheckState($__g_CD_idChkWallpaper, _Cfg_GetWallpaperEnabled())
@@ -2044,7 +2138,6 @@ Func __CD_MessageLoop()
             ; Cycle label clicks
             If $id = $__g_CD_idLblPosition Then __CD_CycleValue($id, "bottom-left|bottom-center|bottom-right|middle-left|middle-right|top-left|top-center|top-right")
             If $id = $__g_CD_idLblScrollDir Then __CD_CycleValue($id, "normal|inverted")
-            If $id = $__g_CD_idLblTheme Then __CD_CycleValue($id, _Theme_GetAvailableSchemes())
             ; Language combo overlay click — toggle dropdown
             If $id = $__g_CD_idComboOverlay Then
                 Local $hCombo = GUICtrlGetHandle($__g_CD_idLblLanguage)
@@ -2107,7 +2200,6 @@ Func __CD_MessageLoop()
             ; Cycle labels (only remaining non-combo cycle labels)
             If $aCursor[4] = $__g_CD_idLblPosition Then $iFound = $__g_CD_idLblPosition
             If $aCursor[4] = $__g_CD_idLblScrollDir Then $iFound = $__g_CD_idLblScrollDir
-            If $aCursor[4] = $__g_CD_idLblTheme Then $iFound = $__g_CD_idLblTheme
             If $iFound <> $iHovered Then
                 If $iHovered <> 0 Then
                     Local $iFgRestore = $THEME_FG_MENU
@@ -2118,12 +2210,10 @@ Func __CD_MessageLoop()
                     If $iHovered = $__g_CD_idBtnDownloadLatest Then $iFgRestore = $THEME_FG_LINK
                     If $iHovered = $__g_CD_idBtnLogBrowse Then $iFgRestore = $THEME_FG_DIM
                     If $iHovered = $__g_CD_idComboOverlay Then $iFgRestore = $THEME_FG_TEXT
-                    If $iHovered = $__g_CD_idLblPosition Or $iHovered = $__g_CD_idLblScrollDir Or _
-                       $iHovered = $__g_CD_idLblTheme Then $iFgRestore = $THEME_FG_PRIMARY
+                    If $iHovered = $__g_CD_idLblPosition Or $iHovered = $__g_CD_idLblScrollDir Then $iFgRestore = $THEME_FG_PRIMARY
                     Local $iBgRestore = $THEME_BG_HOVER
                     If $iHovered = $__g_CD_idComboOverlay Or $iHovered = $__g_CD_idLblPosition Or _
-                       $iHovered = $__g_CD_idLblScrollDir Or _
-                       $iHovered = $__g_CD_idLblTheme Then $iBgRestore = $THEME_BG_INPUT
+                       $iHovered = $__g_CD_idLblScrollDir Then $iBgRestore = $THEME_BG_INPUT
                     _Theme_RemoveHover($iHovered, $iFgRestore, $iBgRestore)
                 EndIf
                 $iHovered = $iFound
@@ -2257,6 +2347,7 @@ Func __CD_ApplyChanges()
     _Cfg_SetListScrollAction(GUICtrlRead($__g_CD_idLblListAction))
 
     ; Hotkeys
+    _Cfg_SetHotkeysEnabled(__CD_GetCheckState($__g_CD_idChkHotkeysEnabled))
     _Cfg_SetHotkeyNext(GUICtrlRead($__g_CD_idInpHkNext))
     _Cfg_SetHotkeyPrev(GUICtrlRead($__g_CD_idInpHkPrev))
     For $i = 1 To 9
@@ -2271,6 +2362,7 @@ Func __CD_ApplyChanges()
     _Cfg_SetHotkeySendNewDesktop(GUICtrlRead($__g_CD_idInpHkSendToNew))
     _Cfg_SetHotkeyPinWindow(GUICtrlRead($__g_CD_idInpHkPinWindow))
     _Cfg_SetHotkeyToggleWindowList(GUICtrlRead($__g_CD_idInpHkToggleWL))
+    _Cfg_SetHotkeyOpenSettings(GUICtrlRead($__g_CD_idInpHkOpenSettings))
 
     ; Behavior
     _Cfg_SetConfirmDelete(__CD_GetCheckState($__g_CD_idChkConfirmDel))
@@ -2575,6 +2667,8 @@ Func __CD_HandleHotkeyBuildClick($id)
         $idInput = $__g_CD_idInpHkPinWindow
     ElseIf $id = $__g_CD_idBtnHkBuild[19] Then
         $idInput = $__g_CD_idInpHkToggleWL
+    ElseIf $id = $__g_CD_idBtnHkBuild[20] Then
+        $idInput = $__g_CD_idInpHkOpenSettings
     Else
         Local $i
         For $i = 1 To 9
@@ -2644,6 +2738,7 @@ Func __CD_ShowHotkeyBuilder()
     GUICtrlSetFont($idKeyInput, 9, 400, 0, $THEME_FONT_MONO)
     GUICtrlSetColor($idKeyInput, $THEME_FG_TEXT)
     GUICtrlSetBkColor($idKeyInput, $THEME_BG_INPUT)
+    _Theme_FlattenInput($idKeyInput)
 
     ; Capture button
     Local $iX = 16
