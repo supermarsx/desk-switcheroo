@@ -57,6 +57,9 @@ Global $__g_CD_idBtnHkBuild[13]    ; index 0-11 for each hotkey row "..." button
 Global $__g_CD_idChkWidgetDrag, $__g_CD_idChkWidgetColorBar, $__g_CD_idChkTrayMode, $__g_CD_idChkQuickAccess
 Global $__g_CD_idChkListKeyNav
 Global $__g_CD_idLblLanguage
+Global $__g_CD_idComboOverlay = 0
+Global $__g_CD_bDropdownOpen = False
+Global $__g_CD_iSavedHighlight = 0, $__g_CD_iSavedHighlightText = 0
 
 ; -- Tab 8: Updates --
 Global $__g_CD_idChkAutoUpdate, $__g_CD_idInpUpdateInterval
@@ -253,6 +256,17 @@ EndFunc
 
 Func _CD_Destroy()
     _Log_Info("Settings dialog closed")
+    ; Restore system highlight colors if dropdown was open
+    If $__g_CD_bDropdownOpen Then
+        Local $aElems = DllStructCreate("int[2]")
+        Local $aColors = DllStructCreate("dword[2]")
+        DllStructSetData($aElems, 1, 13, 1)
+        DllStructSetData($aElems, 1, 14, 2)
+        DllStructSetData($aColors, 1, $__g_CD_iSavedHighlight, 1)
+        DllStructSetData($aColors, 1, $__g_CD_iSavedHighlightText, 2)
+        DllCall("user32.dll", "bool", "SetSysColors", "int", 2, "struct*", $aElems, "struct*", $aColors)
+        $__g_CD_bDropdownOpen = False
+    EndIf
     GUIRegisterMsg(0x0134, "") ; unregister WM_CTLCOLORLISTBOX
     If $__g_CD_hBrushCombo <> 0 Then
         DllCall("gdi32.dll", "bool", "DeleteObject", "handle", $__g_CD_hBrushCombo)
@@ -544,7 +558,14 @@ Func __CD_BuildTabGeneral()
     GUICtrlSetColor($__g_CD_idLblLanguage, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idLblLanguage, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idLblLanguage)
-    _Theme_SetTooltip($__g_CD_idLblLanguage, _i18n("Settings.General.tip_language", "Select a language (requires restart)"))
+    ; Themed overlay for combo face (WM_CTLCOLORSTATIC can't be used without breaking hover)
+    $__g_CD_idComboOverlay = GUICtrlCreateLabel("", $iX + 85, $iY, 310, 22, BitOR($SS_LEFT, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idComboOverlay, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idComboOverlay, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idComboOverlay, $THEME_BG_INPUT)
+    GUICtrlSetCursor($__g_CD_idComboOverlay, 0)
+    __CD_RegCtrl($t, $__g_CD_idComboOverlay)
+    _Theme_SetTooltip($__g_CD_idComboOverlay, _i18n("Settings.General.tip_language", "Select a language (requires restart)"))
 EndFunc
 
 Func __CD_BuildTabDisplay()
@@ -1240,6 +1261,7 @@ Func __CD_PopulateControls()
         If StringLeft($aLangs[$iL], StringLen($sLangCode)) = $sLangCode Then $sCurrentDisplay = $aLangs[$iL]
     Next
     GUICtrlSetData($__g_CD_idLblLanguage, $sComboList, $sCurrentDisplay)
+    GUICtrlSetData($__g_CD_idComboOverlay, " " & $sCurrentDisplay & "  " & ChrW(0x25BE))
     GUICtrlSetData($__g_CD_idInpOffsetX, _Cfg_GetWidgetOffsetX())
     __CD_SetCheckState($__g_CD_idChkWidgetDrag, _Cfg_GetWidgetDragEnabled())
     __CD_SetCheckState($__g_CD_idChkWidgetColorBar, _Cfg_GetWidgetColorBar())
@@ -1395,7 +1417,28 @@ Func __CD_MessageLoop()
             If $id = $__g_CD_idLblTheme Then __CD_CycleValue($id, _Theme_GetAvailableSchemes())
             If $id = $__g_CD_idLblLogLevel Then __CD_CycleValue($id, "error|warn|info|debug")
             If $id = $__g_CD_idLblLogDateFormat Then __CD_CycleValue($id, "iso|us|eu")
-            ; Language is now a dropdown combo — no cycle handler needed
+            ; Language combo overlay click — toggle dropdown
+            If $id = $__g_CD_idComboOverlay Then
+                Local $hCombo = GUICtrlGetHandle($__g_CD_idLblLanguage)
+                If $hCombo <> 0 Then
+                    ; Save system highlight colors and override with dark theme
+                    $__g_CD_iSavedHighlight = DllCall("user32.dll", "dword", "GetSysColor", "int", 13)[0] ; COLOR_HIGHLIGHT
+                    $__g_CD_iSavedHighlightText = DllCall("user32.dll", "dword", "GetSysColor", "int", 14)[0] ; COLOR_HIGHLIGHTTEXT
+                    Local $aElems = DllStructCreate("int[2]")
+                    Local $aColors = DllStructCreate("dword[2]")
+                    DllStructSetData($aElems, 1, 13, 1) ; COLOR_HIGHLIGHT
+                    DllStructSetData($aElems, 1, 14, 2) ; COLOR_HIGHLIGHTTEXT
+                    DllStructSetData($aColors, 1, $THEME_BG_HOVER, 1)
+                    DllStructSetData($aColors, 1, $THEME_FG_WHITE, 2)
+                    DllCall("user32.dll", "bool", "SetSysColors", "int", 2, "struct*", $aElems, "struct*", $aColors)
+                    $__g_CD_bDropdownOpen = True
+                    DllCall("user32.dll", "bool", "SendMessageW", "hwnd", $hCombo, "uint", 0x014F, "wparam", 1, "lparam", 0) ; CB_SHOWDROPDOWN
+                EndIf
+            EndIf
+            ; Sync overlay on combo selection change
+            If $id = $__g_CD_idLblLanguage Then
+                GUICtrlSetData($__g_CD_idComboOverlay, " " & GUICtrlRead($__g_CD_idLblLanguage) & "  " & ChrW(0x25BE))
+            EndIf
         EndIf
 
         ; Escape closes
@@ -1475,6 +1518,24 @@ Func __CD_MessageLoop()
 
         ; Themed tooltip hover check
         _Theme_CheckTooltipHover($__g_CD_hGUI)
+
+        ; Restore system highlight colors when combo dropdown closes
+        If $__g_CD_bDropdownOpen Then
+            Local $hCmb = GUICtrlGetHandle($__g_CD_idLblLanguage)
+            If $hCmb <> 0 Then
+                Local $aDropped = DllCall("user32.dll", "lresult", "SendMessageW", "hwnd", $hCmb, "uint", 0x0157, "wparam", 0, "lparam", 0) ; CB_GETDROPPEDSTATE
+                If Not @error And IsArray($aDropped) And $aDropped[0] = 0 Then
+                    $__g_CD_bDropdownOpen = False
+                    Local $aElems2 = DllStructCreate("int[2]")
+                    Local $aColors2 = DllStructCreate("dword[2]")
+                    DllStructSetData($aElems2, 1, 13, 1)
+                    DllStructSetData($aElems2, 1, 14, 2)
+                    DllStructSetData($aColors2, 1, $__g_CD_iSavedHighlight, 1)
+                    DllStructSetData($aColors2, 1, $__g_CD_iSavedHighlightText, 2)
+                    DllCall("user32.dll", "bool", "SetSysColors", "int", 2, "struct*", $aElems2, "struct*", $aColors2)
+                EndIf
+            EndIf
+        EndIf
 
         ; Live color preview update
         __CD_UpdateColorPreviews()
