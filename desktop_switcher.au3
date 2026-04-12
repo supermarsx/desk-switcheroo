@@ -63,13 +63,31 @@ If $__bSingleton Then
     Local $hMutex = DllCall("kernel32.dll", "handle", "CreateMutexW", "ptr", 0, "bool", True, "wstr", $sMutexName)
     Local $aLastErr = DllCall("kernel32.dll", "dword", "GetLastError")
     If Not @error And IsArray($aLastErr) And $aLastErr[0] = 183 Then
-        Local $aProcs = ProcessList(@AutoItExe)
-        Local $p
-        For $p = 1 To $aProcs[0][0]
-            If $aProcs[$p][1] <> @AutoItPID Then
-                ProcessClose($aProcs[$p][1])
-            EndIf
-        Next
+        ; Previous instance running — kill only instances of THIS script (not all AutoIt)
+        If @Compiled Then
+            ; Compiled: ProcessList(@AutoItExe) only finds our own exe
+            Local $aProcs = ProcessList(@AutoItExe)
+            Local $p
+            For $p = 1 To $aProcs[0][0]
+                If $aProcs[$p][1] <> @AutoItPID Then ProcessClose($aProcs[$p][1])
+            Next
+        Else
+            ; Source mode: find AutoIt processes running our specific script
+            Local $aProcs = ProcessList("AutoIt3_x64.exe")
+            If $aProcs[0][0] = 0 Then $aProcs = ProcessList("AutoIt3.exe")
+            Local $p
+            For $p = 1 To $aProcs[0][0]
+                If $aProcs[$p][1] <> @AutoItPID Then
+                    ; Check command line to verify it's running our script
+                    Local $sCmdLine = ""
+                    Local $aWMI = ObjGet("winmgmts:\\.\root\cimv2").ExecQuery("SELECT CommandLine FROM Win32_Process WHERE ProcessId=" & $aProcs[$p][1])
+                    For $oProc In $aWMI
+                        $sCmdLine = $oProc.CommandLine
+                    Next
+                    If StringInStr($sCmdLine, "desktop_switcher.au3") Then ProcessClose($aProcs[$p][1])
+                EndIf
+            Next
+        EndIf
         Sleep(200)
     EndIf
 EndIf

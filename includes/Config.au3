@@ -174,9 +174,16 @@ Global $__g_Cfg_bWindowListAutoRefresh = True
 Global $__g_Cfg_iWindowListRefreshInterval = 1000
 
 ; [ExplorerMonitor]
-Global $__g_Cfg_bExplorerMonitorEnabled = False
-Global $__g_Cfg_iExplorerCheckInterval  = 5000
-Global $__g_Cfg_bExplorerNotifyRecovery = True
+Global $__g_Cfg_bExplorerMonitorEnabled  = False
+Global $__g_Cfg_sShellProcessName        = "explorer.exe"
+Global $__g_Cfg_iExplorerCheckInterval   = 5000
+Global $__g_Cfg_iMonitorMaxRetries       = 0       ; 0 = unlimited
+Global $__g_Cfg_iMonitorRetryDelay       = 5000
+Global $__g_Cfg_bMonitorExpBackoff       = True
+Global $__g_Cfg_iMonitorMaxRetryDelay    = 60000
+Global $__g_Cfg_bMonitorAutoRestart      = False
+Global $__g_Cfg_iMonitorRestartDelay     = 2000
+Global $__g_Cfg_bExplorerNotifyRecovery  = True
 
 ; [Notifications]
 Global $__g_Cfg_bNotifyWindowMoved    = False
@@ -370,7 +377,15 @@ Func _Cfg_Load()
 
     ; [ExplorerMonitor]
     $__g_Cfg_bExplorerMonitorEnabled = __Cfg_ReadBool($f, "ExplorerMonitor", "explorer_monitor_enabled", False)
+    $__g_Cfg_sShellProcessName       = IniRead($f, "ExplorerMonitor", "shell_process_name", "explorer.exe")
+    If $__g_Cfg_sShellProcessName = "" Then $__g_Cfg_sShellProcessName = "explorer.exe"
     $__g_Cfg_iExplorerCheckInterval  = __Cfg_ReadInt($f, "ExplorerMonitor", "explorer_check_interval", 5000, 2000, 60000)
+    $__g_Cfg_iMonitorMaxRetries      = __Cfg_ReadInt($f, "ExplorerMonitor", "monitor_max_retries", 0, 0, 100)
+    $__g_Cfg_iMonitorRetryDelay      = __Cfg_ReadInt($f, "ExplorerMonitor", "monitor_retry_delay", 5000, 1000, 60000)
+    $__g_Cfg_bMonitorExpBackoff      = __Cfg_ReadBool($f, "ExplorerMonitor", "monitor_exp_backoff", True)
+    $__g_Cfg_iMonitorMaxRetryDelay   = __Cfg_ReadInt($f, "ExplorerMonitor", "monitor_max_retry_delay", 60000, 5000, 300000)
+    $__g_Cfg_bMonitorAutoRestart     = __Cfg_ReadBool($f, "ExplorerMonitor", "monitor_auto_restart", False)
+    $__g_Cfg_iMonitorRestartDelay    = __Cfg_ReadInt($f, "ExplorerMonitor", "monitor_restart_delay", 2000, 500, 10000)
     $__g_Cfg_bExplorerNotifyRecovery = __Cfg_ReadBool($f, "ExplorerMonitor", "explorer_notify_recovery", True)
 
     ; [Notifications]
@@ -534,7 +549,14 @@ Func _Cfg_Save()
 
     ; [ExplorerMonitor]
     __Cfg_WriteBool($f, "ExplorerMonitor", "explorer_monitor_enabled", $__g_Cfg_bExplorerMonitorEnabled)
+    IniWrite($f, "ExplorerMonitor", "shell_process_name", $__g_Cfg_sShellProcessName)
     IniWrite($f, "ExplorerMonitor", "explorer_check_interval", $__g_Cfg_iExplorerCheckInterval)
+    IniWrite($f, "ExplorerMonitor", "monitor_max_retries", $__g_Cfg_iMonitorMaxRetries)
+    IniWrite($f, "ExplorerMonitor", "monitor_retry_delay", $__g_Cfg_iMonitorRetryDelay)
+    __Cfg_WriteBool($f, "ExplorerMonitor", "monitor_exp_backoff", $__g_Cfg_bMonitorExpBackoff)
+    IniWrite($f, "ExplorerMonitor", "monitor_max_retry_delay", $__g_Cfg_iMonitorMaxRetryDelay)
+    __Cfg_WriteBool($f, "ExplorerMonitor", "monitor_auto_restart", $__g_Cfg_bMonitorAutoRestart)
+    IniWrite($f, "ExplorerMonitor", "monitor_restart_delay", $__g_Cfg_iMonitorRestartDelay)
     __Cfg_WriteBool($f, "ExplorerMonitor", "explorer_notify_recovery", $__g_Cfg_bExplorerNotifyRecovery)
 
     ; [Notifications]
@@ -689,7 +711,14 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "WindowList", "window_list_refresh_interval", 1000)
 
     __Cfg_DefaultBool($f, "ExplorerMonitor", "explorer_monitor_enabled", False)
+    __Cfg_DefaultVal($f, "ExplorerMonitor", "shell_process_name", "explorer.exe")
     __Cfg_DefaultVal($f, "ExplorerMonitor", "explorer_check_interval", 5000)
+    __Cfg_DefaultVal($f, "ExplorerMonitor", "monitor_max_retries", 0)
+    __Cfg_DefaultVal($f, "ExplorerMonitor", "monitor_retry_delay", 5000)
+    __Cfg_DefaultBool($f, "ExplorerMonitor", "monitor_exp_backoff", True)
+    __Cfg_DefaultVal($f, "ExplorerMonitor", "monitor_max_retry_delay", 60000)
+    __Cfg_DefaultBool($f, "ExplorerMonitor", "monitor_auto_restart", False)
+    __Cfg_DefaultVal($f, "ExplorerMonitor", "monitor_restart_delay", 2000)
     __Cfg_DefaultBool($f, "ExplorerMonitor", "explorer_notify_recovery", True)
 
     __Cfg_DefaultBool($f, "Notifications", "notify_window_moved", False)
@@ -1117,8 +1146,29 @@ EndFunc
 Func _Cfg_GetExplorerMonitorEnabled()
     Return $__g_Cfg_bExplorerMonitorEnabled
 EndFunc
+Func _Cfg_GetShellProcessName()
+    Return $__g_Cfg_sShellProcessName
+EndFunc
 Func _Cfg_GetExplorerCheckInterval()
     Return $__g_Cfg_iExplorerCheckInterval
+EndFunc
+Func _Cfg_GetMonitorMaxRetries()
+    Return $__g_Cfg_iMonitorMaxRetries
+EndFunc
+Func _Cfg_GetMonitorRetryDelay()
+    Return $__g_Cfg_iMonitorRetryDelay
+EndFunc
+Func _Cfg_GetMonitorExpBackoff()
+    Return $__g_Cfg_bMonitorExpBackoff
+EndFunc
+Func _Cfg_GetMonitorMaxRetryDelay()
+    Return $__g_Cfg_iMonitorMaxRetryDelay
+EndFunc
+Func _Cfg_GetMonitorAutoRestart()
+    Return $__g_Cfg_bMonitorAutoRestart
+EndFunc
+Func _Cfg_GetMonitorRestartDelay()
+    Return $__g_Cfg_iMonitorRestartDelay
 EndFunc
 Func _Cfg_GetExplorerNotifyRecovery()
     Return $__g_Cfg_bExplorerNotifyRecovery
@@ -1540,10 +1590,41 @@ EndFunc
 Func _Cfg_SetExplorerMonitorEnabled($b)
     $__g_Cfg_bExplorerMonitorEnabled = $b
 EndFunc
+Func _Cfg_SetShellProcessName($s)
+    $s = StringStripWS($s, 3)
+    If $s = "" Then $s = "explorer.exe"
+    $__g_Cfg_sShellProcessName = $s
+EndFunc
 Func _Cfg_SetExplorerCheckInterval($i)
     If $i < 2000 Then $i = 2000
     If $i > 60000 Then $i = 60000
     $__g_Cfg_iExplorerCheckInterval = $i
+EndFunc
+Func _Cfg_SetMonitorMaxRetries($i)
+    If $i < 0 Then $i = 0
+    If $i > 100 Then $i = 100
+    $__g_Cfg_iMonitorMaxRetries = $i
+EndFunc
+Func _Cfg_SetMonitorRetryDelay($i)
+    If $i < 1000 Then $i = 1000
+    If $i > 60000 Then $i = 60000
+    $__g_Cfg_iMonitorRetryDelay = $i
+EndFunc
+Func _Cfg_SetMonitorExpBackoff($b)
+    $__g_Cfg_bMonitorExpBackoff = $b
+EndFunc
+Func _Cfg_SetMonitorMaxRetryDelay($i)
+    If $i < 5000 Then $i = 5000
+    If $i > 300000 Then $i = 300000
+    $__g_Cfg_iMonitorMaxRetryDelay = $i
+EndFunc
+Func _Cfg_SetMonitorAutoRestart($b)
+    $__g_Cfg_bMonitorAutoRestart = $b
+EndFunc
+Func _Cfg_SetMonitorRestartDelay($i)
+    If $i < 500 Then $i = 500
+    If $i > 10000 Then $i = 10000
+    $__g_Cfg_iMonitorRestartDelay = $i
 EndFunc
 Func _Cfg_SetExplorerNotifyRecovery($b)
     $__g_Cfg_bExplorerNotifyRecovery = $b
