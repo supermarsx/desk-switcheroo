@@ -31,24 +31,16 @@ Func _RunTest_UpdateChecker()
         _Test_AssertTrue("Date regex returned result", False)
     EndIf
 
-    ; Portable download URL extraction
-    Local $aUrl = StringRegExp($sJsonMock, '"browser_download_url"\s*:\s*"([^"]*Portable[^"]*\.zip)"', 1)
-    _Test_AssertFalse("URL regex matched", @error)
-    If Not @error And UBound($aUrl) >= 1 Then
-        _Test_AssertTrue("URL contains Portable", StringInStr($aUrl[0], "Portable") > 0)
-        _Test_AssertTrue("URL ends with .zip", StringRight($aUrl[0], 4) = ".zip")
-    Else
-        _Test_AssertTrue("URL regex returned result", False)
-    EndIf
+    ; Portable asset block extraction and field parsing
+    Local $sBlock = __UC_FindAssetBlock($sJsonMock, "Portable")
+    _Test_AssertTrue("Asset block found", $sBlock <> "")
 
-    ; Size extraction
-    Local $aSize = StringRegExp($sJsonMock, '"name"\s*:\s*"[^"]*Portable[^"]*"[^}]*"size"\s*:\s*(\d+)', 1)
-    _Test_AssertFalse("Size regex matched", @error)
-    If Not @error And UBound($aSize) >= 1 Then
-        _Test_AssertEqual("Size parsed", Int($aSize[0]), 2097152)
-    Else
-        _Test_AssertTrue("Size regex returned result", False)
-    EndIf
+    Local $sUrl = __UC_ExtractField($sBlock, "browser_download_url")
+    _Test_AssertTrue("URL contains Portable", StringInStr($sUrl, "Portable") > 0)
+    _Test_AssertTrue("URL ends with .zip", StringRight($sUrl, 4) = ".zip")
+
+    Local $sSize = __UC_ExtractField($sBlock, "size", True)
+    _Test_AssertEqual("Size parsed", Int($sSize), 2097152)
 
     ; -- Size formatting logic (same as in _UC_DownloadPortable) --
     Local $iBytes = 2097152
@@ -106,6 +98,46 @@ Func _RunTest_UpdateChecker()
 
     ; -- No portable asset --
     Local $sJsonNoPort = '{"assets": [{"name": "Setup.exe", "browser_download_url": "https://example.com/Setup.exe"}]}'
-    Local $aUrlNone = StringRegExp($sJsonNoPort, '"browser_download_url"\s*:\s*"([^"]*Portable[^"]*\.zip)"', 1)
-    _Test_AssertTrue("No portable URL found", @error <> 0)
+    Local $sBlockNone = __UC_FindAssetBlock($sJsonNoPort, "Portable")
+    _Test_AssertEqual("No portable block found", $sBlockNone, "")
+
+    ; -- Multiple assets: portable not first in list --
+    Local $sJsonMulti = '{"tag_name": "v26.4", "assets": [' & _
+        '{"name": "DeskSwitcheroo_Setup.exe", "size": 5242880, "browser_download_url": "https://example.com/DeskSwitcheroo_Setup.exe"}, ' & _
+        '{"name": "DeskSwitcheroo_Source.tar.gz", "size": 1048576, "browser_download_url": "https://example.com/DeskSwitcheroo_Source.tar.gz"}, ' & _
+        '{"name": "DeskSwitcheroo_Portable_v26.4.zip", "size": 3145728, "browser_download_url": "https://example.com/DeskSwitcheroo_Portable_v26.4.zip"}' & _
+        ']}'
+    Local $sBlockMulti = __UC_FindAssetBlock($sJsonMulti, "Portable")
+    _Test_AssertTrue("Multi-asset: block found", $sBlockMulti <> "")
+    Local $sUrlMulti = __UC_ExtractField($sBlockMulti, "browser_download_url")
+    _Test_AssertTrue("Multi-asset: correct URL", StringInStr($sUrlMulti, "Portable_v26.4.zip") > 0)
+    Local $sSizeMulti = __UC_ExtractField($sBlockMulti, "size", True)
+    _Test_AssertEqual("Multi-asset: correct size", Int($sSizeMulti), 3145728)
+
+    ; -- Size field before name field (reversed field order) --
+    Local $sJsonReversed = '{"assets": [' & _
+        '{"size": 4194304, "browser_download_url": "https://example.com/DeskSwitcheroo_Portable_v26.5.zip", "name": "DeskSwitcheroo_Portable_v26.5.zip"}' & _
+        ']}'
+    Local $sBlockRev = __UC_FindAssetBlock($sJsonReversed, "Portable")
+    _Test_AssertTrue("Reversed fields: block found", $sBlockRev <> "")
+    Local $sSizeRev = __UC_ExtractField($sBlockRev, "size", True)
+    _Test_AssertEqual("Reversed fields: size parsed", Int($sSizeRev), 4194304)
+    Local $sUrlRev = __UC_ExtractField($sBlockRev, "browser_download_url")
+    _Test_AssertTrue("Reversed fields: URL found", StringInStr($sUrlRev, "Portable") > 0)
+
+    ; -- Missing size field (graceful fallback) --
+    Local $sJsonNoSize = '{"assets": [' & _
+        '{"name": "DeskSwitcheroo_Portable_v26.6.zip", "browser_download_url": "https://example.com/DeskSwitcheroo_Portable_v26.6.zip"}' & _
+        ']}'
+    Local $sBlockNoSize = __UC_FindAssetBlock($sJsonNoSize, "Portable")
+    _Test_AssertTrue("No size: block found", $sBlockNoSize <> "")
+    Local $sSizeNone = __UC_ExtractField($sBlockNoSize, "size", True)
+    _Test_AssertEqual("No size: returns empty", $sSizeNone, "")
+    ; URL should still work even without size
+    Local $sUrlNoSize = __UC_ExtractField($sBlockNoSize, "browser_download_url")
+    _Test_AssertTrue("No size: URL still works", StringInStr($sUrlNoSize, "Portable") > 0)
+
+    ; -- ExtractField on empty block --
+    _Test_AssertEqual("Empty block returns empty", __UC_ExtractField("", "size", True), "")
+    _Test_AssertEqual("Empty block string field", __UC_ExtractField("", "name"), "")
 EndFunc

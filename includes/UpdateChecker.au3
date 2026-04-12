@@ -59,6 +59,37 @@ Func _UC_CheckResult()
     EndIf
 EndFunc
 
+; Name:        __UC_FindAssetBlock
+; Description: Finds the JSON {...} block from the assets array that contains a Portable*.zip URL
+; Parameters:  $sJson - full GitHub releases API JSON response
+; Return:      The asset block string, or "" if not found
+Func __UC_FindAssetBlock($sJson, $sPattern = "Portable")
+    ; Find all asset blocks: each asset is a {...} object inside the "assets" array
+    Local $aBlocks = StringRegExp($sJson, '\{[^{}]*"browser_download_url"\s*:\s*"[^"]*' & $sPattern & '[^"]*\.zip"[^{}]*\}', 3)
+    If Not @error And UBound($aBlocks) >= 1 Then Return $aBlocks[0]
+    ; Also try blocks where the URL comes before other fields (field order may vary)
+    $aBlocks = StringRegExp($sJson, '\{[^{}]*"name"\s*:\s*"[^"]*' & $sPattern & '[^"]*\.zip"[^{}]*\}', 3)
+    If Not @error And UBound($aBlocks) >= 1 Then Return $aBlocks[0]
+    Return ""
+EndFunc
+
+; Name:        __UC_ExtractField
+; Description: Extracts a string or numeric field value from a JSON object block
+; Parameters:  $sBlock - JSON object string, $sField - field name, $bNumeric - True for number, False for string
+; Return:      Field value as string, or "" if not found
+Func __UC_ExtractField($sBlock, $sField, $bNumeric = False)
+    If $sBlock = "" Then Return ""
+    Local $sPattern
+    If $bNumeric Then
+        $sPattern = '"' & $sField & '"\s*:\s*(\d+)'
+    Else
+        $sPattern = '"' & $sField & '"\s*:\s*"([^"]*)"'
+    EndIf
+    Local $aMatch = StringRegExp($sBlock, $sPattern, 1)
+    If @error Or UBound($aMatch) < 1 Then Return ""
+    Return $aMatch[0]
+EndFunc
+
 ; Name:        _UC_FetchReleaseJson
 ; Description: Non-blocking fetch of GitHub releases API with 10s timeout
 ; Return:      JSON string, or "" on failure (shows toast on error)
@@ -209,18 +240,22 @@ Func _UC_DownloadPortable()
     Local $sDate = "unknown"
     If Not @error And UBound($aDate) >= 1 Then $sDate = $aDate[0]
 
-    Local $aPortUrl = StringRegExp($sJson, '"browser_download_url"\s*:\s*"([^"]*Portable[^"]*\.zip)"', 1)
-    If @error Or UBound($aPortUrl) < 1 Then
+    ; Find the portable asset block and extract URL + size from the same block
+    Local $sAssetBlock = __UC_FindAssetBlock($sJson, "Portable")
+    Local $sDownloadUrl = ""
+    If $sAssetBlock <> "" Then
+        $sDownloadUrl = __UC_ExtractField($sAssetBlock, "browser_download_url")
+    EndIf
+    If $sDownloadUrl = "" Then
         _Theme_Toast(_i18n("Toasts.toast_no_portable", "No portable download found"), 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_WARNING)
         Return
     EndIf
-    Local $sDownloadUrl = $aPortUrl[0]
 
-    Local $aSize = StringRegExp($sJson, '"name"\s*:\s*"[^"]*Portable[^"]*"[^}]*"size"\s*:\s*(\d+)', 1)
+    Local $sSizeRaw = __UC_ExtractField($sAssetBlock, "size", True)
     Local $iSizeBytes = 0
     Local $sSizeStr = "unknown"
-    If Not @error And UBound($aSize) >= 1 Then
-        $iSizeBytes = Int($aSize[0])
+    If $sSizeRaw <> "" Then
+        $iSizeBytes = Int($sSizeRaw)
         If $iSizeBytes > 1048576 Then
             $sSizeStr = StringFormat("%.1f MB", $iSizeBytes / 1048576)
         ElseIf $iSizeBytes > 1024 Then
