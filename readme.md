@@ -9,7 +9,7 @@
 [![Forks](https://img.shields.io/github/forks/supermarsx/desk-switcheroo?style=flat-square)](https://github.com/supermarsx/desk-switcheroo/network/members)
 [![Watchers](https://img.shields.io/github/watchers/supermarsx/desk-switcheroo?style=flat-square)](https://github.com/supermarsx/desk-switcheroo/watchers)
 [![Built with AutoIt](https://img.shields.io/badge/built%20with-AutoIt-blue?style=flat-square)](https://www.autoitscript.com/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](license.md)
 
 A lightweight Windows virtual desktop switcher widget for your taskbar. Navigate, rename, peek, and manage desktops from a compact dark-themed overlay.
 
@@ -69,19 +69,28 @@ AutoIt3_x64.exe desktop_switcher.au3
 
 ## Localization
 
-Desk Switcheroo supports 17 languages out of the box:
+Desk Switcheroo supports 33 locales out of the box:
 
 | Language | Code | Language | Code |
 |----------|------|----------|------|
-| English (US) | en-US | Hungarian | hu-HU |
-| English (GB) | en-GB | Icelandic | is-IS |
-| Arabic | ar-SA | Italian | it-IT |
-| Chinese (Simplified) | zh-CN | Dutch | nl-NL |
-| Chinese (Traditional) | zh-TW | Portuguese (BR) | pt-BR |
-| French | fr-FR | Portuguese (PT) | pt-PT |
-| German | de-DE | Russian | ru-RU |
-| Hindi | hi-IN | Ukrainian | uk-UA |
-| Spanish | es-ES | | |
+| Arabic (Egypt) | ar-EG | Indonesian | id-ID |
+| Arabic (Saudi Arabia) | ar-SA | Icelandic | is-IS |
+| Bengali (India) | bn-IN | Italian | it-IT |
+| Chinese (Simplified) | zh-CN | Korean | ko-KR |
+| Chinese (Traditional) | zh-TW | Dutch | nl-NL |
+| Danish | da-DK | Polish | pl-PL |
+| English (Canada) | en-CA | Portuguese (Brazil) | pt-BR |
+| English (India) | en-IN | Portuguese (Portugal) | pt-PT |
+| English (UK) | en-GB | Romanian | ro-RO |
+| English (US) | en-US | Russian | ru-RU |
+| French (Canada) | fr-CA | Swedish | sv-SE |
+| French (France) | fr-FR | Thai | th-TH |
+| German | de-DE | Turkish | tr-TR |
+| Hindi (India) | hi-IN | Ukrainian | uk-UA |
+| Hungarian | hu-HU | Vietnamese | vi-VN |
+| Spanish (Argentina) | es-AR | | |
+| Spanish (Mexico) | es-MX | | |
+| Spanish (Spain) | es-ES | | |
 
 Change language in **Settings > General > Language**. To add your own translation, copy `locales/en-US.ini`, rename it (e.g. `ja-JP.ini`), translate the values, and it will appear automatically in the language picker.
 
@@ -107,4 +116,4 @@ See [Power User Guide](docs/POWER_USER.md) for advanced configuration details.
 
 ## License
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License** — see the [license.md](license.md) file for details.
