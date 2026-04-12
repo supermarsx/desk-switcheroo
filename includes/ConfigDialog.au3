@@ -21,19 +21,19 @@ Global $__g_CD_bVisible = False
 Global $__g_CD_iActiveTab = 0
 
 ; -- Tab button IDs --
-Global $__g_CD_aidTabBtn[14] ; index 1-13
-Global Const $__g_CD_aTabNames = "General,Display,Scroll,Hotkeys,Behavior,Logging,Updates,Desktops,Animations,Wallpaper,Window List,Explorer,Notifications"
+Global $__g_CD_aidTabBtn[15] ; index 1-14
+Global Const $__g_CD_aTabNames = "General,Display,Scroll,Hotkeys,Behavior,Logging,Updates,Desktops,Animations,Wallpaper,Window List,Explorer,Notifications,Keys 2"
 
 ; -- Controls per tab (arrays of IDs to show/hide + scroll) --
 Global Const $__g_CD_MAX_CTRLS = 200
-Global $__g_CD_aidTabCtrls[14][$__g_CD_MAX_CTRLS] ; [tab 1-13][up to 200 controls per tab]
-Global $__g_CD_aiTabCtrlY[14][$__g_CD_MAX_CTRLS]  ; original Y position per control
-Global $__g_CD_aiTabCtrlX[14][$__g_CD_MAX_CTRLS]  ; cached X position per control
-Global $__g_CD_aiTabCtrlW[14][$__g_CD_MAX_CTRLS]  ; cached width per control
-Global $__g_CD_aiTabCtrlH[14][$__g_CD_MAX_CTRLS]  ; cached height per control
-Global $__g_CD_aiTabCtrlCount[14]   ; how many controls per tab
-Global $__g_CD_aiTabScroll[14]      ; current scroll offset per tab (px)
-Global $__g_CD_abTabYInit[14]       ; True once original Y positions captured for this tab
+Global $__g_CD_aidTabCtrls[15][$__g_CD_MAX_CTRLS] ; [tab 1-14][up to 200 controls per tab]
+Global $__g_CD_aiTabCtrlY[15][$__g_CD_MAX_CTRLS]  ; original Y position per control
+Global $__g_CD_aiTabCtrlX[15][$__g_CD_MAX_CTRLS]  ; cached X position per control
+Global $__g_CD_aiTabCtrlW[15][$__g_CD_MAX_CTRLS]  ; cached width per control
+Global $__g_CD_aiTabCtrlH[15][$__g_CD_MAX_CTRLS]  ; cached height per control
+Global $__g_CD_aiTabCtrlCount[15]   ; how many controls per tab
+Global $__g_CD_aiTabScroll[15]      ; current scroll offset per tab (px)
+Global $__g_CD_abTabYInit[15]       ; True once original Y positions captured for this tab
 Global $__g_CD_iContentTop = 84     ; top of content area (3-row tab bar)
 Global $__g_CD_iContentBottom = 0   ; bottom of content area (set in _CD_Show)
 Global $__g_CD_iScrollStep = 30     ; pixels per scroll step
@@ -183,13 +183,13 @@ Func _CD_Show()
     ; Reset state
     $__g_CD_iChkCount = 0
     Local $t
-    For $t = 1 To 13
+    For $t = 1 To 14
         $__g_CD_aiTabCtrlCount[$t] = 0
         $__g_CD_aiTabScroll[$t] = 0
         $__g_CD_abTabYInit[$t] = False
     Next
 
-    ; Create custom tab bar (3 rows: 5 + 5 + 3 tabs)
+    ; Create custom tab bar (3 rows: 5 + 5 + 4 tabs)
     Local $aNames = StringSplit($__g_CD_aTabNames, ",")
     Local $iTabW = 84, $iTabH = 22, $iTabX = 10, $iTabY = 8
     Local $iTabsPerRow = 5
@@ -230,22 +230,9 @@ Func _CD_Show()
     __CD_BuildTabWindowList()
     __CD_BuildTabExplorer()
     __CD_BuildTabNotifications()
+    __CD_BuildTabHotkeys2()
 
-    ; Scroll indicators (up/down arrows at edges of content area)
-    ; Created AFTER tab controls so they render on top (higher z-order)
-    $__g_CD_idScrollUp = GUICtrlCreateLabel(ChrW(0x25B2), 8, 84, $iW - 16, 14, _
-        BitOR($SS_CENTER, $SS_CENTERIMAGE))
-    GUICtrlSetFont($__g_CD_idScrollUp, 7, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idScrollUp, $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idScrollUp, $THEME_BG_MAIN)
-    GUICtrlSetState($__g_CD_idScrollUp, $GUI_HIDE)
-
-    $__g_CD_idScrollDn = GUICtrlCreateLabel(ChrW(0x25BC), 8, 84 + $iContentH - 14, $iW - 16, 14, _
-        BitOR($SS_CENTER, $SS_CENTERIMAGE))
-    GUICtrlSetFont($__g_CD_idScrollDn, 7, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idScrollDn, $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idScrollDn, $THEME_BG_MAIN)
-    GUICtrlSetState($__g_CD_idScrollDn, $GUI_HIDE)
+    ; (scroll indicators removed, replaced by sub-tabs)
 
     ; Import + Export + Restart buttons (top row)
     Local $iBtnW = 80, $iBtnH = 26
@@ -362,15 +349,12 @@ Func __CD_SwitchTab($iTab)
     _Log_Debug("Settings: switched to tab " & $iTab)
     $__g_CD_iActiveTab = $iTab
 
-    ; Ensure Y positions are captured for the target tab before showing it
-    __CD_EnsureYInit($iTab)
-
     ; Lock window to prevent repaint during bulk control state changes
     DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", $__g_CD_hGUI)
 
     ; Update tab button styles
-    Local $t, $c, $idSc, $iNewY, $iCtrlH
-    For $t = 1 To 13
+    Local $t, $c
+    For $t = 1 To 14
         If $t = $iTab Then
             GUICtrlSetColor($__g_CD_aidTabBtn[$t], $THEME_FG_WHITE)
             GUICtrlSetBkColor($__g_CD_aidTabBtn[$t], $THEME_BG_ACTIVE)
@@ -381,39 +365,23 @@ Func __CD_SwitchTab($iTab)
             GUICtrlSetFont($__g_CD_aidTabBtn[$t], 8, 400, 0, $THEME_FONT_MAIN)
         EndIf
     Next
-    ; Hide all inactive tab controls; show active tab with bounds checking
-    Local $iScroll = $__g_CD_aiTabScroll[$iTab]
-    For $t = 1 To 13
+    ; Hide all inactive tab controls; show active tab
+    For $t = 1 To 14
         If $t <> $iTab Then
             ; Hide all controls on inactive tabs
             For $c = 0 To $__g_CD_aiTabCtrlCount[$t] - 1
                 GUICtrlSetState($__g_CD_aidTabCtrls[$t][$c], $GUI_HIDE)
             Next
         Else
-            ; Show active tab controls with scroll offset and bounds checking
+            ; Show active tab controls
             For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
-                $idSc = $__g_CD_aidTabCtrls[$iTab][$c]
-                $iNewY = $__g_CD_aiTabCtrlY[$iTab][$c] - $iScroll
-                $iCtrlH = $__g_CD_aiTabCtrlH[$iTab][$c]
-                ; Hide controls that are completely outside the visible content area
-                If ($iNewY + $iCtrlH) < $__g_CD_iContentTop Or $iNewY > $__g_CD_iContentBottom Then
-                    GUICtrlSetState($idSc, $GUI_HIDE)
-                Else
-                    GUICtrlSetState($idSc, $GUI_SHOW)
-                    If $iScroll <> 0 Then
-                        GUICtrlSetPos($idSc, $__g_CD_aiTabCtrlX[$iTab][$c], $iNewY, _
-                            $__g_CD_aiTabCtrlW[$iTab][$c], $iCtrlH)
-                    EndIf
-                EndIf
+                GUICtrlSetState($__g_CD_aidTabCtrls[$iTab][$c], $GUI_SHOW)
             Next
         EndIf
     Next
 
     ; Unlock window — triggers a single repaint with all changes applied
     DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", 0)
-
-    ; Update scroll indicators for this tab
-    __CD_UpdateScrollIndicators()
 EndFunc
 
 Func __CD_RegCtrl($iTab, $idCtrl)
@@ -434,113 +402,30 @@ Func __CD_RegCtrl($iTab, $idCtrl)
 EndFunc
 
 ; Name:        __CD_EnsureYInit
-; Description: Captures original positions/dimensions for a tab if not already done.
-;              Needed as a fallback when controls are created before the GUI is visible.
+; Description: No-op (scroll system removed, replaced by sub-tabs)
 Func __CD_EnsureYInit($iTab)
-    If $__g_CD_abTabYInit[$iTab] Then Return
-    Local $c, $bAllValid = True, $aInit
-    For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
-        ; Re-capture from ControlGetPos if dimensions are missing (W=0 means not cached)
-        If $__g_CD_aiTabCtrlW[$iTab][$c] = 0 Then
-            $aInit = ControlGetPos($__g_CD_hGUI, "", $__g_CD_aidTabCtrls[$iTab][$c])
-            If Not @error And IsArray($aInit) Then
-                $__g_CD_aiTabCtrlX[$iTab][$c] = $aInit[0]
-                $__g_CD_aiTabCtrlY[$iTab][$c] = $aInit[1]
-                $__g_CD_aiTabCtrlW[$iTab][$c] = $aInit[2]
-                $__g_CD_aiTabCtrlH[$iTab][$c] = $aInit[3]
-            Else
-                $bAllValid = False
-            EndIf
-        EndIf
-    Next
-    If $bAllValid Then $__g_CD_abTabYInit[$iTab] = True
+    #forceref $iTab
+    Return
 EndFunc
 
 ; Name:        __CD_GetTabMaxScroll
-; Description: Returns the maximum scroll offset for a given tab (0 if no overflow)
+; Description: No-op (scroll system removed, replaced by sub-tabs)
 Func __CD_GetTabMaxScroll($iTab)
-    If $iTab < 1 Or $iTab > 13 Then Return 0
-    Local $iMaxY = 0, $c
-    For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
-        If $__g_CD_aiTabCtrlY[$iTab][$c] > $iMaxY Then $iMaxY = $__g_CD_aiTabCtrlY[$iTab][$c]
-    Next
-    ; Bottom of last control (add ~30 for control height + padding)
-    Local $iMaxScroll = $iMaxY + 30 - $__g_CD_iContentTop - $__g_CD_iContentH
-    If $iMaxScroll < 0 Then $iMaxScroll = 0
-    Return $iMaxScroll
+    #forceref $iTab
+    Return 0
 EndFunc
 
 ; Name:        __CD_UpdateScrollIndicators
-; Description: Shows/hides the up/down scroll arrows based on current scroll state
+; Description: No-op (scroll system removed, replaced by sub-tabs)
 Func __CD_UpdateScrollIndicators()
-    Local $iTab = $__g_CD_iActiveTab
-    If $iTab < 1 Or $iTab > 13 Then Return
-    Local $iScroll = $__g_CD_aiTabScroll[$iTab]
-    Local $iMaxScroll = __CD_GetTabMaxScroll($iTab)
-
-    ; Up arrow: visible when scrolled down (offset > 0)
-    If $iScroll > 0 Then
-        GUICtrlSetState($__g_CD_idScrollUp, $GUI_SHOW)
-    Else
-        GUICtrlSetState($__g_CD_idScrollUp, $GUI_HIDE)
-    EndIf
-
-    ; Down arrow: visible when more content below
-    If $iMaxScroll > 0 And $iScroll < $iMaxScroll Then
-        GUICtrlSetState($__g_CD_idScrollDn, $GUI_SHOW)
-    Else
-        GUICtrlSetState($__g_CD_idScrollDn, $GUI_HIDE)
-    EndIf
+    Return
 EndFunc
 
 ; Name:        __CD_ScrollTab
-; Description: Scrolls the active tab's controls by a pixel delta
-; Parameters:  $iDelta - positive = scroll down (content moves up), negative = scroll up
+; Description: No-op (scroll system removed, replaced by sub-tabs)
 Func __CD_ScrollTab($iDelta)
-    Local $iTab = $__g_CD_iActiveTab
-    If $iTab < 1 Or $iTab > 13 Then Return ; guard: no valid tab active
-
-    ; Ensure positions/dimensions are captured
-    __CD_EnsureYInit($iTab)
-
-    Local $iNewScroll = $__g_CD_aiTabScroll[$iTab] + $iDelta
-
-    ; Clamp: don't scroll above 0 (top)
-    If $iNewScroll < 0 Then $iNewScroll = 0
-
-    ; Clamp: don't scroll past max content
-    Local $iMaxScroll = __CD_GetTabMaxScroll($iTab)
-    If $iNewScroll > $iMaxScroll Then $iNewScroll = $iMaxScroll
-
-    If $iNewScroll = $__g_CD_aiTabScroll[$iTab] Then Return ; no change
-
-    $__g_CD_aiTabScroll[$iTab] = $iNewScroll
-
-    ; Lock window to prevent flicker during bulk repositioning
-    DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", $__g_CD_hGUI)
-
-    ; Move all controls for this tab, hiding those outside visible content area
-    Local $c, $iNewY, $iCtrlH, $idCtrl, $iOrigY
-    For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
-        $idCtrl = $__g_CD_aidTabCtrls[$iTab][$c]
-        If $idCtrl = 0 Then ContinueLoop ; skip null controls
-        $iOrigY = $__g_CD_aiTabCtrlY[$iTab][$c]
-        $iNewY = $iOrigY - $iNewScroll
-        $iCtrlH = $__g_CD_aiTabCtrlH[$iTab][$c]
-        ; Hide controls that are completely outside the visible content area
-        If ($iNewY + $iCtrlH) < $__g_CD_iContentTop Or $iNewY > $__g_CD_iContentBottom Then
-            GUICtrlSetState($idCtrl, $GUI_HIDE)
-        Else
-            GUICtrlSetState($idCtrl, $GUI_SHOW)
-            GUICtrlSetPos($idCtrl, $__g_CD_aiTabCtrlX[$iTab][$c], $iNewY, _
-                $__g_CD_aiTabCtrlW[$iTab][$c], $iCtrlH)
-        EndIf
-    Next
-
-    DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", 0)
-
-    ; Update scroll indicators
-    __CD_UpdateScrollIndicators()
+    #forceref $iDelta
+    Return
 EndFunc
 
 ; =============================================
@@ -968,14 +853,13 @@ EndFunc
 
 Func __CD_BuildTabHotkeys()
     Local $t = 4, $iX = 20, $iY = 94
-    Local $iLblW = 100, $iInpW = 130, $iBtnBuildW = 24, $i
+    Local $iLblW = 100, $iInpW = 130, $iBtnBuildW = 24
 
     ; Enable global hotkeys checkbox
     $__g_CD_idChkHotkeysEnabled = __CD_CreateCheckbox(_i18n("Settings.Hotkeys.chk_hotkeys_enabled", "Enable global hotkeys"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkHotkeysEnabled, _i18n("Settings.Hotkeys.tip_hotkeys_enabled", "Master toggle for all keyboard shortcuts"))
     $iY += 28
 
-    ; Dynamic label: "Desktop N:" generated per iteration below
     ; Next (build index 0)
     Local $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_hotkey_next", "Next:"), $iX, $iY + 2, $iLblW, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
@@ -1020,34 +904,7 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetCursor($__g_CD_idBtnHkBuild[1], 0)
     __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[1])
     _Theme_SetTooltip($__g_CD_idBtnHkBuild[1], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
-    $iY += 24
-
-    ; Desktop hotkeys (build index 2+, count from config)
-    Local $iHkCount = _Cfg_GetHotkeyDesktopCount()
-    If $iHkCount > 9 Then $iHkCount = 9 ; limited by array size
-    For $i = 1 To $iHkCount
-        $idLbl = GUICtrlCreateLabel(_i18n_Format("Settings.Hotkeys.lbl_hotkey_desktop", "Desktop {1}:", $i), $iX, $iY + 2, $iLblW, 18)
-        GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
-        GUICtrlSetColor($idLbl, $THEME_FG_DIM)
-        GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
-        __CD_RegCtrl($t, $idLbl)
-        $__g_CD_aidInpHkDesktop[$i] = GUICtrlCreateInput("", $iX + $iLblW, $iY, $iInpW, 20)
-        GUICtrlSetFont($__g_CD_aidInpHkDesktop[$i], 9, 400, 0, $THEME_FONT_MONO)
-        GUICtrlSetColor($__g_CD_aidInpHkDesktop[$i], $THEME_FG_TEXT)
-        GUICtrlSetBkColor($__g_CD_aidInpHkDesktop[$i], $THEME_BG_INPUT)
-        _Theme_FlattenInput($__g_CD_aidInpHkDesktop[$i])
-        __CD_RegCtrl($t, $__g_CD_aidInpHkDesktop[$i])
-        _Theme_SetTooltip($__g_CD_aidInpHkDesktop[$i], _i18n("Settings.Hotkeys.tip_hotkey_format", "AutoIt hotkey format: ^=Ctrl !=Alt +=Shift #=Win e.g. ^!{RIGHT}"))
-        $__g_CD_idBtnHkBuild[$i + 1] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
-            BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-        GUICtrlSetFont($__g_CD_idBtnHkBuild[$i + 1], 8, 700, 0, $THEME_FONT_MAIN)
-        GUICtrlSetColor($__g_CD_idBtnHkBuild[$i + 1], $THEME_FG_DIM)
-        GUICtrlSetBkColor($__g_CD_idBtnHkBuild[$i + 1], $THEME_BG_HOVER)
-        GUICtrlSetCursor($__g_CD_idBtnHkBuild[$i + 1], 0)
-        __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[$i + 1])
-        _Theme_SetTooltip($__g_CD_idBtnHkBuild[$i + 1], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
-        $iY += 24
-    Next
+    $iY += 28
 
     ; Toggle List (build index 11)
     $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_hotkey_toggle", "Toggle List:"), $iX, $iY + 2, $iLblW, 18)
@@ -1070,9 +927,8 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetCursor($__g_CD_idBtnHkBuild[11], 0)
     __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[11])
     _Theme_SetTooltip($__g_CD_idBtnHkBuild[11], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
-    $iY += 28
+    $iY += 24
 
-    ; Additional hotkey rows
     ; Last Desktop (build index 12)
     $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_hotkey_last", "Last Desktop:"), $iX, $iY + 2, $iLblW, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
@@ -1093,8 +949,42 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[12])
     $iY += 24
 
+    ; Open Settings (build index 20)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_hotkey_settings", "Open Settings:"), $iX, $iY + 2, $iLblW, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpHkOpenSettings = GUICtrlCreateInput("", $iX + $iLblW, $iY, $iInpW, 20)
+    GUICtrlSetFont($__g_CD_idInpHkOpenSettings, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idInpHkOpenSettings, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpHkOpenSettings, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkOpenSettings)
+    __CD_RegCtrl($t, $__g_CD_idInpHkOpenSettings)
+    _Theme_SetTooltip($__g_CD_idInpHkOpenSettings, _i18n("Settings.Hotkeys.tip_hotkey_settings", "Global hotkey to open the settings dialog"))
+    $__g_CD_idBtnHkBuild[20] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBtnHkBuild[20], 8, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBtnHkBuild[20], $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[20], $THEME_BG_HOVER)
+    GUICtrlSetCursor($__g_CD_idBtnHkBuild[20], 0)
+    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[20])
+    _Theme_SetTooltip($__g_CD_idBtnHkBuild[20], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+    $iY += 28
+
+    ; Help
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_format_help", "^=Ctrl  !=Alt  +=Shift  #=Win  e.g. ^!{RIGHT}"), $iX, $iY, 380, 16)
+    GUICtrlSetFont($idLbl, 7, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_LABEL)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+EndFunc
+
+Func __CD_BuildTabHotkeys2()
+    Local $t = 14, $iX = 20, $iY = 94
+    Local $iLblW = 100, $iInpW = 130, $iBtnBuildW = 24, $i
+
     ; Move+Follow Next (build index 13)
-    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_hotkey_mf_next", "Move+Follow Next:"), $iX, $iY + 2, $iLblW, 18)
+    Local $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_hotkey_mf_next", "Move+Follow Next:"), $iX, $iY + 2, $iLblW, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
@@ -1233,27 +1123,32 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[19])
     $iY += 28
 
-    ; Open Settings (build index 20)
-    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_hotkey_settings", "Open Settings:"), $iX, $iY + 2, $iLblW, 18)
-    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
-    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
-    __CD_RegCtrl($t, $idLbl)
-    $__g_CD_idInpHkOpenSettings = GUICtrlCreateInput("", $iX + $iLblW, $iY, $iInpW, 20)
-    GUICtrlSetFont($__g_CD_idInpHkOpenSettings, 9, 400, 0, $THEME_FONT_MONO)
-    GUICtrlSetColor($__g_CD_idInpHkOpenSettings, $THEME_FG_TEXT)
-    GUICtrlSetBkColor($__g_CD_idInpHkOpenSettings, $THEME_BG_INPUT)
-    _Theme_FlattenInput($__g_CD_idInpHkOpenSettings)
-    __CD_RegCtrl($t, $__g_CD_idInpHkOpenSettings)
-    _Theme_SetTooltip($__g_CD_idInpHkOpenSettings, _i18n("Settings.Hotkeys.tip_hotkey_settings", "Global hotkey to open the settings dialog"))
-    $__g_CD_idBtnHkBuild[20] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[20], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[20], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[20], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[20], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[20])
-    _Theme_SetTooltip($__g_CD_idBtnHkBuild[20], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
-    $iY += 28
+    ; Desktop hotkeys (build index 2+, count from config)
+    Local $iHkCount = _Cfg_GetHotkeyDesktopCount()
+    If $iHkCount > 9 Then $iHkCount = 9 ; limited by array size
+    For $i = 1 To $iHkCount
+        $idLbl = GUICtrlCreateLabel(_i18n_Format("Settings.Hotkeys.lbl_hotkey_desktop", "Desktop {1}:", $i), $iX, $iY + 2, $iLblW, 18)
+        GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+        GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+        GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+        __CD_RegCtrl($t, $idLbl)
+        $__g_CD_aidInpHkDesktop[$i] = GUICtrlCreateInput("", $iX + $iLblW, $iY, $iInpW, 20)
+        GUICtrlSetFont($__g_CD_aidInpHkDesktop[$i], 9, 400, 0, $THEME_FONT_MONO)
+        GUICtrlSetColor($__g_CD_aidInpHkDesktop[$i], $THEME_FG_TEXT)
+        GUICtrlSetBkColor($__g_CD_aidInpHkDesktop[$i], $THEME_BG_INPUT)
+        _Theme_FlattenInput($__g_CD_aidInpHkDesktop[$i])
+        __CD_RegCtrl($t, $__g_CD_aidInpHkDesktop[$i])
+        _Theme_SetTooltip($__g_CD_aidInpHkDesktop[$i], _i18n("Settings.Hotkeys.tip_hotkey_format", "AutoIt hotkey format: ^=Ctrl !=Alt +=Shift #=Win e.g. ^!{RIGHT}"))
+        $__g_CD_idBtnHkBuild[$i + 1] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
+            BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+        GUICtrlSetFont($__g_CD_idBtnHkBuild[$i + 1], 8, 700, 0, $THEME_FONT_MAIN)
+        GUICtrlSetColor($__g_CD_idBtnHkBuild[$i + 1], $THEME_FG_DIM)
+        GUICtrlSetBkColor($__g_CD_idBtnHkBuild[$i + 1], $THEME_BG_HOVER)
+        GUICtrlSetCursor($__g_CD_idBtnHkBuild[$i + 1], 0)
+        __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[$i + 1])
+        _Theme_SetTooltip($__g_CD_idBtnHkBuild[$i + 1], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+        $iY += 24
+    Next
 
     ; Help
     $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_format_help", "^=Ctrl  !=Alt  +=Shift  #=Win  e.g. ^!{RIGHT}"), $iX, $iY, 380, 16)
@@ -2247,7 +2142,7 @@ Func __CD_MessageLoop()
             Next
 
             ; Tab button clicks
-            For $t = 1 To 13
+            For $t = 1 To 14
                 If $id = $__g_CD_aidTabBtn[$t] Then
                     $iTabHovered = 0
                     __CD_SwitchTab($t)
@@ -2292,18 +2187,7 @@ Func __CD_MessageLoop()
         Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
         If Not @error And IsArray($retEsc) And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
 
-        ; Scroll tab content with mouse wheel (peek for WM_MOUSEWHEEL)
-        Local $tMsg = DllStructCreate("uint msg;hwnd hwnd;uint wParam;long lParam;dword time;int x;int y")
-        Local $aPeek = DllCall("user32.dll", "bool", "PeekMessageW", "struct*", $tMsg, "hwnd", $__g_CD_hGUI, "uint", 0x020A, "uint", 0x020A, "uint", 1)
-        If Not @error And IsArray($aPeek) And $aPeek[0] Then
-            Local $iWheelDelta = BitShift(BitAND(DllStructGetData($tMsg, "wParam"), 0xFFFF0000), 16)
-            If $iWheelDelta > 32767 Then $iWheelDelta -= 65536
-            If $iWheelDelta > 0 Then
-                __CD_ScrollTab(-$__g_CD_iScrollStep)
-            ElseIf $iWheelDelta < 0 Then
-                __CD_ScrollTab($__g_CD_iScrollStep)
-            EndIf
-        EndIf
+        ; (scroll system removed, replaced by sub-tabs)
 
         ; Ensure ConfigDialog is the "current" GUI for GUIGetCursorInfo
         ; (tooltip creation via GUICreate switches it away, breaking $aCursor[4])
@@ -2348,7 +2232,7 @@ Func __CD_MessageLoop()
 
             ; Tab hover (inactive tabs highlight on mouseover)
             Local $iTabFound = 0
-            For $t = 1 To 13
+            For $t = 1 To 14
                 If $aCursor[4] = $__g_CD_aidTabBtn[$t] And $t <> $__g_CD_iActiveTab Then
                     $iTabFound = $t
                     ExitLoop
