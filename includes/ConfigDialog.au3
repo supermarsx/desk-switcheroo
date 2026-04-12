@@ -24,12 +24,19 @@ Global $__g_CD_iActiveTab = 0
 Global $__g_CD_aidTabBtn[14] ; index 1-13
 Global Const $__g_CD_aTabNames = "General,Display,Scroll,Hotkeys,Behavior,Logging,Updates,Desktops,Animations,Wallpaper,Window List,Explorer,Notifications"
 
+; -- Tab bar scroll (single row with left/right arrows) --
+Global $__g_CD_iTabScrollOffset = 0  ; index of first visible tab (0-based from 1)
+Global $__g_CD_iVisibleTabs = 0      ; how many tabs fit in view
+Global $__g_CD_idTabScrollLeft = 0   ; left arrow label ID
+Global $__g_CD_idTabScrollRight = 0  ; right arrow label ID
+Global $__g_CD_iTabCount = 0         ; total number of tabs
+
 ; -- Controls per tab (arrays of IDs to show/hide + scroll) --
 Global $__g_CD_aidTabCtrls[14][100] ; [tab 1-13][up to 100 controls per tab]
 Global $__g_CD_aiTabCtrlY[14][100]  ; original Y position per control
 Global $__g_CD_aiTabCtrlCount[14]   ; how many controls per tab
 Global $__g_CD_aiTabScroll[14]      ; current scroll offset per tab (px)
-Global $__g_CD_iContentTop = 84     ; top of content area (3-row tab bar)
+Global $__g_CD_iContentTop = 36     ; top of content area (single-row tab bar)
 Global $__g_CD_iScrollStep = 30     ; pixels per scroll step
 
 ; -- Tab 1: General --
@@ -179,16 +186,27 @@ Func _CD_Show()
         $__g_CD_aiTabScroll[$t] = 0
     Next
 
-    ; Create custom tab bar (3 rows: 5 + 5 + 3 tabs)
+    ; Create custom tab bar (single scrollable row with arrows)
     Local $aNames = StringSplit($__g_CD_aTabNames, ",")
-    Local $iTabW = 84, $iTabH = 22, $iTabX = 10, $iTabY = 8
-    Local $iTabsPerRow = 5
+    $__g_CD_iTabCount = $aNames[0]
+    Local $iTabW = 78, $iTabH = 22, $iTabY = 8
+    Local $iArrowW = 18
+    Local $iTabAreaW = $iW - 8 - ($iArrowW * 2) - 4 ; usable width for tabs (margins + arrows + gaps)
+    $__g_CD_iVisibleTabs = Int($iTabAreaW / ($iTabW + 2))
+    If $__g_CD_iVisibleTabs > $__g_CD_iTabCount Then $__g_CD_iVisibleTabs = $__g_CD_iTabCount
+    $__g_CD_iTabScrollOffset = 0
+
+    ; Left scroll arrow
+    $__g_CD_idTabScrollLeft = GUICtrlCreateLabel(ChrW(0x25C0), 2, $iTabY, $iArrowW, $iTabH, _
+        BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idTabScrollLeft, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idTabScrollLeft, $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idTabScrollLeft, $THEME_BG_MAIN)
+    GUICtrlSetCursor($__g_CD_idTabScrollLeft, 0)
+
+    ; Tab buttons (all created, visibility managed by __CD_UpdateTabScroll)
+    Local $iTabX = 2 + $iArrowW + 2
     For $t = 1 To $aNames[0]
-        If $t = $iTabsPerRow + 1 Or $t = $iTabsPerRow * 2 + 1 Then
-            ; Start next row
-            $iTabX = 10
-            $iTabY += $iTabH + 2
-        EndIf
         $__g_CD_aidTabBtn[$t] = GUICtrlCreateLabel($aNames[$t], $iTabX, $iTabY, $iTabW, $iTabH, _
             BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
         GUICtrlSetFont($__g_CD_aidTabBtn[$t], 7, 400, 0, $THEME_FONT_MAIN)
@@ -198,10 +216,21 @@ Func _CD_Show()
         $iTabX += $iTabW + 2
     Next
 
+    ; Right scroll arrow
+    $__g_CD_idTabScrollRight = GUICtrlCreateLabel(ChrW(0x25B6), $iW - $iArrowW - 2, $iTabY, $iArrowW, $iTabH, _
+        BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idTabScrollRight, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idTabScrollRight, $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idTabScrollRight, $THEME_BG_MAIN)
+    GUICtrlSetCursor($__g_CD_idTabScrollRight, 0)
+
+    ; Position only the visible tabs; hide the rest
+    __CD_UpdateTabScroll()
+
     ; Content area background (disabled so it doesn't intercept clicks on controls above)
-    $__g_CD_iContentH = $iH - 168 ; leave room for 3-row tab bar + buttons
+    $__g_CD_iContentH = $iH - 120 ; leave room for single-row tab bar + buttons
     Local $iContentH = $__g_CD_iContentH
-    Local $idContentBg = GUICtrlCreateLabel("", 8, 84, $iW - 16, $iContentH)
+    Local $idContentBg = GUICtrlCreateLabel("", 8, $__g_CD_iContentTop, $iW - 16, $iContentH)
     GUICtrlSetBkColor($idContentBg, $THEME_BG_MAIN)
     GUICtrlSetState($idContentBg, $GUI_DISABLE)
 
@@ -335,6 +364,9 @@ Func __CD_SwitchTab($iTab)
     _Log_Debug("Settings: switched to tab " & $iTab)
     $__g_CD_iActiveTab = $iTab
 
+    ; Ensure selected tab is visible in the scrollable tab bar
+    __CD_EnsureTabVisible($iTab)
+
     ; Reset scroll for the new tab (restore controls to original Y)
     If $__g_CD_aiTabScroll[$iTab] <> 0 Then
         $__g_CD_aiTabScroll[$iTab] = 0
@@ -351,9 +383,9 @@ Func __CD_SwitchTab($iTab)
     ; Lock window to prevent repaint during bulk control state changes
     DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", $__g_CD_hGUI)
 
-    ; Update tab button styles
+    ; Update tab button styles (only for visible tabs)
     Local $t, $c
-    For $t = 1 To 13
+    For $t = 1 To $__g_CD_iTabCount
         If $t = $iTab Then
             GUICtrlSetColor($__g_CD_aidTabBtn[$t], $THEME_FG_WHITE)
             GUICtrlSetBkColor($__g_CD_aidTabBtn[$t], $THEME_BG_ACTIVE)
@@ -365,7 +397,7 @@ Func __CD_SwitchTab($iTab)
         EndIf
     Next
     ; Show/hide controls per tab
-    For $t = 1 To 13
+    For $t = 1 To $__g_CD_iTabCount
         Local $iState = $GUI_HIDE
         If $t = $iTab Then $iState = $GUI_SHOW
         For $c = 0 To $__g_CD_aiTabCtrlCount[$t] - 1
@@ -427,6 +459,91 @@ Func __CD_ScrollTab($iDelta)
             GUICtrlSetPos($idCtrl, $aCtrlPos[0], $iOrigY - $iNewScroll, $aCtrlPos[2], $aCtrlPos[3])
         EndIf
     Next
+EndFunc
+
+; =============================================
+; TAB BAR SCROLL (single row with left/right arrows)
+; =============================================
+
+; Name:        __CD_UpdateTabScroll
+; Description: Repositions tab buttons so only the visible window is shown.
+;              Hides tabs outside the window and updates arrow states.
+Func __CD_UpdateTabScroll()
+    Local $iArrowW = 18
+    Local $iTabW = 78, $iTabH = 22, $iTabY = 8
+    Local $iBaseX = 2 + $iArrowW + 2 ; X after left arrow
+    Local $t
+
+    For $t = 1 To $__g_CD_iTabCount
+        Local $iIdx = $t - 1 - $__g_CD_iTabScrollOffset ; position relative to visible window
+        If $iIdx >= 0 And $iIdx < $__g_CD_iVisibleTabs Then
+            ; Visible: reposition and show
+            GUICtrlSetPos($__g_CD_aidTabBtn[$t], $iBaseX + $iIdx * ($iTabW + 2), $iTabY, $iTabW, $iTabH)
+            GUICtrlSetState($__g_CD_aidTabBtn[$t], $GUI_SHOW)
+        Else
+            ; Hidden: move off-screen and hide
+            GUICtrlSetState($__g_CD_aidTabBtn[$t], $GUI_HIDE)
+        EndIf
+    Next
+
+    ; Update arrow visibility/state
+    If $__g_CD_iTabScrollOffset > 0 Then
+        GUICtrlSetColor($__g_CD_idTabScrollLeft, $THEME_FG_NORMAL)
+        GUICtrlSetState($__g_CD_idTabScrollLeft, $GUI_SHOW)
+    Else
+        GUICtrlSetColor($__g_CD_idTabScrollLeft, $THEME_FG_DIM)
+        GUICtrlSetState($__g_CD_idTabScrollLeft, $GUI_SHOW)
+    EndIf
+
+    If $__g_CD_iTabScrollOffset + $__g_CD_iVisibleTabs < $__g_CD_iTabCount Then
+        GUICtrlSetColor($__g_CD_idTabScrollRight, $THEME_FG_NORMAL)
+        GUICtrlSetState($__g_CD_idTabScrollRight, $GUI_SHOW)
+    Else
+        GUICtrlSetColor($__g_CD_idTabScrollRight, $THEME_FG_DIM)
+        GUICtrlSetState($__g_CD_idTabScrollRight, $GUI_SHOW)
+    EndIf
+EndFunc
+
+; Name:        __CD_ScrollTabBar
+; Description: Scrolls the tab bar left or right by one tab
+; Parameters:  $iDir - negative = scroll left (show earlier tabs), positive = scroll right
+Func __CD_ScrollTabBar($iDir)
+    Local $iNewOffset = $__g_CD_iTabScrollOffset + $iDir
+    ; Clamp
+    If $iNewOffset < 0 Then $iNewOffset = 0
+    Local $iMaxOffset = $__g_CD_iTabCount - $__g_CD_iVisibleTabs
+    If $iMaxOffset < 0 Then $iMaxOffset = 0
+    If $iNewOffset > $iMaxOffset Then $iNewOffset = $iMaxOffset
+    If $iNewOffset = $__g_CD_iTabScrollOffset Then Return
+    $__g_CD_iTabScrollOffset = $iNewOffset
+    __CD_UpdateTabScroll()
+    ; Re-apply active tab styling on the now-visible buttons
+    Local $t
+    For $t = 1 To $__g_CD_iTabCount
+        If $t = $__g_CD_iActiveTab Then
+            GUICtrlSetColor($__g_CD_aidTabBtn[$t], $THEME_FG_WHITE)
+            GUICtrlSetBkColor($__g_CD_aidTabBtn[$t], $THEME_BG_ACTIVE)
+            GUICtrlSetFont($__g_CD_aidTabBtn[$t], 8, 700, 0, $THEME_FONT_MAIN)
+        Else
+            GUICtrlSetColor($__g_CD_aidTabBtn[$t], $THEME_FG_DIM)
+            GUICtrlSetBkColor($__g_CD_aidTabBtn[$t], $THEME_BG_MAIN)
+            GUICtrlSetFont($__g_CD_aidTabBtn[$t], 8, 400, 0, $THEME_FONT_MAIN)
+        EndIf
+    Next
+EndFunc
+
+; Name:        __CD_EnsureTabVisible
+; Description: Scrolls the tab bar so that tab $iTab is visible
+Func __CD_EnsureTabVisible($iTab)
+    ; $iTab is 1-based; scroll offset is 0-based from tab 1
+    Local $iIdx = $iTab - 1
+    If $iIdx < $__g_CD_iTabScrollOffset Then
+        $__g_CD_iTabScrollOffset = $iIdx
+        __CD_UpdateTabScroll()
+    ElseIf $iIdx >= $__g_CD_iTabScrollOffset + $__g_CD_iVisibleTabs Then
+        $__g_CD_iTabScrollOffset = $iIdx - $__g_CD_iVisibleTabs + 1
+        __CD_UpdateTabScroll()
+    EndIf
 EndFunc
 
 ; =============================================
@@ -533,7 +650,7 @@ EndFunc
 ; =============================================
 
 Func __CD_BuildTabGeneral()
-    Local $t = 1, $iX = 20, $iY = 94
+    Local $t = 1, $iX = 20, $iY = $__g_CD_iContentTop + 10
 
     $__g_CD_idChkStartWin = __CD_CreateCheckbox(_i18n("Settings.General.chk_start_windows", "Start with Windows"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkStartWin, _i18n("Settings.General.tip_start_windows", "Launch Desk Switcheroo automatically when you log in"))
@@ -640,7 +757,7 @@ Func __CD_BuildTabGeneral()
 EndFunc
 
 Func __CD_BuildTabDisplay()
-    Local $t = 2, $iX = 20, $iY = 94
+    Local $t = 2, $iX = 20, $iY = $__g_CD_iContentTop + 10
 
     $__g_CD_idChkShowCount = __CD_CreateCheckbox(_i18n("Settings.Display.chk_show_count", "Show desktop count (2/5)"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkShowCount, _i18n("Settings.Display.tip_show_count", "Show total count next to current number (e.g. '2/5')"))
@@ -824,7 +941,7 @@ Func __CD_BuildTabDisplay()
 EndFunc
 
 Func __CD_BuildTabScroll()
-    Local $t = 3, $iX = 20, $iY = 94
+    Local $t = 3, $iX = 20, $iY = $__g_CD_iContentTop + 10
 
     $__g_CD_idChkScroll = __CD_CreateCheckbox(_i18n("Settings.Scroll.chk_scroll_enabled", "Scroll wheel on widget"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkScroll, _i18n("Settings.Scroll.tip_scroll_enabled", "Use mouse wheel on the widget to cycle desktops"))
@@ -853,7 +970,7 @@ Func __CD_BuildTabScroll()
 EndFunc
 
 Func __CD_BuildTabHotkeys()
-    Local $t = 4, $iX = 20, $iY = 94
+    Local $t = 4, $iX = 20, $iY = $__g_CD_iContentTop + 10
     Local $iLblW = 100, $iInpW = 130, $iBtnBuildW = 24, $i
 
     ; Enable global hotkeys checkbox
@@ -1150,7 +1267,7 @@ Func __CD_BuildTabHotkeys()
 EndFunc
 
 Func __CD_BuildTabBehavior()
-    Local $t = 5, $iX = 20, $iY = 94
+    Local $t = 5, $iX = 20, $iY = $__g_CD_iContentTop + 10
 
     $__g_CD_idChkConfirmDel = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_confirm_delete", "Confirm before delete"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkConfirmDel, _i18n("Settings.Behavior.tip_confirm_delete", "Show confirmation dialog before deleting a desktop"))
@@ -1271,7 +1388,7 @@ EndFunc
 
 
 Func __CD_BuildTabLogging()
-    Local $t = 6, $iX = 20, $iY = 94
+    Local $t = 6, $iX = 20, $iY = $__g_CD_iContentTop + 10
 
     $__g_CD_idChkLogging = __CD_CreateCheckbox(_i18n("Settings.Logging.chk_logging", "Enable logging"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkLogging, _i18n("Settings.Logging.tip_logging", "Write debug information to a log file for troubleshooting"))
@@ -1366,7 +1483,7 @@ Func __CD_BuildTabLogging()
 EndFunc
 
 Func __CD_BuildTabUpdates()
-    Local $t = 7, $iX = 20, $iY = 94
+    Local $t = 7, $iX = 20, $iY = $__g_CD_iContentTop + 10
 
     ; Current version display
     Local $idVerLbl = GUICtrlCreateLabel(_i18n_Format("Settings.Updates.lbl_current_version", "Current version: v{1}", $APP_VERSION), $iX, $iY, 300, 18)
@@ -1452,7 +1569,7 @@ Func __CD_BuildTabUpdates()
 EndFunc
 
 Func __CD_BuildTabDesktops()
-    Local $t = 8, $iX = 20, $iY = 94
+    Local $t = 8, $iX = 20, $iY = $__g_CD_iContentTop + 10
 
     ; Enable desktop colors checkbox (moved from removed Colors tab)
     $__g_CD_idChkColorsEnabled = __CD_CreateCheckbox(_i18n("Settings.Desktops.chk_colors_enabled", "Enable desktop colors"), $iX, $iY, 300, $t)
@@ -1509,7 +1626,7 @@ Func __CD_BuildTabDesktops()
 EndFunc
 
 Func __CD_BuildTabWallpaper()
-    Local $t = 10, $iX = 20, $iY = 94
+    Local $t = 10, $iX = 20, $iY = $__g_CD_iContentTop + 10
 
     $__g_CD_idChkWallpaper = __CD_CreateCheckbox(_i18n("Settings.Wallpaper.chk_wallpaper_enabled", "Enable per-desktop wallpaper"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkWallpaper, _i18n("Settings.Wallpaper.tip_wallpaper_enabled", "Automatically change wallpaper when switching desktops"))
@@ -1553,7 +1670,7 @@ Func __CD_BuildTabWallpaper()
 EndFunc
 
 Func __CD_BuildTabWindowList()
-    Local $t = 11, $iX = 20, $iY = 94
+    Local $t = 11, $iX = 20, $iY = $__g_CD_iContentTop + 10
 
     $__g_CD_idChkWLEnabled = __CD_CreateCheckbox(_i18n("Settings.WindowList.chk_wl_enabled", "Enable window list"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkWLEnabled, _i18n("Settings.WindowList.tip_wl_enabled", "Show a panel listing windows on the current desktop"))
@@ -1640,7 +1757,7 @@ Func __CD_BuildTabWindowList()
 EndFunc
 
 Func __CD_BuildTabExplorer()
-    Local $t = 12, $iX = 20, $iY = 94
+    Local $t = 12, $iX = 20, $iY = $__g_CD_iContentTop + 10
 
     $__g_CD_idChkExplorerMonitor = __CD_CreateCheckbox(_i18n("Settings.Explorer.chk_explorer_monitor", "Enable shell monitor"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkExplorerMonitor, _i18n("Settings.Explorer.tip_explorer_monitor", "Monitor the shell process and attempt recovery on crash"))
@@ -1752,7 +1869,7 @@ Func __CD_BuildTabExplorer()
 EndFunc
 
 Func __CD_BuildTabNotifications()
-    Local $t = 13, $iX = 20, $iY = 94
+    Local $t = 13, $iX = 20, $iY = $__g_CD_iContentTop + 10
 
     $__g_CD_idChkNotificationsEnabled = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_notifications_enabled", "Enable notifications"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkNotificationsEnabled, _i18n("Settings.Notifications.tip_notifications_enabled", "Master toggle for all toast notifications"))
@@ -1785,7 +1902,7 @@ EndFunc
 ; =============================================
 
 Func __CD_BuildTabAnimations()
-    Local $t = 9, $iX = 20, $iY = 94
+    Local $t = 9, $iX = 20, $iY = $__g_CD_iContentTop + 10
 
     $__g_CD_idChkAnimEnabled = __CD_CreateCheckbox(_i18n("Settings.Animations.chk_enabled", "Enable animations"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkAnimEnabled, _i18n("Settings.Animations.tip_enabled", "Master toggle for all fade-in/fade-out animations"))
@@ -2132,8 +2249,15 @@ Func __CD_MessageLoop()
                 EndIf
             Next
 
+            ; Tab bar scroll arrow clicks
+            If $id = $__g_CD_idTabScrollLeft Then
+                __CD_ScrollTabBar(-1)
+            ElseIf $id = $__g_CD_idTabScrollRight Then
+                __CD_ScrollTabBar(1)
+            EndIf
+
             ; Tab button clicks
-            For $t = 1 To 13
+            For $t = 1 To $__g_CD_iTabCount
                 If $id = $__g_CD_aidTabBtn[$t] Then
                     $iTabHovered = 0
                     __CD_SwitchTab($t)
@@ -2208,6 +2332,8 @@ Func __CD_MessageLoop()
             If $aCursor[4] = $__g_CD_idBtnCheckNow Then $iFound = $__g_CD_idBtnCheckNow
             If $aCursor[4] = $__g_CD_idBtnDownloadLatest Then $iFound = $__g_CD_idBtnDownloadLatest
             If $aCursor[4] = $__g_CD_idBtnLogBrowse Then $iFound = $__g_CD_idBtnLogBrowse
+            If $aCursor[4] = $__g_CD_idTabScrollLeft Then $iFound = $__g_CD_idTabScrollLeft
+            If $aCursor[4] = $__g_CD_idTabScrollRight Then $iFound = $__g_CD_idTabScrollRight
             If $__g_CD_idComboOverlay <> 0 And $aCursor[4] = $__g_CD_idComboOverlay Then $iFound = $__g_CD_idComboOverlay
             ; Cycle labels (only remaining non-combo cycle labels)
             If $aCursor[4] = $__g_CD_idLblPosition Then $iFound = $__g_CD_idLblPosition
@@ -2221,11 +2347,13 @@ Func __CD_MessageLoop()
                     If $iHovered = $__g_CD_idBtnCheckNow Then $iFgRestore = $THEME_FG_MENU
                     If $iHovered = $__g_CD_idBtnDownloadLatest Then $iFgRestore = $THEME_FG_LINK
                     If $iHovered = $__g_CD_idBtnLogBrowse Then $iFgRestore = $THEME_FG_DIM
+                    If $iHovered = $__g_CD_idTabScrollLeft Or $iHovered = $__g_CD_idTabScrollRight Then $iFgRestore = $THEME_FG_NORMAL
                     If $iHovered = $__g_CD_idComboOverlay Then $iFgRestore = $THEME_FG_TEXT
                     If $iHovered = $__g_CD_idLblPosition Or $iHovered = $__g_CD_idLblScrollDir Then $iFgRestore = $THEME_FG_PRIMARY
                     Local $iBgRestore = $THEME_BG_HOVER
                     If $iHovered = $__g_CD_idComboOverlay Or $iHovered = $__g_CD_idLblPosition Or _
                        $iHovered = $__g_CD_idLblScrollDir Then $iBgRestore = $THEME_BG_INPUT
+                    If $iHovered = $__g_CD_idTabScrollLeft Or $iHovered = $__g_CD_idTabScrollRight Then $iBgRestore = $THEME_BG_MAIN
                     _Theme_RemoveHover($iHovered, $iFgRestore, $iBgRestore)
                 EndIf
                 $iHovered = $iFound
@@ -2234,7 +2362,7 @@ Func __CD_MessageLoop()
 
             ; Tab hover (inactive tabs highlight on mouseover)
             Local $iTabFound = 0
-            For $t = 1 To 13
+            For $t = 1 To $__g_CD_iTabCount
                 If $aCursor[4] = $__g_CD_aidTabBtn[$t] And $t <> $__g_CD_iActiveTab Then
                     $iTabFound = $t
                     ExitLoop
