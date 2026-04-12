@@ -20,6 +20,7 @@ Global $__g_CM_iAboutID   = 0
 Global $__g_CM_iSettingsID = 0
 Global $__g_CM_iQuitID    = 0
 Global $__g_CM_iCrashID   = 0
+Global $__g_CM_iPinID     = 0
 Global $__g_CM_iHovered   = 0
 Global $__g_CM_hHideTimer = 0
 Global $__g_CM_bHideArmed = False
@@ -35,6 +36,7 @@ Func _CM_Show($iTaskbarY, $bListVisible)
     Local $iSepH = 1
     Local $iItemCount = 7
     If _Cfg_GetDesktopColorsEnabled() Then $iItemCount += 1
+    If _Cfg_GetPinningEnabled() Then $iItemCount += 1
     If _Cfg_GetDebugMode() Then $iItemCount += 1
     Local $iMenuH = $iItemCount * $THEME_MENU_ITEM_H + 2 * $iSepH + 20
     Local $iMenuX = 0
@@ -56,6 +58,11 @@ Func _CM_Show($iTaskbarY, $bListVisible)
     If _DL_IsPinned() Then $sToggle = "  " & _i18n("ContextMenu.cm_unpin_list", "Unpin Desktop List")
     $__g_CM_iToggleID = _Theme_CreateMenuItem($sToggle, 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
+
+    If _Cfg_GetPinningEnabled() Then
+        $__g_CM_iPinID = _Theme_CreateMenuItem("  " & _i18n("ContextMenu.cm_pin_window", "Pin Active Window"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+        $iY += $THEME_MENU_ITEM_H
+    EndIf
 
     ; Separator
     GUICtrlCreateLabel("", 8, $iY + 2, $iMenuW - 16, $iSepH)
@@ -109,6 +116,7 @@ Func _CM_Destroy()
     $__g_CM_iSettingsID = 0
     $__g_CM_iQuitID = 0
     $__g_CM_iCrashID = 0
+    $__g_CM_iPinID = 0
     $__g_CM_iHovered = 0
     $__g_CM_bHideArmed = False
 EndFunc
@@ -130,6 +138,7 @@ Func _CM_CheckHover()
     If $aCursor[4] = $__g_CM_iEditID Then $iFound = $__g_CM_iEditID
     If $__g_CM_iSetColorID <> 0 And $aCursor[4] = $__g_CM_iSetColorID Then $iFound = $__g_CM_iSetColorID
     If $aCursor[4] = $__g_CM_iToggleID Then $iFound = $__g_CM_iToggleID
+    If $__g_CM_iPinID <> 0 And $aCursor[4] = $__g_CM_iPinID Then $iFound = $__g_CM_iPinID
     If $aCursor[4] = $__g_CM_iAddID Then $iFound = $__g_CM_iAddID
     If $aCursor[4] = $__g_CM_iDeleteID Then $iFound = $__g_CM_iDeleteID
     If $aCursor[4] = $__g_CM_iAboutID Then $iFound = $__g_CM_iAboutID
@@ -160,6 +169,7 @@ Func _CM_HandleClick($msg)
     If $msg = $__g_CM_iEditID Then Return "edit"
     If $__g_CM_iSetColorID <> 0 And $msg = $__g_CM_iSetColorID Then Return "set_color"
     If $msg = $__g_CM_iToggleID Then Return "toggle_list"
+    If $__g_CM_iPinID <> 0 And $msg = $__g_CM_iPinID Then Return "pin_window"
     If $msg = $__g_CM_iAddID Then Return "add"
     If $msg = $__g_CM_iDeleteID Then Return "delete"
     If $msg = $__g_CM_iAboutID Then Return "about"

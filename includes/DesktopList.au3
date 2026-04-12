@@ -46,6 +46,7 @@ Global $__g_DL_iCtxSetColor  = 0
 Global $__g_DL_iCtxMoveWin   = 0
 Global $__g_DL_iCtxAdd       = 0
 Global $__g_DL_iCtxDelete    = 0
+Global $__g_DL_iCtxPin       = 0
 Global $__g_DL_iCtxHovered   = 0
 
 ; -- Color picker submenu state --
@@ -837,6 +838,7 @@ Func _DL_CtxShow($iTarget)
     Local $iItemCount = 5
     If _Cfg_GetDesktopColorsEnabled() Then $iItemCount += 1
     If _Cfg_GetMoveWindowEnabled() Then $iItemCount += 1
+    If _Cfg_GetPinningEnabled() Then $iItemCount += 1
     Local $iMenuH = $iItemCount * $THEME_MENU_ITEM_H + $iSepH + 12
 
     Local $iMenuX = $__g_Theme_iCachedCursorX
@@ -871,6 +873,11 @@ Func _DL_CtxShow($iTarget)
         $iY += $THEME_MENU_ITEM_H
     EndIf
 
+    If _Cfg_GetPinningEnabled() Then
+        $__g_DL_iCtxPin = _Theme_CreateMenuItem("  " & _i18n("DesktopList.dl_pin", "Pin to All Desktops"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+        $iY += $THEME_MENU_ITEM_H
+    EndIf
+
     $__g_DL_iCtxAdd = _Theme_CreateMenuItem("  " & _i18n("DesktopList.dl_add_desktop", "Add Desktop"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 
@@ -901,6 +908,7 @@ Func _DL_CtxDestroy()
     $__g_DL_iCtxRename = 0
     $__g_DL_iCtxSetColor = 0
     $__g_DL_iCtxMoveWin = 0
+    $__g_DL_iCtxPin = 0
     $__g_DL_iCtxAdd = 0
     $__g_DL_iCtxPeek = 0
     $__g_DL_iCtxDelete = 0
@@ -917,6 +925,7 @@ Func _DL_CtxHandleClick($msg)
     If $msg = $__g_DL_iCtxPeek Then Return "peek"
     If $__g_DL_iCtxSetColor <> 0 And $msg = $__g_DL_iCtxSetColor Then Return "set_color"
     If $__g_DL_iCtxMoveWin <> 0 And $msg = $__g_DL_iCtxMoveWin Then Return "move_window"
+    If $__g_DL_iCtxPin <> 0 And $msg = $__g_DL_iCtxPin Then Return "pin"
     If $msg = $__g_DL_iCtxAdd Then Return "add"
     If $msg = $__g_DL_iCtxDelete Then Return "delete"
     Return ""
@@ -943,6 +952,7 @@ Func _DL_CtxCheckHover()
     If $aCursor[4] = $__g_DL_iCtxPeek Then $iFound = $__g_DL_iCtxPeek
     If $__g_DL_iCtxSetColor <> 0 And $aCursor[4] = $__g_DL_iCtxSetColor Then $iFound = $__g_DL_iCtxSetColor
     If $__g_DL_iCtxMoveWin <> 0 And $aCursor[4] = $__g_DL_iCtxMoveWin Then $iFound = $__g_DL_iCtxMoveWin
+    If $__g_DL_iCtxPin <> 0 And $aCursor[4] = $__g_DL_iCtxPin Then $iFound = $__g_DL_iCtxPin
     If $aCursor[4] = $__g_DL_iCtxAdd Then $iFound = $__g_DL_iCtxAdd
     If $aCursor[4] = $__g_DL_iCtxDelete Then $iFound = $__g_DL_iCtxDelete
 

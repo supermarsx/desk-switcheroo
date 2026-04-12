@@ -41,6 +41,9 @@ EndFunc
 #include "..\includes\ConfigDialog.au3"
 #include "..\includes\AboutDialog.au3"
 #include "..\includes\UpdateChecker.au3"
+#include "..\includes\WindowList.au3"
+#include "..\includes\Wallpaper.au3"
+#include "..\includes\ExplorerMonitor.au3"
 
 ; ---- Include test files ----
 #include "Test_Theme.au3"
@@ -56,6 +59,9 @@ EndFunc
 #include "Test_ConfigDialog.au3"
 #include "Test_UpdateChecker.au3"
 #include "Test_AboutDialog.au3"
+#include "Test_WindowList.au3"
+#include "Test_Wallpaper.au3"
+#include "Test_ExplorerMonitor.au3"
 
 ; ---- Load bundled fonts ----
 _Theme_LoadFonts()
@@ -77,6 +83,9 @@ _RunTest_i18n()
 _RunTest_ConfigDialog()
 _RunTest_UpdateChecker()
 _RunTest_AboutDialog()
+_RunTest_WindowList()
+_RunTest_Wallpaper()
+_RunTest_ExplorerMonitor()
 
 ; ---- Cleanup ----
 _VD_Shutdown()

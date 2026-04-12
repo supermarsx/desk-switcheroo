@@ -451,6 +451,10 @@ Func _ProcessGUIEvents($msg, $hFrom)
                         _RefreshIndex()
                     EndIf
                 EndIf
+            Case "pin_window"
+                _CM_Destroy()
+                Local $hFg = WinGetHandle("[ACTIVE]")
+                If $hFg <> 0 Then _VD_PinWindow($hFg)
             Case "settings"
                 _CM_Destroy()
                 _CD_Show()
