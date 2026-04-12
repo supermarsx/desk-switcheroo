@@ -74,6 +74,7 @@ Global $__g_CD_idChkAnimToasts, $__g_CD_idChkAnimWidget
 Global $__g_CD_idInpFadeIn, $__g_CD_idInpFadeOut
 Global $__g_CD_idInpFadeStep, $__g_CD_idInpFadeSleep
 Global $__g_CD_idInpToastFadeOut
+Global $__g_CD_idInpHoverSpeed, $__g_CD_idLblToastPosition
 
 ; -- Tab 10: Wallpaper --
 Global $__g_CD_idChkWallpaper, $__g_CD_idInpWallpaperDelay
@@ -94,8 +95,11 @@ Global $__g_CD_idChkAutoRestart, $__g_CD_idInpRestartDelay
 
 ; -- Tab 13: Notifications --
 Global $__g_CD_idChkNotifyMoved, $__g_CD_idChkNotifyCreated, $__g_CD_idChkNotifyDeleted, $__g_CD_idChkNotifyPinned
-Global $__g_CD_idChkNotifyUnpinned, $__g_CD_idChkNotifyExplorerRecov
+Global $__g_CD_idChkNotifyUnpinned, $__g_CD_idChkNotifyExplorerRecov, $__g_CD_idChkNotifyExplorerCrash
 Global $__g_CD_idLblWLScope
+
+; -- Tab 7: Updates (info labels) --
+Global $__g_CD_idLblLastChecked, $__g_CD_idLblNextCheck
 
 ; -- Tab 1 extras: General --
 Global $__g_CD_idChkSingleton, $__g_CD_idChkTaskbarFocus, $__g_CD_idChkAutoFocus
@@ -804,8 +808,18 @@ Func __CD_BuildTabScroll()
     $__g_CD_idChkListScroll = __CD_CreateCheckbox(_i18n("Settings.Scroll.chk_list_scroll", "Scroll on desktop list"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkListScroll, _i18n("Settings.Scroll.tip_list_scroll", "Use mouse wheel on the desktop list panel"))
     $iY += 26
-    $__g_CD_idLblListAction = __CD_CreateCycleLabel(_i18n("Settings.Scroll.lbl_list_scroll_action", "List action:"), $iX + 20, $iY, 145, 90, $t)
-    _Theme_SetTooltip($__g_CD_idLblListAction, _i18n("Settings.Scroll.tip_list_scroll_action", "Click to toggle: 'switch' changes desktops, 'scroll' scrolls the list"))
+    Local $idLblLA = GUICtrlCreateLabel(_i18n("Settings.Scroll.lbl_list_scroll_action", "List action:"), $iX + 20, $iY + 2, 145, 18)
+    GUICtrlSetFont($idLblLA, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblLA, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblLA, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblLA)
+    $__g_CD_idLblListAction = GUICtrlCreateCombo("", $iX + 20 + 145, $iY, 90, 22, 0x0003) ; CBS_DROPDOWNLIST
+    GUICtrlSetFont($__g_CD_idLblListAction, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idLblListAction, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idLblListAction, $THEME_BG_INPUT)
+    GUICtrlSetCursor($__g_CD_idLblListAction, 0)
+    __CD_RegCtrl($t, $__g_CD_idLblListAction)
+    _Theme_SetTooltip($__g_CD_idLblListAction, _i18n("Settings.Scroll.tip_list_scroll_action", "Select action: 'switch' changes desktops, 'scroll' scrolls the list"))
 EndFunc
 
 Func __CD_BuildTabHotkeys()
@@ -1205,8 +1219,18 @@ Func __CD_BuildTabLogging()
     __CD_RegCtrl($t, $__g_CD_idBtnLogBrowse)
     $iY += 30
 
-    $__g_CD_idLblLogLevel = __CD_CreateCycleLabel(_i18n("Settings.Logging.lbl_log_level", "Log level:"), $iX, $iY, 100, 90, $t)
-    _Theme_SetTooltip($__g_CD_idLblLogLevel, _i18n("Settings.Logging.tip_log_level", "Click to cycle: error, warn, info, debug (debug is most verbose)"))
+    Local $idLblLL = GUICtrlCreateLabel(_i18n("Settings.Logging.lbl_log_level", "Log level:"), $iX, $iY + 2, 100, 18)
+    GUICtrlSetFont($idLblLL, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblLL, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblLL, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblLL)
+    $__g_CD_idLblLogLevel = GUICtrlCreateCombo("", $iX + 100, $iY, 90, 22, 0x0003) ; CBS_DROPDOWNLIST
+    GUICtrlSetFont($__g_CD_idLblLogLevel, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idLblLogLevel, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idLblLogLevel, $THEME_BG_INPUT)
+    GUICtrlSetCursor($__g_CD_idLblLogLevel, 0)
+    __CD_RegCtrl($t, $__g_CD_idLblLogLevel)
+    _Theme_SetTooltip($__g_CD_idLblLogLevel, _i18n("Settings.Logging.tip_log_level", "Select log verbosity level (debug is most verbose)"))
     $iY += 30
 
     $idLbl = GUICtrlCreateLabel(_i18n("Settings.Logging.lbl_log_max_size", "Max log size (MB):"), $iX, $iY + 2, 165, 18)
@@ -1243,8 +1267,18 @@ Func __CD_BuildTabLogging()
     _Theme_SetTooltip($__g_CD_idChkLogPID, _i18n("Settings.Logging.tip_log_pid", "Add process ID [PID:XXXX] to each log line after the timestamp"))
     $iY += 34
 
-    $__g_CD_idLblLogDateFormat = __CD_CreateCycleLabel(_i18n("Settings.Logging.lbl_log_date", "Date format:"), $iX, $iY, 100, 90, $t)
-    _Theme_SetTooltip($__g_CD_idLblLogDateFormat, _i18n("Settings.Logging.tip_log_date", "Click to cycle: iso (YYYY-MM-DD), us (MM/DD/YYYY), eu (DD/MM/YYYY)"))
+    Local $idLblDF = GUICtrlCreateLabel(_i18n("Settings.Logging.lbl_log_date", "Date format:"), $iX, $iY + 2, 100, 18)
+    GUICtrlSetFont($idLblDF, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblDF, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblDF, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblDF)
+    $__g_CD_idLblLogDateFormat = GUICtrlCreateCombo("", $iX + 100, $iY, 90, 22, 0x0003) ; CBS_DROPDOWNLIST
+    GUICtrlSetFont($__g_CD_idLblLogDateFormat, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idLblLogDateFormat, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idLblLogDateFormat, $THEME_BG_INPUT)
+    GUICtrlSetCursor($__g_CD_idLblLogDateFormat, 0)
+    __CD_RegCtrl($t, $__g_CD_idLblLogDateFormat)
+    _Theme_SetTooltip($__g_CD_idLblLogDateFormat, _i18n("Settings.Logging.tip_log_date", "Select date format: iso (YYYY-MM-DD), us (MM/DD/YYYY), eu (DD/MM/YYYY)"))
     $iY += 30
 
     $__g_CD_idChkLogFlush = __CD_CreateCheckbox(_i18n("Settings.Logging.chk_log_flush", "Flush immediately"), $iX, $iY, 300, $t)
@@ -1311,6 +1345,28 @@ Func __CD_BuildTabUpdates()
     GUICtrlSetCursor($__g_CD_idBtnDownloadLatest, 0)
     __CD_RegCtrl($t, $__g_CD_idBtnDownloadLatest)
     _Theme_SetTooltip($__g_CD_idBtnDownloadLatest, _i18n("Settings.Updates.tip_download", "Download the latest portable version to your Downloads folder"))
+    $iY += 38
+
+    ; Last checked / Next check display labels
+    Local $sLastCheck = IniRead(_Cfg_GetPath(), "Updates", "_last_check_date", "Never")
+    $__g_CD_idLblLastChecked = GUICtrlCreateLabel(_i18n("Settings.Updates.lbl_last_checked", "Last checked:") & " " & $sLastCheck, $iX, $iY, 380, 16)
+    GUICtrlSetFont($__g_CD_idLblLastChecked, 7, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idLblLastChecked, $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idLblLastChecked, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $__g_CD_idLblLastChecked)
+    $iY += 20
+
+    ; Calculate next check date
+    Local $sNextCheck = "N/A"
+    If $sLastCheck <> "Never" And $sLastCheck <> "" Then
+        Local $iCheckDays = _Cfg_GetUpdateCheckDays()
+        $sNextCheck = "~" & $sLastCheck & " + " & $iCheckDays & "d"
+    EndIf
+    $__g_CD_idLblNextCheck = GUICtrlCreateLabel(_i18n("Settings.Updates.lbl_next_check", "Next check:") & " " & $sNextCheck, $iX, $iY, 380, 16)
+    GUICtrlSetFont($__g_CD_idLblNextCheck, 7, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idLblNextCheck, $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idLblNextCheck, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $__g_CD_idLblNextCheck)
 EndFunc
 
 Func __CD_BuildTabDesktops()
@@ -1417,12 +1473,32 @@ Func __CD_BuildTabWindowList()
     _Theme_SetTooltip($__g_CD_idChkWLEnabled, _i18n("Settings.WindowList.tip_wl_enabled", "Show a panel listing windows on the current desktop"))
     $iY += 34
 
-    $__g_CD_idLblWLScope = __CD_CreateCycleLabel(_i18n("Settings.WindowList.lbl_wl_scope", "Window scope:"), $iX, $iY, 165, 110, $t)
+    Local $idLblWS = GUICtrlCreateLabel(_i18n("Settings.WindowList.lbl_wl_scope", "Window scope:"), $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLblWS, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblWS, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblWS, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblWS)
+    $__g_CD_idLblWLScope = GUICtrlCreateCombo("", $iX + 165, $iY, 110, 22, 0x0003) ; CBS_DROPDOWNLIST
+    GUICtrlSetFont($__g_CD_idLblWLScope, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idLblWLScope, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idLblWLScope, $THEME_BG_INPUT)
+    GUICtrlSetCursor($__g_CD_idLblWLScope, 0)
+    __CD_RegCtrl($t, $__g_CD_idLblWLScope)
     _Theme_SetTooltip($__g_CD_idLblWLScope, _i18n("Settings.WindowList.tip_wl_scope", "Show windows from current desktop only or all desktops"))
     $iY += 30
 
-    $__g_CD_idLblWLPosition = __CD_CreateCycleLabel(_i18n("Settings.WindowList.lbl_wl_position", "Panel position:"), $iX, $iY, 165, 110, $t)
-    _Theme_SetTooltip($__g_CD_idLblWLPosition, _i18n("Settings.WindowList.tip_wl_position", "Click to cycle panel position on screen"))
+    Local $idLblWP = GUICtrlCreateLabel(_i18n("Settings.WindowList.lbl_wl_position", "Panel position:"), $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLblWP, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblWP, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblWP, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblWP)
+    $__g_CD_idLblWLPosition = GUICtrlCreateCombo("", $iX + 165, $iY, 110, 22, 0x0003) ; CBS_DROPDOWNLIST
+    GUICtrlSetFont($__g_CD_idLblWLPosition, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idLblWLPosition, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idLblWLPosition, $THEME_BG_INPUT)
+    GUICtrlSetCursor($__g_CD_idLblWLPosition, 0)
+    __CD_RegCtrl($t, $__g_CD_idLblWLPosition)
+    _Theme_SetTooltip($__g_CD_idLblWLPosition, _i18n("Settings.WindowList.tip_wl_position", "Select panel position on screen"))
     $iY += 30
 
     Local $idLbl = GUICtrlCreateLabel(_i18n("Settings.WindowList.lbl_wl_width", "Panel width (150-600):"), $iX, $iY + 2, 165, 18)
@@ -1600,6 +1676,9 @@ Func __CD_BuildTabNotifications()
     $iY += 26
     $__g_CD_idChkNotifyExplorerRecov = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_notify_explorer", "Shell monitor recovery"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkNotifyExplorerRecov, _i18n("Settings.Notifications.tip_notify_explorer", "Show a toast when the shell process recovers from a crash"))
+    $iY += 26
+    $__g_CD_idChkNotifyExplorerCrash = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_notify_crash", "Shell crash detected"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkNotifyExplorerCrash, _i18n("Settings.Notifications.tip_notify_crash", "Show a toast when the shell process crashes"))
 EndFunc
 
 ; =============================================
@@ -1685,6 +1764,33 @@ Func __CD_BuildTabAnimations()
     GUICtrlSetBkColor($__g_CD_idInpToastFadeOut, $THEME_BG_INPUT)
     __CD_RegCtrl($t, $__g_CD_idInpToastFadeOut)
     _Theme_SetTooltip($__g_CD_idInpToastFadeOut, _i18n("Settings.Animations.tip_toast_fade", "Duration of toast notification fade-out in milliseconds"))
+    $iY += 28
+
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Animations.lbl_hover_speed", "Hover fade speed (ms, 0-50):"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpHoverSpeed = GUICtrlCreateInput("", $iX + 180, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpHoverSpeed, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpHoverSpeed, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpHoverSpeed, $THEME_BG_INPUT)
+    __CD_RegCtrl($t, $__g_CD_idInpHoverSpeed)
+    _Theme_SetTooltip($__g_CD_idInpHoverSpeed, _i18n("Settings.Animations.tip_hover_speed", "Hover transition speed in milliseconds (0 = instant)"))
+    $iY += 28
+
+    Local $idLblTP = GUICtrlCreateLabel(_i18n("Settings.Animations.lbl_toast_position", "Toast position:"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLblTP, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblTP, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblTP, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblTP)
+    $__g_CD_idLblToastPosition = GUICtrlCreateCombo("", $iX + 180, $iY, 120, 22, 0x0003) ; CBS_DROPDOWNLIST
+    GUICtrlSetFont($__g_CD_idLblToastPosition, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idLblToastPosition, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idLblToastPosition, $THEME_BG_INPUT)
+    GUICtrlSetCursor($__g_CD_idLblToastPosition, 0)
+    __CD_RegCtrl($t, $__g_CD_idLblToastPosition)
+    _Theme_SetTooltip($__g_CD_idLblToastPosition, _i18n("Settings.Animations.tip_toast_position", "Where toast notifications appear (widget = near widget)"))
 EndFunc
 
 Func __CD_PopulateControls()
@@ -1739,7 +1845,7 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idLblScrollDir, _Cfg_GetScrollDirection())
     __CD_SetCheckState($__g_CD_idChkScrollWrap, _Cfg_GetScrollWrap())
     __CD_SetCheckState($__g_CD_idChkListScroll, _Cfg_GetListScrollEnabled())
-    GUICtrlSetData($__g_CD_idLblListAction, _Cfg_GetListScrollAction())
+    GUICtrlSetData($__g_CD_idLblListAction, "switch|scroll", _Cfg_GetListScrollAction())
 
     ; Hotkeys
     GUICtrlSetData($__g_CD_idInpHkNext, _Cfg_GetHotkeyNext())
@@ -1766,12 +1872,12 @@ Func __CD_PopulateControls()
     ; Logging
     __CD_SetCheckState($__g_CD_idChkLogging, _Cfg_GetLoggingEnabled())
     GUICtrlSetData($__g_CD_idInpLogPath, _Cfg_GetLogFolder())
-    GUICtrlSetData($__g_CD_idLblLogLevel, _Cfg_GetLogLevel())
+    GUICtrlSetData($__g_CD_idLblLogLevel, "error|warn|info|debug", _Cfg_GetLogLevel())
     GUICtrlSetData($__g_CD_idInpLogMaxSize, _Cfg_GetLogMaxSizeMB())
     GUICtrlSetData($__g_CD_idInpLogRotateCount, _Cfg_GetLogRotateCount())
     __CD_SetCheckState($__g_CD_idChkLogCompress, _Cfg_GetLogCompressOld())
     __CD_SetCheckState($__g_CD_idChkLogPID, _Cfg_GetLogIncludePID())
-    GUICtrlSetData($__g_CD_idLblLogDateFormat, _Cfg_GetLogDateFormat())
+    GUICtrlSetData($__g_CD_idLblLogDateFormat, "iso|us|eu", _Cfg_GetLogDateFormat())
     __CD_SetCheckState($__g_CD_idChkLogFlush, _Cfg_GetLogFlushImmediate())
 
     ; Updates
@@ -1832,7 +1938,7 @@ Func __CD_PopulateControls()
 
     ; Window List
     __CD_SetCheckState($__g_CD_idChkWLEnabled, _Cfg_GetWindowListEnabled())
-    GUICtrlSetData($__g_CD_idLblWLPosition, _Cfg_GetWindowListPosition())
+    GUICtrlSetData($__g_CD_idLblWLPosition, "top-left|top-right|bottom-left|bottom-right", _Cfg_GetWindowListPosition())
     GUICtrlSetData($__g_CD_idInpWLWidth, _Cfg_GetWindowListWidth())
     GUICtrlSetData($__g_CD_idInpWLMaxVisible, _Cfg_GetWindowListMaxVisible())
     __CD_SetCheckState($__g_CD_idChkWLIcons, _Cfg_GetWindowListShowIcons())
@@ -1859,7 +1965,14 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkNotifyPinned, _Cfg_GetNotifyWindowPinned())
     __CD_SetCheckState($__g_CD_idChkNotifyUnpinned, _Cfg_GetNotifyWindowUnpinned())
     __CD_SetCheckState($__g_CD_idChkNotifyExplorerRecov, _Cfg_GetNotifyExplorerRecovery())
-    GUICtrlSetData($__g_CD_idLblWLScope, _Cfg_GetWindowListScope())
+    GUICtrlSetData($__g_CD_idLblWLScope, "current|all", _Cfg_GetWindowListScope())
+
+    ; Notifications extras
+    __CD_SetCheckState($__g_CD_idChkNotifyExplorerCrash, _Cfg_GetNotifyExplorerCrash())
+
+    ; Animations extras
+    GUICtrlSetData($__g_CD_idInpHoverSpeed, _Cfg_GetAnimHoverSpeed())
+    GUICtrlSetData($__g_CD_idLblToastPosition, "top-left|top-right|bottom-left|bottom-right|widget", _Cfg_GetToastPosition())
 EndFunc
 
 ; =============================================
@@ -1925,12 +2038,7 @@ Func __CD_MessageLoop()
             ; Cycle label clicks
             If $id = $__g_CD_idLblPosition Then __CD_CycleValue($id, "bottom-left|bottom-center|bottom-right|middle-left|middle-right|top-left|top-center|top-right")
             If $id = $__g_CD_idLblScrollDir Then __CD_CycleValue($id, "normal|inverted")
-            If $id = $__g_CD_idLblListAction Then __CD_CycleValue($id, "switch|scroll")
             If $id = $__g_CD_idLblTheme Then __CD_CycleValue($id, _Theme_GetAvailableSchemes())
-            If $id = $__g_CD_idLblLogLevel Then __CD_CycleValue($id, "error|warn|info|debug")
-            If $id = $__g_CD_idLblLogDateFormat Then __CD_CycleValue($id, "iso|us|eu")
-            If $id = $__g_CD_idLblWLPosition Then __CD_CycleValue($id, "top-left|top-right|bottom-left|bottom-right")
-            If $id = $__g_CD_idLblWLScope Then __CD_CycleValue($id, "current|all")
             ; Language combo overlay click — toggle dropdown
             If $id = $__g_CD_idComboOverlay Then
                 Local $hCombo = GUICtrlGetHandle($__g_CD_idLblLanguage)
@@ -1990,14 +2098,10 @@ Func __CD_MessageLoop()
             If $aCursor[4] = $__g_CD_idBtnDownloadLatest Then $iFound = $__g_CD_idBtnDownloadLatest
             If $aCursor[4] = $__g_CD_idBtnLogBrowse Then $iFound = $__g_CD_idBtnLogBrowse
             If $__g_CD_idComboOverlay <> 0 And $aCursor[4] = $__g_CD_idComboOverlay Then $iFound = $__g_CD_idComboOverlay
-            ; Cycle labels
+            ; Cycle labels (only remaining non-combo cycle labels)
             If $aCursor[4] = $__g_CD_idLblPosition Then $iFound = $__g_CD_idLblPosition
             If $aCursor[4] = $__g_CD_idLblScrollDir Then $iFound = $__g_CD_idLblScrollDir
-            If $aCursor[4] = $__g_CD_idLblListAction Then $iFound = $__g_CD_idLblListAction
             If $aCursor[4] = $__g_CD_idLblTheme Then $iFound = $__g_CD_idLblTheme
-            If $aCursor[4] = $__g_CD_idLblLogLevel Then $iFound = $__g_CD_idLblLogLevel
-            If $aCursor[4] = $__g_CD_idLblLogDateFormat Then $iFound = $__g_CD_idLblLogDateFormat
-            If $__g_CD_idLblWLPosition <> 0 And $aCursor[4] = $__g_CD_idLblWLPosition Then $iFound = $__g_CD_idLblWLPosition
             If $iFound <> $iHovered Then
                 If $iHovered <> 0 Then
                     Local $iFgRestore = $THEME_FG_MENU
@@ -2009,14 +2113,11 @@ Func __CD_MessageLoop()
                     If $iHovered = $__g_CD_idBtnLogBrowse Then $iFgRestore = $THEME_FG_DIM
                     If $iHovered = $__g_CD_idComboOverlay Then $iFgRestore = $THEME_FG_TEXT
                     If $iHovered = $__g_CD_idLblPosition Or $iHovered = $__g_CD_idLblScrollDir Or _
-                       $iHovered = $__g_CD_idLblListAction Or $iHovered = $__g_CD_idLblTheme Or _
-                       $iHovered = $__g_CD_idLblLogLevel Or $iHovered = $__g_CD_idLblLogDateFormat Or _
-                       $iHovered = $__g_CD_idLblWLPosition Then $iFgRestore = $THEME_FG_PRIMARY
+                       $iHovered = $__g_CD_idLblTheme Then $iFgRestore = $THEME_FG_PRIMARY
                     Local $iBgRestore = $THEME_BG_HOVER
                     If $iHovered = $__g_CD_idComboOverlay Or $iHovered = $__g_CD_idLblPosition Or _
-                       $iHovered = $__g_CD_idLblScrollDir Or $iHovered = $__g_CD_idLblListAction Or _
-                       $iHovered = $__g_CD_idLblTheme Or $iHovered = $__g_CD_idLblLogLevel Or _
-                       $iHovered = $__g_CD_idLblLogDateFormat Or $iHovered = $__g_CD_idLblWLPosition Then $iBgRestore = $THEME_BG_INPUT
+                       $iHovered = $__g_CD_idLblScrollDir Or _
+                       $iHovered = $__g_CD_idLblTheme Then $iBgRestore = $THEME_BG_INPUT
                     _Theme_RemoveHover($iHovered, $iFgRestore, $iBgRestore)
                 EndIf
                 $iHovered = $iFound
@@ -2242,6 +2343,9 @@ Func __CD_ApplyChanges()
     _Cfg_SetFadeStep(Int(GUICtrlRead($__g_CD_idInpFadeStep)))
     _Cfg_SetFadeSleepMs(Int(GUICtrlRead($__g_CD_idInpFadeSleep)))
     _Cfg_SetToastFadeOutDuration(Int(GUICtrlRead($__g_CD_idInpToastFadeOut)))
+    $s = GUICtrlRead($__g_CD_idInpHoverSpeed)
+    If StringIsInt($s) Then _Cfg_SetAnimHoverSpeed(Int($s))
+    _Cfg_SetToastPosition(GUICtrlRead($__g_CD_idLblToastPosition))
 
     ; Wallpaper
     _Cfg_SetWallpaperEnabled(__CD_GetCheckState($__g_CD_idChkWallpaper))
@@ -2288,6 +2392,7 @@ Func __CD_ApplyChanges()
     _Cfg_SetNotifyWindowPinned(__CD_GetCheckState($__g_CD_idChkNotifyPinned))
     _Cfg_SetNotifyWindowUnpinned(__CD_GetCheckState($__g_CD_idChkNotifyUnpinned))
     _Cfg_SetNotifyExplorerRecovery(__CD_GetCheckState($__g_CD_idChkNotifyExplorerRecov))
+    _Cfg_SetNotifyExplorerCrash(__CD_GetCheckState($__g_CD_idChkNotifyExplorerCrash))
     _Cfg_SetWindowListScope(GUICtrlRead($__g_CD_idLblWLScope))
 
     ; Apply changes live to the running app

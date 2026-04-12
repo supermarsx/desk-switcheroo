@@ -947,6 +947,11 @@ EndFunc
 ; Name:        _ProcessEventFlags
 ; Description: Processes event-driven flags (desktop change, name sync, explorer recovery)
 Func _ProcessEventFlags()
+    ; Explorer crash notification
+    If _EM_CheckCrash() And _Cfg_GetNotifyExplorerCrash() Then
+        _Theme_Toast(_i18n("Toasts.toast_explorer_crashed", "Shell process crashed"), 0, $iTaskbarY + $iTaskbarH + 4, 3000, $TOAST_ERROR)
+    EndIf
+
     ; Explorer crash recovery
     If _EM_CheckRecovery() Then
         _Log_Info("Explorer recovery: reinitializing")

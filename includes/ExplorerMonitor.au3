@@ -14,6 +14,7 @@
 ; #INTERNAL GLOBALS# ============================================
 Global $__g_EM_bShellAlive = True
 Global $__g_EM_bRecoveryPending = False
+Global $__g_EM_bCrashPending = False
 Global $__g_EM_iRetryCount = 0
 Global $__g_EM_iCurrentDelay = 0
 Global $__g_EM_hCrashTimer = 0
@@ -52,6 +53,7 @@ Func __EM_Poll()
     If Not $bAlive And $__g_EM_bShellAlive Then
         ; Shell just died
         $__g_EM_bShellAlive = False
+        $__g_EM_bCrashPending = True
         $__g_EM_hCrashTimer = TimerInit()
         $__g_EM_iRetryCount = 0
         $__g_EM_iCurrentDelay = _Cfg_GetMonitorRetryDelay()
@@ -112,6 +114,15 @@ EndFunc
 Func _EM_CheckRecovery()
     If Not $__g_EM_bRecoveryPending Then Return False
     $__g_EM_bRecoveryPending = False
+    Return True
+EndFunc
+
+; Name:        _EM_CheckCrash
+; Description: Call from main loop. Returns True once on crash detection, then resets.
+; Return:      True if crash just detected, False otherwise
+Func _EM_CheckCrash()
+    If Not $__g_EM_bCrashPending Then Return False
+    $__g_EM_bCrashPending = False
     Return True
 EndFunc
 

@@ -38,6 +38,7 @@ Global $__g_Cfg_iMinDesktops        = 0
 Global $__g_Cfg_bTaskbarFocusTrick  = False
 Global $__g_Cfg_bAutoFocusAfterSwitch = False
 Global $__g_Cfg_bCapslockModifier   = False
+Global $__g_Cfg_bDesktopListPinned  = False
 
 ; [Updates]
 Global $__g_Cfg_bUpdateCheckOnStartup = False
@@ -118,6 +119,8 @@ Global $__g_Cfg_bAnimMenus         = True  ; context menus
 Global $__g_Cfg_bAnimDialogs       = True  ; settings, about, rename, confirm
 Global $__g_Cfg_bAnimToasts        = True  ; toast notifications
 Global $__g_Cfg_bAnimWidget        = True  ; main widget show/hide
+Global $__g_Cfg_iAnimHoverSpeed    = 0    ; ms for hover fade (0 = instant)
+Global $__g_Cfg_sToastPosition     = "widget" ; top-left|top-right|bottom-left|bottom-right|widget
 
 ; [Logging]
 Global $__g_Cfg_bLoggingEnabled    = False
@@ -192,6 +195,7 @@ Global $__g_Cfg_bNotifyDesktopDeleted   = False
 Global $__g_Cfg_bNotifyWindowPinned     = False
 Global $__g_Cfg_bNotifyWindowUnpinned   = False
 Global $__g_Cfg_bNotifyExplorerRecovery = False
+Global $__g_Cfg_bNotifyExplorerCrash    = False
 Global $__g_Cfg_sWindowListScope        = "current" ; "current" or "all"
 
 ; #FUNCTIONS# ===================================================
@@ -256,6 +260,7 @@ Func _Cfg_Load()
     $__g_Cfg_bTaskbarFocusTrick  = __Cfg_ReadBool($f, "General", "taskbar_focus_trick", False)
     $__g_Cfg_bAutoFocusAfterSwitch = __Cfg_ReadBool($f, "General", "auto_focus_after_switch", False)
     $__g_Cfg_bCapslockModifier   = __Cfg_ReadBool($f, "General", "capslock_modifier", False)
+    $__g_Cfg_bDesktopListPinned  = __Cfg_ReadBool($f, "General", "desktop_list_pinned", False)
 
     ; [Updates]
     $__g_Cfg_bUpdateCheckOnStartup = __Cfg_ReadBool($f, "Updates", "update_check_on_startup", False)
@@ -333,6 +338,9 @@ Func _Cfg_Load()
     $__g_Cfg_bAnimDialogs       = __Cfg_ReadBool($f, "Animations", "anim_dialogs", True)
     $__g_Cfg_bAnimToasts        = __Cfg_ReadBool($f, "Animations", "anim_toasts", True)
     $__g_Cfg_bAnimWidget        = __Cfg_ReadBool($f, "Animations", "anim_widget", True)
+    $__g_Cfg_iAnimHoverSpeed    = __Cfg_ReadInt($f, "Animations", "anim_hover_speed", 0, 0, 50)
+    $__g_Cfg_sToastPosition     = __Cfg_ReadEnum($f, "Animations", "toast_position", "widget", _
+        "top-left|top-right|bottom-left|bottom-right|widget")
 
     $__g_Cfg_bLoggingEnabled    = __Cfg_ReadBool($f, "Logging", "logging_enabled", False)
     $__g_Cfg_sLogFolder         = IniRead($f, "Logging", "log_folder", "")
@@ -398,6 +406,7 @@ Func _Cfg_Load()
     $__g_Cfg_bNotifyWindowPinned     = __Cfg_ReadBool($f, "Notifications", "notify_window_pinned", False)
     $__g_Cfg_bNotifyWindowUnpinned   = __Cfg_ReadBool($f, "Notifications", "notify_window_unpinned", False)
     $__g_Cfg_bNotifyExplorerRecovery = __Cfg_ReadBool($f, "Notifications", "notify_explorer_recovery", False)
+    $__g_Cfg_bNotifyExplorerCrash    = __Cfg_ReadBool($f, "Notifications", "notify_explorer_crash", False)
     $__g_Cfg_sWindowListScope        = __Cfg_ReadEnum($f, "WindowList", "window_list_scope", "current", "current|all")
 EndFunc
 
@@ -438,6 +447,7 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "General", "taskbar_focus_trick", $__g_Cfg_bTaskbarFocusTrick)
     __Cfg_WriteBool($f, "General", "auto_focus_after_switch", $__g_Cfg_bAutoFocusAfterSwitch)
     __Cfg_WriteBool($f, "General", "capslock_modifier", $__g_Cfg_bCapslockModifier)
+    __Cfg_WriteBool($f, "General", "desktop_list_pinned", $__g_Cfg_bDesktopListPinned)
 
     ; [Updates]
     __Cfg_WriteBool($f, "Updates", "update_check_on_startup", $__g_Cfg_bUpdateCheckOnStartup)
@@ -515,6 +525,8 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "Animations", "anim_dialogs", $__g_Cfg_bAnimDialogs)
     __Cfg_WriteBool($f, "Animations", "anim_toasts", $__g_Cfg_bAnimToasts)
     __Cfg_WriteBool($f, "Animations", "anim_widget", $__g_Cfg_bAnimWidget)
+    IniWrite($f, "Animations", "anim_hover_speed", $__g_Cfg_iAnimHoverSpeed)
+    IniWrite($f, "Animations", "toast_position", $__g_Cfg_sToastPosition)
 
     __Cfg_WriteBool($f, "Logging", "logging_enabled", $__g_Cfg_bLoggingEnabled)
     IniWrite($f, "Logging", "log_folder", $__g_Cfg_sLogFolder)
@@ -572,6 +584,7 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "Notifications", "notify_window_pinned", $__g_Cfg_bNotifyWindowPinned)
     __Cfg_WriteBool($f, "Notifications", "notify_window_unpinned", $__g_Cfg_bNotifyWindowUnpinned)
     __Cfg_WriteBool($f, "Notifications", "notify_explorer_recovery", $__g_Cfg_bNotifyExplorerRecovery)
+    __Cfg_WriteBool($f, "Notifications", "notify_explorer_crash", $__g_Cfg_bNotifyExplorerCrash)
     IniWrite($f, "WindowList", "window_list_scope", $__g_Cfg_sWindowListScope)
 
     ; Verify write succeeded before replacing original
@@ -614,6 +627,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "General", "taskbar_focus_trick", False)
     __Cfg_DefaultBool($f, "General", "auto_focus_after_switch", False)
     __Cfg_DefaultBool($f, "General", "capslock_modifier", False)
+    __Cfg_DefaultBool($f, "General", "desktop_list_pinned", False)
 
     __Cfg_DefaultBool($f, "Updates", "update_check_on_startup", False)
     __Cfg_DefaultVal($f, "Updates", "update_check_days", 7)
@@ -684,6 +698,8 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "Animations", "anim_dialogs", True)
     __Cfg_DefaultBool($f, "Animations", "anim_toasts", True)
     __Cfg_DefaultBool($f, "Animations", "anim_widget", True)
+    __Cfg_DefaultVal($f, "Animations", "anim_hover_speed", 0)
+    __Cfg_DefaultVal($f, "Animations", "toast_position", "widget")
 
     __Cfg_DefaultBool($f, "Logging", "logging_enabled", False)
     __Cfg_DefaultVal($f, "Logging", "log_folder", "")
@@ -736,6 +752,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "Notifications", "notify_window_pinned", False)
     __Cfg_DefaultBool($f, "Notifications", "notify_window_unpinned", False)
     __Cfg_DefaultBool($f, "Notifications", "notify_explorer_recovery", False)
+    __Cfg_DefaultBool($f, "Notifications", "notify_explorer_crash", False)
     __Cfg_DefaultVal($f, "WindowList", "window_list_scope", "current")
 EndFunc
 
@@ -1061,6 +1078,22 @@ EndFunc
 Func _Cfg_SetAnimWidget($b)
     $__g_Cfg_bAnimWidget = $b
 EndFunc
+Func _Cfg_GetAnimHoverSpeed()
+    Return $__g_Cfg_iAnimHoverSpeed
+EndFunc
+Func _Cfg_SetAnimHoverSpeed($i)
+    If $i < 0 Then $i = 0
+    If $i > 50 Then $i = 50
+    $__g_Cfg_iAnimHoverSpeed = $i
+EndFunc
+Func _Cfg_GetToastPosition()
+    Return $__g_Cfg_sToastPosition
+EndFunc
+Func _Cfg_SetToastPosition($s)
+    Local $aValid = "top-left|top-right|bottom-left|bottom-right|widget"
+    If Not StringInStr($aValid, $s) Then $s = "widget"
+    $__g_Cfg_sToastPosition = $s
+EndFunc
 Func _Cfg_GetLoggingEnabled()
     Return $__g_Cfg_bLoggingEnabled
 EndFunc
@@ -1309,6 +1342,12 @@ Func _Cfg_SetAutoFocusAfterSwitch($b)
 EndFunc
 Func _Cfg_SetCapslockModifier($b)
     $__g_Cfg_bCapslockModifier = $b
+EndFunc
+Func _Cfg_GetDesktopListPinned()
+    Return $__g_Cfg_bDesktopListPinned
+EndFunc
+Func _Cfg_SetDesktopListPinned($b)
+    $__g_Cfg_bDesktopListPinned = $b
 EndFunc
 
 ; [Updates]
@@ -1669,6 +1708,12 @@ Func _Cfg_SetNotifyWindowUnpinned($b)
 EndFunc
 Func _Cfg_SetNotifyExplorerRecovery($b)
     $__g_Cfg_bNotifyExplorerRecovery = $b
+EndFunc
+Func _Cfg_GetNotifyExplorerCrash()
+    Return $__g_Cfg_bNotifyExplorerCrash
+EndFunc
+Func _Cfg_SetNotifyExplorerCrash($b)
+    $__g_Cfg_bNotifyExplorerCrash = $b
 EndFunc
 Func _Cfg_SetWindowListScope($s)
     Local $aValid = "current|all"
