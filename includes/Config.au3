@@ -103,6 +103,7 @@ Global $__g_Cfg_iNameSyncInterval  = 2000
 Global $__g_Cfg_iDllCheckInterval  = 30000
 Global $__g_Cfg_iUpdatePollInterval = 500
 Global $__g_Cfg_bConfirmQuit       = False
+Global $__g_Cfg_bConfirmRestart    = False
 Global $__g_Cfg_bDebugMode         = False
 
 ; [Display] - List font
@@ -192,6 +193,7 @@ Global $__g_Cfg_iMonitorRestartDelay     = 2000
 Global $__g_Cfg_bExplorerNotifyRecovery  = True
 
 ; [Notifications]
+Global $__g_Cfg_bNotificationsEnabled   = True
 Global $__g_Cfg_bNotifyWindowMoved      = False
 Global $__g_Cfg_bNotifyDesktopCreated   = False
 Global $__g_Cfg_bNotifyDesktopDeleted   = False
@@ -329,6 +331,7 @@ Func _Cfg_Load()
     $__g_Cfg_iDllCheckInterval = __Cfg_ReadInt($f, "Behavior", "dll_check_interval", 30000, 5000, 300000)
     $__g_Cfg_iUpdatePollInterval = __Cfg_ReadInt($f, "Behavior", "update_poll_interval", 500, 100, 5000)
     $__g_Cfg_bConfirmQuit       = __Cfg_ReadBool($f, "Behavior", "confirm_quit", False)
+    $__g_Cfg_bConfirmRestart    = __Cfg_ReadBool($f, "Behavior", "confirm_restart", False)
     $__g_Cfg_bDebugMode         = __Cfg_ReadBool($f, "Behavior", "debug_mode", False)
 
     ; [Logging]
@@ -406,6 +409,7 @@ Func _Cfg_Load()
     $__g_Cfg_bExplorerNotifyRecovery = __Cfg_ReadBool($f, "ExplorerMonitor", "explorer_notify_recovery", True)
 
     ; [Notifications]
+    $__g_Cfg_bNotificationsEnabled   = __Cfg_ReadBool($f, "Notifications", "notifications_enabled", True)
     $__g_Cfg_bNotifyWindowMoved      = __Cfg_ReadBool($f, "Notifications", "notify_window_moved", False)
     $__g_Cfg_bNotifyDesktopCreated   = __Cfg_ReadBool($f, "Notifications", "notify_desktop_created", False)
     $__g_Cfg_bNotifyDesktopDeleted   = __Cfg_ReadBool($f, "Notifications", "notify_desktop_deleted", False)
@@ -519,6 +523,7 @@ Func _Cfg_Save()
     IniWrite($f, "Behavior", "dll_check_interval", $__g_Cfg_iDllCheckInterval)
     IniWrite($f, "Behavior", "update_poll_interval", $__g_Cfg_iUpdatePollInterval)
     __Cfg_WriteBool($f, "Behavior", "confirm_quit", $__g_Cfg_bConfirmQuit)
+    __Cfg_WriteBool($f, "Behavior", "confirm_restart", $__g_Cfg_bConfirmRestart)
     __Cfg_WriteBool($f, "Behavior", "debug_mode", $__g_Cfg_bDebugMode)
 
     ; [Logging]
@@ -587,6 +592,7 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "ExplorerMonitor", "explorer_notify_recovery", $__g_Cfg_bExplorerNotifyRecovery)
 
     ; [Notifications]
+    __Cfg_WriteBool($f, "Notifications", "notifications_enabled", $__g_Cfg_bNotificationsEnabled)
     __Cfg_WriteBool($f, "Notifications", "notify_window_moved", $__g_Cfg_bNotifyWindowMoved)
     __Cfg_WriteBool($f, "Notifications", "notify_desktop_created", $__g_Cfg_bNotifyDesktopCreated)
     __Cfg_WriteBool($f, "Notifications", "notify_desktop_deleted", $__g_Cfg_bNotifyDesktopDeleted)
@@ -697,6 +703,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Behavior", "dll_check_interval", 30000)
     __Cfg_DefaultVal($f, "Behavior", "update_poll_interval", 500)
     __Cfg_DefaultBool($f, "Behavior", "confirm_quit", False)
+    __Cfg_DefaultBool($f, "Behavior", "confirm_restart", False)
     __Cfg_DefaultBool($f, "Behavior", "debug_mode", False)
 
     __Cfg_DefaultBool($f, "Animations", "animations_enabled", True)
@@ -758,6 +765,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "ExplorerMonitor", "monitor_restart_delay", 2000)
     __Cfg_DefaultBool($f, "ExplorerMonitor", "explorer_notify_recovery", True)
 
+    __Cfg_DefaultBool($f, "Notifications", "notifications_enabled", True)
     __Cfg_DefaultBool($f, "Notifications", "notify_window_moved", False)
     __Cfg_DefaultBool($f, "Notifications", "notify_desktop_created", False)
     __Cfg_DefaultBool($f, "Notifications", "notify_desktop_deleted", False)
@@ -1018,6 +1026,9 @@ EndFunc
 Func _Cfg_GetConfirmQuit()
     Return $__g_Cfg_bConfirmQuit
 EndFunc
+Func _Cfg_GetConfirmRestart()
+    Return $__g_Cfg_bConfirmRestart
+EndFunc
 Func _Cfg_GetDebugMode()
     Return $__g_Cfg_bDebugMode
 EndFunc
@@ -1241,6 +1252,9 @@ Func _Cfg_GetExplorerNotifyRecovery()
 EndFunc
 
 ; [Notifications]
+Func _Cfg_GetNotificationsEnabled()
+    Return $__g_Cfg_bNotificationsEnabled
+EndFunc
 Func _Cfg_GetNotifyWindowMoved()
     Return $__g_Cfg_bNotifyWindowMoved
 EndFunc
@@ -1574,6 +1588,9 @@ EndFunc
 Func _Cfg_SetConfirmQuit($b)
     $__g_Cfg_bConfirmQuit = $b
 EndFunc
+Func _Cfg_SetConfirmRestart($b)
+    $__g_Cfg_bConfirmRestart = $b
+EndFunc
 Func _Cfg_SetDebugMode($b)
     $__g_Cfg_bDebugMode = $b
 EndFunc
@@ -1721,6 +1738,9 @@ Func _Cfg_SetExplorerNotifyRecovery($b)
 EndFunc
 
 ; [Notifications]
+Func _Cfg_SetNotificationsEnabled($b)
+    $__g_Cfg_bNotificationsEnabled = $b
+EndFunc
 Func _Cfg_SetNotifyWindowMoved($b)
     $__g_Cfg_bNotifyWindowMoved = $b
 EndFunc
