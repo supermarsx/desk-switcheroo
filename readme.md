@@ -50,22 +50,49 @@ AutoIt3_x64.exe desktop_switcher.au3
 
 ## Features
 
-- **Compact taskbar widget** with desktop number and custom label
-- **Desktop list panel** with click-to-switch, drag-to-reorder, and auto-hide
-- **Desktop peek** — hover the eye icon to temporarily preview a desktop
-- **Custom labels** with Windows 11 OS name sync (falls back to INI on Win10)
-- **5 dark themes** — dark, darker, midnight, midday, sunset
-- **Per-desktop colors** — assign accent colors visible in the list and widget
-- **9-position screen anchoring** — place the widget anywhere on screen
-- **Global hotkeys** — configurable keyboard shortcuts (Ctrl+Alt+S opens Settings)
-- **Scroll wheel navigation** — scroll on widget or list to cycle desktops
-- **Move window to desktop** — right-click context menu option
-- **Start with Windows** — configurable auto-start
-- **System tray mode** — run as a tray icon instead of taskbar widget
-- **Fade animations** — configurable fade-in/out on all popups, menus, and dialogs
-- **Auto-update checker** — periodic or manual check for new releases
-- **Logging** — configurable debug logging with rotation and compression
-- **80+ settings** across 9 tabs in the Settings dialog
+**Widget**
+- Compact taskbar overlay with desktop number, custom label, and arrow navigation
+- 9-position screen anchoring with pixel offset fine-tuning
+- Draggable widget repositioning (optional)
+- Custom widget dimensions (width/height override)
+- Color bar accent matching the current desktop color
+- Desktop count display (e.g. "2/5") with configurable font
+- Always-on-top enforcement with configurable interval
+
+**Desktop Management**
+- Desktop list panel with click-to-switch, drag-to-reorder, pin/unpin, and auto-hide
+- Desktop peek — hover the eye icon to temporarily preview a desktop
+- Thumbnail previews on hover with optional screenshot capture
+- Custom labels with Windows 11 OS name sync (falls back to INI on Win10)
+- Per-desktop accent colors with 7 presets + custom hex color picker
+- Add, delete, and reorder desktops from the list context menu
+- Move active window to any desktop via right-click menu
+- Wrap navigation at desktop ends, auto-create desktop past last
+
+**Input & Shortcuts**
+- Global hotkeys for next/prev/toggle list + direct desktop jump (1-9)
+- Scroll wheel navigation on widget and list (normal/inverted, wrap)
+- Quick-access number input — double-click to type a desktop number
+- Triple-click to edit desktop label
+- Middle-click to delete a desktop from the list
+- Keyboard navigation (Up/Down) in the desktop list
+
+**Appearance**
+- 5 dark themes — dark, darker, midnight, midday, sunset
+- Configurable fade animations per location (list, menus, dialogs, toasts, widget)
+- Customizable list font, tooltip font, and widget opacity
+- Scrollable list with configurable max visible items
+
+**System**
+- Start with Windows + start minimized options
+- System tray mode — run as tray icon instead of taskbar widget
+- Singleton enforcement — relaunch kills previous instance
+- Config file watcher — auto-reload settings on external INI changes
+- Auto-update checker with portable download from GitHub Releases
+- Debug logging with level filtering, rotation, compression, and PID/function tagging
+- Confirm-before-quit and confirm-before-delete safeguards
+- 33 locales with automatic language detection and in-app picker
+- 90+ settings across 9 tabs in the Settings dialog
 
 ## Localization
 
