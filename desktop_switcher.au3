@@ -340,6 +340,12 @@ If FileExists($sStateFile) Then
     If $iSavedScroll > 0 Then _DL_SetScrollOffset($iSavedScroll)
 EndIf
 
+; ---- Auto-show pinned desktop list ----
+If _Cfg_GetDesktopListPinned() Then
+    _DL_Show($iTaskbarY, $iDesktop)
+    _Log_Info("Desktop list pinned — auto-showing on startup")
+EndIf
+
 _Log_Info("Startup complete")
 
 ; ---- Startup update check (if enabled and enough days have passed) ----
@@ -415,7 +421,10 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 If _Cfg_GetQuickAccessEnabled() And $msg = $lblNum And $__g_iClickCount >= 2 Then
                     _Log_Debug("Click: quick-access mode activated")
                     _QuickAccess_Show()
-                ElseIf _DL_IsVisible() And Not _DL_IsPinned() Then
+                ElseIf _DL_IsPinned() Then
+                    ; Pinned: do nothing — list stays open permanently
+                    _Log_Debug("Click: widget number — list is pinned, ignoring")
+                ElseIf _DL_IsVisible() Then
                     _Log_Debug("Click: widget number — closing desktop list")
                     _DL_Destroy()
                 Else
@@ -438,7 +447,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 _DL_ColorPickerShow($iDesktop)
             Case "toggle_list"
                 _CM_Destroy()
-                _DL_Toggle($iTaskbarY, $iDesktop)
+                _DL_SetPinned(Not _DL_IsPinned(), $iTaskbarY, $iDesktop)
             Case "add"
                 _CM_Destroy()
                 If _VD_GetCount() >= $DESKTOP_LIMIT Then
@@ -1764,7 +1773,8 @@ Func _HK_Desktop9()
 EndFunc
 
 ; Name:        _HK_ToggleList
-; Description: Hotkey callback to toggle the desktop list panel
+; Description: Hotkey callback to toggle the desktop list panel.
+;              When pinned, this is a no-op (list stays open).
 Func _HK_ToggleList()
     _DL_Toggle($iTaskbarY, $iDesktop)
 EndFunc

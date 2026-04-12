@@ -87,10 +87,17 @@ Next
 ; #FUNCTIONS# ===================================================
 
 ; Name:        _DL_ShowTemp
-; Description: Shows the desktop list in temporary auto-hide mode (3 seconds)
+; Description: Shows the desktop list in temporary auto-hide mode (3 seconds).
+;              If the list is pinned via config, shows as persistent (no auto-hide).
 ; Parameters:  $iTaskbarY - Y position of the taskbar
 ;              $iCurrentDesktop - currently active desktop (1-based)
 Func _DL_ShowTemp($iTaskbarY, $iCurrentDesktop)
+    ; If pinned in config, show as persistent instead of temp
+    If _Cfg_GetDesktopListPinned() Then
+        If Not $__g_DL_bVisible Then _DL_Show($iTaskbarY, $iCurrentDesktop)
+        $__g_DL_bTemp = False
+        Return
+    EndIf
     If $__g_DL_bVisible Then
         If $__g_DL_bTemp Then $__g_DL_hTempTimer = TimerInit()
         Return
@@ -101,10 +108,19 @@ Func _DL_ShowTemp($iTaskbarY, $iCurrentDesktop)
 EndFunc
 
 ; Name:        _DL_Toggle
-; Description: Toggles the desktop list (persistent mode, no auto-hide)
+; Description: Toggles the desktop list (persistent mode, no auto-hide).
+;              When pinned via config, this is a no-op (list stays open).
 ; Parameters:  $iTaskbarY - Y position of the taskbar
 ;              $iCurrentDesktop - currently active desktop (1-based)
 Func _DL_Toggle($iTaskbarY, $iCurrentDesktop)
+    ; If pinned via config, never close — ensure list is showing
+    If _Cfg_GetDesktopListPinned() Then
+        If Not $__g_DL_bVisible Then
+            $__g_DL_bTemp = False
+            _DL_Show($iTaskbarY, $iCurrentDesktop)
+        EndIf
+        Return
+    EndIf
     $__g_DL_bTemp = False
     If $__g_DL_bVisible Then
         _DL_Destroy()
@@ -206,8 +222,13 @@ Func _DL_Show($iTaskbarY, $iCurrentDesktop)
         While StringLen($sNum) < $iPad
             $sNum = "0" & $sNum
         WEnd
-        Local $sText = " " & $sNum
-        If $sName <> "" Then $sText &= "  " & $sName
+        Local $sText
+        If _Cfg_GetDesktopListShowNumbers() Then
+            $sText = " " & $sNum
+            If $sName <> "" Then $sText &= "  " & $sName
+        Else
+            $sText = " " & ($sName <> "" ? $sName : $sNum)
+        EndIf
         Local $iY = $iContentY + ($iSlot - 1) * $THEME_ITEM_HEIGHT
         Local $iBold = 400
         Local $iColor = $THEME_FG_DIM
@@ -458,10 +479,12 @@ Func _DL_UpdateHighlight($iCurrentDesktop)
 EndFunc
 
 ; Name:        _DL_CheckAutoHide
-; Description: Checks if the temp list should auto-hide (3s timeout, cursor not over list or main)
+; Description: Checks if the temp list should auto-hide (3s timeout, cursor not over list or main).
+;              When pinned via config, always returns False (never auto-hide).
 ; Parameters:  $hMainGUI - handle to the main widget GUI
 ; Return:      True if the list was auto-hidden, False otherwise
 Func _DL_CheckAutoHide($hMainGUI)
+    If _Cfg_GetDesktopListPinned() Then Return False
     If Not $__g_DL_bTemp Or Not $__g_DL_bVisible Then Return False
     If $__g_DL_bCtxVisible Then Return False ; don't auto-hide while context menu is open
     If $__g_DL_bColorVisible Then Return False ; don't auto-hide while color picker is open
@@ -502,8 +525,13 @@ Func _DL_UpdateItemText($iIndex, $sLabel)
     While StringLen($sNum) < $iPad
         $sNum = "0" & $sNum
     WEnd
-    Local $sText = " " & $sNum
-    If $sLabel <> "" Then $sText &= "  " & $sLabel
+    Local $sText
+    If _Cfg_GetDesktopListShowNumbers() Then
+        $sText = " " & $sNum
+        If $sLabel <> "" Then $sText &= "  " & $sLabel
+    Else
+        $sText = " " & ($sLabel <> "" ? $sLabel : $sNum)
+    EndIf
     GUICtrlSetData($__g_DL_aItems[$iSlot], $sText)
 EndFunc
 
@@ -528,13 +556,37 @@ Func _DL_GetCount()
     Return $__g_DL_iCount
 EndFunc
 
+; Name:        _DL_IsPinned
+; Description: Returns whether the desktop list is pinned (persistent config state)
+; Return:      True if pinned via config, False otherwise
+Func _DL_IsPinned()
+    Return _Cfg_GetDesktopListPinned()
+EndFunc
+
+; Name:        _DL_SetPinned
+; Description: Sets the pin state: updates config, internal state, and saves immediately.
+;              When pinning: shows the list persistently.
+;              When unpinning: closes the list and resets to normal behavior.
+; Parameters:  $bPinned - True to pin, False to unpin
+;              $iTaskbarY - Y position of the taskbar
+;              $iCurrentDesktop - currently active desktop (1-based)
+Func _DL_SetPinned($bPinned, $iTaskbarY, $iCurrentDesktop)
+    _Cfg_SetDesktopListPinned($bPinned)
+    _Cfg_Save()
+    If $bPinned Then
+        ; Pin: show list in persistent mode
+        $__g_DL_bTemp = False
+        If Not $__g_DL_bVisible Then _DL_Show($iTaskbarY, $iCurrentDesktop)
+    Else
+        ; Unpin: close the list, return to normal behavior
+        If $__g_DL_bVisible Then _DL_Destroy()
+        $__g_DL_bTemp = False
+    EndIf
+EndFunc
+
 ; Name:        _DL_GetScrollOffset
 ; Description: Returns the current scroll offset
 ; Return:      Integer (0-based offset)
-Func _DL_IsPinned()
-    Return ($__g_DL_bVisible And Not $__g_DL_bTemp)
-EndFunc
-
 Func _DL_GetScrollOffset()
     Return $__g_DL_iScrollOffset
 EndFunc
@@ -593,8 +645,13 @@ Func _DL_RefreshScrollView($iCurrentDesktop)
         While StringLen($sNum) < $iPad
             $sNum = "0" & $sNum
         WEnd
-        Local $sText = " " & $sNum
-        If $sName <> "" Then $sText &= "  " & $sName
+        Local $sText
+        If _Cfg_GetDesktopListShowNumbers() Then
+            $sText = " " & $sNum
+            If $sName <> "" Then $sText &= "  " & $sName
+        Else
+            $sText = " " & ($sName <> "" ? $sName : $sNum)
+        EndIf
 
         ; Update label text
         GUICtrlSetData($__g_DL_aItems[$iSlot], $sText)
