@@ -149,6 +149,11 @@ EndFunc
 ; Description: Switches to a virtual desktop by index (1-based)
 ; Parameters:  $iDesktop - target desktop index (1-based)
 Func _VD_GoTo($iDesktop)
+    ; Taskbar focus trick for reliable switching
+    If _Cfg_GetTaskbarFocusTrick() Then
+        Local $hTray = WinGetHandle("[CLASS:Shell_TrayWnd]")
+        If $hTray <> 0 Then DllCall("user32.dll", "bool", "SetForegroundWindow", "hwnd", $hTray)
+    EndIf
     Local $aArgs[2] = ["int", $iDesktop - 1]
     __VD_Call("GoToDesktopNumber", "int", $aArgs)
 EndFunc
@@ -461,6 +466,134 @@ Func _VD_RemoveDesktop($iDesktop, $iFallback = Default)
     If @error Then Return False
     _VD_InvalidateCountCache()
     Return True
+EndFunc
+
+; Name:        _VD_PinWindow
+; Description: Pins a window to appear on all virtual desktops
+; Parameters:  $hWnd - window handle
+; Return:      True on success, False on failure
+Func _VD_PinWindow($hWnd)
+    If $__g_VD_hDLL = -1 Then Return False
+    Local $aResult = DllCall($__g_VD_hDLL, "int", "PinWindow", "hwnd", $hWnd)
+    If @error Then
+        _Log_Debug("PinWindow DllCall FAILED: hwnd=" & $hWnd & " err=" & @error)
+        Return False
+    EndIf
+    If Not IsArray($aResult) Then
+        _Log_Debug("PinWindow non-array result: hwnd=" & $hWnd)
+        Return False
+    EndIf
+    _Log_Debug("PinWindow: hwnd=" & $hWnd & " ret=" & $aResult[0])
+    Return True
+EndFunc
+
+; Name:        _VD_UnpinWindow
+; Description: Unpins a window from all virtual desktops
+; Parameters:  $hWnd - window handle
+; Return:      True on success, False on failure
+Func _VD_UnpinWindow($hWnd)
+    If $__g_VD_hDLL = -1 Then Return False
+    Local $aResult = DllCall($__g_VD_hDLL, "int", "UnPinWindow", "hwnd", $hWnd)
+    If @error Then
+        _Log_Debug("UnpinWindow DllCall FAILED: hwnd=" & $hWnd & " err=" & @error)
+        Return False
+    EndIf
+    If Not IsArray($aResult) Then
+        _Log_Debug("UnpinWindow non-array result: hwnd=" & $hWnd)
+        Return False
+    EndIf
+    _Log_Debug("UnpinWindow: hwnd=" & $hWnd & " ret=" & $aResult[0])
+    Return True
+EndFunc
+
+; Name:        _VD_IsPinnedWindow
+; Description: Checks if a window is pinned to all virtual desktops
+; Parameters:  $hWnd - window handle
+; Return:      True if pinned, False otherwise
+Func _VD_IsPinnedWindow($hWnd)
+    If $__g_VD_hDLL = -1 Then Return False
+    Local $aResult = DllCall($__g_VD_hDLL, "int", "IsPinnedWindow", "hwnd", $hWnd)
+    If @error Then
+        _Log_Debug("IsPinnedWindow DllCall FAILED: hwnd=" & $hWnd & " err=" & @error)
+        Return False
+    EndIf
+    If Not IsArray($aResult) Then
+        _Log_Debug("IsPinnedWindow non-array result: hwnd=" & $hWnd)
+        Return False
+    EndIf
+    _Log_Debug("IsPinnedWindow: hwnd=" & $hWnd & " ret=" & $aResult[0])
+    Return ($aResult[0] = 1)
+EndFunc
+
+; Name:        _VD_PinApp
+; Description: Pins all windows of an app to appear on all virtual desktops
+; Parameters:  $hWnd - window handle (identifies the app)
+; Return:      True on success, False on failure
+Func _VD_PinApp($hWnd)
+    If $__g_VD_hDLL = -1 Then Return False
+    Local $aResult = DllCall($__g_VD_hDLL, "int", "PinApp", "hwnd", $hWnd)
+    If @error Then
+        _Log_Debug("PinApp DllCall FAILED: hwnd=" & $hWnd & " err=" & @error)
+        Return False
+    EndIf
+    If Not IsArray($aResult) Then
+        _Log_Debug("PinApp non-array result: hwnd=" & $hWnd)
+        Return False
+    EndIf
+    _Log_Debug("PinApp: hwnd=" & $hWnd & " ret=" & $aResult[0])
+    Return True
+EndFunc
+
+; Name:        _VD_UnpinApp
+; Description: Unpins all windows of an app from all virtual desktops
+; Parameters:  $hWnd - window handle (identifies the app)
+; Return:      True on success, False on failure
+Func _VD_UnpinApp($hWnd)
+    If $__g_VD_hDLL = -1 Then Return False
+    Local $aResult = DllCall($__g_VD_hDLL, "int", "UnPinApp", "hwnd", $hWnd)
+    If @error Then
+        _Log_Debug("UnpinApp DllCall FAILED: hwnd=" & $hWnd & " err=" & @error)
+        Return False
+    EndIf
+    If Not IsArray($aResult) Then
+        _Log_Debug("UnpinApp non-array result: hwnd=" & $hWnd)
+        Return False
+    EndIf
+    _Log_Debug("UnpinApp: hwnd=" & $hWnd & " ret=" & $aResult[0])
+    Return True
+EndFunc
+
+; Name:        _VD_IsPinnedApp
+; Description: Checks if an app is pinned to all virtual desktops
+; Parameters:  $hWnd - window handle (identifies the app)
+; Return:      True if pinned, False otherwise
+Func _VD_IsPinnedApp($hWnd)
+    If $__g_VD_hDLL = -1 Then Return False
+    Local $aResult = DllCall($__g_VD_hDLL, "int", "IsPinnedApp", "hwnd", $hWnd)
+    If @error Then
+        _Log_Debug("IsPinnedApp DllCall FAILED: hwnd=" & $hWnd & " err=" & @error)
+        Return False
+    EndIf
+    If Not IsArray($aResult) Then
+        _Log_Debug("IsPinnedApp non-array result: hwnd=" & $hWnd)
+        Return False
+    EndIf
+    _Log_Debug("IsPinnedApp: hwnd=" & $hWnd & " ret=" & $aResult[0])
+    Return ($aResult[0] = 1)
+EndFunc
+
+; Name:        _VD_TogglePinWindow
+; Description: Toggles the pin state of a window on all virtual desktops
+; Parameters:  $hWnd - window handle
+; Return:      True if now pinned, False if now unpinned
+Func _VD_TogglePinWindow($hWnd)
+    If _VD_IsPinnedWindow($hWnd) Then
+        _VD_UnpinWindow($hWnd)
+        Return False
+    Else
+        _VD_PinWindow($hWnd)
+        Return True
+    EndIf
 EndFunc
 
 ; Name:        _VD_Shutdown

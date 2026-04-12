@@ -33,6 +33,11 @@ Global $__g_Cfg_bStartMinimized    = False
 Global $__g_Cfg_bListKeyboardNav   = False
 Global $__g_Cfg_bAutoUpdateEnabled = False
 Global $__g_Cfg_iAutoUpdateInterval = 168
+Global $__g_Cfg_bSingletonEnabled   = True
+Global $__g_Cfg_iMinDesktops        = 0
+Global $__g_Cfg_bTaskbarFocusTrick  = False
+Global $__g_Cfg_bAutoFocusAfterSwitch = False
+Global $__g_Cfg_bCapslockModifier   = False
 
 ; [Updates]
 Global $__g_Cfg_bUpdateCheckOnStartup = False
@@ -70,6 +75,14 @@ For $__i = 1 To 9
     $__g_Cfg_sHotkeyDesktop[$__i] = ""
 Next
 Global $__g_Cfg_sHotkeyToggleList  = ""
+Global $__g_Cfg_sHotkeyToggleLast  = ""
+Global $__g_Cfg_sHotkeyMoveFollowNext = ""
+Global $__g_Cfg_sHotkeyMoveFollowPrev = ""
+Global $__g_Cfg_sHotkeyMoveNext    = ""
+Global $__g_Cfg_sHotkeyMovePrev    = ""
+Global $__g_Cfg_sHotkeySendNewDesktop = ""
+Global $__g_Cfg_sHotkeyPinWindow   = ""
+Global $__g_Cfg_sHotkeyToggleWindowList = ""
 
 ; [Behavior]
 Global $__g_Cfg_bConfirmDelete     = True
@@ -132,6 +145,45 @@ $__g_Cfg_aDesktopColors[7] = 0
 $__g_Cfg_aDesktopColors[8] = 0
 $__g_Cfg_aDesktopColors[9] = 0
 
+; [Wallpaper]
+Global $__g_Cfg_bWallpaperEnabled    = False
+Global $__g_Cfg_iWallpaperChangeDelay = 200
+Global $__g_Cfg_aDesktopWallpaper[10]
+$__g_Cfg_aDesktopWallpaper[0] = 9
+$__g_Cfg_aDesktopWallpaper[1] = ""
+$__g_Cfg_aDesktopWallpaper[2] = ""
+$__g_Cfg_aDesktopWallpaper[3] = ""
+$__g_Cfg_aDesktopWallpaper[4] = ""
+$__g_Cfg_aDesktopWallpaper[5] = ""
+$__g_Cfg_aDesktopWallpaper[6] = ""
+$__g_Cfg_aDesktopWallpaper[7] = ""
+$__g_Cfg_aDesktopWallpaper[8] = ""
+$__g_Cfg_aDesktopWallpaper[9] = ""
+
+; [Pinning]
+Global $__g_Cfg_bPinningEnabled      = False
+
+; [WindowList]
+Global $__g_Cfg_bWindowListEnabled   = False
+Global $__g_Cfg_sWindowListPosition  = "top-left"
+Global $__g_Cfg_iWindowListWidth     = 280
+Global $__g_Cfg_iWindowListMaxVisible = 15
+Global $__g_Cfg_bWindowListShowIcons = True
+Global $__g_Cfg_bWindowListSearch    = True
+Global $__g_Cfg_bWindowListAutoRefresh = True
+Global $__g_Cfg_iWindowListRefreshInterval = 1000
+
+; [ExplorerMonitor]
+Global $__g_Cfg_bExplorerMonitorEnabled = False
+Global $__g_Cfg_iExplorerCheckInterval  = 5000
+Global $__g_Cfg_bExplorerNotifyRecovery = True
+
+; [Notifications]
+Global $__g_Cfg_bNotifyWindowMoved    = False
+Global $__g_Cfg_bNotifyDesktopCreated = False
+Global $__g_Cfg_bNotifyDesktopDeleted = False
+Global $__g_Cfg_bNotifyWindowPinned   = False
+
 ; #FUNCTIONS# ===================================================
 
 ; Name:        _Cfg_Init
@@ -189,6 +241,11 @@ Func _Cfg_Load()
     $__g_Cfg_bListKeyboardNav   = __Cfg_ReadBool($f, "General", "list_keyboard_nav", False)
     $__g_Cfg_bAutoUpdateEnabled = __Cfg_ReadBool($f, "General", "auto_update_enabled", False)
     $__g_Cfg_iAutoUpdateInterval = __Cfg_ReadInt($f, "General", "auto_update_interval", 168, 1, 720)
+    $__g_Cfg_bSingletonEnabled   = __Cfg_ReadBool($f, "General", "singleton_enabled", True)
+    $__g_Cfg_iMinDesktops        = __Cfg_ReadInt($f, "General", "min_desktops", 0, 0, 20)
+    $__g_Cfg_bTaskbarFocusTrick  = __Cfg_ReadBool($f, "General", "taskbar_focus_trick", False)
+    $__g_Cfg_bAutoFocusAfterSwitch = __Cfg_ReadBool($f, "General", "auto_focus_after_switch", False)
+    $__g_Cfg_bCapslockModifier   = __Cfg_ReadBool($f, "General", "capslock_modifier", False)
 
     ; [Updates]
     $__g_Cfg_bUpdateCheckOnStartup = __Cfg_ReadBool($f, "Updates", "update_check_on_startup", False)
@@ -227,6 +284,14 @@ Func _Cfg_Load()
         $__g_Cfg_sHotkeyDesktop[$i] = IniRead($f, "Hotkeys", "hotkey_desktop_" & $i, "")
     Next
     $__g_Cfg_sHotkeyToggleList = IniRead($f, "Hotkeys", "hotkey_toggle_list", "")
+    $__g_Cfg_sHotkeyToggleLast = IniRead($f, "Hotkeys", "hotkey_toggle_last", "")
+    $__g_Cfg_sHotkeyMoveFollowNext = IniRead($f, "Hotkeys", "hotkey_move_follow_next", "")
+    $__g_Cfg_sHotkeyMoveFollowPrev = IniRead($f, "Hotkeys", "hotkey_move_follow_prev", "")
+    $__g_Cfg_sHotkeyMoveNext    = IniRead($f, "Hotkeys", "hotkey_move_next", "")
+    $__g_Cfg_sHotkeyMovePrev    = IniRead($f, "Hotkeys", "hotkey_move_prev", "")
+    $__g_Cfg_sHotkeySendNewDesktop = IniRead($f, "Hotkeys", "hotkey_send_new_desktop", "")
+    $__g_Cfg_sHotkeyPinWindow   = IniRead($f, "Hotkeys", "hotkey_pin_window", "")
+    $__g_Cfg_sHotkeyToggleWindowList = IniRead($f, "Hotkeys", "hotkey_toggle_window_list", "")
 
     ; [Behavior]
     $__g_Cfg_bConfirmDelete     = __Cfg_ReadBool($f, "Behavior", "confirm_delete", True)
@@ -281,6 +346,38 @@ Func _Cfg_Load()
             $__g_Cfg_aDesktopColors[$i] = $aDefColors[$i]
         EndIf
     Next
+
+    ; [Wallpaper]
+    $__g_Cfg_bWallpaperEnabled    = __Cfg_ReadBool($f, "Wallpaper", "wallpaper_enabled", False)
+    $__g_Cfg_iWallpaperChangeDelay = __Cfg_ReadInt($f, "Wallpaper", "wallpaper_change_delay", 200, 50, 2000)
+    For $i = 1 To 9
+        $__g_Cfg_aDesktopWallpaper[$i] = IniRead($f, "Wallpaper", "desktop_" & $i & "_wallpaper", "")
+    Next
+
+    ; [Pinning]
+    $__g_Cfg_bPinningEnabled      = __Cfg_ReadBool($f, "Pinning", "pinning_enabled", False)
+
+    ; [WindowList]
+    $__g_Cfg_bWindowListEnabled   = __Cfg_ReadBool($f, "WindowList", "window_list_enabled", False)
+    $__g_Cfg_sWindowListPosition  = __Cfg_ReadEnum($f, "WindowList", "window_list_position", "top-left", _
+        "top-left|top-right|bottom-left|bottom-right")
+    $__g_Cfg_iWindowListWidth     = __Cfg_ReadInt($f, "WindowList", "window_list_width", 280, 150, 600)
+    $__g_Cfg_iWindowListMaxVisible = __Cfg_ReadInt($f, "WindowList", "window_list_max_visible", 15, 5, 50)
+    $__g_Cfg_bWindowListShowIcons = __Cfg_ReadBool($f, "WindowList", "window_list_show_icons", True)
+    $__g_Cfg_bWindowListSearch    = __Cfg_ReadBool($f, "WindowList", "window_list_search", True)
+    $__g_Cfg_bWindowListAutoRefresh = __Cfg_ReadBool($f, "WindowList", "window_list_auto_refresh", True)
+    $__g_Cfg_iWindowListRefreshInterval = __Cfg_ReadInt($f, "WindowList", "window_list_refresh_interval", 1000, 500, 10000)
+
+    ; [ExplorerMonitor]
+    $__g_Cfg_bExplorerMonitorEnabled = __Cfg_ReadBool($f, "ExplorerMonitor", "explorer_monitor_enabled", False)
+    $__g_Cfg_iExplorerCheckInterval  = __Cfg_ReadInt($f, "ExplorerMonitor", "explorer_check_interval", 5000, 2000, 60000)
+    $__g_Cfg_bExplorerNotifyRecovery = __Cfg_ReadBool($f, "ExplorerMonitor", "explorer_notify_recovery", True)
+
+    ; [Notifications]
+    $__g_Cfg_bNotifyWindowMoved    = __Cfg_ReadBool($f, "Notifications", "notify_window_moved", False)
+    $__g_Cfg_bNotifyDesktopCreated = __Cfg_ReadBool($f, "Notifications", "notify_desktop_created", False)
+    $__g_Cfg_bNotifyDesktopDeleted = __Cfg_ReadBool($f, "Notifications", "notify_desktop_deleted", False)
+    $__g_Cfg_bNotifyWindowPinned   = __Cfg_ReadBool($f, "Notifications", "notify_window_pinned", False)
 EndFunc
 
 ; Name:        _Cfg_Save
@@ -315,6 +412,11 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "General", "list_keyboard_nav", $__g_Cfg_bListKeyboardNav)
     __Cfg_WriteBool($f, "General", "auto_update_enabled", $__g_Cfg_bAutoUpdateEnabled)
     IniWrite($f, "General", "auto_update_interval", $__g_Cfg_iAutoUpdateInterval)
+    __Cfg_WriteBool($f, "General", "singleton_enabled", $__g_Cfg_bSingletonEnabled)
+    IniWrite($f, "General", "min_desktops", $__g_Cfg_iMinDesktops)
+    __Cfg_WriteBool($f, "General", "taskbar_focus_trick", $__g_Cfg_bTaskbarFocusTrick)
+    __Cfg_WriteBool($f, "General", "auto_focus_after_switch", $__g_Cfg_bAutoFocusAfterSwitch)
+    __Cfg_WriteBool($f, "General", "capslock_modifier", $__g_Cfg_bCapslockModifier)
 
     ; [Updates]
     __Cfg_WriteBool($f, "Updates", "update_check_on_startup", $__g_Cfg_bUpdateCheckOnStartup)
@@ -353,6 +455,14 @@ Func _Cfg_Save()
         IniWrite($f, "Hotkeys", "hotkey_desktop_" & $i, $__g_Cfg_sHotkeyDesktop[$i])
     Next
     IniWrite($f, "Hotkeys", "hotkey_toggle_list", $__g_Cfg_sHotkeyToggleList)
+    IniWrite($f, "Hotkeys", "hotkey_toggle_last", $__g_Cfg_sHotkeyToggleLast)
+    IniWrite($f, "Hotkeys", "hotkey_move_follow_next", $__g_Cfg_sHotkeyMoveFollowNext)
+    IniWrite($f, "Hotkeys", "hotkey_move_follow_prev", $__g_Cfg_sHotkeyMoveFollowPrev)
+    IniWrite($f, "Hotkeys", "hotkey_move_next", $__g_Cfg_sHotkeyMoveNext)
+    IniWrite($f, "Hotkeys", "hotkey_move_prev", $__g_Cfg_sHotkeyMovePrev)
+    IniWrite($f, "Hotkeys", "hotkey_send_new_desktop", $__g_Cfg_sHotkeySendNewDesktop)
+    IniWrite($f, "Hotkeys", "hotkey_pin_window", $__g_Cfg_sHotkeyPinWindow)
+    IniWrite($f, "Hotkeys", "hotkey_toggle_window_list", $__g_Cfg_sHotkeyToggleWindowList)
 
     ; [Behavior]
     __Cfg_WriteBool($f, "Behavior", "confirm_delete", $__g_Cfg_bConfirmDelete)
@@ -402,6 +512,37 @@ Func _Cfg_Save()
         IniWrite($f, "DesktopColors", "desktop_" & $i & "_color", "0x" & Hex($__g_Cfg_aDesktopColors[$i], 6))
     Next
 
+    ; [Wallpaper]
+    __Cfg_WriteBool($f, "Wallpaper", "wallpaper_enabled", $__g_Cfg_bWallpaperEnabled)
+    IniWrite($f, "Wallpaper", "wallpaper_change_delay", $__g_Cfg_iWallpaperChangeDelay)
+    For $i = 1 To 9
+        IniWrite($f, "Wallpaper", "desktop_" & $i & "_wallpaper", $__g_Cfg_aDesktopWallpaper[$i])
+    Next
+
+    ; [Pinning]
+    __Cfg_WriteBool($f, "Pinning", "pinning_enabled", $__g_Cfg_bPinningEnabled)
+
+    ; [WindowList]
+    __Cfg_WriteBool($f, "WindowList", "window_list_enabled", $__g_Cfg_bWindowListEnabled)
+    IniWrite($f, "WindowList", "window_list_position", $__g_Cfg_sWindowListPosition)
+    IniWrite($f, "WindowList", "window_list_width", $__g_Cfg_iWindowListWidth)
+    IniWrite($f, "WindowList", "window_list_max_visible", $__g_Cfg_iWindowListMaxVisible)
+    __Cfg_WriteBool($f, "WindowList", "window_list_show_icons", $__g_Cfg_bWindowListShowIcons)
+    __Cfg_WriteBool($f, "WindowList", "window_list_search", $__g_Cfg_bWindowListSearch)
+    __Cfg_WriteBool($f, "WindowList", "window_list_auto_refresh", $__g_Cfg_bWindowListAutoRefresh)
+    IniWrite($f, "WindowList", "window_list_refresh_interval", $__g_Cfg_iWindowListRefreshInterval)
+
+    ; [ExplorerMonitor]
+    __Cfg_WriteBool($f, "ExplorerMonitor", "explorer_monitor_enabled", $__g_Cfg_bExplorerMonitorEnabled)
+    IniWrite($f, "ExplorerMonitor", "explorer_check_interval", $__g_Cfg_iExplorerCheckInterval)
+    __Cfg_WriteBool($f, "ExplorerMonitor", "explorer_notify_recovery", $__g_Cfg_bExplorerNotifyRecovery)
+
+    ; [Notifications]
+    __Cfg_WriteBool($f, "Notifications", "notify_window_moved", $__g_Cfg_bNotifyWindowMoved)
+    __Cfg_WriteBool($f, "Notifications", "notify_desktop_created", $__g_Cfg_bNotifyDesktopCreated)
+    __Cfg_WriteBool($f, "Notifications", "notify_desktop_deleted", $__g_Cfg_bNotifyDesktopDeleted)
+    __Cfg_WriteBool($f, "Notifications", "notify_window_pinned", $__g_Cfg_bNotifyWindowPinned)
+
     ; Verify write succeeded before replacing original
     Local $sVerify = IniRead($f, "General", "wrap_navigation", "")
     If $sVerify = "" Then
@@ -437,6 +578,11 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "General", "list_keyboard_nav", False)
     __Cfg_DefaultBool($f, "General", "auto_update_enabled", False)
     __Cfg_DefaultVal($f, "General", "auto_update_interval", 168)
+    __Cfg_DefaultBool($f, "General", "singleton_enabled", True)
+    __Cfg_DefaultVal($f, "General", "min_desktops", 0)
+    __Cfg_DefaultBool($f, "General", "taskbar_focus_trick", False)
+    __Cfg_DefaultBool($f, "General", "auto_focus_after_switch", False)
+    __Cfg_DefaultBool($f, "General", "capslock_modifier", False)
 
     __Cfg_DefaultBool($f, "Updates", "update_check_on_startup", False)
     __Cfg_DefaultVal($f, "Updates", "update_check_days", 7)
@@ -471,6 +617,14 @@ Func _Cfg_WriteDefaults()
         __Cfg_DefaultVal($f, "Hotkeys", "hotkey_desktop_" & $i, "")
     Next
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_list", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_last", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_move_follow_next", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_move_follow_prev", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_move_next", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_move_prev", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_send_new_desktop", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_pin_window", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_window_list", "")
 
     __Cfg_DefaultBool($f, "Behavior", "confirm_delete", True)
     __Cfg_DefaultBool($f, "Behavior", "middle_click_delete", False)
@@ -516,6 +670,32 @@ Func _Cfg_WriteDefaults()
     For $i = 1 To 9
         __Cfg_DefaultVal($f, "DesktopColors", "desktop_" & $i & "_color", "0x" & Hex($aDefColors[$i], 6))
     Next
+
+    __Cfg_DefaultBool($f, "Wallpaper", "wallpaper_enabled", False)
+    __Cfg_DefaultVal($f, "Wallpaper", "wallpaper_change_delay", 200)
+    For $i = 1 To 9
+        __Cfg_DefaultVal($f, "Wallpaper", "desktop_" & $i & "_wallpaper", "")
+    Next
+
+    __Cfg_DefaultBool($f, "Pinning", "pinning_enabled", False)
+
+    __Cfg_DefaultBool($f, "WindowList", "window_list_enabled", False)
+    __Cfg_DefaultVal($f, "WindowList", "window_list_position", "top-left")
+    __Cfg_DefaultVal($f, "WindowList", "window_list_width", 280)
+    __Cfg_DefaultVal($f, "WindowList", "window_list_max_visible", 15)
+    __Cfg_DefaultBool($f, "WindowList", "window_list_show_icons", True)
+    __Cfg_DefaultBool($f, "WindowList", "window_list_search", True)
+    __Cfg_DefaultBool($f, "WindowList", "window_list_auto_refresh", True)
+    __Cfg_DefaultVal($f, "WindowList", "window_list_refresh_interval", 1000)
+
+    __Cfg_DefaultBool($f, "ExplorerMonitor", "explorer_monitor_enabled", False)
+    __Cfg_DefaultVal($f, "ExplorerMonitor", "explorer_check_interval", 5000)
+    __Cfg_DefaultBool($f, "ExplorerMonitor", "explorer_notify_recovery", True)
+
+    __Cfg_DefaultBool($f, "Notifications", "notify_window_moved", False)
+    __Cfg_DefaultBool($f, "Notifications", "notify_desktop_created", False)
+    __Cfg_DefaultBool($f, "Notifications", "notify_desktop_deleted", False)
+    __Cfg_DefaultBool($f, "Notifications", "notify_window_pinned", False)
 EndFunc
 
 ; =============================================
@@ -580,6 +760,21 @@ Func _Cfg_GetAutoUpdateInterval()
 EndFunc
 Func _Cfg_GetAutoUpdateIntervalHours()
     Return $__g_Cfg_iAutoUpdateInterval
+EndFunc
+Func _Cfg_GetSingletonEnabled()
+    Return $__g_Cfg_bSingletonEnabled
+EndFunc
+Func _Cfg_GetMinDesktops()
+    Return $__g_Cfg_iMinDesktops
+EndFunc
+Func _Cfg_GetTaskbarFocusTrick()
+    Return $__g_Cfg_bTaskbarFocusTrick
+EndFunc
+Func _Cfg_GetAutoFocusAfterSwitch()
+    Return $__g_Cfg_bAutoFocusAfterSwitch
+EndFunc
+Func _Cfg_GetCapslockModifier()
+    Return $__g_Cfg_bCapslockModifier
 EndFunc
 
 ; [Updates]
@@ -675,6 +870,30 @@ Func _Cfg_GetHotkeyDesktop($i)
 EndFunc
 Func _Cfg_GetHotkeyToggleList()
     Return $__g_Cfg_sHotkeyToggleList
+EndFunc
+Func _Cfg_GetHotkeyToggleLast()
+    Return $__g_Cfg_sHotkeyToggleLast
+EndFunc
+Func _Cfg_GetHotkeyMoveFollowNext()
+    Return $__g_Cfg_sHotkeyMoveFollowNext
+EndFunc
+Func _Cfg_GetHotkeyMoveFollowPrev()
+    Return $__g_Cfg_sHotkeyMoveFollowPrev
+EndFunc
+Func _Cfg_GetHotkeyMoveNext()
+    Return $__g_Cfg_sHotkeyMoveNext
+EndFunc
+Func _Cfg_GetHotkeyMovePrev()
+    Return $__g_Cfg_sHotkeyMovePrev
+EndFunc
+Func _Cfg_GetHotkeySendNewDesktop()
+    Return $__g_Cfg_sHotkeySendNewDesktop
+EndFunc
+Func _Cfg_GetHotkeyPinWindow()
+    Return $__g_Cfg_sHotkeyPinWindow
+EndFunc
+Func _Cfg_GetHotkeyToggleWindowList()
+    Return $__g_Cfg_sHotkeyToggleWindowList
 EndFunc
 
 ; [Behavior]
@@ -851,6 +1070,74 @@ Func _Cfg_GetDesktopColor($i)
     Return $__g_Cfg_aDesktopColors[$i]
 EndFunc
 
+; [Wallpaper]
+Func _Cfg_GetWallpaperEnabled()
+    Return $__g_Cfg_bWallpaperEnabled
+EndFunc
+Func _Cfg_GetWallpaperChangeDelay()
+    Return $__g_Cfg_iWallpaperChangeDelay
+EndFunc
+Func _Cfg_GetDesktopWallpaper($i)
+    If $i < 1 Or $i > 9 Then Return ""
+    Return $__g_Cfg_aDesktopWallpaper[$i]
+EndFunc
+
+; [Pinning]
+Func _Cfg_GetPinningEnabled()
+    Return $__g_Cfg_bPinningEnabled
+EndFunc
+
+; [WindowList]
+Func _Cfg_GetWindowListEnabled()
+    Return $__g_Cfg_bWindowListEnabled
+EndFunc
+Func _Cfg_GetWindowListPosition()
+    Return $__g_Cfg_sWindowListPosition
+EndFunc
+Func _Cfg_GetWindowListWidth()
+    Return $__g_Cfg_iWindowListWidth
+EndFunc
+Func _Cfg_GetWindowListMaxVisible()
+    Return $__g_Cfg_iWindowListMaxVisible
+EndFunc
+Func _Cfg_GetWindowListShowIcons()
+    Return $__g_Cfg_bWindowListShowIcons
+EndFunc
+Func _Cfg_GetWindowListSearch()
+    Return $__g_Cfg_bWindowListSearch
+EndFunc
+Func _Cfg_GetWindowListAutoRefresh()
+    Return $__g_Cfg_bWindowListAutoRefresh
+EndFunc
+Func _Cfg_GetWindowListRefreshInterval()
+    Return $__g_Cfg_iWindowListRefreshInterval
+EndFunc
+
+; [ExplorerMonitor]
+Func _Cfg_GetExplorerMonitorEnabled()
+    Return $__g_Cfg_bExplorerMonitorEnabled
+EndFunc
+Func _Cfg_GetExplorerCheckInterval()
+    Return $__g_Cfg_iExplorerCheckInterval
+EndFunc
+Func _Cfg_GetExplorerNotifyRecovery()
+    Return $__g_Cfg_bExplorerNotifyRecovery
+EndFunc
+
+; [Notifications]
+Func _Cfg_GetNotifyWindowMoved()
+    Return $__g_Cfg_bNotifyWindowMoved
+EndFunc
+Func _Cfg_GetNotifyDesktopCreated()
+    Return $__g_Cfg_bNotifyDesktopCreated
+EndFunc
+Func _Cfg_GetNotifyDesktopDeleted()
+    Return $__g_Cfg_bNotifyDesktopDeleted
+EndFunc
+Func _Cfg_GetNotifyWindowPinned()
+    Return $__g_Cfg_bNotifyWindowPinned
+EndFunc
+
 ; =============================================
 ; TYPED SETTERS
 ; =============================================
@@ -934,6 +1221,23 @@ Func _Cfg_SetAutoUpdateInterval($iHours)
     If $iHours < 1 Then $iHours = 1
     If $iHours > 720 Then $iHours = 720
     $__g_Cfg_iAutoUpdateInterval = $iHours
+EndFunc
+Func _Cfg_SetSingletonEnabled($b)
+    $__g_Cfg_bSingletonEnabled = $b
+EndFunc
+Func _Cfg_SetMinDesktops($i)
+    If $i < 0 Then $i = 0
+    If $i > 20 Then $i = 20
+    $__g_Cfg_iMinDesktops = $i
+EndFunc
+Func _Cfg_SetTaskbarFocusTrick($b)
+    $__g_Cfg_bTaskbarFocusTrick = $b
+EndFunc
+Func _Cfg_SetAutoFocusAfterSwitch($b)
+    $__g_Cfg_bAutoFocusAfterSwitch = $b
+EndFunc
+Func _Cfg_SetCapslockModifier($b)
+    $__g_Cfg_bCapslockModifier = $b
 EndFunc
 
 ; [Updates]
@@ -1043,6 +1347,30 @@ Func _Cfg_SetHotkeyDesktop($i, $s)
 EndFunc
 Func _Cfg_SetHotkeyToggleList($s)
     $__g_Cfg_sHotkeyToggleList = $s
+EndFunc
+Func _Cfg_SetHotkeyToggleLast($s)
+    $__g_Cfg_sHotkeyToggleLast = $s
+EndFunc
+Func _Cfg_SetHotkeyMoveFollowNext($s)
+    $__g_Cfg_sHotkeyMoveFollowNext = $s
+EndFunc
+Func _Cfg_SetHotkeyMoveFollowPrev($s)
+    $__g_Cfg_sHotkeyMoveFollowPrev = $s
+EndFunc
+Func _Cfg_SetHotkeyMoveNext($s)
+    $__g_Cfg_sHotkeyMoveNext = $s
+EndFunc
+Func _Cfg_SetHotkeyMovePrev($s)
+    $__g_Cfg_sHotkeyMovePrev = $s
+EndFunc
+Func _Cfg_SetHotkeySendNewDesktop($s)
+    $__g_Cfg_sHotkeySendNewDesktop = $s
+EndFunc
+Func _Cfg_SetHotkeyPinWindow($s)
+    $__g_Cfg_sHotkeyPinWindow = $s
+EndFunc
+Func _Cfg_SetHotkeyToggleWindowList($s)
+    $__g_Cfg_sHotkeyToggleWindowList = $s
 EndFunc
 
 ; [Behavior]
@@ -1154,6 +1482,85 @@ Func _Cfg_SetDesktopColorsEnabled($b)
 EndFunc
 Func _Cfg_SetDesktopColor($i, $iColor)
     If $i >= 1 And $i <= 9 Then $__g_Cfg_aDesktopColors[$i] = Int($iColor)
+EndFunc
+
+; [Wallpaper]
+Func _Cfg_SetWallpaperEnabled($b)
+    $__g_Cfg_bWallpaperEnabled = $b
+EndFunc
+Func _Cfg_SetWallpaperChangeDelay($i)
+    If $i < 50 Then $i = 50
+    If $i > 2000 Then $i = 2000
+    $__g_Cfg_iWallpaperChangeDelay = $i
+EndFunc
+Func _Cfg_SetDesktopWallpaper($i, $s)
+    If $i >= 1 And $i <= 9 Then $__g_Cfg_aDesktopWallpaper[$i] = $s
+EndFunc
+
+; [Pinning]
+Func _Cfg_SetPinningEnabled($b)
+    $__g_Cfg_bPinningEnabled = $b
+EndFunc
+
+; [WindowList]
+Func _Cfg_SetWindowListEnabled($b)
+    $__g_Cfg_bWindowListEnabled = $b
+EndFunc
+Func _Cfg_SetWindowListPosition($s)
+    Local $sValid = "top-left|top-right|bottom-left|bottom-right"
+    If Not StringInStr("|" & $sValid & "|", "|" & $s & "|") Then $s = "top-left"
+    $__g_Cfg_sWindowListPosition = $s
+EndFunc
+Func _Cfg_SetWindowListWidth($i)
+    If $i < 150 Then $i = 150
+    If $i > 600 Then $i = 600
+    $__g_Cfg_iWindowListWidth = $i
+EndFunc
+Func _Cfg_SetWindowListMaxVisible($i)
+    If $i < 5 Then $i = 5
+    If $i > 50 Then $i = 50
+    $__g_Cfg_iWindowListMaxVisible = $i
+EndFunc
+Func _Cfg_SetWindowListShowIcons($b)
+    $__g_Cfg_bWindowListShowIcons = $b
+EndFunc
+Func _Cfg_SetWindowListSearch($b)
+    $__g_Cfg_bWindowListSearch = $b
+EndFunc
+Func _Cfg_SetWindowListAutoRefresh($b)
+    $__g_Cfg_bWindowListAutoRefresh = $b
+EndFunc
+Func _Cfg_SetWindowListRefreshInterval($i)
+    If $i < 500 Then $i = 500
+    If $i > 10000 Then $i = 10000
+    $__g_Cfg_iWindowListRefreshInterval = $i
+EndFunc
+
+; [ExplorerMonitor]
+Func _Cfg_SetExplorerMonitorEnabled($b)
+    $__g_Cfg_bExplorerMonitorEnabled = $b
+EndFunc
+Func _Cfg_SetExplorerCheckInterval($i)
+    If $i < 2000 Then $i = 2000
+    If $i > 60000 Then $i = 60000
+    $__g_Cfg_iExplorerCheckInterval = $i
+EndFunc
+Func _Cfg_SetExplorerNotifyRecovery($b)
+    $__g_Cfg_bExplorerNotifyRecovery = $b
+EndFunc
+
+; [Notifications]
+Func _Cfg_SetNotifyWindowMoved($b)
+    $__g_Cfg_bNotifyWindowMoved = $b
+EndFunc
+Func _Cfg_SetNotifyDesktopCreated($b)
+    $__g_Cfg_bNotifyDesktopCreated = $b
+EndFunc
+Func _Cfg_SetNotifyDesktopDeleted($b)
+    $__g_Cfg_bNotifyDesktopDeleted = $b
+EndFunc
+Func _Cfg_SetNotifyWindowPinned($b)
+    $__g_Cfg_bNotifyWindowPinned = $b
 EndFunc
 
 ; =============================================
