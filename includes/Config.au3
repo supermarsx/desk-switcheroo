@@ -85,6 +85,8 @@ Global $__g_Cfg_sHotkeyMovePrev    = ""
 Global $__g_Cfg_sHotkeySendNewDesktop = ""
 Global $__g_Cfg_sHotkeyPinWindow   = ""
 Global $__g_Cfg_sHotkeyToggleWindowList = ""
+Global $__g_Cfg_sHotkeyOpenSettings = "^!s"
+Global $__g_Cfg_bHotkeysEnabled = True
 
 ; [Behavior]
 Global $__g_Cfg_bConfirmDelete     = True
@@ -309,6 +311,8 @@ Func _Cfg_Load()
     $__g_Cfg_sHotkeySendNewDesktop = IniRead($f, "Hotkeys", "hotkey_send_new_desktop", "")
     $__g_Cfg_sHotkeyPinWindow   = IniRead($f, "Hotkeys", "hotkey_pin_window", "")
     $__g_Cfg_sHotkeyToggleWindowList = IniRead($f, "Hotkeys", "hotkey_toggle_window_list", "")
+    $__g_Cfg_sHotkeyOpenSettings = IniRead($f, "Hotkeys", "hotkey_open_settings", "^!s")
+    $__g_Cfg_bHotkeysEnabled = __Cfg_ReadBool($f, "Hotkeys", "hotkeys_enabled", True)
 
     ; [Behavior]
     $__g_Cfg_bConfirmDelete     = __Cfg_ReadBool($f, "Behavior", "confirm_delete", True)
@@ -497,6 +501,8 @@ Func _Cfg_Save()
     IniWrite($f, "Hotkeys", "hotkey_send_new_desktop", $__g_Cfg_sHotkeySendNewDesktop)
     IniWrite($f, "Hotkeys", "hotkey_pin_window", $__g_Cfg_sHotkeyPinWindow)
     IniWrite($f, "Hotkeys", "hotkey_toggle_window_list", $__g_Cfg_sHotkeyToggleWindowList)
+    IniWrite($f, "Hotkeys", "hotkey_open_settings", $__g_Cfg_sHotkeyOpenSettings)
+    __Cfg_WriteBool($f, "Hotkeys", "hotkeys_enabled", $__g_Cfg_bHotkeysEnabled)
 
     ; [Behavior]
     __Cfg_WriteBool($f, "Behavior", "confirm_delete", $__g_Cfg_bConfirmDelete)
@@ -674,6 +680,8 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_send_new_desktop", "")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_pin_window", "")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_window_list", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_open_settings", "^!s")
+    __Cfg_DefaultBool($f, "Hotkeys", "hotkeys_enabled", True)
 
     __Cfg_DefaultBool($f, "Behavior", "confirm_delete", True)
     __Cfg_DefaultBool($f, "Behavior", "middle_click_delete", False)
@@ -959,6 +967,12 @@ Func _Cfg_GetHotkeyPinWindow()
 EndFunc
 Func _Cfg_GetHotkeyToggleWindowList()
     Return $__g_Cfg_sHotkeyToggleWindowList
+EndFunc
+Func _Cfg_GetHotkeyOpenSettings()
+    Return $__g_Cfg_sHotkeyOpenSettings
+EndFunc
+Func _Cfg_GetHotkeysEnabled()
+    Return $__g_Cfg_bHotkeysEnabled
 EndFunc
 
 ; [Behavior]
@@ -1491,6 +1505,12 @@ Func _Cfg_SetHotkeyPinWindow($s)
 EndFunc
 Func _Cfg_SetHotkeyToggleWindowList($s)
     $__g_Cfg_sHotkeyToggleWindowList = $s
+EndFunc
+Func _Cfg_SetHotkeyOpenSettings($s)
+    $__g_Cfg_sHotkeyOpenSettings = $s
+EndFunc
+Func _Cfg_SetHotkeysEnabled($b)
+    $__g_Cfg_bHotkeysEnabled = $b
 EndFunc
 
 ; [Behavior]

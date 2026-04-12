@@ -1569,6 +1569,7 @@ EndFunc
 ; Name:        _RegisterHotkeys
 ; Description: Registers all configured global hotkeys
 Func _RegisterHotkeys()
+    If Not _Cfg_GetHotkeysEnabled() Then Return
     Local $sKey, $i, $iRet
     $sKey = _Cfg_GetHotkeyNext()
     If $sKey <> "" Then
@@ -1632,8 +1633,10 @@ Func _RegisterHotkeys()
         $iRet = HotKeySet($sKey, "_HK_ToggleWindowList")
         If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (toggle window list)")
     EndIf
-    ; Settings shortcut (always registered, not configurable)
-    HotKeySet("^!s", "_HK_OpenSettings")
+    $sKey = _Cfg_GetHotkeyOpenSettings()
+    If $sKey <> "" Then
+        If HotKeySet($sKey, "_HK_OpenSettings") = 0 Then _Log_Warn("Hotkey failed: " & $sKey & " (settings)")
+    EndIf
 EndFunc
 
 ; Name:        _UnregisterHotkeys
@@ -1666,7 +1669,8 @@ Func _UnregisterHotkeys()
     If $sKey <> "" Then HotKeySet($sKey)
     $sKey = _Cfg_GetHotkeyToggleWindowList()
     If $sKey <> "" Then HotKeySet($sKey)
-    HotKeySet("^!s")
+    $sKey = _Cfg_GetHotkeyOpenSettings()
+    If $sKey <> "" Then HotKeySet($sKey)
 EndFunc
 
 ; Name:        _HK_Next
