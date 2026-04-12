@@ -640,13 +640,12 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 EndIf
             Case "pin"
                 If _Cfg_GetPinningEnabled() Then
+                    Local $bWasPinnedWL = _VD_IsPinnedWindow($hWLTarget)
                     _VD_TogglePinWindow($hWLTarget)
-                    If _Cfg_GetNotifyWindowPinned() Then
-                        If _VD_IsPinnedWindow($hWLTarget) Then
-                            _Theme_Toast(_i18n("Toasts.toast_window_pinned", "Window pinned to all desktops"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
-                        Else
-                            _Theme_Toast(_i18n("Toasts.toast_window_unpinned", "Window unpinned"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
-                        EndIf
+                    If Not $bWasPinnedWL And _Cfg_GetNotifyWindowPinned() Then
+                        _Theme_Toast(_i18n("Toasts.toast_window_pinned", "Window pinned to all desktops"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                    ElseIf $bWasPinnedWL And _Cfg_GetNotifyWindowUnpinned() Then
+                        _Theme_Toast(_i18n("Toasts.toast_window_unpinned", "Window unpinned"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
                     EndIf
                     _WL_Refresh($iDesktop)
                 EndIf
@@ -955,7 +954,7 @@ Func _ProcessEventFlags()
         ; Re-register desktop change hook
         _VD_RegisterNotify($gui, $WM_VD_NOTIFY)
         ; Show notification
-        If _Cfg_GetExplorerNotifyRecovery() Then
+        If _Cfg_GetExplorerNotifyRecovery() Or _Cfg_GetNotifyExplorerRecovery() Then
             _Theme_Toast(_i18n("Toasts.toast_explorer_recovered", "Explorer recovered — reinitializing"), 0, $iTaskbarY + $iTaskbarH + 4, 3000, $TOAST_WARNING)
         EndIf
     EndIf
@@ -1913,12 +1912,10 @@ Func _HK_PinWindow()
     If $hWnd = $gui Then Return
     _Log_Debug("Hotkey: toggle pin window -> " & $hWnd)
     Local $bPinned = _VD_TogglePinWindow($hWnd)
-    If _Cfg_GetNotifyWindowPinned() Then
-        If $bPinned Then
-            _Theme_Toast(_i18n("Toasts.toast_window_pinned", "Window pinned to all desktops"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
-        Else
-            _Theme_Toast(_i18n("Toasts.toast_window_unpinned", "Window unpinned"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
-        EndIf
+    If $bPinned And _Cfg_GetNotifyWindowPinned() Then
+        _Theme_Toast(_i18n("Toasts.toast_window_pinned", "Window pinned to all desktops"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+    ElseIf Not $bPinned And _Cfg_GetNotifyWindowUnpinned() Then
+        _Theme_Toast(_i18n("Toasts.toast_window_unpinned", "Window unpinned"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
     EndIf
 EndFunc
 

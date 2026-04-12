@@ -186,10 +186,13 @@ Global $__g_Cfg_iMonitorRestartDelay     = 2000
 Global $__g_Cfg_bExplorerNotifyRecovery  = True
 
 ; [Notifications]
-Global $__g_Cfg_bNotifyWindowMoved    = False
-Global $__g_Cfg_bNotifyDesktopCreated = False
-Global $__g_Cfg_bNotifyDesktopDeleted = False
-Global $__g_Cfg_bNotifyWindowPinned   = False
+Global $__g_Cfg_bNotifyWindowMoved      = False
+Global $__g_Cfg_bNotifyDesktopCreated   = False
+Global $__g_Cfg_bNotifyDesktopDeleted   = False
+Global $__g_Cfg_bNotifyWindowPinned     = False
+Global $__g_Cfg_bNotifyWindowUnpinned   = False
+Global $__g_Cfg_bNotifyExplorerRecovery = False
+Global $__g_Cfg_sWindowListScope        = "current" ; "current" or "all"
 
 ; #FUNCTIONS# ===================================================
 
@@ -389,10 +392,13 @@ Func _Cfg_Load()
     $__g_Cfg_bExplorerNotifyRecovery = __Cfg_ReadBool($f, "ExplorerMonitor", "explorer_notify_recovery", True)
 
     ; [Notifications]
-    $__g_Cfg_bNotifyWindowMoved    = __Cfg_ReadBool($f, "Notifications", "notify_window_moved", False)
-    $__g_Cfg_bNotifyDesktopCreated = __Cfg_ReadBool($f, "Notifications", "notify_desktop_created", False)
-    $__g_Cfg_bNotifyDesktopDeleted = __Cfg_ReadBool($f, "Notifications", "notify_desktop_deleted", False)
-    $__g_Cfg_bNotifyWindowPinned   = __Cfg_ReadBool($f, "Notifications", "notify_window_pinned", False)
+    $__g_Cfg_bNotifyWindowMoved      = __Cfg_ReadBool($f, "Notifications", "notify_window_moved", False)
+    $__g_Cfg_bNotifyDesktopCreated   = __Cfg_ReadBool($f, "Notifications", "notify_desktop_created", False)
+    $__g_Cfg_bNotifyDesktopDeleted   = __Cfg_ReadBool($f, "Notifications", "notify_desktop_deleted", False)
+    $__g_Cfg_bNotifyWindowPinned     = __Cfg_ReadBool($f, "Notifications", "notify_window_pinned", False)
+    $__g_Cfg_bNotifyWindowUnpinned   = __Cfg_ReadBool($f, "Notifications", "notify_window_unpinned", False)
+    $__g_Cfg_bNotifyExplorerRecovery = __Cfg_ReadBool($f, "Notifications", "notify_explorer_recovery", False)
+    $__g_Cfg_sWindowListScope        = __Cfg_ReadEnum($f, "WindowList", "window_list_scope", "current", "current|all")
 EndFunc
 
 ; Name:        _Cfg_Save
@@ -564,6 +570,9 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "Notifications", "notify_desktop_created", $__g_Cfg_bNotifyDesktopCreated)
     __Cfg_WriteBool($f, "Notifications", "notify_desktop_deleted", $__g_Cfg_bNotifyDesktopDeleted)
     __Cfg_WriteBool($f, "Notifications", "notify_window_pinned", $__g_Cfg_bNotifyWindowPinned)
+    __Cfg_WriteBool($f, "Notifications", "notify_window_unpinned", $__g_Cfg_bNotifyWindowUnpinned)
+    __Cfg_WriteBool($f, "Notifications", "notify_explorer_recovery", $__g_Cfg_bNotifyExplorerRecovery)
+    IniWrite($f, "WindowList", "window_list_scope", $__g_Cfg_sWindowListScope)
 
     ; Verify write succeeded before replacing original
     Local $sVerify = IniRead($f, "General", "wrap_navigation", "")
@@ -725,6 +734,9 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "Notifications", "notify_desktop_created", False)
     __Cfg_DefaultBool($f, "Notifications", "notify_desktop_deleted", False)
     __Cfg_DefaultBool($f, "Notifications", "notify_window_pinned", False)
+    __Cfg_DefaultBool($f, "Notifications", "notify_window_unpinned", False)
+    __Cfg_DefaultBool($f, "Notifications", "notify_explorer_recovery", False)
+    __Cfg_DefaultVal($f, "WindowList", "window_list_scope", "current")
 EndFunc
 
 ; =============================================
@@ -1187,6 +1199,15 @@ EndFunc
 Func _Cfg_GetNotifyWindowPinned()
     Return $__g_Cfg_bNotifyWindowPinned
 EndFunc
+Func _Cfg_GetNotifyWindowUnpinned()
+    Return $__g_Cfg_bNotifyWindowUnpinned
+EndFunc
+Func _Cfg_GetNotifyExplorerRecovery()
+    Return $__g_Cfg_bNotifyExplorerRecovery
+EndFunc
+Func _Cfg_GetWindowListScope()
+    Return $__g_Cfg_sWindowListScope
+EndFunc
 
 ; =============================================
 ; TYPED SETTERS
@@ -1642,6 +1663,17 @@ Func _Cfg_SetNotifyDesktopDeleted($b)
 EndFunc
 Func _Cfg_SetNotifyWindowPinned($b)
     $__g_Cfg_bNotifyWindowPinned = $b
+EndFunc
+Func _Cfg_SetNotifyWindowUnpinned($b)
+    $__g_Cfg_bNotifyWindowUnpinned = $b
+EndFunc
+Func _Cfg_SetNotifyExplorerRecovery($b)
+    $__g_Cfg_bNotifyExplorerRecovery = $b
+EndFunc
+Func _Cfg_SetWindowListScope($s)
+    Local $aValid = "current|all"
+    If Not StringInStr($aValid, $s) Then $s = "current"
+    $__g_Cfg_sWindowListScope = $s
 EndFunc
 
 ; =============================================

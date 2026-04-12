@@ -123,6 +123,37 @@ Func __WL_EnumFilteredWindows($iDesktop)
     Return $__g_WL_iItemCount
 EndFunc
 
+; Name:        __WL_EnumAllDesktopWindows
+; Description: Enumerates filtered windows across ALL desktops
+; Return:      Total count of filtered windows
+Func __WL_EnumAllDesktopWindows()
+    $__g_WL_iItemCount = 0
+    Local $iTotal = _VD_GetCount()
+    Local $d
+    For $d = 1 To $iTotal
+        Local $aRaw = _VD_EnumWindowsOnDesktop($d)
+        If Not IsArray($aRaw) Or $aRaw[0] < 1 Then ContinueLoop
+        If UBound($__g_WL_aHWNDs) < $__g_WL_iItemCount + $aRaw[0] + 1 Then
+            ReDim $__g_WL_aHWNDs[$__g_WL_iItemCount + $aRaw[0] + 1]
+        EndIf
+        Local $i
+        For $i = 1 To $aRaw[0]
+            Local $hWnd = $aRaw[$i]
+            If $hWnd = 0 Or $hWnd = $gui Then ContinueLoop
+            Local $sTitle = WinGetTitle($hWnd)
+            If $sTitle = "" Then ContinueLoop
+            Local $iState = WinGetState($hWnd)
+            If Not BitAND($iState, 2) Then ContinueLoop
+            Local $iExStyle = _WinGetExStyle($hWnd)
+            If BitAND($iExStyle, $WS_EX_TOOLWINDOW) And Not BitAND($iExStyle, 0x00040000) Then ContinueLoop
+            If $__g_WL_iItemCount >= $__g_WL_iMaxItems Then ExitLoop 2
+            $__g_WL_iItemCount += 1
+            $__g_WL_aHWNDs[$__g_WL_iItemCount] = $hWnd
+        Next
+    Next
+    Return $__g_WL_iItemCount
+EndFunc
+
 ; Name:        _WinGetExStyle
 ; Description: Gets the extended window style of a window handle
 ; Parameters:  $hWnd - window handle
@@ -194,9 +225,15 @@ Func _WL_Show($iDesktop)
     Local $bShowSearch = _Cfg_GetWindowListSearch()
     Local $sPosition = _Cfg_GetWindowListPosition()
 
-    ; Enumerate windows
-    Local $iCount = __WL_EnumFilteredWindows($iDesktop)
-    _Log_Debug("WL_Show: desktop=" & $iDesktop & " windows=" & $iCount)
+    ; Enumerate windows (respect scope setting)
+    Local $iCount = 0
+    If _Cfg_GetWindowListScope() = "all" Then
+        $iCount = __WL_EnumAllDesktopWindows()
+        _Log_Debug("WL_Show: scope=all windows=" & $iCount)
+    Else
+        $iCount = __WL_EnumFilteredWindows($iDesktop)
+        _Log_Debug("WL_Show: desktop=" & $iDesktop & " windows=" & $iCount)
+    EndIf
 
     ; Determine if scroll mode is active
     Local $bScrollable = ($iCount > $iMaxVisible)
@@ -337,7 +374,20 @@ Func _WL_Show($iDesktop)
         GUICtrlSetCursor($__g_WL_idScrollDown, 0)
     EndIf
 
-    _Theme_FadeIn($__g_WL_hGUI, Default, "list")
+    ; Show without stealing focus (SW_SHOWNOACTIVATE), then animate
+    GUISetState(@SW_SHOWNOACTIVATE, $__g_WL_hGUI)
+    If __Theme_ShouldAnimate("list") Then
+        _WinAPI_SetLayeredWindowAttributes($__g_WL_hGUI, 0, 0, $LWA_ALPHA)
+        Local $__iFadeStep = _Cfg_GetFadeStep()
+        Local $__iFadeSleep = _Cfg_GetFadeSleepMs()
+        Local $__iFadeTarget = $THEME_ALPHA_POPUP
+        Local $__iA
+        For $__iA = 0 To $__iFadeTarget Step $__iFadeStep
+            _WinAPI_SetLayeredWindowAttributes($__g_WL_hGUI, 0, $__iA, $LWA_ALPHA)
+            Sleep($__iFadeSleep)
+        Next
+        _WinAPI_SetLayeredWindowAttributes($__g_WL_hGUI, 0, $__iFadeTarget, $LWA_ALPHA)
+    EndIf
     $__g_WL_bVisible = True
 
     ; Start auto-refresh timer if enabled
@@ -398,13 +448,46 @@ EndFunc
 ; Name:        _WL_Refresh
 ; Description: Rebuilds the window list (e.g. on desktop change or auto-refresh tick)
 ; Parameters:  $iDesktop - desktop index (1-based)
-Func _WL_Refresh($iDesktop)
+Func _WL_Refresh($iDesktopNum)
     If Not $__g_WL_bVisible Then Return
-    ; Save scroll offset to restore after rebuild
-    Local $iSavedScroll = $__g_WL_iScrollOffset
-    _WL_Destroy()
-    $__g_WL_iScrollOffset = $iSavedScroll
-    _WL_Show($iDesktop)
+    ; In-place update: re-enumerate windows and update label texts
+    ; (avoids destroy+recreate flashing)
+    Local $iScope = $iDesktopNum
+    If _Cfg_GetWindowListScope() = "all" Then $iScope = 0
+
+    Local $iOldCount = $__g_WL_iItemCount
+    If $iScope = 0 Then
+        ; Enumerate all desktops
+        __WL_EnumAllDesktopWindows()
+    Else
+        __WL_EnumFilteredWindows($iScope)
+    EndIf
+
+    ; If count changed significantly, full rebuild is needed
+    If $__g_WL_iItemCount <> $iOldCount Then
+        Local $iSavedScroll = $__g_WL_iScrollOffset
+        _WL_Destroy()
+        $__g_WL_iScrollOffset = $iSavedScroll
+        _WL_Show($iDesktopNum)
+        Return
+    EndIf
+
+    ; Same count: update labels in-place (no flicker)
+    DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", $__g_WL_hGUI)
+    Local $iMaxChars = __WL_CalcMaxChars(_Cfg_GetWindowListWidth())
+    Local $iMaxVisible = _Cfg_GetWindowListMaxVisible()
+    Local $iStart = $__g_WL_iScrollOffset + 1
+    Local $iEnd = $__g_WL_iScrollOffset + $iMaxVisible
+    If $iEnd > $__g_WL_iItemCount Then $iEnd = $__g_WL_iItemCount
+    Local $iSlot
+    For $iSlot = 1 To ($iEnd - $iStart + 1)
+        Local $iIdx = $iStart + $iSlot - 1
+        If $iIdx > $__g_WL_iItemCount Then ExitLoop
+        If $iSlot > UBound($__g_WL_aItemIDs) - 1 Then ExitLoop
+        Local $sTitle = WinGetTitle($__g_WL_aHWNDs[$iIdx])
+        GUICtrlSetData($__g_WL_aItemIDs[$iSlot], "  " & __WL_TruncateTitle($sTitle, $iMaxChars))
+    Next
+    DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", 0)
 EndFunc
 
 ; Name:        _WL_CheckAutoRefresh

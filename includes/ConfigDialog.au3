@@ -94,6 +94,8 @@ Global $__g_CD_idChkAutoRestart, $__g_CD_idInpRestartDelay
 
 ; -- Tab 13: Notifications --
 Global $__g_CD_idChkNotifyMoved, $__g_CD_idChkNotifyCreated, $__g_CD_idChkNotifyDeleted, $__g_CD_idChkNotifyPinned
+Global $__g_CD_idChkNotifyUnpinned, $__g_CD_idChkNotifyExplorerRecov
+Global $__g_CD_idLblWLScope
 
 ; -- Tab 1 extras: General --
 Global $__g_CD_idChkSingleton, $__g_CD_idChkTaskbarFocus, $__g_CD_idChkAutoFocus
@@ -1415,6 +1417,10 @@ Func __CD_BuildTabWindowList()
     _Theme_SetTooltip($__g_CD_idChkWLEnabled, _i18n("Settings.WindowList.tip_wl_enabled", "Show a panel listing windows on the current desktop"))
     $iY += 34
 
+    $__g_CD_idLblWLScope = __CD_CreateCycleLabel(_i18n("Settings.WindowList.lbl_wl_scope", "Window scope:"), $iX, $iY, 165, 110, $t)
+    _Theme_SetTooltip($__g_CD_idLblWLScope, _i18n("Settings.WindowList.tip_wl_scope", "Show windows from current desktop only or all desktops"))
+    $iY += 30
+
     $__g_CD_idLblWLPosition = __CD_CreateCycleLabel(_i18n("Settings.WindowList.lbl_wl_position", "Panel position:"), $iX, $iY, 165, 110, $t)
     _Theme_SetTooltip($__g_CD_idLblWLPosition, _i18n("Settings.WindowList.tip_wl_position", "Click to cycle panel position on screen"))
     $iY += 30
@@ -1586,8 +1592,14 @@ Func __CD_BuildTabNotifications()
     $__g_CD_idChkNotifyDeleted = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_notify_deleted", "Desktop deleted"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkNotifyDeleted, _i18n("Settings.Notifications.tip_notify_deleted", "Show a toast when a desktop is deleted"))
     $iY += 26
-    $__g_CD_idChkNotifyPinned = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_notify_pinned", "Window pinned/unpinned"), $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkNotifyPinned, _i18n("Settings.Notifications.tip_notify_pinned", "Show a toast when a window is pinned or unpinned"))
+    $__g_CD_idChkNotifyPinned = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_notify_pinned", "Window pinned"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkNotifyPinned, _i18n("Settings.Notifications.tip_notify_pinned", "Show a toast when a window is pinned to all desktops"))
+    $iY += 26
+    $__g_CD_idChkNotifyUnpinned = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_notify_unpinned", "Window unpinned"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkNotifyUnpinned, _i18n("Settings.Notifications.tip_notify_unpinned", "Show a toast when a window is unpinned"))
+    $iY += 26
+    $__g_CD_idChkNotifyExplorerRecov = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_notify_explorer", "Shell monitor recovery"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkNotifyExplorerRecov, _i18n("Settings.Notifications.tip_notify_explorer", "Show a toast when the shell process recovers from a crash"))
 EndFunc
 
 ; =============================================
@@ -1845,6 +1857,9 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkNotifyCreated, _Cfg_GetNotifyDesktopCreated())
     __CD_SetCheckState($__g_CD_idChkNotifyDeleted, _Cfg_GetNotifyDesktopDeleted())
     __CD_SetCheckState($__g_CD_idChkNotifyPinned, _Cfg_GetNotifyWindowPinned())
+    __CD_SetCheckState($__g_CD_idChkNotifyUnpinned, _Cfg_GetNotifyWindowUnpinned())
+    __CD_SetCheckState($__g_CD_idChkNotifyExplorerRecov, _Cfg_GetNotifyExplorerRecovery())
+    GUICtrlSetData($__g_CD_idLblWLScope, _Cfg_GetWindowListScope())
 EndFunc
 
 ; =============================================
@@ -1915,6 +1930,7 @@ Func __CD_MessageLoop()
             If $id = $__g_CD_idLblLogLevel Then __CD_CycleValue($id, "error|warn|info|debug")
             If $id = $__g_CD_idLblLogDateFormat Then __CD_CycleValue($id, "iso|us|eu")
             If $id = $__g_CD_idLblWLPosition Then __CD_CycleValue($id, "top-left|top-right|bottom-left|bottom-right")
+            If $id = $__g_CD_idLblWLScope Then __CD_CycleValue($id, "current|all")
             ; Language combo overlay click — toggle dropdown
             If $id = $__g_CD_idComboOverlay Then
                 Local $hCombo = GUICtrlGetHandle($__g_CD_idLblLanguage)
@@ -2270,6 +2286,9 @@ Func __CD_ApplyChanges()
     _Cfg_SetNotifyDesktopCreated(__CD_GetCheckState($__g_CD_idChkNotifyCreated))
     _Cfg_SetNotifyDesktopDeleted(__CD_GetCheckState($__g_CD_idChkNotifyDeleted))
     _Cfg_SetNotifyWindowPinned(__CD_GetCheckState($__g_CD_idChkNotifyPinned))
+    _Cfg_SetNotifyWindowUnpinned(__CD_GetCheckState($__g_CD_idChkNotifyUnpinned))
+    _Cfg_SetNotifyExplorerRecovery(__CD_GetCheckState($__g_CD_idChkNotifyExplorerRecov))
+    _Cfg_SetWindowListScope(GUICtrlRead($__g_CD_idLblWLScope))
 
     ; Apply changes live to the running app
     _ApplySettingsLive()
