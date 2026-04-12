@@ -154,7 +154,9 @@ jobs:
           Write-Host "Source zip created" -ForegroundColor Green
         shell: pwsh
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.3.2
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Desk Switcheroo ${{ steps.version.outputs.version }}
