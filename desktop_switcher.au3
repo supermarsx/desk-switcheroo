@@ -3,6 +3,21 @@
 #include <WinAPISysWin.au3>
 #include <StaticConstants.au3>
 
+; ---- Named constants (declared before includes so UDFs can reference them) ----
+Global Const $VK_LBUTTON = 0x01
+Global Const $VK_RBUTTON = 0x02
+Global Const $VK_MBUTTON = 0x04
+Global Const $VK_RETURN  = 0x0D
+Global Const $VK_ESCAPE  = 0x1B
+Global Const $VK_UP      = 0x26
+Global Const $VK_DOWN    = 0x28
+Global Const $VK_1       = 0x31
+Global Const $VK_9       = 0x39
+Global Const $VK_KEYDOWN = 0x8000
+Global Const $TRIPLE_CLICK_MS = 500
+Global Const $QUICK_ACCESS_TIMEOUT = 3000
+Global Const $DESKTOP_LIMIT = 20
+
 #include "includes\Config.au3"
 #include "includes\Logger.au3"
 #include "includes\Theme.au3"
@@ -24,21 +39,6 @@ If FileExists($__sVerFile) Then
     $APP_VERSION = StringStripWS(FileRead($__sVerFile), 3)
     If $APP_VERSION = "" Then $APP_VERSION = "dev"
 EndIf
-
-; ---- Named constants for virtual key codes and magic numbers ----
-Global Const $VK_LBUTTON = 0x01
-Global Const $VK_RBUTTON = 0x02
-Global Const $VK_MBUTTON = 0x04
-Global Const $VK_RETURN  = 0x0D
-Global Const $VK_ESCAPE  = 0x1B
-Global Const $VK_UP      = 0x26
-Global Const $VK_DOWN    = 0x28
-Global Const $VK_1       = 0x31
-Global Const $VK_9       = 0x39
-Global Const $VK_KEYDOWN = 0x8000
-Global Const $TRIPLE_CLICK_MS = 500
-Global Const $QUICK_ACCESS_TIMEOUT = 3000
-Global Const $DESKTOP_LIMIT = 20
 
 ; ---- Error handling and crash recovery ----
 Global $__g_bShuttingDown = False

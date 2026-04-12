@@ -14,7 +14,12 @@ Global $__g_Test_sCurrentSuite = ""
 ; ---- Stubs for globals/functions defined in desktop_switcher.au3 ----
 ; These are needed by ConfigDialog, AboutDialog, UpdateChecker includes
 Global $APP_VERSION = "test"
-Global Const $VK_RETURN = 0x0D, $VK_ESCAPE = 0x1B, $VK_KEYDOWN = 0x8000
+Global Const $VK_LBUTTON = 0x01, $VK_RBUTTON = 0x02, $VK_MBUTTON = 0x04
+Global Const $VK_RETURN = 0x0D, $VK_ESCAPE = 0x1B
+Global Const $VK_UP = 0x26, $VK_DOWN = 0x28
+Global Const $VK_1 = 0x31, $VK_9 = 0x39
+Global Const $VK_KEYDOWN = 0x8000
+Global Const $TRIPLE_CLICK_MS = 500, $QUICK_ACCESS_TIMEOUT = 3000, $DESKTOP_LIMIT = 20
 Global $iTaskbarY = 0, $iTaskbarH = 0
 Global $__g_hInetDownload = 0, $__g_sInetTempFile = ""
 Func _ApplySettingsLive()
