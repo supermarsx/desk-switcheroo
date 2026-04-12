@@ -25,11 +25,12 @@ Global $__g_CD_aidTabBtn[14] ; index 1-13
 Global Const $__g_CD_aTabNames = "General,Display,Scroll,Hotkeys,Behavior,Logging,Updates,Desktops,Animations,Wallpaper,Window List,Explorer,Notifications"
 
 ; -- Controls per tab (arrays of IDs to show/hide + scroll) --
-Global $__g_CD_aidTabCtrls[14][100] ; [tab 1-13][up to 100 controls per tab]
-Global $__g_CD_aiTabCtrlY[14][100]  ; original Y position per control
-Global $__g_CD_aiTabCtrlX[14][100]  ; cached X position per control
-Global $__g_CD_aiTabCtrlW[14][100]  ; cached width per control
-Global $__g_CD_aiTabCtrlH[14][100]  ; cached height per control
+Global Const $__g_CD_MAX_CTRLS = 200
+Global $__g_CD_aidTabCtrls[14][$__g_CD_MAX_CTRLS] ; [tab 1-13][up to 200 controls per tab]
+Global $__g_CD_aiTabCtrlY[14][$__g_CD_MAX_CTRLS]  ; original Y position per control
+Global $__g_CD_aiTabCtrlX[14][$__g_CD_MAX_CTRLS]  ; cached X position per control
+Global $__g_CD_aiTabCtrlW[14][$__g_CD_MAX_CTRLS]  ; cached width per control
+Global $__g_CD_aiTabCtrlH[14][$__g_CD_MAX_CTRLS]  ; cached height per control
 Global $__g_CD_aiTabCtrlCount[14]   ; how many controls per tab
 Global $__g_CD_aiTabScroll[14]      ; current scroll offset per tab (px)
 Global $__g_CD_abTabYInit[14]       ; True once original Y positions captured for this tab
@@ -416,7 +417,9 @@ Func __CD_SwitchTab($iTab)
 EndFunc
 
 Func __CD_RegCtrl($iTab, $idCtrl)
+    If $idCtrl = 0 Then Return ; skip failed control creation
     Local $c = $__g_CD_aiTabCtrlCount[$iTab]
+    If $c >= $__g_CD_MAX_CTRLS Then Return ; prevent array overflow
     $__g_CD_aidTabCtrls[$iTab][$c] = $idCtrl
     ; Capture original position and dimensions immediately (controls exist when registered)
     Local $aPos = ControlGetPos($__g_CD_hGUI, "", $idCtrl)
@@ -456,6 +459,7 @@ EndFunc
 ; Name:        __CD_GetTabMaxScroll
 ; Description: Returns the maximum scroll offset for a given tab (0 if no overflow)
 Func __CD_GetTabMaxScroll($iTab)
+    If $iTab < 1 Or $iTab > 13 Then Return 0
     Local $iMaxY = 0, $c
     For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
         If $__g_CD_aiTabCtrlY[$iTab][$c] > $iMaxY Then $iMaxY = $__g_CD_aiTabCtrlY[$iTab][$c]
@@ -470,6 +474,7 @@ EndFunc
 ; Description: Shows/hides the up/down scroll arrows based on current scroll state
 Func __CD_UpdateScrollIndicators()
     Local $iTab = $__g_CD_iActiveTab
+    If $iTab < 1 Or $iTab > 13 Then Return
     Local $iScroll = $__g_CD_aiTabScroll[$iTab]
     Local $iMaxScroll = __CD_GetTabMaxScroll($iTab)
 
@@ -493,6 +498,7 @@ EndFunc
 ; Parameters:  $iDelta - positive = scroll down (content moves up), negative = scroll up
 Func __CD_ScrollTab($iDelta)
     Local $iTab = $__g_CD_iActiveTab
+    If $iTab < 1 Or $iTab > 13 Then Return ; guard: no valid tab active
 
     ; Ensure positions/dimensions are captured
     __CD_EnsureYInit($iTab)
@@ -517,6 +523,7 @@ Func __CD_ScrollTab($iDelta)
     Local $c, $iNewY, $iCtrlH, $idCtrl, $iOrigY
     For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
         $idCtrl = $__g_CD_aidTabCtrls[$iTab][$c]
+        If $idCtrl = 0 Then ContinueLoop ; skip null controls
         $iOrigY = $__g_CD_aiTabCtrlY[$iTab][$c]
         $iNewY = $iOrigY - $iNewScroll
         $iCtrlH = $__g_CD_aiTabCtrlH[$iTab][$c]
