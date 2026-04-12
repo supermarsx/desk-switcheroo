@@ -29,8 +29,12 @@ Global $__g_CD_aidTabCtrls[14][100] ; [tab 1-13][up to 100 controls per tab]
 Global $__g_CD_aiTabCtrlY[14][100]  ; original Y position per control
 Global $__g_CD_aiTabCtrlCount[14]   ; how many controls per tab
 Global $__g_CD_aiTabScroll[14]      ; current scroll offset per tab (px)
+Global $__g_CD_abTabYInit[14]       ; True once original Y positions captured for this tab
 Global $__g_CD_iContentTop = 84     ; top of content area (3-row tab bar)
 Global $__g_CD_iScrollStep = 30     ; pixels per scroll step
+
+; -- Scroll indicator labels --
+Global $__g_CD_idScrollUp = 0, $__g_CD_idScrollDn = 0
 
 ; -- Tab 1: General --
 Global $__g_CD_idChkStartWin, $__g_CD_idChkWrapNav, $__g_CD_idChkAutoCreate
@@ -177,6 +181,7 @@ Func _CD_Show()
     For $t = 1 To 13
         $__g_CD_aiTabCtrlCount[$t] = 0
         $__g_CD_aiTabScroll[$t] = 0
+        $__g_CD_abTabYInit[$t] = False
     Next
 
     ; Create custom tab bar (3 rows: 5 + 5 + 3 tabs)
@@ -219,6 +224,22 @@ Func _CD_Show()
     __CD_BuildTabWindowList()
     __CD_BuildTabExplorer()
     __CD_BuildTabNotifications()
+
+    ; Scroll indicators (up/down arrows at edges of content area)
+    ; Created AFTER tab controls so they render on top (higher z-order)
+    $__g_CD_idScrollUp = GUICtrlCreateLabel(ChrW(0x25B2), 8, 84, $iW - 16, 14, _
+        BitOR($SS_CENTER, $SS_CENTERIMAGE))
+    GUICtrlSetFont($__g_CD_idScrollUp, 7, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idScrollUp, $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idScrollUp, $THEME_BG_MAIN)
+    GUICtrlSetState($__g_CD_idScrollUp, $GUI_HIDE)
+
+    $__g_CD_idScrollDn = GUICtrlCreateLabel(ChrW(0x25BC), 8, 84 + $iContentH - 14, $iW - 16, 14, _
+        BitOR($SS_CENTER, $SS_CENTERIMAGE))
+    GUICtrlSetFont($__g_CD_idScrollDn, 7, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idScrollDn, $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idScrollDn, $THEME_BG_MAIN)
+    GUICtrlSetState($__g_CD_idScrollDn, $GUI_HIDE)
 
     ; Import + Export + Restart buttons (top row)
     Local $iBtnW = 80, $iBtnH = 26
@@ -335,18 +356,8 @@ Func __CD_SwitchTab($iTab)
     _Log_Debug("Settings: switched to tab " & $iTab)
     $__g_CD_iActiveTab = $iTab
 
-    ; Reset scroll for the new tab (restore controls to original Y)
-    If $__g_CD_aiTabScroll[$iTab] <> 0 Then
-        $__g_CD_aiTabScroll[$iTab] = 0
-        Local $sc
-        For $sc = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
-            Local $idSc = $__g_CD_aidTabCtrls[$iTab][$sc]
-            Local $aSc = ControlGetPos($__g_CD_hGUI, "", $idSc)
-            If Not @error And IsArray($aSc) Then
-                GUICtrlSetPos($idSc, $aSc[0], $__g_CD_aiTabCtrlY[$iTab][$sc], $aSc[2], $aSc[3])
-            EndIf
-        Next
-    EndIf
+    ; Ensure Y positions are captured for the target tab before showing it
+    __CD_EnsureYInit($iTab)
 
     ; Lock window to prevent repaint during bulk control state changes
     DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", $__g_CD_hGUI)
@@ -364,7 +375,8 @@ Func __CD_SwitchTab($iTab)
             GUICtrlSetFont($__g_CD_aidTabBtn[$t], 8, 400, 0, $THEME_FONT_MAIN)
         EndIf
     Next
-    ; Show/hide controls per tab
+    ; Show/hide controls per tab, applying saved scroll offset for active tab
+    Local $iScroll = $__g_CD_aiTabScroll[$iTab]
     For $t = 1 To 13
         Local $iState = $GUI_HIDE
         If $t = $iTab Then $iState = $GUI_SHOW
@@ -372,15 +384,86 @@ Func __CD_SwitchTab($iTab)
             GUICtrlSetState($__g_CD_aidTabCtrls[$t][$c], $iState)
         Next
     Next
+    ; Restore scroll positions for the active tab (apply saved offset)
+    If $iScroll <> 0 Then
+        For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
+            Local $idSc = $__g_CD_aidTabCtrls[$iTab][$c]
+            Local $aSc = ControlGetPos($__g_CD_hGUI, "", $idSc)
+            If Not @error And IsArray($aSc) Then
+                GUICtrlSetPos($idSc, $aSc[0], $__g_CD_aiTabCtrlY[$iTab][$c] - $iScroll, $aSc[2], $aSc[3])
+            EndIf
+        Next
+    EndIf
 
     ; Unlock window — triggers a single repaint with all changes applied
     DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", 0)
+
+    ; Update scroll indicators for this tab
+    __CD_UpdateScrollIndicators()
 EndFunc
 
 Func __CD_RegCtrl($iTab, $idCtrl)
     Local $c = $__g_CD_aiTabCtrlCount[$iTab]
     $__g_CD_aidTabCtrls[$iTab][$c] = $idCtrl
+    ; Capture original Y position immediately (controls exist when registered)
+    Local $aPos = ControlGetPos($__g_CD_hGUI, "", $idCtrl)
+    If Not @error And IsArray($aPos) Then
+        $__g_CD_aiTabCtrlY[$iTab][$c] = $aPos[1]
+    EndIf
     $__g_CD_aiTabCtrlCount[$iTab] = $c + 1
+EndFunc
+
+; Name:        __CD_EnsureYInit
+; Description: Captures original Y positions for a tab if not already done.
+;              Needed as a fallback when controls are created before the GUI is visible.
+Func __CD_EnsureYInit($iTab)
+    If $__g_CD_abTabYInit[$iTab] Then Return
+    $__g_CD_abTabYInit[$iTab] = True
+    Local $c
+    For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
+        ; Only capture if not already set (non-zero from __CD_RegCtrl)
+        If $__g_CD_aiTabCtrlY[$iTab][$c] = 0 Then
+            Local $aInit = ControlGetPos($__g_CD_hGUI, "", $__g_CD_aidTabCtrls[$iTab][$c])
+            If Not @error And IsArray($aInit) Then
+                $__g_CD_aiTabCtrlY[$iTab][$c] = $aInit[1]
+            EndIf
+        EndIf
+    Next
+EndFunc
+
+; Name:        __CD_GetTabMaxScroll
+; Description: Returns the maximum scroll offset for a given tab (0 if no overflow)
+Func __CD_GetTabMaxScroll($iTab)
+    Local $iMaxY = 0, $c
+    For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
+        If $__g_CD_aiTabCtrlY[$iTab][$c] > $iMaxY Then $iMaxY = $__g_CD_aiTabCtrlY[$iTab][$c]
+    Next
+    ; Bottom of last control (add ~30 for control height + padding)
+    Local $iMaxScroll = $iMaxY + 30 - $__g_CD_iContentTop - $__g_CD_iContentH
+    If $iMaxScroll < 0 Then $iMaxScroll = 0
+    Return $iMaxScroll
+EndFunc
+
+; Name:        __CD_UpdateScrollIndicators
+; Description: Shows/hides the up/down scroll arrows based on current scroll state
+Func __CD_UpdateScrollIndicators()
+    Local $iTab = $__g_CD_iActiveTab
+    Local $iScroll = $__g_CD_aiTabScroll[$iTab]
+    Local $iMaxScroll = __CD_GetTabMaxScroll($iTab)
+
+    ; Up arrow: visible when scrolled down (offset > 0)
+    If $iScroll > 0 Then
+        GUICtrlSetState($__g_CD_idScrollUp, $GUI_SHOW)
+    Else
+        GUICtrlSetState($__g_CD_idScrollUp, $GUI_HIDE)
+    EndIf
+
+    ; Down arrow: visible when more content below
+    If $iMaxScroll > 0 And $iScroll < $iMaxScroll Then
+        GUICtrlSetState($__g_CD_idScrollDn, $GUI_SHOW)
+    Else
+        GUICtrlSetState($__g_CD_idScrollDn, $GUI_HIDE)
+    EndIf
 EndFunc
 
 ; Name:        __CD_ScrollTab
@@ -388,37 +471,28 @@ EndFunc
 ; Parameters:  $iDelta - positive = scroll down (content moves up), negative = scroll up
 Func __CD_ScrollTab($iDelta)
     Local $iTab = $__g_CD_iActiveTab
-    Local $c
 
-    ; Lazy-init: capture original Y positions on first scroll attempt
-    If $__g_CD_aiTabCtrlY[$iTab][0] = 0 And $__g_CD_aiTabCtrlCount[$iTab] > 0 Then
-        For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
-            Local $aInit = ControlGetPos($__g_CD_hGUI, "", $__g_CD_aidTabCtrls[$iTab][$c])
-            If Not @error And IsArray($aInit) Then
-                $__g_CD_aiTabCtrlY[$iTab][$c] = $aInit[1]
-            EndIf
-        Next
-    EndIf
+    ; Ensure Y positions are captured
+    __CD_EnsureYInit($iTab)
 
     Local $iNewScroll = $__g_CD_aiTabScroll[$iTab] + $iDelta
 
     ; Clamp: don't scroll above 0 (top)
     If $iNewScroll < 0 Then $iNewScroll = 0
 
-    ; Clamp: find max content Y to determine max scroll
-    Local $iMaxY = 0
-    For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
-        If $__g_CD_aiTabCtrlY[$iTab][$c] > $iMaxY Then $iMaxY = $__g_CD_aiTabCtrlY[$iTab][$c]
-    Next
-    Local $iMaxScroll = $iMaxY - $__g_CD_iContentTop - $__g_CD_iContentH + 60
-    If $iMaxScroll < 0 Then $iMaxScroll = 0
+    ; Clamp: don't scroll past max content
+    Local $iMaxScroll = __CD_GetTabMaxScroll($iTab)
     If $iNewScroll > $iMaxScroll Then $iNewScroll = $iMaxScroll
 
     If $iNewScroll = $__g_CD_aiTabScroll[$iTab] Then Return ; no change
 
     $__g_CD_aiTabScroll[$iTab] = $iNewScroll
 
+    ; Lock window to prevent flicker during bulk repositioning
+    DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", $__g_CD_hGUI)
+
     ; Move all controls for this tab
+    Local $c
     For $c = 0 To $__g_CD_aiTabCtrlCount[$iTab] - 1
         Local $idCtrl = $__g_CD_aidTabCtrls[$iTab][$c]
         Local $iOrigY = $__g_CD_aiTabCtrlY[$iTab][$c]
@@ -427,6 +501,11 @@ Func __CD_ScrollTab($iDelta)
             GUICtrlSetPos($idCtrl, $aCtrlPos[0], $iOrigY - $iNewScroll, $aCtrlPos[2], $aCtrlPos[3])
         EndIf
     Next
+
+    DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", 0)
+
+    ; Update scroll indicators
+    __CD_UpdateScrollIndicators()
 EndFunc
 
 ; =============================================
