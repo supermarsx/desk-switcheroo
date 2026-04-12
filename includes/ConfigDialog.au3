@@ -1475,6 +1475,7 @@ Func __CD_MessageLoop()
             If $aCursor[4] = $__g_CD_idBtnCheckNow Then $iFound = $__g_CD_idBtnCheckNow
             If $aCursor[4] = $__g_CD_idBtnDownloadLatest Then $iFound = $__g_CD_idBtnDownloadLatest
             If $aCursor[4] = $__g_CD_idBtnLogBrowse Then $iFound = $__g_CD_idBtnLogBrowse
+            If $__g_CD_idComboOverlay <> 0 And $aCursor[4] = $__g_CD_idComboOverlay Then $iFound = $__g_CD_idComboOverlay
             If $iFound <> $iHovered Then
                 If $iHovered <> 0 Then
                     Local $iFgRestore = $THEME_FG_MENU
@@ -1484,7 +1485,10 @@ Func __CD_MessageLoop()
                     If $iHovered = $__g_CD_idBtnCheckNow Then $iFgRestore = $THEME_FG_MENU
                     If $iHovered = $__g_CD_idBtnDownloadLatest Then $iFgRestore = $THEME_FG_LINK
                     If $iHovered = $__g_CD_idBtnLogBrowse Then $iFgRestore = $THEME_FG_DIM
-                    _Theme_RemoveHover($iHovered, $iFgRestore, $THEME_BG_HOVER)
+                    If $iHovered = $__g_CD_idComboOverlay Then $iFgRestore = $THEME_FG_TEXT
+                    Local $iBgRestore = $THEME_BG_HOVER
+                    If $iHovered = $__g_CD_idComboOverlay Then $iBgRestore = $THEME_BG_INPUT
+                    _Theme_RemoveHover($iHovered, $iFgRestore, $iBgRestore)
                 EndIf
                 $iHovered = $iFound
                 If $iHovered <> 0 Then _Theme_ApplyHover($iHovered, $THEME_FG_WHITE, $THEME_BG_BTN_HOV)
