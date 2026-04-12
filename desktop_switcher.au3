@@ -455,6 +455,9 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 _CM_Destroy()
                 Local $hFg = WinGetHandle("[ACTIVE]")
                 If $hFg <> 0 Then _VD_PinWindow($hFg)
+            Case "window_list"
+                _CM_Destroy()
+                _WL_Toggle($iDesktop)
             Case "settings"
                 _CM_Destroy()
                 _CD_Show()

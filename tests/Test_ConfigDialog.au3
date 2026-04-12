@@ -71,6 +71,38 @@ Func _RunTest_ConfigDialog()
     _Test_AssertEqual("Key with spaces", __CD_BuildHotkeyString(False, False, False, False, "  F5  "), "{F5}")
     _Test_AssertEqual("Single char key", __CD_BuildHotkeyString(True, False, False, False, "1"), "^1")
 
+    ; -- Additional VK edge cases --
+    _Test_AssertEqual("VK 0x6E = NUMPADDOT", __CD_VKToAutoItKey(0x6E), "NUMPADDOT")
+    _Test_AssertEqual("VK 0xC0 = ``", __CD_VKToAutoItKey(0xC0), "``")
+    _Test_AssertEqual("VK 0xDB = [", __CD_VKToAutoItKey(0xDB), "[")
+    _Test_AssertEqual("VK 0xDC = \", __CD_VKToAutoItKey(0xDC), "\")
+    _Test_AssertEqual("VK 0xDD = ]", __CD_VKToAutoItKey(0xDD), "]")
+
+    ; -- Additional punctuation VK --
+    _Test_AssertEqual("VK 0xBC = ,", __CD_VKToAutoItKey(0xBC), ",")
+    _Test_AssertEqual("VK 0xBE = .", __CD_VKToAutoItKey(0xBE), ".")
+    _Test_AssertEqual("VK 0xBF = /", __CD_VKToAutoItKey(0xBF), "/")
+    _Test_AssertEqual("VK 0xDE = '", __CD_VKToAutoItKey(0xDE), "'")
+
+    ; -- Build hotkey string with each modifier individually --
+    _Test_AssertEqual("Ctrl only + B", __CD_BuildHotkeyString(True, False, False, False, "B"), "^B")
+    _Test_AssertEqual("Alt only + B", __CD_BuildHotkeyString(False, True, False, False, "B"), "!B")
+    _Test_AssertEqual("Shift only + B", __CD_BuildHotkeyString(False, False, True, False, "B"), "+B")
+    _Test_AssertEqual("Win only + B", __CD_BuildHotkeyString(False, False, False, True, "B"), "#B")
+
+    ; -- Build hotkey string with numpad keys (single-char returns) --
+    _Test_AssertEqual("Ctrl+NUMPAD0", __CD_BuildHotkeyString(True, False, False, False, "NUMPAD0"), "^{NUMPAD0}")
+    _Test_AssertEqual("Alt+NUMPADADD", __CD_BuildHotkeyString(False, True, False, False, "NUMPADADD"), "!{NUMPADADD}")
+    _Test_AssertEqual("Shift+NUMPADDOT", __CD_BuildHotkeyString(False, False, True, False, "NUMPADDOT"), "+{NUMPADDOT}")
+    _Test_AssertEqual("No mods + NUMPADSUB", __CD_BuildHotkeyString(False, False, False, False, "NUMPADSUB"), "{NUMPADSUB}")
+
+    ; -- Build hotkey string with single-char numpad result keys --
+    ; Keys like ";" are single char so no braces
+    _Test_AssertEqual("Ctrl+;", __CD_BuildHotkeyString(True, False, False, False, ";"), "^;")
+    _Test_AssertEqual("Alt+=", __CD_BuildHotkeyString(False, True, False, False, "="), "!=")
+    _Test_AssertEqual("Shift+-", __CD_BuildHotkeyString(False, False, True, False, "-"), "+-")
+    _Test_AssertEqual("Win+[", __CD_BuildHotkeyString(False, False, False, True, "["), "#[")
+
     ; -- Dialog visibility (before show) --
     _Test_AssertFalse("CD not visible initially", _CD_IsVisible())
     _Test_AssertEqual("CD GUI handle is 0", _CD_GetGUI(), 0)

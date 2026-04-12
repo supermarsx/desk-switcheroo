@@ -83,6 +83,65 @@ Func _RunTest_i18n()
     Local $sFmt3 = _i18n_Format("NonExistent.test", "a={1} b={2} c={3}", "X", "Y", "Z")
     _Test_AssertTrue("Format {3} replaced", StringInStr($sFmt3, "Z") > 0)
     _Test_AssertFalse("No leftover {3}", StringInStr($sFmt3, "{3}") > 0)
+
+    ; -- Phase 1C toast keys exist and return non-default values --
+    _Test_AssertNotEqual("toast_window_sent exists", _i18n("Toasts.toast_window_sent", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("toast_desktop_created exists", _i18n("Toasts.toast_desktop_created", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("toast_desktop_deleted exists", _i18n("Toasts.toast_desktop_deleted", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("toast_window_pinned exists", _i18n("Toasts.toast_window_pinned", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("toast_window_unpinned exists", _i18n("Toasts.toast_window_unpinned", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("toast_wallpaper_applied exists", _i18n("Toasts.toast_wallpaper_applied", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("toast_explorer_recovered exists", _i18n("Toasts.toast_explorer_recovered", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("toast_min_desktops_created exists", _i18n("Toasts.toast_min_desktops_created", "MISSING"), "MISSING")
+
+    ; -- Phase 1C tab names exist --
+    _Test_AssertNotEqual("tab_wallpaper exists", _i18n("Tabs.tab_wallpaper", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("tab_window_list exists", _i18n("Tabs.tab_window_list", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("tab_explorer exists", _i18n("Tabs.tab_explorer", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("tab_notifications exists", _i18n("Tabs.tab_notifications", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("tab_pinning exists", _i18n("Tabs.tab_pinning", "MISSING"), "MISSING")
+
+    ; -- WindowList section keys exist --
+    _Test_AssertNotEqual("wl_title exists", _i18n("WindowList.wl_title", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("wl_search_placeholder exists", _i18n("WindowList.wl_search_placeholder", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("wl_no_windows exists", _i18n("WindowList.wl_no_windows", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("wl_pin_window exists", _i18n("WindowList.wl_pin_window", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("wl_send_to_next exists", _i18n("WindowList.wl_send_to_next", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("wl_send_to_prev exists", _i18n("WindowList.wl_send_to_prev", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("wl_send_to_new exists", _i18n("WindowList.wl_send_to_new", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("wl_unpin_window exists", _i18n("WindowList.wl_unpin_window", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("wl_pull_to_current exists", _i18n("WindowList.wl_pull_to_current", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("wl_go_to_desktop exists", _i18n("WindowList.wl_go_to_desktop", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("wl_minimize exists", _i18n("WindowList.wl_minimize", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("wl_maximize exists", _i18n("WindowList.wl_maximize", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("wl_restore exists", _i18n("WindowList.wl_restore", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("wl_close exists", _i18n("WindowList.wl_close", "MISSING"), "MISSING")
+
+    ; -- Settings section keys exist --
+    _Test_AssertNotEqual("chk_wallpaper_enabled exists", _i18n("Settings.Wallpaper.chk_wallpaper_enabled", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("chk_wl_enabled exists", _i18n("Settings.WindowList.chk_wl_enabled", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("chk_explorer_monitor exists", _i18n("Settings.Explorer.chk_explorer_monitor", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("chk_notify_moved exists", _i18n("Settings.Notifications.chk_notify_moved", "MISSING"), "MISSING")
+
+    ; -- New hotkey labels exist --
+    _Test_AssertNotEqual("lbl_hotkey_toggle_last exists", _i18n("Settings.Hotkeys.lbl_hotkey_toggle_last", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("lbl_hotkey_move_follow_next exists", _i18n("Settings.Hotkeys.lbl_hotkey_move_follow_next", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("lbl_hotkey_move_follow_prev exists", _i18n("Settings.Hotkeys.lbl_hotkey_move_follow_prev", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("lbl_hotkey_move_next exists", _i18n("Settings.Hotkeys.lbl_hotkey_move_next", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("lbl_hotkey_move_prev exists", _i18n("Settings.Hotkeys.lbl_hotkey_move_prev", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("lbl_hotkey_send_new exists", _i18n("Settings.Hotkeys.lbl_hotkey_send_new", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("lbl_hotkey_pin_window exists", _i18n("Settings.Hotkeys.lbl_hotkey_pin_window", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("lbl_hotkey_toggle_wl exists", _i18n("Settings.Hotkeys.lbl_hotkey_toggle_wl", "MISSING"), "MISSING")
+
+    ; -- Format with {1} works for toast_window_sent --
+    Local $sFmtToast = _i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", 3)
+    _Test_AssertTrue("toast_window_sent format {1}", StringInStr($sFmtToast, "3") > 0)
+    _Test_AssertFalse("toast_window_sent no leftover {1}", StringInStr($sFmtToast, "{1}") > 0)
+
+    ; -- Format with {1} works for toast_desktop_created --
+    Local $sFmtCreate = _i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", 5)
+    _Test_AssertTrue("toast_desktop_created format {1}", StringInStr($sFmtCreate, "5") > 0)
+    _Test_AssertFalse("toast_desktop_created no leftover {1}", StringInStr($sFmtCreate, "{1}") > 0)
 EndFunc
 
 ; Helper: count total keys in a locale INI file (excluding [Meta])

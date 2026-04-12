@@ -121,4 +121,39 @@ Func _RunTest_Theme()
 
     ; -- BTN_HOV differs from HOVER (hover effect must be visible) --
     _Test_AssertNotEqual("BTN_HOV != HOVER", $THEME_BG_BTN_HOV, $THEME_BG_HOVER)
+
+    ; -- CacheFrameState called twice doesn't crash --
+    _Theme_CacheFrameState()
+    _Theme_CacheFrameState()
+    _Test_AssertGreaterEqual("Double cache: X >= 0", $__g_Theme_iCachedCursorX, 0)
+    _Test_AssertGreaterEqual("Double cache: Y >= 0", $__g_Theme_iCachedCursorY, 0)
+
+    ; -- Cursor coordinates within screen bounds after cache --
+    _Theme_CacheFrameState()
+    _Test_AssertLessEqual("Cursor X <= DesktopWidth", $__g_Theme_iCachedCursorX, @DesktopWidth + 100)
+    _Test_AssertLessEqual("Cursor Y <= DesktopHeight", $__g_Theme_iCachedCursorY, @DesktopHeight + 100)
+    _Test_AssertGreaterEqual("Cursor X >= 0 after cache", $__g_Theme_iCachedCursorX, 0)
+    _Test_AssertGreaterEqual("Cursor Y >= 0 after cache", $__g_Theme_iCachedCursorY, 0)
+
+    ; -- IsCursorOverWindow(0) returns False --
+    _Test_AssertFalse("IsCursorOverWindow(0) is False", _Theme_IsCursorOverWindow(0))
+
+    ; -- Theme scheme arrays all have 10 elements --
+    _Test_AssertEqual("SchemeDark has 10 elements", UBound($__g_Theme_aSchemeDark), 10)
+    _Test_AssertEqual("SchemeDarker has 10 elements", UBound($__g_Theme_aSchemeDarker), 10)
+    _Test_AssertEqual("SchemeMidnight has 10 elements", UBound($__g_Theme_aSchemeMidnight), 10)
+    _Test_AssertEqual("SchemeMidday has 10 elements", UBound($__g_Theme_aSchemeMidday), 10)
+    _Test_AssertEqual("SchemeSunset has 10 elements", UBound($__g_Theme_aSchemeSunset), 10)
+
+    ; -- All 5 scheme arrays are different from each other (at least index 0 differs) --
+    _Test_AssertNotEqual("Dark != Darker [0]", $__g_Theme_aSchemeDark[0], $__g_Theme_aSchemeDarker[0])
+    _Test_AssertNotEqual("Dark != Midnight [0]", $__g_Theme_aSchemeDark[0], $__g_Theme_aSchemeMidnight[0])
+    _Test_AssertNotEqual("Dark != Midday [0]", $__g_Theme_aSchemeDark[0], $__g_Theme_aSchemeMidday[0])
+    _Test_AssertNotEqual("Dark != Sunset [0]", $__g_Theme_aSchemeDark[0], $__g_Theme_aSchemeSunset[0])
+    _Test_AssertNotEqual("Darker != Midnight [0]", $__g_Theme_aSchemeDarker[0], $__g_Theme_aSchemeMidnight[0])
+    _Test_AssertNotEqual("Darker != Midday [0]", $__g_Theme_aSchemeDarker[0], $__g_Theme_aSchemeMidday[0])
+    _Test_AssertNotEqual("Darker != Sunset [0]", $__g_Theme_aSchemeDarker[0], $__g_Theme_aSchemeSunset[0])
+    _Test_AssertNotEqual("Midnight != Midday [0]", $__g_Theme_aSchemeMidnight[0], $__g_Theme_aSchemeMidday[0])
+    _Test_AssertNotEqual("Midnight != Sunset [0]", $__g_Theme_aSchemeMidnight[0], $__g_Theme_aSchemeSunset[0])
+    _Test_AssertNotEqual("Midday != Sunset [0]", $__g_Theme_aSchemeMidday[0], $__g_Theme_aSchemeSunset[0])
 EndFunc

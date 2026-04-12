@@ -136,6 +136,24 @@ Func _RunTest_DesktopList()
     _Cfg_SetDesktopColorsEnabled($bColorsWas2)
     _DL_Destroy()
 
+    ; -- Pin item in context menu conditional on pinning enabled --
+    _DL_Show($iTestTaskbarY, $iCurrentDesktop)
+    Local $bPinWas = _Cfg_GetPinningEnabled()
+
+    _Cfg_SetPinningEnabled(False)
+    _DL_CtxShow(1)
+    _Test_AssertEqual("DL Ctx: Pin hidden when disabled", $__g_DL_iCtxPin, 0)
+    _DL_CtxDestroy()
+
+    _Cfg_SetPinningEnabled(True)
+    _DL_CtxShow(1)
+    _Test_AssertNotEqual("DL Ctx: Pin shown when enabled", $__g_DL_iCtxPin, 0)
+    _Test_AssertEqual("DL Ctx: HandleClick(pin) = 'pin'", _DL_CtxHandleClick($__g_DL_iCtxPin), "pin")
+    _DL_CtxDestroy()
+
+    _Cfg_SetPinningEnabled($bPinWas)
+    _DL_Destroy()
+
     ; -- Cleanup --
     FileDelete($sTempIni)
 EndFunc

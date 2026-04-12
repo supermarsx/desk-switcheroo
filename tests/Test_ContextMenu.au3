@@ -92,4 +92,42 @@ Func _RunTest_ContextMenu()
     _Test_AssertEqual("After destroy: about=0", _CM_GetAboutID(), 0)
     _Test_AssertEqual("After destroy: settings=0", _CM_GetSettingsID(), 0)
     _Test_AssertEqual("After destroy: quit=0", _CM_GetQuitID(), 0)
+
+    ; -- Pin window item conditional on pinning enabled --
+    Local $bPinWas = _Cfg_GetPinningEnabled()
+    _Cfg_SetPinningEnabled(False)
+    _CM_Show($iTestTaskbarY, False)
+    _Test_AssertEqual("Pin hidden when disabled", $__g_CM_iPinID, 0)
+    _CM_Destroy()
+
+    _Cfg_SetPinningEnabled(True)
+    _CM_Show($iTestTaskbarY, False)
+    _Test_AssertNotEqual("Pin shown when enabled", $__g_CM_iPinID, 0)
+    _Test_AssertEqual("HandleClick(pin) = 'pin_window'", _CM_HandleClick($__g_CM_iPinID), "pin_window")
+    _CM_Destroy()
+    _Cfg_SetPinningEnabled($bPinWas)
+
+    ; -- Window list item conditional on window list enabled --
+    Local $bWLWas = _Cfg_GetWindowListEnabled()
+    _Cfg_SetWindowListEnabled(False)
+    _CM_Show($iTestTaskbarY, False)
+    _Test_AssertEqual("WinList hidden when disabled", $__g_CM_iWinListID, 0)
+    _CM_Destroy()
+
+    _Cfg_SetWindowListEnabled(True)
+    _CM_Show($iTestTaskbarY, False)
+    _Test_AssertNotEqual("WinList shown when enabled", $__g_CM_iWinListID, 0)
+    _Test_AssertEqual("HandleClick(wl) = 'window_list'", _CM_HandleClick($__g_CM_iWinListID), "window_list")
+    _CM_Destroy()
+    _Cfg_SetWindowListEnabled($bWLWas)
+
+    ; -- Visibility state through show/destroy cycle --
+    _Test_AssertFalse("Pre-cycle: not visible", _CM_IsVisible())
+    _Test_AssertEqual("Pre-cycle: GUI = 0", _CM_GetGUI(), 0)
+    _CM_Show($iTestTaskbarY, False)
+    _Test_AssertTrue("Mid-cycle: visible", _CM_IsVisible())
+    _Test_AssertNotEqual("Mid-cycle: GUI <> 0", _CM_GetGUI(), 0)
+    _CM_Destroy()
+    _Test_AssertFalse("Post-cycle: not visible", _CM_IsVisible())
+    _Test_AssertEqual("Post-cycle: GUI = 0", _CM_GetGUI(), 0)
 EndFunc

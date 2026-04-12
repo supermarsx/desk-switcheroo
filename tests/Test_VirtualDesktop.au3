@@ -90,9 +90,53 @@ Func _RunTest_VirtualDesktop()
     ; -- MoveWindowToDesktop with invalid handle returns False --
     _Test_AssertFalse("MoveWindowToDesktop(0) fails", _VD_MoveWindowToDesktop(0, 1))
 
+    ; -- Pin wrapper functions with hwnd 0 (DLL accepts without error) --
+    _Test_AssertFalse("IsPinnedWindow(0) returns False", _VD_IsPinnedWindow(0))
+    _Test_AssertFalse("IsPinnedApp(0) returns False", _VD_IsPinnedApp(0))
+    ; Pin/Unpin/Toggle with hwnd 0: DLL doesn't fail, just test no crash
+    _VD_PinWindow(0)
+    _Test_AssertTrue("PinWindow(0) no crash", True)
+    _VD_UnpinWindow(0)
+    _Test_AssertTrue("UnpinWindow(0) no crash", True)
+    _VD_TogglePinWindow(0)
+    _Test_AssertTrue("TogglePinWindow(0) no crash", True)
+
+    ; -- Pin/unpin on a real window handle should not crash --
+    ; Find our own AutoIt window as a safe test target
+    Local $hSelf = WinGetHandle("[CLASS:AutoIt v3]")
+    If $hSelf <> 0 Then
+        ; IsPinnedWindow should return True or False without crashing
+        Local $bPinState = _VD_IsPinnedWindow($hSelf)
+        _Test_AssertTrue("IsPinnedWindow returns bool", ($bPinState = True Or $bPinState = False))
+
+        Local $bAppPinState = _VD_IsPinnedApp($hSelf)
+        _Test_AssertTrue("IsPinnedApp returns bool", ($bAppPinState = True Or $bAppPinState = False))
+
+        ; PinWindow / UnpinWindow should not crash on real handle
+        Local $bPinOk = _VD_PinWindow($hSelf)
+        _Test_AssertTrue("PinWindow on real hwnd returns True", $bPinOk)
+
+        Local $bUnpinOk = _VD_UnpinWindow($hSelf)
+        _Test_AssertTrue("UnpinWindow on real hwnd returns True", $bUnpinOk)
+
+        ; TogglePinWindow should not crash on real handle
+        Local $bToggle1 = _VD_TogglePinWindow($hSelf)
+        _Test_AssertTrue("TogglePinWindow returns bool", ($bToggle1 = True Or $bToggle1 = False))
+        ; Toggle back to restore original state
+        _VD_TogglePinWindow($hSelf)
+    Else
+        ConsoleWrite("  SKIP: No AutoIt window found for pin/unpin real-handle tests" & @CRLF)
+    EndIf
+
     ; -- Shutdown cleans up --
     _VD_Shutdown()
     _Test_AssertFalse("IsReady after shutdown", _VD_IsReady())
+
+    ; -- Pin functions should return False after shutdown (DLL not loaded) --
+    _Test_AssertFalse("IsPinnedWindow after shutdown", _VD_IsPinnedWindow(0))
+    _Test_AssertFalse("IsPinnedApp after shutdown", _VD_IsPinnedApp(0))
+    _Test_AssertFalse("PinWindow after shutdown", _VD_PinWindow(0))
+    _Test_AssertFalse("UnpinWindow after shutdown", _VD_UnpinWindow(0))
 
     ; Re-init for other tests that may need it
     _VD_Init($sDllPath)

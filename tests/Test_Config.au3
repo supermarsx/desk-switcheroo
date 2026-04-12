@@ -437,6 +437,211 @@ Func _RunTest_Config()
     _Cfg_SetWidgetWidth(-1)
     _Test_AssertGreaterEqual("Widget width clamped low", _Cfg_GetWidgetWidth(), 0)
 
+    ; ===========================================
+    ; Phase 1A: New config keys
+    ; ===========================================
+    _Cfg_Init($sTempIni)
+
+    ; -- [General] singleton_enabled: default True, set/get --
+    _Test_AssertTrue("Default: singleton_enabled", _Cfg_GetSingletonEnabled())
+    _Cfg_SetSingletonEnabled(False)
+    _Test_AssertFalse("Set+Get: singleton_enabled off", _Cfg_GetSingletonEnabled())
+    _Cfg_SetSingletonEnabled(True)
+    _Test_AssertTrue("Set+Get: singleton_enabled on", _Cfg_GetSingletonEnabled())
+
+    ; -- [General] min_desktops: default 0, set/get, clamped 0-20 --
+    _Test_AssertEqual("Default: min_desktops", _Cfg_GetMinDesktops(), 0)
+    _Cfg_SetMinDesktops(5)
+    _Test_AssertEqual("Set+Get: min_desktops", _Cfg_GetMinDesktops(), 5)
+    _Cfg_SetMinDesktops(-1)
+    _Test_AssertGreaterEqual("min_desktops clamped low", _Cfg_GetMinDesktops(), 0)
+    _Cfg_SetMinDesktops(25)
+    _Test_AssertLessEqual("min_desktops clamped high", _Cfg_GetMinDesktops(), 20)
+
+    ; -- [General] taskbar_focus_trick: default False, set/get --
+    _Test_AssertFalse("Default: taskbar_focus_trick", _Cfg_GetTaskbarFocusTrick())
+    _Cfg_SetTaskbarFocusTrick(True)
+    _Test_AssertTrue("Set+Get: taskbar_focus_trick", _Cfg_GetTaskbarFocusTrick())
+
+    ; -- [General] auto_focus_after_switch: default False, set/get --
+    _Test_AssertFalse("Default: auto_focus_after_switch", _Cfg_GetAutoFocusAfterSwitch())
+    _Cfg_SetAutoFocusAfterSwitch(True)
+    _Test_AssertTrue("Set+Get: auto_focus_after_switch", _Cfg_GetAutoFocusAfterSwitch())
+
+    ; -- [General] capslock_modifier: default False, set/get --
+    _Test_AssertFalse("Default: capslock_modifier", _Cfg_GetCapslockModifier())
+    _Cfg_SetCapslockModifier(True)
+    _Test_AssertTrue("Set+Get: capslock_modifier", _Cfg_GetCapslockModifier())
+
+    ; -- [Wallpaper] wallpaper_enabled: default False, set/get --
+    _Test_AssertFalse("Default: wallpaper_enabled", _Cfg_GetWallpaperEnabled())
+    _Cfg_SetWallpaperEnabled(True)
+    _Test_AssertTrue("Set+Get: wallpaper_enabled", _Cfg_GetWallpaperEnabled())
+
+    ; -- [Wallpaper] wallpaper_change_delay: default 200, set/get, clamped 50-2000 --
+    _Cfg_Init($sTempIni)
+    _Test_AssertEqual("Default: wallpaper_change_delay", _Cfg_GetWallpaperChangeDelay(), 200)
+    _Cfg_SetWallpaperChangeDelay(500)
+    _Test_AssertEqual("Set+Get: wallpaper_change_delay", _Cfg_GetWallpaperChangeDelay(), 500)
+    _Cfg_SetWallpaperChangeDelay(10)
+    _Test_AssertGreaterEqual("wallpaper_change_delay clamped low", _Cfg_GetWallpaperChangeDelay(), 50)
+    _Cfg_SetWallpaperChangeDelay(5000)
+    _Test_AssertLessEqual("wallpaper_change_delay clamped high", _Cfg_GetWallpaperChangeDelay(), 2000)
+
+    ; -- [Wallpaper] desktop wallpaper paths: default "", set/get for 1 and 9, out-of-range --
+    _Test_AssertEqual("Default: wallpaper desktop 1", _Cfg_GetDesktopWallpaper(1), "")
+    _Test_AssertEqual("Default: wallpaper desktop 9", _Cfg_GetDesktopWallpaper(9), "")
+    _Cfg_SetDesktopWallpaper(1, "C:\walls\bg1.jpg")
+    _Test_AssertEqual("Set+Get: wallpaper desktop 1", _Cfg_GetDesktopWallpaper(1), "C:\walls\bg1.jpg")
+    _Cfg_SetDesktopWallpaper(9, "C:\walls\bg9.png")
+    _Test_AssertEqual("Set+Get: wallpaper desktop 9", _Cfg_GetDesktopWallpaper(9), "C:\walls\bg9.png")
+    _Test_AssertEqual("Wallpaper out-of-range 0", _Cfg_GetDesktopWallpaper(0), "")
+    _Test_AssertEqual("Wallpaper out-of-range 10", _Cfg_GetDesktopWallpaper(10), "")
+
+    ; -- [Pinning] pinning_enabled: default False, set/get --
+    _Test_AssertFalse("Default: pinning_enabled", _Cfg_GetPinningEnabled())
+    _Cfg_SetPinningEnabled(True)
+    _Test_AssertTrue("Set+Get: pinning_enabled", _Cfg_GetPinningEnabled())
+
+    ; -- [Hotkeys] 8 new hotkey strings: default "", set/get round-trip --
+    _Cfg_Init($sTempIni)
+    _Test_AssertEqual("Default: hotkey_toggle_last", _Cfg_GetHotkeyToggleLast(), "")
+    _Cfg_SetHotkeyToggleLast("^!t")
+    _Test_AssertEqual("Set+Get: hotkey_toggle_last", _Cfg_GetHotkeyToggleLast(), "^!t")
+
+    _Test_AssertEqual("Default: hotkey_move_follow_next", _Cfg_GetHotkeyMoveFollowNext(), "")
+    _Cfg_SetHotkeyMoveFollowNext("^!+{RIGHT}")
+    _Test_AssertEqual("Set+Get: hotkey_move_follow_next", _Cfg_GetHotkeyMoveFollowNext(), "^!+{RIGHT}")
+
+    _Test_AssertEqual("Default: hotkey_move_follow_prev", _Cfg_GetHotkeyMoveFollowPrev(), "")
+    _Cfg_SetHotkeyMoveFollowPrev("^!+{LEFT}")
+    _Test_AssertEqual("Set+Get: hotkey_move_follow_prev", _Cfg_GetHotkeyMoveFollowPrev(), "^!+{LEFT}")
+
+    _Test_AssertEqual("Default: hotkey_move_next", _Cfg_GetHotkeyMoveNext(), "")
+    _Cfg_SetHotkeyMoveNext("^#{RIGHT}")
+    _Test_AssertEqual("Set+Get: hotkey_move_next", _Cfg_GetHotkeyMoveNext(), "^#{RIGHT}")
+
+    _Test_AssertEqual("Default: hotkey_move_prev", _Cfg_GetHotkeyMovePrev(), "")
+    _Cfg_SetHotkeyMovePrev("^#{LEFT}")
+    _Test_AssertEqual("Set+Get: hotkey_move_prev", _Cfg_GetHotkeyMovePrev(), "^#{LEFT}")
+
+    _Test_AssertEqual("Default: hotkey_send_new_desktop", _Cfg_GetHotkeySendNewDesktop(), "")
+    _Cfg_SetHotkeySendNewDesktop("^!n")
+    _Test_AssertEqual("Set+Get: hotkey_send_new_desktop", _Cfg_GetHotkeySendNewDesktop(), "^!n")
+
+    _Test_AssertEqual("Default: hotkey_pin_window", _Cfg_GetHotkeyPinWindow(), "")
+    _Cfg_SetHotkeyPinWindow("^!p")
+    _Test_AssertEqual("Set+Get: hotkey_pin_window", _Cfg_GetHotkeyPinWindow(), "^!p")
+
+    _Test_AssertEqual("Default: hotkey_toggle_window_list", _Cfg_GetHotkeyToggleWindowList(), "")
+    _Cfg_SetHotkeyToggleWindowList("^!w")
+    _Test_AssertEqual("Set+Get: hotkey_toggle_window_list", _Cfg_GetHotkeyToggleWindowList(), "^!w")
+
+    ; -- [WindowList] window_list_enabled: default False, set/get --
+    _Cfg_Init($sTempIni)
+    _Test_AssertFalse("Default: window_list_enabled", _Cfg_GetWindowListEnabled())
+    _Cfg_SetWindowListEnabled(True)
+    _Test_AssertTrue("Set+Get: window_list_enabled", _Cfg_GetWindowListEnabled())
+
+    ; -- [WindowList] window_list_position: default "top-left", set/get, invalid falls back --
+    _Cfg_Init($sTempIni)
+    _Test_AssertEqual("Default: window_list_position", _Cfg_GetWindowListPosition(), "top-left")
+    _Cfg_SetWindowListPosition("bottom-right")
+    _Test_AssertEqual("Set+Get: window_list_position", _Cfg_GetWindowListPosition(), "bottom-right")
+    _Cfg_SetWindowListPosition("invalid-pos")
+    _Test_AssertEqual("Invalid window_list_position falls back", _Cfg_GetWindowListPosition(), "top-left")
+
+    ; -- [WindowList] window_list_width: default 280, set/get, clamped 150-600 --
+    _Cfg_Init($sTempIni)
+    _Test_AssertEqual("Default: window_list_width", _Cfg_GetWindowListWidth(), 280)
+    _Cfg_SetWindowListWidth(400)
+    _Test_AssertEqual("Set+Get: window_list_width", _Cfg_GetWindowListWidth(), 400)
+    _Cfg_SetWindowListWidth(50)
+    _Test_AssertGreaterEqual("window_list_width clamped low", _Cfg_GetWindowListWidth(), 150)
+    _Cfg_SetWindowListWidth(999)
+    _Test_AssertLessEqual("window_list_width clamped high", _Cfg_GetWindowListWidth(), 600)
+
+    ; -- [WindowList] window_list_max_visible: default 15, set/get, clamped 5-50 --
+    _Cfg_Init($sTempIni)
+    _Test_AssertEqual("Default: window_list_max_visible", _Cfg_GetWindowListMaxVisible(), 15)
+    _Cfg_SetWindowListMaxVisible(25)
+    _Test_AssertEqual("Set+Get: window_list_max_visible", _Cfg_GetWindowListMaxVisible(), 25)
+    _Cfg_SetWindowListMaxVisible(1)
+    _Test_AssertGreaterEqual("window_list_max_visible clamped low", _Cfg_GetWindowListMaxVisible(), 5)
+    _Cfg_SetWindowListMaxVisible(100)
+    _Test_AssertLessEqual("window_list_max_visible clamped high", _Cfg_GetWindowListMaxVisible(), 50)
+
+    ; -- [WindowList] window_list_show_icons: default True, set/get --
+    _Cfg_Init($sTempIni)
+    _Test_AssertTrue("Default: window_list_show_icons", _Cfg_GetWindowListShowIcons())
+    _Cfg_SetWindowListShowIcons(False)
+    _Test_AssertFalse("Set+Get: window_list_show_icons off", _Cfg_GetWindowListShowIcons())
+
+    ; -- [WindowList] window_list_search: default True, set/get --
+    _Cfg_Init($sTempIni)
+    _Test_AssertTrue("Default: window_list_search", _Cfg_GetWindowListSearch())
+    _Cfg_SetWindowListSearch(False)
+    _Test_AssertFalse("Set+Get: window_list_search off", _Cfg_GetWindowListSearch())
+
+    ; -- [WindowList] window_list_auto_refresh: default True, set/get --
+    _Cfg_Init($sTempIni)
+    _Test_AssertTrue("Default: window_list_auto_refresh", _Cfg_GetWindowListAutoRefresh())
+    _Cfg_SetWindowListAutoRefresh(False)
+    _Test_AssertFalse("Set+Get: window_list_auto_refresh off", _Cfg_GetWindowListAutoRefresh())
+
+    ; -- [WindowList] window_list_refresh_interval: default 1000, set/get, clamped 500-10000 --
+    _Cfg_Init($sTempIni)
+    _Test_AssertEqual("Default: window_list_refresh_interval", _Cfg_GetWindowListRefreshInterval(), 1000)
+    _Cfg_SetWindowListRefreshInterval(3000)
+    _Test_AssertEqual("Set+Get: window_list_refresh_interval", _Cfg_GetWindowListRefreshInterval(), 3000)
+    _Cfg_SetWindowListRefreshInterval(100)
+    _Test_AssertGreaterEqual("window_list_refresh_interval clamped low", _Cfg_GetWindowListRefreshInterval(), 500)
+    _Cfg_SetWindowListRefreshInterval(99999)
+    _Test_AssertLessEqual("window_list_refresh_interval clamped high", _Cfg_GetWindowListRefreshInterval(), 10000)
+
+    ; -- [ExplorerMonitor] explorer_monitor_enabled: default False, set/get --
+    _Cfg_Init($sTempIni)
+    _Test_AssertFalse("Default: explorer_monitor_enabled", _Cfg_GetExplorerMonitorEnabled())
+    _Cfg_SetExplorerMonitorEnabled(True)
+    _Test_AssertTrue("Set+Get: explorer_monitor_enabled", _Cfg_GetExplorerMonitorEnabled())
+
+    ; -- [ExplorerMonitor] explorer_check_interval: default 5000, set/get, clamped 2000-60000 --
+    _Cfg_Init($sTempIni)
+    _Test_AssertEqual("Default: explorer_check_interval", _Cfg_GetExplorerCheckInterval(), 5000)
+    _Cfg_SetExplorerCheckInterval(10000)
+    _Test_AssertEqual("Set+Get: explorer_check_interval", _Cfg_GetExplorerCheckInterval(), 10000)
+    _Cfg_SetExplorerCheckInterval(500)
+    _Test_AssertGreaterEqual("explorer_check_interval clamped low", _Cfg_GetExplorerCheckInterval(), 2000)
+    _Cfg_SetExplorerCheckInterval(100000)
+    _Test_AssertLessEqual("explorer_check_interval clamped high", _Cfg_GetExplorerCheckInterval(), 60000)
+
+    ; -- [ExplorerMonitor] explorer_notify_recovery: default True, set/get --
+    _Cfg_Init($sTempIni)
+    _Test_AssertTrue("Default: explorer_notify_recovery", _Cfg_GetExplorerNotifyRecovery())
+    _Cfg_SetExplorerNotifyRecovery(False)
+    _Test_AssertFalse("Set+Get: explorer_notify_recovery off", _Cfg_GetExplorerNotifyRecovery())
+
+    ; -- [Notifications] notify_window_moved: default False, set/get --
+    _Cfg_Init($sTempIni)
+    _Test_AssertFalse("Default: notify_window_moved", _Cfg_GetNotifyWindowMoved())
+    _Cfg_SetNotifyWindowMoved(True)
+    _Test_AssertTrue("Set+Get: notify_window_moved", _Cfg_GetNotifyWindowMoved())
+
+    ; -- [Notifications] notify_desktop_created: default False, set/get --
+    _Test_AssertFalse("Default: notify_desktop_created", _Cfg_GetNotifyDesktopCreated())
+    _Cfg_SetNotifyDesktopCreated(True)
+    _Test_AssertTrue("Set+Get: notify_desktop_created", _Cfg_GetNotifyDesktopCreated())
+
+    ; -- [Notifications] notify_desktop_deleted: default False, set/get --
+    _Test_AssertFalse("Default: notify_desktop_deleted", _Cfg_GetNotifyDesktopDeleted())
+    _Cfg_SetNotifyDesktopDeleted(True)
+    _Test_AssertTrue("Set+Get: notify_desktop_deleted", _Cfg_GetNotifyDesktopDeleted())
+
+    ; -- [Notifications] notify_window_pinned: default False, set/get --
+    _Test_AssertFalse("Default: notify_window_pinned", _Cfg_GetNotifyWindowPinned())
+    _Cfg_SetNotifyWindowPinned(True)
+    _Test_AssertTrue("Set+Get: notify_window_pinned", _Cfg_GetNotifyWindowPinned())
+
     ; -- Cleanup --
     FileDelete($sTempIni)
 EndFunc
