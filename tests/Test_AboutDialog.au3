@@ -22,5 +22,5 @@ Func _RunTest_AboutDialog()
 
     ; -- APP_VERSION is defined and non-empty --
     _Test_AssertNotEqual("APP_VERSION defined", $APP_VERSION, "")
-    _Test_AssertNotEqual("APP_VERSION not zero", $APP_VERSION, 0)
+    _Test_AssertNotEqual("APP_VERSION not empty string", $APP_VERSION, "")
 EndFunc

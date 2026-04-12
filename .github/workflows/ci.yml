@@ -15,8 +15,14 @@ jobs:
       - name: Lint
         run: |
           $env:Path += ";C:\Program Files (x86)\AutoIt3"
+          $errors = 0
           & Au3Check.exe desktop_switcher.au3
-          if ($LASTEXITCODE -ne 0) { exit 1 }
+          if ($LASTEXITCODE -ne 0) { $errors++ }
+          Push-Location tests
+          & Au3Check.exe TestRunner.au3
+          if ($LASTEXITCODE -ne 0) { $errors++ }
+          Pop-Location
+          if ($errors -gt 0) { exit 1 }
         shell: pwsh
 
   format:
