@@ -27,8 +27,13 @@ Func _RunTest_ExplorerMonitor()
     ; -- Retry count starts at 0 --
     _Test_AssertEqual("Retry count = 0", _EM_GetRetryCount(), 0)
 
-    ; -- Current delay matches configured delay --
+    ; -- Current delay matches configured delay after start --
+    ; (delay is only initialized inside _EM_Start, so enable briefly)
+    _Cfg_SetExplorerMonitorEnabled(True)
+    _EM_Start()
     _Test_AssertEqual("Current delay = config", _EM_GetCurrentDelay(), _Cfg_GetMonitorRetryDelay())
+    _EM_Stop()
+    _Cfg_SetExplorerMonitorEnabled(False)
 
     ; -- CheckCrash returns False initially --
     _Test_AssertFalse("No crash pending", _EM_CheckCrash())

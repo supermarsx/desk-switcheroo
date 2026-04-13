@@ -181,6 +181,6 @@ Func _RunTest_Theme()
     _Test_AssertTrue("ApplyHover(0) no crash", True)
 
     ; -- RemoveHover with ctrl ID 0 is no-op --
-    _Theme_RemoveHover(0)
+    _Theme_RemoveHover(0, 0xFFFFFF)
     _Test_AssertTrue("RemoveHover(0) no crash", True)
 EndFunc
