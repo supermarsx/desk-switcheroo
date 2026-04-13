@@ -244,6 +244,7 @@ Global $__g_Cfg_bCarouselEnabled       = False
 Global $__g_Cfg_iCarouselInterval      = 20000
 Global $__g_Cfg_bCarouselShowInMenu    = True
 Global $__g_Cfg_bNotifyCarouselToggle  = True
+Global $__g_bCarouselActive            = False
 
 ; [Tray]
 Global $__g_Cfg_sTrayLeftClick          = "menu"
@@ -2321,6 +2322,9 @@ Func _Cfg_GetNotifyCarouselToggle()
 EndFunc
 Func _Cfg_SetNotifyCarouselToggle($b)
     $__g_Cfg_bNotifyCarouselToggle = $b
+EndFunc
+Func _CarouselIsActive()
+    Return $__g_bCarouselActive
 EndFunc
 Func _Cfg_GetHotkeyToggleCarousel()
     Return $__g_Cfg_sHotkeyToggleCarousel

@@ -54,7 +54,6 @@ EndIf
 Global $__g_bShuttingDown = False
 Global $__g_bPeekWasActive = False
 Global $__g_bWasCursorActive = False
-Global $__g_bCarouselActive = False
 Global $__g_oErrorHandler = ObjEvent("AutoIt.Error", "_OnAutoItError")
 OnAutoItExitRegister("_OnExit")
 
@@ -1748,13 +1747,6 @@ Func _CarouselToggle()
     Else
         _CarouselStart()
     EndIf
-EndFunc
-
-; Name:        _CarouselIsActive
-; Description: Returns whether the carousel is currently running
-; Return:      True/False
-Func _CarouselIsActive()
-    Return $__g_bCarouselActive
 EndFunc
 
 ; Name:        _WM_ACTIVATE
