@@ -1,0 +1,15 @@
+PackageIdentifier: supermarsx.DeskSwitcheroo
+PackageVersion: "26.6"
+PackageName: Desk Switcheroo
+Publisher: supermarsx
+License: MIT
+LicenseUrl: https://github.com/supermarsx/desk-switcheroo/blob/main/license.md
+ShortDescription: A lightweight Windows virtual desktop switcher widget for your taskbar
+PackageUrl: https://github.com/supermarsx/desk-switcheroo
+Installers:
+  - Architecture: x64
+    InstallerType: nullsoft
+    InstallerUrl: https://github.com/supermarsx/desk-switcheroo/releases/download/v26.6/DeskSwitcheroo_Setup.exe
+    InstallerSha256: ""
+ManifestType: singleton
+ManifestVersion: 1.6.0

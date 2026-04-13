@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.chocolatey.org/2012/v2">
+  <metadata>
+    <id>desk-switcheroo</id>
+    <version>26.6</version>
+    <title>Desk Switcheroo</title>
+    <authors>supermarsx</authors>
+    <owners>supermarsx</owners>
+    <projectUrl>https://github.com/supermarsx/desk-switcheroo</projectUrl>
+    <licenseUrl>https://github.com/supermarsx/desk-switcheroo/blob/main/license.md</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>A lightweight Windows virtual desktop switcher widget for your taskbar. Navigate, rename, peek, and manage desktops from a compact dark-themed overlay.</description>
+    <summary>Lightweight virtual desktop switcher widget</summary>
+    <tags>virtual-desktop desktop-switcher taskbar widget windows productivity</tags>
+    <packageSourceUrl>https://github.com/supermarsx/desk-switcheroo</packageSourceUrl>
+    <bugTrackerUrl>https://github.com/supermarsx/desk-switcheroo/issues</bugTrackerUrl>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

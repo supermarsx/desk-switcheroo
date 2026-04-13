@@ -1,0 +1,25 @@
+{
+    "version": "26.6",
+    "description": "A lightweight Windows virtual desktop switcher widget for your taskbar",
+    "homepage": "https://github.com/supermarsx/desk-switcheroo",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/supermarsx/desk-switcheroo/releases/download/v26.6/DeskSwitcheroo_Portable.zip",
+            "hash": ""
+        }
+    },
+    "extract_dir": "",
+    "bin": "DeskSwitcheroo.exe",
+    "shortcuts": [
+        ["DeskSwitcheroo.exe", "Desk Switcheroo"]
+    ],
+    "checkver": "github",
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/supermarsx/desk-switcheroo/releases/download/v$version/DeskSwitcheroo_Portable.zip"
+            }
+        }
+    }
+}
