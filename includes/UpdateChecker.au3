@@ -311,6 +311,12 @@ Func _UC_DownloadPortable()
         _Theme_Toast(_i18n("Toasts.toast_no_portable", "No portable download found"), 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_WARNING)
         Return
     EndIf
+    ; Validate URL domain for security
+    If Not StringRegExp($sDownloadUrl, '(?i)^https://github\.com/') Then
+        _Log_Warn("UC_Download: rejected non-GitHub download URL: " & $sDownloadUrl)
+        _Theme_Toast("Invalid download URL", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
+        Return
+    EndIf
 
     Local $sSizeRaw = __UC_ExtractField($sAssetBlock, "size", True)
     _Log_Debug("UC_Download: size=" & $sSizeRaw)
@@ -422,8 +428,18 @@ Func _UC_DownloadPortable()
 
     Local $hDownload = InetGet($sDownloadUrl, $sDestFile, 1, 1)
     Local $iBarW = $iDlgW - 28
+    Local $hDownTimer = TimerInit()
+    Local $iDownTimeout = 120000 ; 2 minutes max for download
 
     While Not InetGetInfo($hDownload, 2)
+        If TimerDiff($hDownTimer) > $iDownTimeout Then
+            _Log_Warn("UC_Download: download timed out after 120 seconds")
+            InetClose($hDownload)
+            FileDelete($sDestFile)
+            GUIDelete($hDlg)
+            _Theme_Toast(_i18n("Toasts.toast_connection_timeout", "Connection timed out"), 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
+            Return
+        EndIf
         Local $iBytesRead = InetGetInfo($hDownload, 0)
         If $iSizeBytes > 0 Then
             Local $iPct = Int($iBytesRead / $iSizeBytes * 100)
@@ -438,6 +454,15 @@ Func _UC_DownloadPortable()
 
     Local $bSuccess = InetGetInfo($hDownload, 3)
     InetClose($hDownload)
+    ; Validate downloaded file size against metadata
+    If $bSuccess And $iSizeBytes > 0 Then
+        Local $iActualSize = FileGetSize($sDestFile)
+        If $iActualSize <> $iSizeBytes Then
+            _Log_Warn("UC_Download: size mismatch - expected " & $iSizeBytes & " got " & $iActualSize)
+            $bSuccess = False
+            FileDelete($sDestFile)
+        EndIf
+    EndIf
     GUIDelete($hDlg)
 
     ; Result dialog

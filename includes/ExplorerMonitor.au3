@@ -102,9 +102,9 @@ Func __EM_Poll()
         $__g_EM_bShellAlive = True
         $__g_EM_bRecoveryPending = True
         $__g_EM_bWaitingForRecovery = False
+        _Log_Info($sProc & " recovered after " & $__g_EM_iRetryCount & " retries")
         $__g_EM_iRetryCount = 0
         $__g_EM_iCurrentDelay = _Cfg_GetMonitorRetryDelay()
-        _Log_Info($sProc & " recovered after " & $__g_EM_iRetryCount & " retries")
     EndIf
 EndFunc
 

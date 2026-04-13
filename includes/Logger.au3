@@ -171,8 +171,11 @@ Func __Log_CheckRotation()
 
     ; Compress .log.1 if enabled (use PowerShell)
     If $bCompress Then
-        RunWait('powershell.exe -NoProfile -Command "Compress-Archive -Path ''' & $__g_Log_sFilePath & '.1'' -DestinationPath ''' & $__g_Log_sFilePath & '.1.zip'' -Force"', "", @SW_HIDE)
-        If FileExists($__g_Log_sFilePath & ".1.zip") Then FileDelete($__g_Log_sFilePath & ".1")
+        Local $sSafePath = StringReplace($__g_Log_sFilePath, "'", "''")
+        Local $iRet = RunWait('powershell.exe -NoProfile -Command "Compress-Archive -Path ''' & $sSafePath & '.1'' -DestinationPath ''' & $sSafePath & '.1.zip'' -Force"', "", @SW_HIDE)
+        If $iRet = 0 And FileExists($__g_Log_sFilePath & ".1.zip") Then
+            FileDelete($__g_Log_sFilePath & ".1")
+        EndIf
     EndIf
 
     ; Reopen fresh log file

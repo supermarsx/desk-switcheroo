@@ -11,6 +11,12 @@
 ; Extern globals from main script (declared here to suppress Au3Check warnings)
 Global $gui, $iDesktop, $iTaskbarY, $iTaskbarH
 
+; Safe WinGetTitle — returns "" if window no longer exists
+Func __WL_SafeGetTitle($hWnd)
+    If Not WinExists($hWnd) Then Return ""
+    Return WinGetTitle($hWnd)
+EndFunc
+
 ; #INDEX# =======================================================
 ; Title .........: WindowList
 ; Description ....: Window list panel showing windows on the current desktop
@@ -23,8 +29,9 @@ Global $__g_WL_bVisible = False
 Global $__g_WL_iDesktop = 0
 
 ; Items
-Global $__g_WL_aHWNDs[100]     ; window handles, index 1-N
-Global $__g_WL_aItemIDs[100]   ; label control IDs for display
+Global $__g_WL_aHWNDs[100]        ; window handles, index 1-N
+Global $__g_WL_aItemIDs[100]      ; label control IDs for display
+Global $__g_WL_aDesktopNums[100]  ; desktop number for each window (used when scope=all)
 Global $__g_WL_iItemCount = 0
 Global $__g_WL_iMaxItems = 99
 
@@ -57,6 +64,12 @@ Global $__g_WL_iCtxMaximize = 0
 Global $__g_WL_iCtxRestore = 0
 Global $__g_WL_iCtxClose = 0
 Global $__g_WL_iCtxGoTo = 0
+Global $__g_WL_iCtxPinApp = 0
+
+; Send to Desktop N context menu items
+Global $__g_WL_aCtxSendTo[10]      ; control IDs for Send to Desktop items
+Global $__g_WL_aiCtxSendToDest[10] ; target desktop number for each send-to item
+Global $__g_WL_iCtxSendToCount = 0
 
 ; Auto-refresh
 Global $__g_WL_hRefreshTimer = 0
@@ -102,8 +115,8 @@ Func __WL_EnumFilteredWindows($iDesktop)
         ; Skip our own GUI
         If $hWnd = $gui Then ContinueLoop
 
-        ; Skip windows without a title
-        Local $sTitle = WinGetTitle($hWnd)
+        ; Skip windows without a title (or destroyed since enumeration)
+        Local $sTitle = __WL_SafeGetTitle($hWnd)
         If $sTitle = "" Then ContinueLoop
 
         ; Skip invisible windows
@@ -135,12 +148,13 @@ Func __WL_EnumAllDesktopWindows()
         If Not IsArray($aRaw) Or $aRaw[0] < 1 Then ContinueLoop
         If UBound($__g_WL_aHWNDs) < $__g_WL_iItemCount + $aRaw[0] + 1 Then
             ReDim $__g_WL_aHWNDs[$__g_WL_iItemCount + $aRaw[0] + 1]
+            ReDim $__g_WL_aDesktopNums[$__g_WL_iItemCount + $aRaw[0] + 1]
         EndIf
         Local $i
         For $i = 1 To $aRaw[0]
             Local $hWnd = $aRaw[$i]
             If $hWnd = 0 Or $hWnd = $gui Then ContinueLoop
-            Local $sTitle = WinGetTitle($hWnd)
+            Local $sTitle = __WL_SafeGetTitle($hWnd)
             If $sTitle = "" Then ContinueLoop
             Local $iState = WinGetState($hWnd)
             If Not BitAND($iState, 2) Then ContinueLoop
@@ -149,6 +163,7 @@ Func __WL_EnumAllDesktopWindows()
             If $__g_WL_iItemCount >= $__g_WL_iMaxItems Then ExitLoop 2
             $__g_WL_iItemCount += 1
             $__g_WL_aHWNDs[$__g_WL_iItemCount] = $hWnd
+            $__g_WL_aDesktopNums[$__g_WL_iItemCount] = $d
         Next
     Next
     Return $__g_WL_iItemCount
@@ -344,7 +359,14 @@ Func _WL_Show($iDesktop)
             If $iIdx > $iCount Then ExitLoop
 
             Local $hWnd = $__g_WL_aHWNDs[$iIdx]
-            Local $sTitle = WinGetTitle($hWnd)
+            Local $sTitle = __WL_SafeGetTitle($hWnd)
+            If $sTitle = "" Then ContinueLoop
+
+            ; Add desktop indicator when showing all desktops
+            If _Cfg_GetWindowListScope() = "all" And $iIdx < UBound($__g_WL_aDesktopNums) And $__g_WL_aDesktopNums[$iIdx] > 0 Then
+                $sTitle = "[D" & $__g_WL_aDesktopNums[$iIdx] & "] " & $sTitle
+            EndIf
+
             $sTitle = __WL_TruncateTitle($sTitle, $iMaxChars)
 
             ; Check if window is pinned — add indicator
@@ -485,7 +507,11 @@ Func _WL_Refresh($iDesktopNum)
         Local $iIdx = $iStart + $iSlot - 1
         If $iIdx > $__g_WL_iItemCount Then ExitLoop
         If $iSlot > UBound($__g_WL_aItemIDs) - 1 Then ExitLoop
-        Local $sTitle = WinGetTitle($__g_WL_aHWNDs[$iIdx])
+        Local $sTitle = __WL_SafeGetTitle($__g_WL_aHWNDs[$iIdx])
+        If $sTitle = "" Then ContinueLoop
+        If _Cfg_GetWindowListScope() = "all" And $iIdx < UBound($__g_WL_aDesktopNums) And $__g_WL_aDesktopNums[$iIdx] > 0 Then
+            $sTitle = "[D" & $__g_WL_aDesktopNums[$iIdx] & "] " & $sTitle
+        EndIf
         GUICtrlSetData($__g_WL_aItemIDs[$iSlot], "  " & __WL_TruncateTitle($sTitle, $iMaxChars))
     Next
     DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", 0)
@@ -659,7 +685,13 @@ Func __WL_RefreshScrollView()
         If $iIdx > $__g_WL_iItemCount Or $iIdx >= UBound($__g_WL_aHWNDs) Then ExitLoop
 
         Local $hWnd = $__g_WL_aHWNDs[$iIdx]
-        Local $sTitle = WinGetTitle($hWnd)
+        Local $sTitle = __WL_SafeGetTitle($hWnd)
+        If $sTitle = "" Then ContinueLoop
+
+        If _Cfg_GetWindowListScope() = "all" And $iIdx < UBound($__g_WL_aDesktopNums) And $__g_WL_aDesktopNums[$iIdx] > 0 Then
+            $sTitle = "[D" & $__g_WL_aDesktopNums[$iIdx] & "] " & $sTitle
+        EndIf
+
         $sTitle = __WL_TruncateTitle($sTitle, $iMaxChars)
 
         Local $bPinned = _VD_IsPinnedWindow($hWnd)
@@ -716,7 +748,7 @@ Func _WL_SearchFilter($sQuery)
         Else
             ; Check if window title contains query (case-insensitive)
             Local $hWnd = $__g_WL_aHWNDs[$iIdx]
-            Local $sTitle = WinGetTitle($hWnd)
+            Local $sTitle = __WL_SafeGetTitle($hWnd)
             If StringInStr(StringLower($sTitle), StringLower($sQuery)) Then
                 GUICtrlSetState($__g_WL_aItemIDs[$iSlot], $GUI_SHOW)
             Else
@@ -759,15 +791,30 @@ Func _WL_CtxShow($hTargetWnd)
     Local $bMinimized = BitAND($iWinState, 16) ; 16 = minimized
     Local $bMaximized = BitAND($iWinState, 32) ; 32 = maximized
     Local $bPinned = _VD_IsPinnedWindow($hTargetWnd)
+    Local $bAppPinned = _VD_IsPinnedApp($hTargetWnd)
 
     ; Check if window is on a different desktop
     Local $iWinDesktop = _VD_GetWindowDesktopNumber($hTargetWnd)
     Local $bDifferentDesktop = ($iWinDesktop > 0 And $iWinDesktop <> $__g_WL_iDesktop)
 
+    ; Calculate how many Send to Desktop N items we need
+    Local $iDeskCount = _VD_GetCount()
+    Local $iSendToCount = 0
+    Local $d
+    For $d = 1 To $iDeskCount
+        If $d = $iWinDesktop Then ContinueLoop
+        If $iSendToCount >= 9 Then ExitLoop
+        $iSendToCount += 1
+    Next
+
     ; Count menu items to calculate height
-    Local $iMenuW = 200
+    Local $iMenuW = 220
     Local $iSepH = 1
-    Local $iItemCount = 4 ; send_next, send_prev, send_new, pin
+    Local $iItemCount = 3 + $iSendToCount ; send_next, send_prev, send_new + send_to_N items
+    Local $iSepCount = 2
+    If _Cfg_GetPinningEnabled() Then
+        $iItemCount += 2 ; pin window + pin app
+    EndIf
     If $bDifferentDesktop Then $iItemCount += 2 ; goto + pull
 
     ; Window state actions: always show at least one of minimize/maximize/restore
@@ -780,8 +827,7 @@ Func _WL_CtxShow($hTargetWnd)
     EndIf
     $iItemCount += 1 ; close
 
-    ; 2 separators
-    Local $iMenuH = $iItemCount * $THEME_MENU_ITEM_H + 2 * ($iSepH + 4) + 12
+    Local $iMenuH = $iItemCount * $THEME_MENU_ITEM_H + $iSepCount * ($iSepH + 4) + 12
 
     ; Position near cursor
     Local $iMenuX = $__g_Theme_iCachedCursorX
@@ -803,11 +849,13 @@ Func _WL_CtxShow($hTargetWnd)
     $__g_WL_iCtxSendNew = 0
     $__g_WL_iCtxPull = 0
     $__g_WL_iCtxPin = 0
+    $__g_WL_iCtxPinApp = 0
     $__g_WL_iCtxGoTo = 0
     $__g_WL_iCtxMinimize = 0
     $__g_WL_iCtxMaximize = 0
     $__g_WL_iCtxRestore = 0
     $__g_WL_iCtxClose = 0
+    $__g_WL_iCtxSendToCount = 0
 
     Local $iY = 4
 
@@ -826,6 +874,19 @@ Func _WL_CtxShow($hTargetWnd)
         4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 
+    ; Send to Desktop N items (one per desktop, skip current desktop of window)
+    For $d = 1 To $iDeskCount
+        If $d = $iWinDesktop Then ContinueLoop
+        If $__g_WL_iCtxSendToCount >= 9 Then ExitLoop
+        $__g_WL_iCtxSendToCount += 1
+        $__g_WL_aiCtxSendToDest[$__g_WL_iCtxSendToCount] = $d
+        $__g_WL_aCtxSendTo[$__g_WL_iCtxSendToCount] = _Theme_CreateMenuItem( _
+            "    " & _i18n_Format("WindowList.wl_send_to_desktop", "Send to Desktop {1}", $d), _
+            4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+        GUICtrlSetColor($__g_WL_aCtxSendTo[$__g_WL_iCtxSendToCount], $THEME_FG_DIM)
+        $iY += $THEME_MENU_ITEM_H
+    Next
+
     ; Pull to current (only if window is on a different desktop)
     If $bDifferentDesktop Then
         $__g_WL_iCtxPull = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_pull_to_current", "Pull to Current Desktop"), _
@@ -838,15 +899,27 @@ Func _WL_CtxShow($hTargetWnd)
     GUICtrlSetBkColor(-1, $THEME_BG_SEPARATOR)
     $iY += $iSepH + 4
 
-    ; Pin / Unpin
-    Local $sPinText = ""
-    If $bPinned Then
-        $sPinText = "  " & _i18n("WindowList.wl_unpin_window", "Unpin from All Desktops")
-    Else
-        $sPinText = "  " & _i18n("WindowList.wl_pin_window", "Pin to All Desktops")
+    ; Pin / Unpin Window
+    If _Cfg_GetPinningEnabled() Then
+        Local $sPinText = ""
+        If $bPinned Then
+            $sPinText = "  " & _i18n("WindowList.wl_unpin_window", "Unpin from All Desktops")
+        Else
+            $sPinText = "  " & _i18n("WindowList.wl_pin_window", "Pin to All Desktops")
+        EndIf
+        $__g_WL_iCtxPin = _Theme_CreateMenuItem($sPinText, 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+        $iY += $THEME_MENU_ITEM_H
+
+        ; Pin / Unpin App
+        Local $sPinAppText = ""
+        If $bAppPinned Then
+            $sPinAppText = "  " & _i18n("WindowList.wl_unpin_app", "Unpin App from All Desktops")
+        Else
+            $sPinAppText = "  " & _i18n("WindowList.wl_pin_app", "Pin App to All Desktops")
+        EndIf
+        $__g_WL_iCtxPinApp = _Theme_CreateMenuItem($sPinAppText, 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+        $iY += $THEME_MENU_ITEM_H
     EndIf
-    $__g_WL_iCtxPin = _Theme_CreateMenuItem($sPinText, 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
-    $iY += $THEME_MENU_ITEM_H
 
     ; Go to Window's Desktop (only if on different desktop)
     If $bDifferentDesktop Then
@@ -909,11 +982,13 @@ Func _WL_CtxDestroy()
     $__g_WL_iCtxSendNew = 0
     $__g_WL_iCtxPull = 0
     $__g_WL_iCtxPin = 0
+    $__g_WL_iCtxPinApp = 0
     $__g_WL_iCtxGoTo = 0
     $__g_WL_iCtxMinimize = 0
     $__g_WL_iCtxMaximize = 0
     $__g_WL_iCtxRestore = 0
     $__g_WL_iCtxClose = 0
+    $__g_WL_iCtxSendToCount = 0
 EndFunc
 
 ; Name:        _WL_CtxIsVisible
@@ -940,15 +1015,23 @@ EndFunc
 ; Name:        _WL_CtxHandleClick
 ; Description: Processes a click on a window list context menu item
 ; Parameters:  $msg - GUI message from GUIGetMsg
-; Return:      Action string: "send_next", "send_prev", "send_new", "pull", "pin",
-;              "goto", "minimize", "maximize", "restore", "close", or "" if no match
+; Return:      Action string: "send_next", "send_prev", "send_new", "send_to:N", "pull", "pin",
+;              "pin_app", "goto", "minimize", "maximize", "restore", "close", or "" if no match
 Func _WL_CtxHandleClick($msg)
     If $msg <= 0 Then Return ""
     If $__g_WL_iCtxSendNext <> 0 And $msg = $__g_WL_iCtxSendNext Then Return "send_next"
     If $__g_WL_iCtxSendPrev <> 0 And $msg = $__g_WL_iCtxSendPrev Then Return "send_prev"
     If $__g_WL_iCtxSendNew <> 0 And $msg = $__g_WL_iCtxSendNew Then Return "send_new"
+    ; Send to Desktop N items
+    Local $d
+    For $d = 1 To $__g_WL_iCtxSendToCount
+        If $__g_WL_aCtxSendTo[$d] <> 0 And $msg = $__g_WL_aCtxSendTo[$d] Then
+            Return "send_to:" & $__g_WL_aiCtxSendToDest[$d]
+        EndIf
+    Next
     If $__g_WL_iCtxPull <> 0 And $msg = $__g_WL_iCtxPull Then Return "pull"
     If $__g_WL_iCtxPin <> 0 And $msg = $__g_WL_iCtxPin Then Return "pin"
+    If $__g_WL_iCtxPinApp <> 0 And $msg = $__g_WL_iCtxPinApp Then Return "pin_app"
     If $__g_WL_iCtxGoTo <> 0 And $msg = $__g_WL_iCtxGoTo Then Return "goto"
     If $__g_WL_iCtxMinimize <> 0 And $msg = $__g_WL_iCtxMinimize Then Return "minimize"
     If $__g_WL_iCtxMaximize <> 0 And $msg = $__g_WL_iCtxMaximize Then Return "maximize"
@@ -978,8 +1061,14 @@ Func _WL_CtxCheckHover()
     If $__g_WL_iCtxSendNext <> 0 And $aCursor[4] = $__g_WL_iCtxSendNext Then $iFound = $__g_WL_iCtxSendNext
     If $__g_WL_iCtxSendPrev <> 0 And $aCursor[4] = $__g_WL_iCtxSendPrev Then $iFound = $__g_WL_iCtxSendPrev
     If $__g_WL_iCtxSendNew <> 0 And $aCursor[4] = $__g_WL_iCtxSendNew Then $iFound = $__g_WL_iCtxSendNew
+    ; Send to Desktop N items
+    Local $d
+    For $d = 1 To $__g_WL_iCtxSendToCount
+        If $__g_WL_aCtxSendTo[$d] <> 0 And $aCursor[4] = $__g_WL_aCtxSendTo[$d] Then $iFound = $__g_WL_aCtxSendTo[$d]
+    Next
     If $__g_WL_iCtxPull <> 0 And $aCursor[4] = $__g_WL_iCtxPull Then $iFound = $__g_WL_iCtxPull
     If $__g_WL_iCtxPin <> 0 And $aCursor[4] = $__g_WL_iCtxPin Then $iFound = $__g_WL_iCtxPin
+    If $__g_WL_iCtxPinApp <> 0 And $aCursor[4] = $__g_WL_iCtxPinApp Then $iFound = $__g_WL_iCtxPinApp
     If $__g_WL_iCtxGoTo <> 0 And $aCursor[4] = $__g_WL_iCtxGoTo Then $iFound = $__g_WL_iCtxGoTo
     If $__g_WL_iCtxMinimize <> 0 And $aCursor[4] = $__g_WL_iCtxMinimize Then $iFound = $__g_WL_iCtxMinimize
     If $__g_WL_iCtxMaximize <> 0 And $aCursor[4] = $__g_WL_iCtxMaximize Then $iFound = $__g_WL_iCtxMaximize
@@ -989,10 +1078,21 @@ Func _WL_CtxCheckHover()
     ; No change — skip update
     If $iFound = $__g_WL_iCtxHovered Then Return
 
+    ; Determine the original foreground color for the previously hovered item
+    Local $iFgOld = $THEME_FG_MENU
     ; Remove old hover
     If $__g_WL_iCtxHovered <> 0 Then
-        Local $iFgOld = $THEME_FG_MENU
-        If $__g_WL_iCtxHovered = $__g_WL_iCtxClose Then $iFgOld = 0xCC6666
+        If $__g_WL_iCtxHovered = $__g_WL_iCtxClose Then
+            $iFgOld = 0xCC6666
+        Else
+            ; Check if it's a send-to item (dimmer text)
+            For $d = 1 To $__g_WL_iCtxSendToCount
+                If $__g_WL_iCtxHovered = $__g_WL_aCtxSendTo[$d] Then
+                    $iFgOld = $THEME_FG_DIM
+                    ExitLoop
+                EndIf
+            Next
+        EndIf
         _Theme_RemoveHover($__g_WL_iCtxHovered, $iFgOld)
     EndIf
 

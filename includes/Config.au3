@@ -12,6 +12,8 @@
 Global $__g_Cfg_sIniPath = ""
 Global $__g_Cfg_hSaveTimer = 0
 Global Const $__g_Cfg_SAVE_DEBOUNCE = 500 ; ms between saves
+Global Const $__g_Cfg_MAX_DESKTOPS = 50
+Global $__g_Cfg_bLoadedDefaults = False
 
 ; [General]
 Global $__g_Cfg_sLanguage          = "en-US"
@@ -94,6 +96,8 @@ Global $__g_Cfg_sHotkeyDeleteDesktop = ""
 Global $__g_Cfg_sHotkeyRenameDesktop = "^!r"
 Global $__g_Cfg_sHotkeyCloseWindow  = ""
 Global $__g_Cfg_sHotkeyMinimizeWindow = ""
+Global $__g_Cfg_sHotkeyToggleCarousel = ""
+Global $__g_Cfg_sHotkeyTaskView     = ""
 
 ; [Behavior]
 Global $__g_Cfg_bConfirmDelete     = True
@@ -147,32 +151,20 @@ Global $__g_Cfg_bLogFlushImmediate = True
 
 ; [DesktopColors]
 Global $__g_Cfg_bDesktopColorsEnabled = False
-Global $__g_Cfg_aDesktopColors[10]
-$__g_Cfg_aDesktopColors[0] = 9
-$__g_Cfg_aDesktopColors[1] = 0
-$__g_Cfg_aDesktopColors[2] = 0
-$__g_Cfg_aDesktopColors[3] = 0
-$__g_Cfg_aDesktopColors[4] = 0
-$__g_Cfg_aDesktopColors[5] = 0
-$__g_Cfg_aDesktopColors[6] = 0
-$__g_Cfg_aDesktopColors[7] = 0
-$__g_Cfg_aDesktopColors[8] = 0
-$__g_Cfg_aDesktopColors[9] = 0
+Global $__g_Cfg_aDesktopColors[$__g_Cfg_MAX_DESKTOPS + 1]
+$__g_Cfg_aDesktopColors[0] = $__g_Cfg_MAX_DESKTOPS
+For $__i = 1 To $__g_Cfg_MAX_DESKTOPS
+    $__g_Cfg_aDesktopColors[$__i] = 0
+Next
 
 ; [Wallpaper]
 Global $__g_Cfg_bWallpaperEnabled    = False
 Global $__g_Cfg_iWallpaperChangeDelay = 200
-Global $__g_Cfg_aDesktopWallpaper[10]
-$__g_Cfg_aDesktopWallpaper[0] = 9
-$__g_Cfg_aDesktopWallpaper[1] = ""
-$__g_Cfg_aDesktopWallpaper[2] = ""
-$__g_Cfg_aDesktopWallpaper[3] = ""
-$__g_Cfg_aDesktopWallpaper[4] = ""
-$__g_Cfg_aDesktopWallpaper[5] = ""
-$__g_Cfg_aDesktopWallpaper[6] = ""
-$__g_Cfg_aDesktopWallpaper[7] = ""
-$__g_Cfg_aDesktopWallpaper[8] = ""
-$__g_Cfg_aDesktopWallpaper[9] = ""
+Global $__g_Cfg_aDesktopWallpaper[$__g_Cfg_MAX_DESKTOPS + 1]
+$__g_Cfg_aDesktopWallpaper[0] = $__g_Cfg_MAX_DESKTOPS
+For $__i = 1 To $__g_Cfg_MAX_DESKTOPS
+    $__g_Cfg_aDesktopWallpaper[$__i] = ""
+Next
 
 ; [Pinning]
 Global $__g_Cfg_bPinningEnabled      = False
@@ -199,6 +191,19 @@ Global $__g_Cfg_bMonitorAutoRestart      = False
 Global $__g_Cfg_iMonitorRestartDelay     = 2000
 Global $__g_Cfg_bExplorerNotifyRecovery  = True
 
+; [TaskbarAutoHide]
+Global $__g_Cfg_bAutoHideSyncEnabled      = False
+Global $__g_Cfg_iAutoHidePollInterval     = 150
+Global $__g_Cfg_iAutoHideHideDelay        = 200
+Global $__g_Cfg_iAutoHideShowDelay        = 0
+Global $__g_Cfg_bAutoHideUseFade          = True
+Global $__g_Cfg_iAutoHideFadeDuration     = 80
+Global $__g_Cfg_bAutoHideSyncDesktopList  = True
+Global $__g_Cfg_bAutoHideSyncWindowList   = False
+Global $__g_Cfg_iAutoHideHiddenThreshold  = 4
+Global $__g_Cfg_iAutoHideRecheckCount     = 10
+Global $__g_Cfg_bAutoHideSkipIfDialog     = True
+
 ; [Notifications]
 Global $__g_Cfg_bNotificationsEnabled   = True
 Global $__g_Cfg_bNotifyWindowMoved      = False
@@ -209,6 +214,12 @@ Global $__g_Cfg_bNotifyWindowUnpinned   = False
 Global $__g_Cfg_bNotifyExplorerRecovery = False
 Global $__g_Cfg_bNotifyExplorerCrash    = False
 Global $__g_Cfg_sWindowListScope        = "current" ; "current" or "all"
+
+; [Carousel]
+Global $__g_Cfg_bCarouselEnabled       = False
+Global $__g_Cfg_iCarouselInterval      = 20000
+Global $__g_Cfg_bCarouselShowInMenu    = True
+Global $__g_Cfg_bNotifyCarouselToggle  = True
 
 ; #FUNCTIONS# ===================================================
 
@@ -236,12 +247,16 @@ EndFunc
 Func _Cfg_GetPath()
     Return $__g_Cfg_sIniPath
 EndFunc
+Func _Cfg_DidLoadDefaults()
+    Return $__g_Cfg_bLoadedDefaults
+EndFunc
 
 ; Name:        _Cfg_Load
 ; Description: Reads all values from INI into memory, with validation
 Func _Cfg_Load()
     If Not __Cfg_ReadFromFile() Then
         _Log_Warn("Config file not readable, using defaults")
+        $__g_Cfg_bLoadedDefaults = True
     EndIf
 
     Local $f = $__g_Cfg_sIniPath
@@ -329,6 +344,8 @@ Func _Cfg_Load()
     $__g_Cfg_sHotkeyRenameDesktop = IniRead($f, "Hotkeys", "hotkey_rename_desktop", "^!r")
     $__g_Cfg_sHotkeyCloseWindow  = IniRead($f, "Hotkeys", "hotkey_close_window", "")
     $__g_Cfg_sHotkeyMinimizeWindow = IniRead($f, "Hotkeys", "hotkey_minimize_window", "")
+    $__g_Cfg_sHotkeyToggleCarousel = IniRead($f, "Hotkeys", "hotkey_toggle_carousel", "")
+    $__g_Cfg_sHotkeyTaskView     = IniRead($f, "Hotkeys", "hotkey_task_view", "")
 
     ; [Behavior]
     $__g_Cfg_bConfirmDelete     = __Cfg_ReadBool($f, "Behavior", "confirm_delete", True)
@@ -378,21 +395,24 @@ Func _Cfg_Load()
 
     ; [DesktopColors]
     $__g_Cfg_bDesktopColorsEnabled = __Cfg_ReadBool($f, "DesktopColors", "desktop_colors_enabled", False)
-    Local $aDefColors[10] = [9, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    For $i = 1 To 9
+    For $i = 1 To $__g_Cfg_MAX_DESKTOPS
         Local $sVal = IniRead($f, "DesktopColors", "desktop_" & $i & "_color", "")
         If $sVal <> "" And StringLeft($sVal, 2) = "0x" Then
             $__g_Cfg_aDesktopColors[$i] = Int($sVal)
         Else
-            $__g_Cfg_aDesktopColors[$i] = $aDefColors[$i]
+            $__g_Cfg_aDesktopColors[$i] = 0
         EndIf
     Next
 
     ; [Wallpaper]
     $__g_Cfg_bWallpaperEnabled    = __Cfg_ReadBool($f, "Wallpaper", "wallpaper_enabled", False)
     $__g_Cfg_iWallpaperChangeDelay = __Cfg_ReadInt($f, "Wallpaper", "wallpaper_change_delay", 200, 50, 2000)
-    For $i = 1 To 9
+    For $i = 1 To $__g_Cfg_MAX_DESKTOPS
         $__g_Cfg_aDesktopWallpaper[$i] = IniRead($f, "Wallpaper", "desktop_" & $i & "_wallpaper", "")
+        If $__g_Cfg_aDesktopWallpaper[$i] <> "" And Not __Cfg_ValidateWallpaperPath($__g_Cfg_aDesktopWallpaper[$i]) Then
+            _Log_Warn("Config: rejected invalid wallpaper path for desktop " & $i & ": " & $__g_Cfg_aDesktopWallpaper[$i])
+            $__g_Cfg_aDesktopWallpaper[$i] = ""
+        EndIf
     Next
 
     ; [Pinning]
@@ -411,8 +431,7 @@ Func _Cfg_Load()
 
     ; [ExplorerMonitor]
     $__g_Cfg_bExplorerMonitorEnabled = __Cfg_ReadBool($f, "ExplorerMonitor", "explorer_monitor_enabled", False)
-    $__g_Cfg_sShellProcessName       = IniRead($f, "ExplorerMonitor", "shell_process_name", "explorer.exe")
-    If $__g_Cfg_sShellProcessName = "" Then $__g_Cfg_sShellProcessName = "explorer.exe"
+    $__g_Cfg_sShellProcessName       = __Cfg_ValidateExeName(IniRead($f, "ExplorerMonitor", "shell_process_name", "explorer.exe"))
     $__g_Cfg_iExplorerCheckInterval  = __Cfg_ReadInt($f, "ExplorerMonitor", "explorer_check_interval", 5000, 2000, 60000)
     $__g_Cfg_iMonitorMaxRetries      = __Cfg_ReadInt($f, "ExplorerMonitor", "monitor_max_retries", 0, 0, 100)
     $__g_Cfg_iMonitorRetryDelay      = __Cfg_ReadInt($f, "ExplorerMonitor", "monitor_retry_delay", 5000, 1000, 60000)
@@ -421,6 +440,19 @@ Func _Cfg_Load()
     $__g_Cfg_bMonitorAutoRestart     = __Cfg_ReadBool($f, "ExplorerMonitor", "monitor_auto_restart", False)
     $__g_Cfg_iMonitorRestartDelay    = __Cfg_ReadInt($f, "ExplorerMonitor", "monitor_restart_delay", 2000, 500, 10000)
     $__g_Cfg_bExplorerNotifyRecovery = __Cfg_ReadBool($f, "ExplorerMonitor", "explorer_notify_recovery", True)
+
+    ; [TaskbarAutoHide]
+    $__g_Cfg_bAutoHideSyncEnabled      = __Cfg_ReadBool($f, "TaskbarAutoHide", "autohide_sync_enabled", False)
+    $__g_Cfg_iAutoHidePollInterval     = __Cfg_ReadInt($f, "TaskbarAutoHide", "autohide_poll_interval", 150, 50, 2000)
+    $__g_Cfg_iAutoHideHideDelay        = __Cfg_ReadInt($f, "TaskbarAutoHide", "autohide_hide_delay", 200, 0, 5000)
+    $__g_Cfg_iAutoHideShowDelay        = __Cfg_ReadInt($f, "TaskbarAutoHide", "autohide_show_delay", 0, 0, 5000)
+    $__g_Cfg_bAutoHideUseFade          = __Cfg_ReadBool($f, "TaskbarAutoHide", "autohide_use_fade", True)
+    $__g_Cfg_iAutoHideFadeDuration     = __Cfg_ReadInt($f, "TaskbarAutoHide", "autohide_fade_duration", 80, 10, 1000)
+    $__g_Cfg_bAutoHideSyncDesktopList  = __Cfg_ReadBool($f, "TaskbarAutoHide", "autohide_sync_desktop_list", True)
+    $__g_Cfg_bAutoHideSyncWindowList   = __Cfg_ReadBool($f, "TaskbarAutoHide", "autohide_sync_window_list", False)
+    $__g_Cfg_iAutoHideHiddenThreshold  = __Cfg_ReadInt($f, "TaskbarAutoHide", "autohide_hidden_threshold", 4, 1, 20)
+    $__g_Cfg_iAutoHideRecheckCount     = __Cfg_ReadInt($f, "TaskbarAutoHide", "autohide_recheck_count", 10, 1, 100)
+    $__g_Cfg_bAutoHideSkipIfDialog     = __Cfg_ReadBool($f, "TaskbarAutoHide", "autohide_skip_if_dialog", True)
 
     ; [Notifications]
     $__g_Cfg_bNotificationsEnabled   = __Cfg_ReadBool($f, "Notifications", "notifications_enabled", True)
@@ -432,6 +464,12 @@ Func _Cfg_Load()
     $__g_Cfg_bNotifyExplorerRecovery = __Cfg_ReadBool($f, "Notifications", "notify_explorer_recovery", False)
     $__g_Cfg_bNotifyExplorerCrash    = __Cfg_ReadBool($f, "Notifications", "notify_explorer_crash", False)
     $__g_Cfg_sWindowListScope        = __Cfg_ReadEnum($f, "WindowList", "window_list_scope", "current", "current|all")
+
+    ; [Carousel]
+    $__g_Cfg_bCarouselEnabled      = __Cfg_ReadBool($f, "Carousel", "carousel_enabled", False)
+    $__g_Cfg_iCarouselInterval     = __Cfg_ReadInt($f, "Carousel", "carousel_interval", 20000, 3000, 300000)
+    $__g_Cfg_bCarouselShowInMenu   = __Cfg_ReadBool($f, "Carousel", "carousel_show_in_menu", True)
+    $__g_Cfg_bNotifyCarouselToggle = __Cfg_ReadBool($f, "Carousel", "notify_carousel_toggle", True)
 EndFunc
 
 ; Name:        _Cfg_Save
@@ -528,6 +566,8 @@ Func _Cfg_Save()
     IniWrite($f, "Hotkeys", "hotkey_rename_desktop", $__g_Cfg_sHotkeyRenameDesktop)
     IniWrite($f, "Hotkeys", "hotkey_close_window", $__g_Cfg_sHotkeyCloseWindow)
     IniWrite($f, "Hotkeys", "hotkey_minimize_window", $__g_Cfg_sHotkeyMinimizeWindow)
+    IniWrite($f, "Hotkeys", "hotkey_toggle_carousel", $__g_Cfg_sHotkeyToggleCarousel)
+    IniWrite($f, "Hotkeys", "hotkey_task_view", $__g_Cfg_sHotkeyTaskView)
 
     ; [Behavior]
     __Cfg_WriteBool($f, "Behavior", "confirm_delete", $__g_Cfg_bConfirmDelete)
@@ -576,15 +616,19 @@ Func _Cfg_Save()
 
     ; [DesktopColors]
     __Cfg_WriteBool($f, "DesktopColors", "desktop_colors_enabled", $__g_Cfg_bDesktopColorsEnabled)
-    For $i = 1 To 9
-        IniWrite($f, "DesktopColors", "desktop_" & $i & "_color", "0x" & Hex($__g_Cfg_aDesktopColors[$i], 6))
+    For $i = 1 To $__g_Cfg_MAX_DESKTOPS
+        If $__g_Cfg_aDesktopColors[$i] <> 0 Then
+            IniWrite($f, "DesktopColors", "desktop_" & $i & "_color", "0x" & Hex($__g_Cfg_aDesktopColors[$i], 6))
+        EndIf
     Next
 
     ; [Wallpaper]
     __Cfg_WriteBool($f, "Wallpaper", "wallpaper_enabled", $__g_Cfg_bWallpaperEnabled)
     IniWrite($f, "Wallpaper", "wallpaper_change_delay", $__g_Cfg_iWallpaperChangeDelay)
-    For $i = 1 To 9
-        IniWrite($f, "Wallpaper", "desktop_" & $i & "_wallpaper", $__g_Cfg_aDesktopWallpaper[$i])
+    For $i = 1 To $__g_Cfg_MAX_DESKTOPS
+        If $__g_Cfg_aDesktopWallpaper[$i] <> "" Then
+            IniWrite($f, "Wallpaper", "desktop_" & $i & "_wallpaper", $__g_Cfg_aDesktopWallpaper[$i])
+        EndIf
     Next
 
     ; [Pinning]
@@ -612,6 +656,19 @@ Func _Cfg_Save()
     IniWrite($f, "ExplorerMonitor", "monitor_restart_delay", $__g_Cfg_iMonitorRestartDelay)
     __Cfg_WriteBool($f, "ExplorerMonitor", "explorer_notify_recovery", $__g_Cfg_bExplorerNotifyRecovery)
 
+    ; [TaskbarAutoHide]
+    __Cfg_WriteBool($f, "TaskbarAutoHide", "autohide_sync_enabled", $__g_Cfg_bAutoHideSyncEnabled)
+    IniWrite($f, "TaskbarAutoHide", "autohide_poll_interval", $__g_Cfg_iAutoHidePollInterval)
+    IniWrite($f, "TaskbarAutoHide", "autohide_hide_delay", $__g_Cfg_iAutoHideHideDelay)
+    IniWrite($f, "TaskbarAutoHide", "autohide_show_delay", $__g_Cfg_iAutoHideShowDelay)
+    __Cfg_WriteBool($f, "TaskbarAutoHide", "autohide_use_fade", $__g_Cfg_bAutoHideUseFade)
+    IniWrite($f, "TaskbarAutoHide", "autohide_fade_duration", $__g_Cfg_iAutoHideFadeDuration)
+    __Cfg_WriteBool($f, "TaskbarAutoHide", "autohide_sync_desktop_list", $__g_Cfg_bAutoHideSyncDesktopList)
+    __Cfg_WriteBool($f, "TaskbarAutoHide", "autohide_sync_window_list", $__g_Cfg_bAutoHideSyncWindowList)
+    IniWrite($f, "TaskbarAutoHide", "autohide_hidden_threshold", $__g_Cfg_iAutoHideHiddenThreshold)
+    IniWrite($f, "TaskbarAutoHide", "autohide_recheck_count", $__g_Cfg_iAutoHideRecheckCount)
+    __Cfg_WriteBool($f, "TaskbarAutoHide", "autohide_skip_if_dialog", $__g_Cfg_bAutoHideSkipIfDialog)
+
     ; [Notifications]
     __Cfg_WriteBool($f, "Notifications", "notifications_enabled", $__g_Cfg_bNotificationsEnabled)
     __Cfg_WriteBool($f, "Notifications", "notify_window_moved", $__g_Cfg_bNotifyWindowMoved)
@@ -623,14 +680,27 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "Notifications", "notify_explorer_crash", $__g_Cfg_bNotifyExplorerCrash)
     IniWrite($f, "WindowList", "window_list_scope", $__g_Cfg_sWindowListScope)
 
-    ; Verify write succeeded before replacing original
-    Local $sVerify = IniRead($f, "General", "wrap_navigation", "")
-    If $sVerify = "" Then
+    ; [Carousel]
+    __Cfg_WriteBool($f, "Carousel", "carousel_enabled", $__g_Cfg_bCarouselEnabled)
+    IniWrite($f, "Carousel", "carousel_interval", $__g_Cfg_iCarouselInterval)
+    __Cfg_WriteBool($f, "Carousel", "carousel_show_in_menu", $__g_Cfg_bCarouselShowInMenu)
+    __Cfg_WriteBool($f, "Carousel", "notify_carousel_toggle", $__g_Cfg_bNotifyCarouselToggle)
+
+    ; Verify write succeeded before replacing original (check multiple sections)
+    Local $sVerify1 = IniRead($f, "General", "wrap_navigation", "")
+    Local $sVerify2 = IniRead($f, "General", "language", "")
+    Local $sVerify3 = IniRead($f, "Behavior", "confirm_delete", "")
+    If $sVerify1 = "" Or $sVerify2 = "" Or $sVerify3 = "" Then
+        _Log_Error("Config save verification failed: temp file appears corrupt")
         FileDelete($f)
         Return False
     EndIf
     ; Atomic replace: FileMove with overwrite flag (no delete gap)
-    FileMove($f, $__g_Cfg_sIniPath, 1)
+    If Not FileMove($f, $__g_Cfg_sIniPath, 1) Then
+        _Log_Error("Config save failed: could not replace INI file")
+        FileDelete($f)
+        Return False
+    EndIf
     Return True
 EndFunc
 
@@ -716,6 +786,8 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_rename_desktop", "^!r")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_close_window", "")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_minimize_window", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_carousel", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_task_view", "")
 
     __Cfg_DefaultBool($f, "Behavior", "confirm_delete", True)
     __Cfg_DefaultBool($f, "Behavior", "middle_click_delete", False)
@@ -793,6 +865,18 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "ExplorerMonitor", "monitor_restart_delay", 2000)
     __Cfg_DefaultBool($f, "ExplorerMonitor", "explorer_notify_recovery", True)
 
+    __Cfg_DefaultBool($f, "TaskbarAutoHide", "autohide_sync_enabled", False)
+    __Cfg_DefaultVal($f, "TaskbarAutoHide", "autohide_poll_interval", 150)
+    __Cfg_DefaultVal($f, "TaskbarAutoHide", "autohide_hide_delay", 200)
+    __Cfg_DefaultVal($f, "TaskbarAutoHide", "autohide_show_delay", 0)
+    __Cfg_DefaultBool($f, "TaskbarAutoHide", "autohide_use_fade", True)
+    __Cfg_DefaultVal($f, "TaskbarAutoHide", "autohide_fade_duration", 80)
+    __Cfg_DefaultBool($f, "TaskbarAutoHide", "autohide_sync_desktop_list", True)
+    __Cfg_DefaultBool($f, "TaskbarAutoHide", "autohide_sync_window_list", False)
+    __Cfg_DefaultVal($f, "TaskbarAutoHide", "autohide_hidden_threshold", 4)
+    __Cfg_DefaultVal($f, "TaskbarAutoHide", "autohide_recheck_count", 10)
+    __Cfg_DefaultBool($f, "TaskbarAutoHide", "autohide_skip_if_dialog", True)
+
     __Cfg_DefaultBool($f, "Notifications", "notifications_enabled", True)
     __Cfg_DefaultBool($f, "Notifications", "notify_window_moved", False)
     __Cfg_DefaultBool($f, "Notifications", "notify_desktop_created", False)
@@ -802,6 +886,12 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "Notifications", "notify_explorer_recovery", False)
     __Cfg_DefaultBool($f, "Notifications", "notify_explorer_crash", False)
     __Cfg_DefaultVal($f, "WindowList", "window_list_scope", "current")
+
+    ; [Carousel]
+    __Cfg_DefaultBool($f, "Carousel", "carousel_enabled", False)
+    __Cfg_DefaultVal($f, "Carousel", "carousel_interval", 20000)
+    __Cfg_DefaultBool($f, "Carousel", "carousel_show_in_menu", True)
+    __Cfg_DefaultBool($f, "Carousel", "notify_carousel_toggle", True)
 EndFunc
 
 ; =============================================
@@ -1184,6 +1274,11 @@ Func _Cfg_GetLogFilePath()
     $sFolder = StringReplace($sFolder, "%APPDATA%", @AppDataDir)
     $sFolder = StringReplace($sFolder, "%TEMP%", @TempDir)
     $sFolder = StringReplace($sFolder, "%SCRIPTDIR%", @ScriptDir)
+    ; Reject directory traversal and UNC paths after expansion
+    If StringInStr($sFolder, "..") Or StringLeft($sFolder, 2) = "\\" Then
+        _Log_Warn("Config: rejected log folder path: " & $sFolder)
+        Return @ScriptDir & "\desk_switcheroo.log"
+    EndIf
     ; Strip trailing backslash
     If StringRight($sFolder, 1) = "\" Then $sFolder = StringTrimRight($sFolder, 1)
     Return $sFolder & "\desk_switcheroo.log"
@@ -1206,7 +1301,7 @@ Func _Cfg_GetDesktopColorsEnabled()
     Return $__g_Cfg_bDesktopColorsEnabled
 EndFunc
 Func _Cfg_GetDesktopColor($i)
-    If $i < 1 Or $i > 9 Then Return 0
+    If $i < 1 Or $i > $__g_Cfg_MAX_DESKTOPS Then Return 0
     Return $__g_Cfg_aDesktopColors[$i]
 EndFunc
 
@@ -1218,7 +1313,7 @@ Func _Cfg_GetWallpaperChangeDelay()
     Return $__g_Cfg_iWallpaperChangeDelay
 EndFunc
 Func _Cfg_GetDesktopWallpaper($i)
-    If $i < 1 Or $i > 9 Then Return ""
+    If $i < 1 Or $i > $__g_Cfg_MAX_DESKTOPS Then Return ""
     Return $__g_Cfg_aDesktopWallpaper[$i]
 EndFunc
 
@@ -1283,6 +1378,41 @@ Func _Cfg_GetMonitorRestartDelay()
 EndFunc
 Func _Cfg_GetExplorerNotifyRecovery()
     Return $__g_Cfg_bExplorerNotifyRecovery
+EndFunc
+
+; [TaskbarAutoHide]
+Func _Cfg_GetAutoHideSyncEnabled()
+    Return $__g_Cfg_bAutoHideSyncEnabled
+EndFunc
+Func _Cfg_GetAutoHidePollInterval()
+    Return $__g_Cfg_iAutoHidePollInterval
+EndFunc
+Func _Cfg_GetAutoHideHideDelay()
+    Return $__g_Cfg_iAutoHideHideDelay
+EndFunc
+Func _Cfg_GetAutoHideShowDelay()
+    Return $__g_Cfg_iAutoHideShowDelay
+EndFunc
+Func _Cfg_GetAutoHideUseFade()
+    Return $__g_Cfg_bAutoHideUseFade
+EndFunc
+Func _Cfg_GetAutoHideFadeDuration()
+    Return $__g_Cfg_iAutoHideFadeDuration
+EndFunc
+Func _Cfg_GetAutoHideSyncDesktopList()
+    Return $__g_Cfg_bAutoHideSyncDesktopList
+EndFunc
+Func _Cfg_GetAutoHideSyncWindowList()
+    Return $__g_Cfg_bAutoHideSyncWindowList
+EndFunc
+Func _Cfg_GetAutoHideHiddenThreshold()
+    Return $__g_Cfg_iAutoHideHiddenThreshold
+EndFunc
+Func _Cfg_GetAutoHideRecheckCount()
+    Return $__g_Cfg_iAutoHideRecheckCount
+EndFunc
+Func _Cfg_GetAutoHideSkipIfDialog()
+    Return $__g_Cfg_bAutoHideSkipIfDialog
 EndFunc
 
 ; [Notifications]
@@ -1469,7 +1599,7 @@ Func _Cfg_SetThumbnailHeight($i)
     $__g_Cfg_iThumbnailHeight = $i
 EndFunc
 Func _Cfg_SetListFontName($s)
-    $__g_Cfg_sListFontName = $s
+    $__g_Cfg_sListFontName = __Cfg_ClampStringLen($s, 64)
 EndFunc
 Func _Cfg_SetListFontSize($i)
     If $i < 6 Then $i = 6
@@ -1527,43 +1657,43 @@ EndFunc
 
 ; [Hotkeys]
 Func _Cfg_SetHotkeyNext($s)
-    $__g_Cfg_sHotkeyNext = $s
+    $__g_Cfg_sHotkeyNext = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_SetHotkeyPrev($s)
-    $__g_Cfg_sHotkeyPrev = $s
+    $__g_Cfg_sHotkeyPrev = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_SetHotkeyDesktop($i, $s)
-    If $i >= 1 And $i <= 9 Then $__g_Cfg_sHotkeyDesktop[$i] = $s
+    If $i >= 1 And $i <= 9 Then $__g_Cfg_sHotkeyDesktop[$i] = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_SetHotkeyToggleList($s)
-    $__g_Cfg_sHotkeyToggleList = $s
+    $__g_Cfg_sHotkeyToggleList = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_SetHotkeyToggleLast($s)
-    $__g_Cfg_sHotkeyToggleLast = $s
+    $__g_Cfg_sHotkeyToggleLast = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_SetHotkeyMoveFollowNext($s)
-    $__g_Cfg_sHotkeyMoveFollowNext = $s
+    $__g_Cfg_sHotkeyMoveFollowNext = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_SetHotkeyMoveFollowPrev($s)
-    $__g_Cfg_sHotkeyMoveFollowPrev = $s
+    $__g_Cfg_sHotkeyMoveFollowPrev = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_SetHotkeyMoveNext($s)
-    $__g_Cfg_sHotkeyMoveNext = $s
+    $__g_Cfg_sHotkeyMoveNext = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_SetHotkeyMovePrev($s)
-    $__g_Cfg_sHotkeyMovePrev = $s
+    $__g_Cfg_sHotkeyMovePrev = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_SetHotkeySendNewDesktop($s)
-    $__g_Cfg_sHotkeySendNewDesktop = $s
+    $__g_Cfg_sHotkeySendNewDesktop = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_SetHotkeyPinWindow($s)
-    $__g_Cfg_sHotkeyPinWindow = $s
+    $__g_Cfg_sHotkeyPinWindow = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_SetHotkeyToggleWindowList($s)
-    $__g_Cfg_sHotkeyToggleWindowList = $s
+    $__g_Cfg_sHotkeyToggleWindowList = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_SetHotkeyOpenSettings($s)
-    $__g_Cfg_sHotkeyOpenSettings = $s
+    $__g_Cfg_sHotkeyOpenSettings = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_SetHotkeysEnabled($b)
     $__g_Cfg_bHotkeysEnabled = $b
@@ -1572,31 +1702,31 @@ Func _Cfg_GetHotkeyAddDesktop()
     Return $__g_Cfg_sHotkeyAddDesktop
 EndFunc
 Func _Cfg_SetHotkeyAddDesktop($s)
-    $__g_Cfg_sHotkeyAddDesktop = $s
+    $__g_Cfg_sHotkeyAddDesktop = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_GetHotkeyDeleteDesktop()
     Return $__g_Cfg_sHotkeyDeleteDesktop
 EndFunc
 Func _Cfg_SetHotkeyDeleteDesktop($s)
-    $__g_Cfg_sHotkeyDeleteDesktop = $s
+    $__g_Cfg_sHotkeyDeleteDesktop = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_GetHotkeyRenameDesktop()
     Return $__g_Cfg_sHotkeyRenameDesktop
 EndFunc
 Func _Cfg_SetHotkeyRenameDesktop($s)
-    $__g_Cfg_sHotkeyRenameDesktop = $s
+    $__g_Cfg_sHotkeyRenameDesktop = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_GetHotkeyCloseWindow()
     Return $__g_Cfg_sHotkeyCloseWindow
 EndFunc
 Func _Cfg_SetHotkeyCloseWindow($s)
-    $__g_Cfg_sHotkeyCloseWindow = $s
+    $__g_Cfg_sHotkeyCloseWindow = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_GetHotkeyMinimizeWindow()
     Return $__g_Cfg_sHotkeyMinimizeWindow
 EndFunc
 Func _Cfg_SetHotkeyMinimizeWindow($s)
-    $__g_Cfg_sHotkeyMinimizeWindow = $s
+    $__g_Cfg_sHotkeyMinimizeWindow = __Cfg_ClampStringLen($s, 32)
 EndFunc
 
 ; [Behavior]
@@ -1672,7 +1802,7 @@ Func _Cfg_SetLoggingEnabled($b)
     $__g_Cfg_bLoggingEnabled = $b
 EndFunc
 Func _Cfg_SetLogFolder($s)
-    $__g_Cfg_sLogFolder = $s
+    $__g_Cfg_sLogFolder = __Cfg_ClampStringLen($s, 260)
 EndFunc
 Func _Cfg_SetLogLevel($s)
     If $s <> "error" And $s <> "warn" And $s <> "info" And $s <> "debug" Then $s = "info"
@@ -1710,7 +1840,7 @@ Func _Cfg_SetDesktopColorsEnabled($b)
     $__g_Cfg_bDesktopColorsEnabled = $b
 EndFunc
 Func _Cfg_SetDesktopColor($i, $iColor)
-    If $i >= 1 And $i <= 9 Then $__g_Cfg_aDesktopColors[$i] = Int($iColor)
+    If $i >= 1 And $i <= $__g_Cfg_MAX_DESKTOPS Then $__g_Cfg_aDesktopColors[$i] = Int($iColor)
 EndFunc
 
 ; [Wallpaper]
@@ -1723,7 +1853,9 @@ Func _Cfg_SetWallpaperChangeDelay($i)
     $__g_Cfg_iWallpaperChangeDelay = $i
 EndFunc
 Func _Cfg_SetDesktopWallpaper($i, $s)
-    If $i >= 1 And $i <= 9 Then $__g_Cfg_aDesktopWallpaper[$i] = $s
+    If $i < 1 Or $i > $__g_Cfg_MAX_DESKTOPS Then Return
+    If $s <> "" And Not __Cfg_ValidateWallpaperPath($s) Then Return
+    $__g_Cfg_aDesktopWallpaper[$i] = __Cfg_ClampStringLen($s, 260)
 EndFunc
 
 ; [Pinning]
@@ -1770,9 +1902,7 @@ Func _Cfg_SetExplorerMonitorEnabled($b)
     $__g_Cfg_bExplorerMonitorEnabled = $b
 EndFunc
 Func _Cfg_SetShellProcessName($s)
-    $s = StringStripWS($s, 3)
-    If $s = "" Then $s = "explorer.exe"
-    $__g_Cfg_sShellProcessName = $s
+    $__g_Cfg_sShellProcessName = __Cfg_ValidateExeName($s)
 EndFunc
 Func _Cfg_SetExplorerCheckInterval($i)
     If $i < 2000 Then $i = 2000
@@ -1809,6 +1939,53 @@ Func _Cfg_SetExplorerNotifyRecovery($b)
     $__g_Cfg_bExplorerNotifyRecovery = $b
 EndFunc
 
+; [TaskbarAutoHide]
+Func _Cfg_SetAutoHideSyncEnabled($b)
+    $__g_Cfg_bAutoHideSyncEnabled = $b
+EndFunc
+Func _Cfg_SetAutoHidePollInterval($i)
+    If $i < 50 Then $i = 50
+    If $i > 2000 Then $i = 2000
+    $__g_Cfg_iAutoHidePollInterval = $i
+EndFunc
+Func _Cfg_SetAutoHideHideDelay($i)
+    If $i < 0 Then $i = 0
+    If $i > 5000 Then $i = 5000
+    $__g_Cfg_iAutoHideHideDelay = $i
+EndFunc
+Func _Cfg_SetAutoHideShowDelay($i)
+    If $i < 0 Then $i = 0
+    If $i > 5000 Then $i = 5000
+    $__g_Cfg_iAutoHideShowDelay = $i
+EndFunc
+Func _Cfg_SetAutoHideUseFade($b)
+    $__g_Cfg_bAutoHideUseFade = $b
+EndFunc
+Func _Cfg_SetAutoHideFadeDuration($i)
+    If $i < 10 Then $i = 10
+    If $i > 1000 Then $i = 1000
+    $__g_Cfg_iAutoHideFadeDuration = $i
+EndFunc
+Func _Cfg_SetAutoHideSyncDesktopList($b)
+    $__g_Cfg_bAutoHideSyncDesktopList = $b
+EndFunc
+Func _Cfg_SetAutoHideSyncWindowList($b)
+    $__g_Cfg_bAutoHideSyncWindowList = $b
+EndFunc
+Func _Cfg_SetAutoHideHiddenThreshold($i)
+    If $i < 1 Then $i = 1
+    If $i > 20 Then $i = 20
+    $__g_Cfg_iAutoHideHiddenThreshold = $i
+EndFunc
+Func _Cfg_SetAutoHideRecheckCount($i)
+    If $i < 1 Then $i = 1
+    If $i > 100 Then $i = 100
+    $__g_Cfg_iAutoHideRecheckCount = $i
+EndFunc
+Func _Cfg_SetAutoHideSkipIfDialog($b)
+    $__g_Cfg_bAutoHideSkipIfDialog = $b
+EndFunc
+
 ; [Notifications]
 Func _Cfg_SetNotificationsEnabled($b)
     $__g_Cfg_bNotificationsEnabled = $b
@@ -1841,6 +2018,46 @@ Func _Cfg_SetWindowListScope($s)
     Local $aValid = "current|all"
     If Not StringInStr($aValid, $s) Then $s = "current"
     $__g_Cfg_sWindowListScope = $s
+EndFunc
+
+; [Carousel]
+Func _Cfg_GetCarouselEnabled()
+    Return $__g_Cfg_bCarouselEnabled
+EndFunc
+Func _Cfg_SetCarouselEnabled($b)
+    $__g_Cfg_bCarouselEnabled = $b
+EndFunc
+Func _Cfg_GetCarouselInterval()
+    Return $__g_Cfg_iCarouselInterval
+EndFunc
+Func _Cfg_SetCarouselInterval($i)
+    If $i < 3000 Then $i = 3000
+    If $i > 300000 Then $i = 300000
+    $__g_Cfg_iCarouselInterval = $i
+EndFunc
+Func _Cfg_GetCarouselShowInMenu()
+    Return $__g_Cfg_bCarouselShowInMenu
+EndFunc
+Func _Cfg_SetCarouselShowInMenu($b)
+    $__g_Cfg_bCarouselShowInMenu = $b
+EndFunc
+Func _Cfg_GetNotifyCarouselToggle()
+    Return $__g_Cfg_bNotifyCarouselToggle
+EndFunc
+Func _Cfg_SetNotifyCarouselToggle($b)
+    $__g_Cfg_bNotifyCarouselToggle = $b
+EndFunc
+Func _Cfg_GetHotkeyToggleCarousel()
+    Return $__g_Cfg_sHotkeyToggleCarousel
+EndFunc
+Func _Cfg_SetHotkeyToggleCarousel($s)
+    $__g_Cfg_sHotkeyToggleCarousel = __Cfg_ClampStringLen($s, 32)
+EndFunc
+Func _Cfg_GetHotkeyTaskView()
+    Return $__g_Cfg_sHotkeyTaskView
+EndFunc
+Func _Cfg_SetHotkeyTaskView($s)
+    $__g_Cfg_sHotkeyTaskView = __Cfg_ClampStringLen($s, 32)
 EndFunc
 
 ; =============================================
@@ -1943,7 +2160,7 @@ Func __Cfg_ReadEnum($f, $sSection, $sKey, $sDefault, $sAllowed)
     Local $aAllowed = StringSplit($sAllowed, "|")
     Local $i
     For $i = 1 To $aAllowed[0]
-        If $s = $aAllowed[$i] Then Return $s
+        If $s = StringLower($aAllowed[$i]) Then Return $aAllowed[$i]
     Next
     Return $sDefault
 EndFunc
@@ -1964,4 +2181,36 @@ EndFunc
 Func __Cfg_DefaultBool($f, $sSection, $sKey, $bDefault)
     Local $s = IniRead($f, $sSection, $sKey, Chr(0))
     If $s = Chr(0) Then __Cfg_WriteBool($f, $sSection, $sKey, $bDefault)
+EndFunc
+
+; Validates a process/exe name: must be a simple filename ending in .exe
+; Returns the validated name or "explorer.exe" as fallback
+Func __Cfg_ValidateExeName($s)
+    $s = StringStripWS($s, 3)
+    If StringLen($s) = 0 Or StringLen($s) > 64 Then Return "explorer.exe"
+    If Not StringRegExp($s, '(?i)^[A-Za-z0-9_\-]+\.exe$') Then Return "explorer.exe"
+    Return $s
+EndFunc
+
+; Validates a file path: rejects directory traversal, UNC paths, and overlength
+; Returns True if valid, False if rejected
+Func __Cfg_ValidatePath($s, $iMaxLen = 260)
+    If StringLen($s) > $iMaxLen Then Return False
+    If StringInStr($s, "..") Then Return False
+    If StringLeft($s, 2) = "\\" Then Return False
+    Return True
+EndFunc
+
+; Validates a wallpaper file path: must pass path validation + have image extension
+; Returns True if valid, False if rejected
+Func __Cfg_ValidateWallpaperPath($s)
+    If Not __Cfg_ValidatePath($s, 260) Then Return False
+    If Not StringRegExp($s, '(?i)\.(bmp|jpg|jpeg|png|gif|tif|tiff)$') Then Return False
+    Return True
+EndFunc
+
+; Clamps a string to a maximum length
+Func __Cfg_ClampStringLen($s, $iMax)
+    If StringLen($s) > $iMax Then Return StringLeft($s, $iMax)
+    Return $s
 EndFunc

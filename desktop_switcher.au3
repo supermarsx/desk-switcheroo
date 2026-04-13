@@ -33,6 +33,7 @@ Global Const $DESKTOP_LIMIT_HARD = 50 ; absolute safety cap
 #include "includes\AboutDialog.au3"
 #include "includes\UpdateChecker.au3"
 #include "includes\ExplorerMonitor.au3"
+#include "includes\TaskbarAutoHide.au3"
 #include "includes\i18n.au3"
 
 ; ---- App version (read from VERSION file or fallback) ----
@@ -47,6 +48,7 @@ EndIf
 Global $__g_bShuttingDown = False
 Global $__g_bPeekWasActive = False
 Global $__g_bWasCursorActive = False
+Global $__g_bCarouselActive = False
 Global $__g_oErrorHandler = ObjEvent("AutoIt.Error", "_OnAutoItError")
 OnAutoItExitRegister("_OnExit")
 
@@ -80,7 +82,10 @@ If $__bSingleton Then
                 If $aProcs[$p][1] <> @AutoItPID Then
                     ; Check command line to verify it's running our script
                     Local $sCmdLine = ""
-                    Local $aWMI = ObjGet("winmgmts:\\.\root\cimv2").ExecQuery("SELECT CommandLine FROM Win32_Process WHERE ProcessId=" & $aProcs[$p][1])
+                    Local $oWMI = ObjGet("winmgmts:\\.\root\cimv2")
+                    If @error Or Not IsObj($oWMI) Then ContinueLoop
+                    Local $aWMI = $oWMI.ExecQuery("SELECT CommandLine FROM Win32_Process WHERE ProcessId=" & $aProcs[$p][1])
+                    If @error Or Not IsObj($aWMI) Then ContinueLoop
                     For $oProc In $aWMI
                         $sCmdLine = $oProc.CommandLine
                     Next
@@ -113,8 +118,17 @@ _WP_Init()
 ; ---- Initialize logging ----
 _Log_Init()
 
+; ---- Notify user if config was reset to defaults ----
+If _Cfg_DidLoadDefaults() Then
+    _Log_Warn("Config was reset to defaults — user notification pending")
+    TrayTip("Desk Switcheroo", "Config file was unreadable. Using default settings.", 10, 2)
+EndIf
+
 ; ---- Start explorer crash monitor ----
 _EM_Start()
+
+; ---- Start taskbar auto-hide monitor ----
+_TAH_Start()
 
 ; ---- Startup checks ----
 _RunStartupChecks()
@@ -205,6 +219,7 @@ Global $__g_bTrayMode = False
 Global $__g_iTrayToggleList = 0, $__g_iTrayEditLabel = 0
 Global $__g_iTrayAddDesktop = 0, $__g_iTrayDelDesktop = 0
 Global $__g_iTraySettings = 0, $__g_iTrayAbout = 0, $__g_iTrayQuit = 0
+Global $__g_iTrayCarousel = 0
 
 ; ---- Config file watcher global ----
 Global $__g_sCfgFileTime = ""
@@ -494,6 +509,9 @@ Func _ProcessGUIEvents($msg, $hFrom)
             Case "about"
                 _CM_Destroy()
                 _ShowAbout()
+            Case "carousel"
+                _CM_Destroy()
+                _CarouselToggle()
             Case "crash"
                 _CM_Destroy()
                 ; Intentional crash for testing — user picks crash type
@@ -682,6 +700,32 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 WinClose($hWLTarget)
                 Sleep(200)
                 _WL_Refresh($iDesktop)
+            Case "pin_app"
+                If _Cfg_GetPinningEnabled() Then
+                    Local $bWasAppPinned = _VD_IsPinnedApp($hWLTarget)
+                    If $bWasAppPinned Then
+                        _VD_UnpinApp($hWLTarget)
+                    Else
+                        _VD_PinApp($hWLTarget)
+                    EndIf
+                    If _Cfg_GetNotificationsEnabled() And Not $bWasAppPinned And _Cfg_GetNotifyWindowPinned() Then
+                        _Theme_Toast(_i18n("Toasts.toast_app_pinned", "App pinned to all desktops"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                    ElseIf _Cfg_GetNotificationsEnabled() And $bWasAppPinned And _Cfg_GetNotifyWindowUnpinned() Then
+                        _Theme_Toast(_i18n("Toasts.toast_app_unpinned", "App unpinned"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                    EndIf
+                    _WL_Refresh($iDesktop)
+                EndIf
+            Case Else
+                If StringLeft($sWLAction, 8) = "send_to:" Then
+                    Local $iTargetDesk = Int(StringMid($sWLAction, 9))
+                    If $iTargetDesk >= 1 And $iTargetDesk <= _VD_GetCount() Then
+                        _VD_MoveWindowToDesktop($hWLTarget, $iTargetDesk)
+                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
+                            _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iTargetDesk), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                        EndIf
+                        _WL_Refresh($iDesktop)
+                    EndIf
+                EndIf
         EndSwitch
         _WL_CtxDestroy()
     EndIf
@@ -762,6 +806,19 @@ Func _ProcessMouseInput()
                         ; Use last tracked external window for Move Window Here
                         $hMoveWindowTarget = $hLastExternalWindow
                         _DL_CtxShow($iRightClickRow)
+                    EndIf
+                EndIf
+
+            ; Right-click over window list -> show window context menu
+            ElseIf _WL_IsVisible() And _Theme_IsCursorOverWindow(_WL_GetGUI()) Then
+                _CM_Destroy()
+                _DL_CtxDestroy()
+                Local $hRightClickWnd = _WL_GetItemAtPos()
+                If $hRightClickWnd <> 0 Then
+                    If _WL_CtxIsVisible() Then
+                        _WL_CtxDestroy()
+                    Else
+                        _WL_CtxShow($hRightClickWnd)
                     EndIf
                 EndIf
 
@@ -970,9 +1027,25 @@ Func _ProcessEventFlags()
         _VD_Init()
         ; Re-register desktop change hook
         _VD_RegisterNotify($gui, $WM_VD_NOTIFY)
+        ; Re-check taskbar auto-hide state after explorer restart
+        _TAH_Reset()
         ; Show notification
         If _Cfg_GetNotificationsEnabled() And (_Cfg_GetExplorerNotifyRecovery() Or _Cfg_GetNotifyExplorerRecovery()) Then
             _Theme_Toast(_i18n("Toasts.toast_explorer_recovered", "Explorer recovered — reinitializing"), 0, $iTaskbarY + $iTaskbarH + 4, 3000, $TOAST_WARNING)
+        EndIf
+    EndIf
+
+    ; Taskbar auto-hide sync
+    If _TAH_CheckHidden() Then
+        If Not $__g_bTrayMode And Not (_Cfg_GetAutoHideSkipIfDialog() And _CD_IsVisible()) Then
+            _TAH_HideWidget($gui)
+            If _Cfg_GetAutoHideSyncDesktopList() And _DL_IsVisible() Then _DL_Destroy()
+            If _Cfg_GetAutoHideSyncWindowList() And _WL_IsVisible() Then _WL_Destroy()
+        EndIf
+    EndIf
+    If _TAH_CheckShown() Then
+        If Not $__g_bTrayMode Then
+            _TAH_ShowWidget($gui, _Cfg_GetThemeAlphaMain())
         EndIf
     EndIf
 
@@ -1203,6 +1276,16 @@ Func _ApplySettingsLive()
         AdlibRegister("_UC_AdlibCheck", _Cfg_GetAutoUpdateInterval())
     EndIf
 
+    ; Update carousel timer
+    If $__g_bCarouselActive Then
+        AdlibUnRegister("_CarouselTick")
+        If _Cfg_GetCarouselEnabled() Then
+            AdlibRegister("_CarouselTick", _Cfg_GetCarouselInterval())
+        Else
+            $__g_bCarouselActive = False
+        EndIf
+    EndIf
+
     ; Refresh display (count format, label, list)
     _ApplyDesktopChange()
 
@@ -1217,6 +1300,10 @@ Func _ApplySettingsLive()
     If _Cfg_GetScrollEnabled() Or _Cfg_GetListScrollEnabled() Then
         GUIRegisterMsg(0x020A, "_WM_MOUSEWHEEL")
     EndIf
+
+    ; Update taskbar auto-hide monitor
+    _TAH_Stop()
+    _TAH_Start()
 
     ; Force reposition with new widget position/offset
     _ForceTopMost()
@@ -1524,6 +1611,9 @@ Func _ForceTopMost()
     ; Skip topmost enforcement in tray mode (no widget to manage)
     If $__g_bTrayMode Then Return
 
+    ; Skip when widget is hidden by taskbar auto-hide sync
+    If _TAH_IsWidgetHidden() Then Return
+
     ; Re-read taskbar dimensions in case screen resized or taskbar moved
     Local $bTaskbarMoved = False
     Local $hTB = WinGetHandle("[CLASS:Shell_TrayWnd]")
@@ -1562,6 +1652,73 @@ Func _ForceTopMost()
             "int", $__g_iWidgetW, "int", $__g_iWidgetH, _
             "uint", BitOR($SWP_NOACTIVATE, $SWP_SHOWWINDOW))
     EndIf
+EndFunc
+
+; =============================================
+; CAROUSEL MODE
+; =============================================
+
+; Name:        _CarouselTick
+; Description: Adlib callback — advances to next desktop in carousel mode
+Func _CarouselTick()
+    If Not $__g_bCarouselActive Then Return
+    If $__g_bShuttingDown Then Return
+    If _Peek_IsActive() Then Return
+    If _CM_IsVisible() Then Return
+    If _RD_IsVisible() Then Return
+
+    Local $iCount = _VD_GetCount()
+    If $iCount <= 1 Then Return
+
+    Local $iNext = $iDesktop + 1
+    If $iNext > $iCount Then $iNext = 1
+
+    _VD_GoTo($iNext)
+    Sleep(50)
+    _RefreshIndex()
+EndFunc
+
+; Name:        _CarouselStart
+; Description: Starts the carousel auto-rotation timer
+Func _CarouselStart()
+    If $__g_bCarouselActive Then Return
+    $__g_bCarouselActive = True
+    AdlibRegister("_CarouselTick", _Cfg_GetCarouselInterval())
+    _Log_Info("Carousel started (interval=" & _Cfg_GetCarouselInterval() & "ms)")
+    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyCarouselToggle() Then
+        _Theme_Toast(_i18n("Toasts.toast_carousel_on", "Carousel enabled"), _
+            0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+    EndIf
+EndFunc
+
+; Name:        _CarouselStop
+; Description: Stops the carousel auto-rotation timer
+Func _CarouselStop()
+    If Not $__g_bCarouselActive Then Return
+    $__g_bCarouselActive = False
+    AdlibUnRegister("_CarouselTick")
+    _Log_Info("Carousel stopped")
+    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyCarouselToggle() Then
+        _Theme_Toast(_i18n("Toasts.toast_carousel_off", "Carousel disabled"), _
+            0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+    EndIf
+EndFunc
+
+; Name:        _CarouselToggle
+; Description: Toggles the carousel on or off
+Func _CarouselToggle()
+    If $__g_bCarouselActive Then
+        _CarouselStop()
+    Else
+        _CarouselStart()
+    EndIf
+EndFunc
+
+; Name:        _CarouselIsActive
+; Description: Returns whether the carousel is currently running
+; Return:      True/False
+Func _CarouselIsActive()
+    Return $__g_bCarouselActive
 EndFunc
 
 ; Name:        _WM_ACTIVATE
@@ -1691,6 +1848,16 @@ Func _RegisterHotkeys()
         $iRet = HotKeySet($sKey, "_HK_MinimizeWindow")
         If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (minimize window)")
     EndIf
+    $sKey = _Cfg_GetHotkeyToggleCarousel()
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_ToggleCarousel")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (toggle carousel)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyTaskView()
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_TaskView")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (task view)")
+    EndIf
 EndFunc
 
 ; Name:        _UnregisterHotkeys
@@ -1734,6 +1901,10 @@ Func _UnregisterHotkeys()
     $sKey = _Cfg_GetHotkeyCloseWindow()
     If $sKey <> "" Then HotKeySet($sKey)
     $sKey = _Cfg_GetHotkeyMinimizeWindow()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyToggleCarousel()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyTaskView()
     If $sKey <> "" Then HotKeySet($sKey)
 EndFunc
 
@@ -2010,6 +2181,13 @@ Func _HK_ToggleWindowList()
     _WL_Toggle($iDesktop)
 EndFunc
 
+; Name:        _HK_TaskView
+; Description: Hotkey callback to open Windows Task View (simulates Win+Tab)
+Func _HK_TaskView()
+    _Log_Debug("Hotkey: task view")
+    Send("#{TAB}")
+EndFunc
+
 ; Name:        _HK_AddDesktop
 ; Description: Hotkey callback to create a new virtual desktop
 Func _HK_AddDesktop()
@@ -2073,6 +2251,10 @@ Func _HK_MinimizeWindow()
     WinSetState($hWnd, "", @SW_MINIMIZE)
 EndFunc
 
+Func _HK_ToggleCarousel()
+    _CarouselToggle()
+EndFunc
+
 ; About dialog extracted to includes\AboutDialog.au3
 
 
@@ -2092,6 +2274,9 @@ Func _InitTrayMode()
     $__g_iTrayAddDesktop = TrayCreateItem(_i18n("Tray.tray_add_desktop", "Add Desktop"))
     $__g_iTrayDelDesktop = TrayCreateItem(_i18n("Tray.tray_delete_desktop", "Delete Desktop"))
     TrayCreateItem("")
+    If _Cfg_GetCarouselEnabled() Then
+        $__g_iTrayCarousel = TrayCreateItem(_i18n("Tray.tray_toggle_carousel", "Toggle Carousel"))
+    EndIf
     $__g_iTraySettings = TrayCreateItem(_i18n("Tray.tray_settings", "Settings"))
     $__g_iTrayAbout = TrayCreateItem(_i18n("Tray.tray_about", "About"))
     TrayCreateItem("")
@@ -2147,6 +2332,8 @@ Func _CheckTrayMessages()
             _CD_Show()
         Case $__g_iTrayAbout
             _ShowAbout()
+        Case $__g_iTrayCarousel
+            If $__g_iTrayCarousel <> 0 Then _CarouselToggle()
         Case $__g_iTrayQuit
             _Shutdown()
     EndSwitch
@@ -2443,9 +2630,20 @@ Func __ShowCrashDialog($sReason, $sDetails, $sCrashFile)
                     EndIf
                     Return
                 Case $idCopy
-                    ClipPut(FileRead($sCrashFile))
-                    GUICtrlSetData($idCopy, _i18n("Errors.err_copied", "Copied!"))
-                    GUICtrlSetColor($idCopy, 0x4AFF7E)
+                    If FileExists($sCrashFile) Then
+                        Local $sContent = FileRead($sCrashFile)
+                        If $sContent <> "" Then
+                            ClipPut($sContent)
+                            GUICtrlSetData($idCopy, _i18n("Errors.err_copied", "Copied!"))
+                            GUICtrlSetColor($idCopy, 0x4AFF7E)
+                        Else
+                            GUICtrlSetData($idCopy, "Log empty")
+                            GUICtrlSetColor($idCopy, 0xFF6666)
+                        EndIf
+                    Else
+                        GUICtrlSetData($idCopy, "Log missing")
+                        GUICtrlSetColor($idCopy, 0xFF6666)
+                    EndIf
                 Case $idOpen
                     ShellExecute($sCrashFile)
             EndSwitch
@@ -2530,12 +2728,14 @@ Func _Shutdown()
 
     ; Stop all periodic tasks first (prevent interference during fade)
     _EM_Stop()
+    _TAH_Stop()
     _UnregisterHotkeys()
     AdlibUnRegister("_ForceTopMost")
     AdlibUnRegister("_AdlibSyncNames")
     AdlibUnRegister("_AdlibConfigWatcher")
     AdlibUnRegister("_UC_AdlibCheck")
     AdlibUnRegister("_CheckDLLHealth")
+    AdlibUnRegister("_CarouselTick")
 
     ; Gracefully close visible popups (no animation — just clean up)
     If _DL_CtxIsVisible() Then _DL_CtxDestroy()

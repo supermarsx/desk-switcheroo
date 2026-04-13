@@ -48,6 +48,11 @@ Func _WP_Apply($iDesktop)
     If Not _Cfg_GetWallpaperEnabled() Then Return
     Local $sPath = _Cfg_GetDesktopWallpaper($iDesktop)
     If $sPath = "" Then Return ; no wallpaper configured for this desktop
+    ; Defense-in-depth: reject traversal and UNC paths
+    If StringInStr($sPath, "..") Or StringLeft($sPath, 2) = "\\" Then
+        _Log_Warn("Wallpaper: rejected suspicious path: " & $sPath)
+        Return
+    EndIf
     If Not FileExists($sPath) Then
         _Log_Warn("Wallpaper: file not found: " & $sPath)
         Return
