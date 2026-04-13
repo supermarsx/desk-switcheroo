@@ -346,6 +346,9 @@ If _Cfg_GetDesktopListPinned() Then
     _Log_Info("Desktop list pinned — auto-showing on startup")
 EndIf
 
+; Apply Windows widgets toggle on startup
+If _Cfg_GetDisableWinWidgets() Then _ApplyWinWidgetsToggle()
+
 _Log_Info("Startup complete")
 
 ; ---- Startup update check (if enabled and enough days have passed) ----
@@ -1172,6 +1175,9 @@ Func _ApplySettingsLive()
         AdlibRegister("_ForceTopMost", _Cfg_GetTopmostInterval())
     EndIf
 
+    ; Apply Windows widgets toggle (Win11 taskbar widgets button)
+    _ApplyWinWidgetsToggle()
+
     ; Handle tray mode toggle
     Local $bNewTrayMode = _Cfg_GetTrayIconMode()
     If $bNewTrayMode And Not $__g_bTrayMode Then
@@ -1239,6 +1245,20 @@ Func _GetDesktopLimit()
     Local $iMax = _Cfg_GetMaxDesktops()
     If $iMax <= 0 Then Return $DESKTOP_LIMIT_HARD
     Return $iMax
+EndFunc
+
+; Name:        _ApplyWinWidgetsToggle
+; Description: Hides or shows the Windows 11 Widgets button on the taskbar
+;              via the TaskbarDa registry key. Requires explorer refresh to take effect.
+Func _ApplyWinWidgetsToggle()
+    Local $sKey = "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+    If _Cfg_GetDisableWinWidgets() Then
+        RegWrite($sKey, "TaskbarDa", "REG_DWORD", 0)
+        _Log_Debug("Windows widgets: disabled (TaskbarDa=0)")
+    Else
+        RegWrite($sKey, "TaskbarDa", "REG_DWORD", 1)
+        _Log_Debug("Windows widgets: enabled (TaskbarDa=1)")
+    EndIf
 EndFunc
 
 ; Name:        _AutoFocusTopWindow

@@ -113,7 +113,7 @@ Global $__g_CD_idLblLastChecked, $__g_CD_idLblNextCheck
 
 ; -- Tab 1 extras: General --
 Global $__g_CD_idChkSingleton, $__g_CD_idChkTaskbarFocus, $__g_CD_idChkAutoFocus
-Global $__g_CD_idChkCapslockMod, $__g_CD_idInpMinDesktops, $__g_CD_idInpMaxDesktops
+Global $__g_CD_idChkCapslockMod, $__g_CD_idChkDisableWinWidgets, $__g_CD_idInpMinDesktops, $__g_CD_idInpMaxDesktops
 
 ; -- Tab 4 extras: Hotkeys --
 Global $__g_CD_idInpHkLastDesktop, $__g_CD_idInpHkMoveFollowNext, $__g_CD_idInpHkMoveFollowPrev
@@ -632,6 +632,10 @@ Func __CD_BuildTabGeneral()
     $iY += 26
     $__g_CD_idChkCapslockMod = __CD_CreateCheckbox(_i18n("Settings.General.chk_capslock_mod", "CapsLock modifier"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkCapslockMod, _i18n("Settings.General.tip_capslock_mod", "Use CapsLock as an additional modifier key for hotkeys"))
+    $iY += 26
+
+    $__g_CD_idChkDisableWinWidgets = __CD_CreateCheckbox(_i18n("Settings.General.chk_disable_widgets", "Disable Windows widgets"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkDisableWinWidgets, _i18n("Settings.General.tip_disable_widgets", "Hide the Windows 11 Widgets button from the taskbar to free up space"))
     $iY += 34
 
     Local $idMinLbl = GUICtrlCreateLabel(_i18n("Settings.General.lbl_min_desktops", "Min desktops on startup (0-20):"), $iX, $iY + 2, 200, 18)
@@ -2346,6 +2350,7 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkTaskbarFocus, _Cfg_GetTaskbarFocusTrick())
     __CD_SetCheckState($__g_CD_idChkAutoFocus, _Cfg_GetAutoFocusAfterSwitch())
     __CD_SetCheckState($__g_CD_idChkCapslockMod, _Cfg_GetCapslockModifier())
+    __CD_SetCheckState($__g_CD_idChkDisableWinWidgets, _Cfg_GetDisableWinWidgets())
     GUICtrlSetData($__g_CD_idInpMinDesktops, _Cfg_GetMinDesktops())
     GUICtrlSetData($__g_CD_idInpMaxDesktops, _Cfg_GetMaxDesktops())
 
@@ -2645,6 +2650,7 @@ Func __CD_ApplyChanges()
     _Cfg_SetTaskbarFocusTrick(__CD_GetCheckState($__g_CD_idChkTaskbarFocus))
     _Cfg_SetAutoFocusAfterSwitch(__CD_GetCheckState($__g_CD_idChkAutoFocus))
     _Cfg_SetCapslockModifier(__CD_GetCheckState($__g_CD_idChkCapslockMod))
+    _Cfg_SetDisableWinWidgets(__CD_GetCheckState($__g_CD_idChkDisableWinWidgets))
     $s = GUICtrlRead($__g_CD_idInpMinDesktops)
     If StringIsInt($s) Then _Cfg_SetMinDesktops(Int($s))
     $s = GUICtrlRead($__g_CD_idInpMaxDesktops)

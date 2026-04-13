@@ -39,6 +39,7 @@ Global $__g_Cfg_iMaxDesktops        = 0       ; 0 = unlimited
 Global $__g_Cfg_bTaskbarFocusTrick  = False
 Global $__g_Cfg_bAutoFocusAfterSwitch = False
 Global $__g_Cfg_bCapslockModifier   = False
+Global $__g_Cfg_bDisableWinWidgets  = False
 Global $__g_Cfg_bDesktopListPinned  = False
 
 ; [Updates]
@@ -272,6 +273,7 @@ Func _Cfg_Load()
     $__g_Cfg_bTaskbarFocusTrick  = __Cfg_ReadBool($f, "General", "taskbar_focus_trick", False)
     $__g_Cfg_bAutoFocusAfterSwitch = __Cfg_ReadBool($f, "General", "auto_focus_after_switch", False)
     $__g_Cfg_bCapslockModifier   = __Cfg_ReadBool($f, "General", "capslock_modifier", False)
+    $__g_Cfg_bDisableWinWidgets  = __Cfg_ReadBool($f, "General", "disable_win_widgets", False)
     $__g_Cfg_bDesktopListPinned  = __Cfg_ReadBool($f, "General", "desktop_list_pinned", False)
 
     ; [Updates]
@@ -470,6 +472,7 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "General", "taskbar_focus_trick", $__g_Cfg_bTaskbarFocusTrick)
     __Cfg_WriteBool($f, "General", "auto_focus_after_switch", $__g_Cfg_bAutoFocusAfterSwitch)
     __Cfg_WriteBool($f, "General", "capslock_modifier", $__g_Cfg_bCapslockModifier)
+    __Cfg_WriteBool($f, "General", "disable_win_widgets", $__g_Cfg_bDisableWinWidgets)
     __Cfg_WriteBool($f, "General", "desktop_list_pinned", $__g_Cfg_bDesktopListPinned)
 
     ; [Updates]
@@ -661,6 +664,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "General", "taskbar_focus_trick", False)
     __Cfg_DefaultBool($f, "General", "auto_focus_after_switch", False)
     __Cfg_DefaultBool($f, "General", "capslock_modifier", False)
+    __Cfg_DefaultBool($f, "General", "disable_win_widgets", False)
     __Cfg_DefaultBool($f, "General", "desktop_list_pinned", False)
 
     __Cfg_DefaultBool($f, "Updates", "update_check_on_startup", False)
@@ -880,6 +884,9 @@ Func _Cfg_GetAutoFocusAfterSwitch()
 EndFunc
 Func _Cfg_GetCapslockModifier()
     Return $__g_Cfg_bCapslockModifier
+EndFunc
+Func _Cfg_GetDisableWinWidgets()
+    Return $__g_Cfg_bDisableWinWidgets
 EndFunc
 
 ; [Updates]
@@ -1409,6 +1416,9 @@ Func _Cfg_SetAutoFocusAfterSwitch($b)
 EndFunc
 Func _Cfg_SetCapslockModifier($b)
     $__g_Cfg_bCapslockModifier = $b
+EndFunc
+Func _Cfg_SetDisableWinWidgets($b)
+    $__g_Cfg_bDisableWinWidgets = $b
 EndFunc
 Func _Cfg_GetDesktopListPinned()
     Return $__g_Cfg_bDesktopListPinned
