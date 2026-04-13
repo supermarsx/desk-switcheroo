@@ -97,6 +97,7 @@ Func __UC_FetchReleaseJson($sLabel)
     Local $iDlgW = 320, $iDlgH = 100
     Local $hDlg = _Theme_CreatePopup($sLabel, $iDlgW, $iDlgH, _
         (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+    GUISwitch($hDlg)
     GUICtrlCreateLabel($sLabel & "...", 14, 14, $iDlgW - 28, 20)
     GUICtrlSetFont(-1, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
@@ -155,6 +156,7 @@ Func _UC_CheckNow()
     Local $iDlgW = 320, $iDlgH = 140
     Local $hDlg = _Theme_CreatePopup("Update Check", $iDlgW, $iDlgH, _
         (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+    GUISwitch($hDlg)
 
     If $bUpdateAvailable Then
         GUICtrlCreateLabel(ChrW(0x2B06) & " " & _i18n("Updates.upd_available", "Update available!"), 14, 10, $iDlgW - 28, 20)
@@ -269,6 +271,7 @@ Func _UC_DownloadPortable()
     Local $iDlgW = 320, $iDlgH = 140
     Local $hDlg = _Theme_CreatePopup("Download", $iDlgW, $iDlgH, _
         (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+    GUISwitch($hDlg)
 
     GUICtrlCreateLabel(_i18n_Format("Updates.upd_download_title", "Download Portable v{1}?", $sVersion), 14, 10, $iDlgW - 28, 20)
     GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
@@ -337,6 +340,7 @@ Func _UC_DownloadPortable()
     $iDlgH = 90
     $hDlg = _Theme_CreatePopup("Downloading", $iDlgW, $iDlgH, _
         (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+    GUISwitch($hDlg)
 
     GUICtrlCreateLabel(_i18n_Format("Updates.upd_downloading", "Downloading v{1}...", $sVersion), 14, 10, $iDlgW - 28, 18)
     GUICtrlSetFont(-1, 9, 400, 0, $THEME_FONT_MAIN)
@@ -379,6 +383,7 @@ Func _UC_DownloadPortable()
     $iDlgH = 110
     $hDlg = _Theme_CreatePopup("Download Complete", $iDlgW, $iDlgH, _
         (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+    GUISwitch($hDlg)
 
     If $bSuccess Then
         Local $iFinalSize = FileGetSize($sDestFile)
