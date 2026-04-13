@@ -43,5 +43,52 @@ Func _RunTest_Wallpaper()
 
     ; -- Out-of-range desktop wallpaper returns "" --
     _Test_AssertEqual("Wallpaper desktop 0 = empty", _Cfg_GetDesktopWallpaper(0), "")
-    _Test_AssertEqual("Wallpaper desktop 10 = empty", _Cfg_GetDesktopWallpaper(10), "")
+    _Test_AssertEqual("Wallpaper desktop 51 = empty", _Cfg_GetDesktopWallpaper(51), "")
+
+    ; -- Desktops 10+ now supported (expanded from 9 to 50) --
+    _Cfg_SetDesktopWallpaper(10, "C:\test_10.jpg")
+    _Test_AssertEqual("Wallpaper desktop 10 works", _Cfg_GetDesktopWallpaper(10), "C:\test_10.jpg")
+    _Cfg_SetDesktopWallpaper(25, "C:\test_25.png")
+    _Test_AssertEqual("Wallpaper desktop 25 works", _Cfg_GetDesktopWallpaper(25), "C:\test_25.png")
+    _Cfg_SetDesktopWallpaper(50, "C:\test_50.bmp")
+    _Test_AssertEqual("Wallpaper desktop 50 works", _Cfg_GetDesktopWallpaper(50), "C:\test_50.bmp")
+    _Cfg_SetDesktopWallpaper(10, "")
+    _Cfg_SetDesktopWallpaper(25, "")
+    _Cfg_SetDesktopWallpaper(50, "")
+
+    ; -- Path traversal rejected --
+    _Cfg_SetDesktopWallpaper(1, "C:\foo\..\..\..\Windows\System32\cmd.exe")
+    _Test_AssertEqual("Path traversal rejected", _Cfg_GetDesktopWallpaper(1), "")
+
+    ; -- UNC path rejected --
+    _Cfg_SetDesktopWallpaper(1, "\\server\share\evil.jpg")
+    _Test_AssertEqual("UNC path rejected", _Cfg_GetDesktopWallpaper(1), "")
+
+    ; -- Invalid extension rejected --
+    _Cfg_SetDesktopWallpaper(1, "C:\test.exe")
+    _Test_AssertEqual("EXE extension rejected", _Cfg_GetDesktopWallpaper(1), "")
+
+    ; -- Valid extensions accepted --
+    _Cfg_SetDesktopWallpaper(1, "C:\test.jpg")
+    _Test_AssertEqual("JPG accepted", _Cfg_GetDesktopWallpaper(1), "C:\test.jpg")
+    _Cfg_SetDesktopWallpaper(1, "C:\test.png")
+    _Test_AssertEqual("PNG accepted", _Cfg_GetDesktopWallpaper(1), "C:\test.png")
+    _Cfg_SetDesktopWallpaper(1, "C:\test.bmp")
+    _Test_AssertEqual("BMP accepted", _Cfg_GetDesktopWallpaper(1), "C:\test.bmp")
+    _Cfg_SetDesktopWallpaper(1, "")
+
+    ; -- Apply is no-op when disabled --
+    _Cfg_SetWallpaperEnabled(False)
+    _WP_Apply(1)
+    _Test_AssertTrue("WP Apply no crash when disabled", True)
+
+    ; -- Apply with empty path does nothing --
+    _Cfg_SetWallpaperEnabled(True)
+    _WP_Apply(1)
+    _Test_AssertTrue("WP Apply no crash with empty path", True)
+    _Cfg_SetWallpaperEnabled(False)
+
+    ; -- Tick is no-op when timer is 0 --
+    _WP_Tick()
+    _Test_AssertTrue("WP Tick no crash when idle", True)
 EndFunc

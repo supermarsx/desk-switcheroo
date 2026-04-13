@@ -154,6 +154,37 @@ Func _RunTest_DesktopList()
     _Cfg_SetPinningEnabled($bPinWas)
     _DL_Destroy()
 
+    ; -- Drag state: not dragging initially --
+    _Test_AssertFalse("DL not dragging initially", _DL_IsDragging())
+
+    ; -- Drag reset clears state --
+    $__g_DL_iDragState = 2
+    _DL_DragReset()
+    _Test_AssertFalse("DL DragReset clears dragging", _DL_IsDragging())
+
+    ; -- Scroll offset defaults --
+    _Test_AssertEqual("DL scroll offset 0 initially", _DL_GetScrollOffset(), 0)
+
+    ; -- Scroll offset set/get --
+    _DL_SetScrollOffset(5)
+    _Test_AssertEqual("DL scroll offset set/get", _DL_GetScrollOffset(), 5)
+    _DL_ResetScroll()
+    _Test_AssertEqual("DL ResetScroll zeros offset", _DL_GetScrollOffset(), 0)
+
+    ; -- Pin state --
+    _Test_AssertFalse("DL not pinned initially", _DL_IsPinned())
+
+    ; -- Thumbnail not visible initially --
+    _Test_AssertFalse("DL thumb not visible initially", _DL_ThumbIsVisible())
+
+    ; -- ThumbDestroy safe when not visible --
+    _DL_ThumbDestroy()
+    _Test_AssertTrue("DL ThumbDestroy no crash", True)
+
+    ; -- ThumbClearCache safe --
+    _DL_ThumbClearCache()
+    _Test_AssertTrue("DL ThumbClearCache no crash", True)
+
     ; -- Cleanup --
     FileDelete($sTempIni)
 EndFunc

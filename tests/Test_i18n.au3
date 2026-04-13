@@ -142,6 +142,34 @@ Func _RunTest_i18n()
     Local $sFmtCreate = _i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", 5)
     _Test_AssertTrue("toast_desktop_created format {1}", StringInStr($sFmtCreate, "5") > 0)
     _Test_AssertFalse("toast_desktop_created no leftover {1}", StringInStr($sFmtCreate, "{1}") > 0)
+
+    ; -- Locale key consistency: verify all en-US keys exist in each locale --
+    Local $sEnUsPath = @ScriptDir & "\..\locales\en-US.ini"
+    Local $aEnSections = IniReadSectionNames($sEnUsPath)
+    If Not @error Then
+        Local $aLocaleList[34] = [33, "ar-EG","ar-SA","bn-IN","da-DK","de-DE","en-CA","en-GB","en-IN", _
+            "es-AR","es-ES","es-MX","fr-CA","fr-FR","hi-IN","hu-HU","id-ID","is-IS","it-IT", _
+            "ko-KR","nl-NL","pl-PL","pt-BR","pt-PT","ro-RO","ru-RU","sv-SE","th-TH","tr-TR", _
+            "uk-UA","vi-VN","zh-CN","zh-TW","en-US"]
+        Local $iLocIdx
+        For $iLocIdx = 1 To $aLocaleList[0]
+            Local $sLocPath = @ScriptDir & "\..\locales\" & $aLocaleList[$iLocIdx] & ".ini"
+            If Not FileExists($sLocPath) Then ContinueLoop
+            Local $iMissing = 0
+            Local $iSec
+            For $iSec = 1 To $aEnSections[0]
+                If $aEnSections[$iSec] = "Meta" Then ContinueLoop
+                Local $aEnKeys = IniReadSection($sEnUsPath, $aEnSections[$iSec])
+                If @error Then ContinueLoop
+                Local $iK
+                For $iK = 1 To $aEnKeys[0][0]
+                    Local $sTestVal = IniRead($sLocPath, $aEnSections[$iSec], $aEnKeys[$iK][0], Chr(0))
+                    If $sTestVal = Chr(0) Then $iMissing += 1
+                Next
+            Next
+            _Test_AssertLessEqual("Locale " & $aLocaleList[$iLocIdx] & " missing keys <= 5", $iMissing, 5)
+        Next
+    EndIf
 EndFunc
 
 ; Helper: count total keys in a locale INI file (excluding [Meta])

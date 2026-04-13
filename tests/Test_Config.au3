@@ -621,6 +621,82 @@ Func _RunTest_Config()
     _Cfg_SetExplorerNotifyRecovery(False)
     _Test_AssertFalse("Set+Get: explorer_notify_recovery off", _Cfg_GetExplorerNotifyRecovery())
 
+    ; -- [TaskbarAutoHide] autohide_sync_enabled: default False, set/get --
+    _Cfg_Init($sTempIni)
+    _Test_AssertFalse("Default: autohide_sync_enabled", _Cfg_GetAutoHideSyncEnabled())
+    _Cfg_SetAutoHideSyncEnabled(True)
+    _Test_AssertTrue("Set+Get: autohide_sync_enabled", _Cfg_GetAutoHideSyncEnabled())
+
+    ; -- [TaskbarAutoHide] autohide_poll_interval: default 150, set/get, clamped 50-2000 --
+    _Cfg_Init($sTempIni)
+    _Test_AssertEqual("Default: autohide_poll_interval", _Cfg_GetAutoHidePollInterval(), 150)
+    _Cfg_SetAutoHidePollInterval(500)
+    _Test_AssertEqual("Set+Get: autohide_poll_interval", _Cfg_GetAutoHidePollInterval(), 500)
+    _Cfg_SetAutoHidePollInterval(10)
+    _Test_AssertGreaterEqual("autohide_poll_interval clamped low", _Cfg_GetAutoHidePollInterval(), 50)
+    _Cfg_SetAutoHidePollInterval(5000)
+    _Test_AssertLessEqual("autohide_poll_interval clamped high", _Cfg_GetAutoHidePollInterval(), 2000)
+
+    ; -- [TaskbarAutoHide] autohide_hide_delay: default 200, set/get, clamped 0-5000 --
+    _Cfg_Init($sTempIni)
+    _Test_AssertEqual("Default: autohide_hide_delay", _Cfg_GetAutoHideHideDelay(), 200)
+    _Cfg_SetAutoHideHideDelay(1000)
+    _Test_AssertEqual("Set+Get: autohide_hide_delay", _Cfg_GetAutoHideHideDelay(), 1000)
+    _Cfg_SetAutoHideHideDelay(10000)
+    _Test_AssertLessEqual("autohide_hide_delay clamped high", _Cfg_GetAutoHideHideDelay(), 5000)
+
+    ; -- [TaskbarAutoHide] autohide_show_delay: default 0, set/get, clamped 0-5000 --
+    _Cfg_Init($sTempIni)
+    _Test_AssertEqual("Default: autohide_show_delay", _Cfg_GetAutoHideShowDelay(), 0)
+    _Cfg_SetAutoHideShowDelay(100)
+    _Test_AssertEqual("Set+Get: autohide_show_delay", _Cfg_GetAutoHideShowDelay(), 100)
+
+    ; -- [TaskbarAutoHide] autohide_use_fade: default True, set/get --
+    _Cfg_Init($sTempIni)
+    _Test_AssertTrue("Default: autohide_use_fade", _Cfg_GetAutoHideUseFade())
+    _Cfg_SetAutoHideUseFade(False)
+    _Test_AssertFalse("Set+Get: autohide_use_fade off", _Cfg_GetAutoHideUseFade())
+
+    ; -- [TaskbarAutoHide] autohide_fade_duration: default 80, set/get, clamped 10-1000 --
+    _Cfg_Init($sTempIni)
+    _Test_AssertEqual("Default: autohide_fade_duration", _Cfg_GetAutoHideFadeDuration(), 80)
+    _Cfg_SetAutoHideFadeDuration(200)
+    _Test_AssertEqual("Set+Get: autohide_fade_duration", _Cfg_GetAutoHideFadeDuration(), 200)
+    _Cfg_SetAutoHideFadeDuration(1)
+    _Test_AssertGreaterEqual("autohide_fade_duration clamped low", _Cfg_GetAutoHideFadeDuration(), 10)
+
+    ; -- [TaskbarAutoHide] autohide_sync_desktop_list: default True, set/get --
+    _Cfg_Init($sTempIni)
+    _Test_AssertTrue("Default: autohide_sync_desktop_list", _Cfg_GetAutoHideSyncDesktopList())
+    _Cfg_SetAutoHideSyncDesktopList(False)
+    _Test_AssertFalse("Set+Get: autohide_sync_desktop_list off", _Cfg_GetAutoHideSyncDesktopList())
+
+    ; -- [TaskbarAutoHide] autohide_sync_window_list: default False, set/get --
+    _Cfg_Init($sTempIni)
+    _Test_AssertFalse("Default: autohide_sync_window_list", _Cfg_GetAutoHideSyncWindowList())
+    _Cfg_SetAutoHideSyncWindowList(True)
+    _Test_AssertTrue("Set+Get: autohide_sync_window_list", _Cfg_GetAutoHideSyncWindowList())
+
+    ; -- [TaskbarAutoHide] autohide_hidden_threshold: default 4, set/get, clamped 1-20 --
+    _Cfg_Init($sTempIni)
+    _Test_AssertEqual("Default: autohide_hidden_threshold", _Cfg_GetAutoHideHiddenThreshold(), 4)
+    _Cfg_SetAutoHideHiddenThreshold(10)
+    _Test_AssertEqual("Set+Get: autohide_hidden_threshold", _Cfg_GetAutoHideHiddenThreshold(), 10)
+    _Cfg_SetAutoHideHiddenThreshold(0)
+    _Test_AssertGreaterEqual("autohide_hidden_threshold clamped low", _Cfg_GetAutoHideHiddenThreshold(), 1)
+
+    ; -- [TaskbarAutoHide] autohide_recheck_count: default 10, set/get, clamped 1-100 --
+    _Cfg_Init($sTempIni)
+    _Test_AssertEqual("Default: autohide_recheck_count", _Cfg_GetAutoHideRecheckCount(), 10)
+    _Cfg_SetAutoHideRecheckCount(20)
+    _Test_AssertEqual("Set+Get: autohide_recheck_count", _Cfg_GetAutoHideRecheckCount(), 20)
+
+    ; -- [TaskbarAutoHide] autohide_skip_if_dialog: default True, set/get --
+    _Cfg_Init($sTempIni)
+    _Test_AssertTrue("Default: autohide_skip_if_dialog", _Cfg_GetAutoHideSkipIfDialog())
+    _Cfg_SetAutoHideSkipIfDialog(False)
+    _Test_AssertFalse("Set+Get: autohide_skip_if_dialog off", _Cfg_GetAutoHideSkipIfDialog())
+
     ; -- [Notifications] notify_window_moved: default False, set/get --
     _Cfg_Init($sTempIni)
     _Test_AssertFalse("Default: notify_window_moved", _Cfg_GetNotifyWindowMoved())
@@ -641,6 +717,57 @@ Func _RunTest_Config()
     _Test_AssertFalse("Default: notify_window_pinned", _Cfg_GetNotifyWindowPinned())
     _Cfg_SetNotifyWindowPinned(True)
     _Test_AssertTrue("Set+Get: notify_window_pinned", _Cfg_GetNotifyWindowPinned())
+
+    ; -- Security: __Cfg_ValidateExeName --
+    _Test_AssertEqual("ValidExe: valid name", __Cfg_ValidateExeName("explorer.exe"), "explorer.exe")
+    _Test_AssertEqual("ValidExe: valid with hyphen", __Cfg_ValidateExeName("my-shell.exe"), "my-shell.exe")
+    _Test_AssertEqual("ValidExe: valid with underscore", __Cfg_ValidateExeName("my_app.exe"), "my_app.exe")
+    _Test_AssertEqual("ValidExe: injection rejected", __Cfg_ValidateExeName("explorer.exe & calc"), "explorer.exe")
+    _Test_AssertEqual("ValidExe: pipe rejected", __Cfg_ValidateExeName("foo|bar.exe"), "explorer.exe")
+    _Test_AssertEqual("ValidExe: path separator rejected", __Cfg_ValidateExeName("..\..\evil.exe"), "explorer.exe")
+    _Test_AssertEqual("ValidExe: empty fallback", __Cfg_ValidateExeName(""), "explorer.exe")
+    _Test_AssertEqual("ValidExe: no extension rejected", __Cfg_ValidateExeName("notepad"), "explorer.exe")
+    _Test_AssertEqual("ValidExe: space rejected", __Cfg_ValidateExeName("my app.exe"), "explorer.exe")
+
+    ; -- Security: __Cfg_ValidatePath --
+    _Test_AssertTrue("ValidPath: normal path", __Cfg_ValidatePath("C:\Users\test\Desktop"))
+    _Test_AssertFalse("ValidPath: traversal rejected", __Cfg_ValidatePath("C:\foo\..\..\..\etc"))
+    _Test_AssertFalse("ValidPath: UNC rejected", __Cfg_ValidatePath("\\server\share"))
+    _Test_AssertTrue("ValidPath: short path ok", __Cfg_ValidatePath("C:\a"))
+    ; Overlength path
+    Local $sLongPath = ""
+    Local $iL
+    For $iL = 1 To 300
+        $sLongPath &= "a"
+    Next
+    _Test_AssertFalse("ValidPath: overlength rejected", __Cfg_ValidatePath($sLongPath))
+
+    ; -- Security: __Cfg_ValidateWallpaperPath --
+    _Test_AssertTrue("ValidWP: jpg accepted", __Cfg_ValidateWallpaperPath("C:\img\photo.jpg"))
+    _Test_AssertTrue("ValidWP: PNG accepted", __Cfg_ValidateWallpaperPath("C:\img\photo.PNG"))
+    _Test_AssertTrue("ValidWP: bmp accepted", __Cfg_ValidateWallpaperPath("C:\img\wall.bmp"))
+    _Test_AssertTrue("ValidWP: tiff accepted", __Cfg_ValidateWallpaperPath("C:\img\scan.tiff"))
+    _Test_AssertFalse("ValidWP: exe rejected", __Cfg_ValidateWallpaperPath("C:\img\malware.exe"))
+    _Test_AssertFalse("ValidWP: bat rejected", __Cfg_ValidateWallpaperPath("C:\img\script.bat"))
+    _Test_AssertFalse("ValidWP: traversal rejected", __Cfg_ValidateWallpaperPath("C:\..\..\evil.jpg"))
+
+    ; -- Security: __Cfg_ClampStringLen --
+    _Test_AssertEqual("ClampStr: short string unchanged", __Cfg_ClampStringLen("hello", 10), "hello")
+    _Test_AssertEqual("ClampStr: exact length unchanged", __Cfg_ClampStringLen("hello", 5), "hello")
+    _Test_AssertEqual("ClampStr: truncated", __Cfg_ClampStringLen("hello world", 5), "hello")
+    _Test_AssertEqual("ClampStr: empty string", __Cfg_ClampStringLen("", 10), "")
+
+    ; -- Desktop colors 10+ supported --
+    _Cfg_SetDesktopColor(10, 0xFF0000)
+    _Test_AssertEqual("Desktop color 10 set/get", _Cfg_GetDesktopColor(10), 0xFF0000)
+    _Cfg_SetDesktopColor(50, 0x00FF00)
+    _Test_AssertEqual("Desktop color 50 set/get", _Cfg_GetDesktopColor(50), 0x00FF00)
+    _Test_AssertEqual("Desktop color 51 out of range", _Cfg_GetDesktopColor(51), 0)
+    _Cfg_SetDesktopColor(10, 0)
+    _Cfg_SetDesktopColor(50, 0)
+
+    ; -- Config loaded defaults flag --
+    _Test_AssertTrue("DidLoadDefaults is bool", IsBool(_Cfg_DidLoadDefaults()) Or IsInt(_Cfg_DidLoadDefaults()))
 
     ; -- Cleanup --
     FileDelete($sTempIni)

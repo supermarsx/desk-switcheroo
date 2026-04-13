@@ -156,4 +156,31 @@ Func _RunTest_Theme()
     _Test_AssertNotEqual("Midnight != Midday [0]", $__g_Theme_aSchemeMidnight[0], $__g_Theme_aSchemeMidday[0])
     _Test_AssertNotEqual("Midnight != Sunset [0]", $__g_Theme_aSchemeMidnight[0], $__g_Theme_aSchemeSunset[0])
     _Test_AssertNotEqual("Midday != Sunset [0]", $__g_Theme_aSchemeMidday[0], $__g_Theme_aSchemeSunset[0])
+
+    ; -- Tooltip not visible initially --
+    _Test_AssertFalse("Tooltip not visible initially", _Theme_IsTooltipVisible())
+
+    ; -- HideTooltip safe when not visible --
+    _Theme_HideTooltip()
+    _Test_AssertTrue("HideTooltip no crash when hidden", True)
+
+    ; -- ToastDestroy safe when no toast active --
+    _Theme_ToastDestroy()
+    _Test_AssertTrue("ToastDestroy no crash when inactive", True)
+
+    ; -- ToastTick safe when no toast active --
+    _Theme_ToastTick()
+    _Test_AssertTrue("ToastTick no crash when inactive", True)
+
+    ; -- TooltipTick safe when no tooltip active --
+    _Theme_TooltipTick()
+    _Test_AssertTrue("TooltipTick no crash when inactive", True)
+
+    ; -- ApplyHover with ctrl ID 0 is no-op --
+    _Theme_ApplyHover(0)
+    _Test_AssertTrue("ApplyHover(0) no crash", True)
+
+    ; -- RemoveHover with ctrl ID 0 is no-op --
+    _Theme_RemoveHover(0)
+    _Test_AssertTrue("RemoveHover(0) no crash", True)
 EndFunc

@@ -162,4 +162,10 @@ Func _RunTest_UpdateChecker()
     _Test_AssertTrue("No version in name: block found", $sBlockNoVer <> "")
     Local $sUrlNoVer = __UC_ExtractField($sBlockNoVer, "browser_download_url")
     _Test_AssertTrue("No version in name: URL found", StringInStr($sUrlNoVer, "Portable.zip") > 0)
+
+    ; -- URL domain validation --
+    _Test_AssertTrue("GitHub URL valid", StringRegExp("https://github.com/user/repo/releases/file.zip", '(?i)^https://github\.com/'))
+    _Test_AssertFalse("Evil URL rejected", StringRegExp("https://evil.com/malware.zip", '(?i)^https://github\.com/'))
+    _Test_AssertFalse("HTTP rejected", StringRegExp("http://github.com/user/repo/file.zip", '(?i)^https://github\.com/'))
+    _Test_AssertFalse("Subdomain rejected", StringRegExp("https://fake-github.com/file.zip", '(?i)^https://github\.com/'))
 EndFunc

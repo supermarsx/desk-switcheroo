@@ -67,6 +67,49 @@ Func _RunTest_Logger()
     _Cfg_SetLogLevel("debug")
     _Test_AssertEqual("Level debug accepted", _Cfg_GetLogLevel(), "debug")
 
+    ; -- Log date format variants --
+    _Cfg_SetLogDateFormat("us")
+    _Test_AssertEqual("Date format us accepted", _Cfg_GetLogDateFormat(), "us")
+    _Cfg_SetLogDateFormat("eu")
+    _Test_AssertEqual("Date format eu accepted", _Cfg_GetLogDateFormat(), "eu")
+    _Cfg_SetLogDateFormat("iso")
+    _Test_AssertEqual("Date format iso accepted", _Cfg_GetLogDateFormat(), "iso")
+    _Cfg_SetLogDateFormat("invalid")
+    _Test_AssertEqual("Date format invalid fallback", _Cfg_GetLogDateFormat(), "iso")
+
+    ; -- PID inclusion config --
+    _Cfg_SetLogIncludePID(True)
+    _Test_AssertTrue("PID inclusion enabled", _Cfg_GetLogIncludePID())
+    _Cfg_SetLogIncludePID(False)
+    _Test_AssertFalse("PID inclusion disabled", _Cfg_GetLogIncludePID())
+
+    ; -- Log max size config --
+    _Cfg_SetLogMaxSizeMB(5)
+    _Test_AssertEqual("Max size set/get", _Cfg_GetLogMaxSizeMB(), 5)
+
+    ; -- Log rotate count config --
+    Local $iRotBefore = _Cfg_GetLogRotateCount()
+    _Cfg_SetLogRotateCount(5)
+    _Test_AssertEqual("Rotate count set/get", _Cfg_GetLogRotateCount(), 5)
+    _Cfg_SetLogRotateCount($iRotBefore)
+
+    ; -- Log compress old config --
+    _Cfg_SetLogCompressOld(True)
+    _Test_AssertTrue("Compress old enabled", _Cfg_GetLogCompressOld())
+    _Cfg_SetLogCompressOld(False)
+
+    ; -- Log flush immediate config --
+    _Cfg_SetLogFlushImmediate(False)
+    _Test_AssertFalse("Flush immediate disabled", _Cfg_GetLogFlushImmediate())
+    _Cfg_SetLogFlushImmediate(True)
+
+    ; -- Log folder path validation --
+    _Cfg_SetLogFolder("%APPDATA%")
+    _Test_AssertTrue("Log path expanded", StringInStr(_Cfg_GetLogFilePath(), @AppDataDir) > 0)
+    _Cfg_SetLogFolder("%APPDATA%\..\..\evil")
+    _Test_AssertTrue("Log path traversal rejected", StringInStr(_Cfg_GetLogFilePath(), @ScriptDir) > 0)
+    _Cfg_SetLogFolder("")
+
     ; Cleanup
     FileDelete($sTempLog)
     If FileExists($sTempLog & ".bak") Then FileDelete($sTempLog & ".bak")
