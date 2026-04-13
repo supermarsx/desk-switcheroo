@@ -64,13 +64,51 @@ EndFunc
 ; Parameters:  $sJson - full GitHub releases API JSON response
 ; Return:      The asset block string, or "" if not found
 Func __UC_FindAssetBlock($sJson, $sPattern = "Portable")
-    ; Find all asset blocks: each asset is a {...} object inside the "assets" array
-    Local $aBlocks = StringRegExp($sJson, '\{[^{}]*"browser_download_url"\s*:\s*"[^"]*' & $sPattern & '[^"]*\.zip"[^{}]*\}', 3)
-    If Not @error And UBound($aBlocks) >= 1 Then Return $aBlocks[0]
-    ; Also try blocks where the URL comes before other fields (field order may vary)
-    $aBlocks = StringRegExp($sJson, '\{[^{}]*"name"\s*:\s*"[^"]*' & $sPattern & '[^"]*\.zip"[^{}]*\}', 3)
-    If Not @error And UBound($aBlocks) >= 1 Then Return $aBlocks[0]
-    Return ""
+    ; Strategy: find the download URL line, then extract the enclosing asset block.
+    ; GitHub assets have nested objects (uploader:{...}), so simple [^{}]* won't work.
+    ; Instead, find the URL first, then walk backward/forward to find the asset boundaries.
+
+    ; Step 1: Find the portable download URL directly
+    Local $aUrls = StringRegExp($sJson, '"browser_download_url"\s*:\s*"([^"]*' & $sPattern & '[^"]*\.zip)"', 1)
+    If @error Or UBound($aUrls) < 1 Then
+        ; Fallback: try matching by name field
+        $aUrls = StringRegExp($sJson, '"name"\s*:\s*"([^"]*' & $sPattern & '[^"]*\.zip)"', 1)
+        If @error Or UBound($aUrls) < 1 Then Return ""
+    EndIf
+
+    ; Step 2: Find the position of this URL in the JSON
+    Local $sUrl = $aUrls[0]
+    Local $iPos = StringInStr($sJson, $sUrl)
+    If $iPos = 0 Then Return ""
+
+    ; Step 3: Walk backward from URL position to find the opening { of this asset
+    Local $iStart = $iPos
+    Local $iDepth = 0
+    While $iStart > 1
+        $iStart -= 1
+        Local $sChar = StringMid($sJson, $iStart, 1)
+        If $sChar = "}" Then $iDepth += 1
+        If $sChar = "{" Then
+            If $iDepth = 0 Then ExitLoop
+            $iDepth -= 1
+        EndIf
+    WEnd
+
+    ; Step 4: Walk forward from URL position to find the closing } of this asset
+    Local $iEnd = $iPos
+    $iDepth = 0
+    Local $iLen = StringLen($sJson)
+    While $iEnd < $iLen
+        $iEnd += 1
+        Local $sChar2 = StringMid($sJson, $iEnd, 1)
+        If $sChar2 = "{" Then $iDepth += 1
+        If $sChar2 = "}" Then
+            If $iDepth = 0 Then ExitLoop
+            $iDepth -= 1
+        EndIf
+    WEnd
+
+    Return StringMid($sJson, $iStart, $iEnd - $iStart + 1)
 EndFunc
 
 ; Name:        __UC_ExtractField

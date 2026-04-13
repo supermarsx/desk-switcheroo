@@ -140,4 +140,26 @@ Func _RunTest_UpdateChecker()
     ; -- ExtractField on empty block --
     _Test_AssertEqual("Empty block returns empty", __UC_ExtractField("", "size", True), "")
     _Test_AssertEqual("Empty block string field", __UC_ExtractField("", "name"), "")
+
+    ; -- Real GitHub structure with nested objects (uploader:{...}) --
+    Local $sJsonNested = '{"tag_name": "v26.6", "assets": [' & _
+        '{"name": "DeskSwitcheroo_Setup.exe", "size": 5242880, "uploader": {"login": "bot", "id": 123}, "browser_download_url": "https://example.com/DeskSwitcheroo_Setup.exe"}, ' & _
+        '{"name": "DeskSwitcheroo_Portable.zip", "size": 2097152, "uploader": {"login": "bot", "id": 123}, "browser_download_url": "https://example.com/DeskSwitcheroo_Portable.zip"}, ' & _
+        '{"name": "DeskSwitcheroo_Source.zip", "size": 1048576, "uploader": {"login": "bot", "id": 123}, "browser_download_url": "https://example.com/DeskSwitcheroo_Source.zip"}' & _
+        ']}'
+    Local $sBlockNested = __UC_FindAssetBlock($sJsonNested, "Portable")
+    _Test_AssertTrue("Nested objects: block found", $sBlockNested <> "")
+    Local $sUrlNested = __UC_ExtractField($sBlockNested, "browser_download_url")
+    _Test_AssertTrue("Nested objects: correct URL", StringInStr($sUrlNested, "Portable.zip") > 0)
+    Local $sSizeNested = __UC_ExtractField($sBlockNested, "size", True)
+    _Test_AssertEqual("Nested objects: correct size", Int($sSizeNested), 2097152)
+    Local $sNameNested = __UC_ExtractField($sBlockNested, "name")
+    _Test_AssertEqual("Nested objects: correct name", $sNameNested, "DeskSwitcheroo_Portable.zip")
+
+    ; -- No version in filename (real naming: DeskSwitcheroo_Portable.zip) --
+    Local $sJsonNoVer = '{"assets": [{"name": "DeskSwitcheroo_Portable.zip", "size": 3000000, "browser_download_url": "https://example.com/DeskSwitcheroo_Portable.zip"}]}'
+    Local $sBlockNoVer = __UC_FindAssetBlock($sJsonNoVer, "Portable")
+    _Test_AssertTrue("No version in name: block found", $sBlockNoVer <> "")
+    Local $sUrlNoVer = __UC_ExtractField($sBlockNoVer, "browser_download_url")
+    _Test_AssertTrue("No version in name: URL found", StringInStr($sUrlNoVer, "Portable.zip") > 0)
 EndFunc
