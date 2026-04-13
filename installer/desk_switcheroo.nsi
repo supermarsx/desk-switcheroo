@@ -19,14 +19,22 @@ Unicode True
 !define PRODUCT_PUBLISHER "supermarsx"
 !define PRODUCT_WEB_SITE "https://github.com/supermarsx/desk-switcheroo"
 
-; Executable metadata
-VIProductVersion "1.0.0.0"
+; Executable metadata — version can be overridden at compile time:
+;   makensis /DVI_VERSION=26.6.0.0 /DPRODUCT_VERSION=26.6 desk_switcheroo.nsi
+!ifndef PRODUCT_VERSION
+    !define PRODUCT_VERSION "26.6"
+!endif
+!ifndef VI_VERSION
+    !define VI_VERSION "26.6.0.0"
+!endif
+
+VIProductVersion "${VI_VERSION}"
 VIAddVersionKey "ProductName" "Desk Switcheroo"
 VIAddVersionKey "CompanyName" "supermarsx"
 VIAddVersionKey "LegalCopyright" "MIT License"
 VIAddVersionKey "FileDescription" "Desk Switcheroo Virtual Desktop Switcher"
-VIAddVersionKey "FileVersion" "1.0.0.0"
-VIAddVersionKey "ProductVersion" "1.0.0.0"
+VIAddVersionKey "FileVersion" "${PRODUCT_VERSION}"
+VIAddVersionKey "ProductVersion" "${PRODUCT_VERSION}"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeskSwitcheroo"
 !define PRODUCT_UNINST_ROOT_KEY "HKLM"
 
