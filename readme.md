@@ -96,7 +96,7 @@ AutoIt3_x64.exe desktop_switcher.au3
 
 ## How Desk Switcheroo Compares
 
-| Feature | Desk Switcheroo | SylphyHorn | Dexpot | VirtuaWin | VD Enhancer | PowerToys | [VD.ahk](https://github.com/FuPeiJiang/VD.ahk) | [Desktop Switcher](https://github.com/pmb6tz/windows-desktop-switcher) |
+| Feature | Desk Switcheroo | [SylphyHorn](https://github.com/grabacr07/SylphyHorn) | [Dexpot](https://dexpot.de) | [VirtuaWin](https://virtuawin.sourceforge.io) | [VD Enhancer](https://github.com/sdias/win-10-virtual-desktop-enhancer) | [PowerToys](https://github.com/microsoft/PowerToys) | [VD.ahk](https://github.com/FuPeiJiang/VD.ahk) | [Desktop Switcher](https://github.com/pmb6tz/windows-desktop-switcher) |
 |---------|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
 | Per-desktop wallpaper | Yes | Yes | Yes | No | Yes | No | No | No |
 | Per-desktop colors | Yes | No | No | No | No | No | No | No |
