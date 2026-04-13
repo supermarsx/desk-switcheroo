@@ -162,6 +162,7 @@ EndFunc
 Func _Theme_CreatePopup($sTitle, $iW, $iH, $iX, $iY, $iBgColor = $THEME_BG_POPUP, $iAlpha = $THEME_ALPHA_POPUP)
     Local $hGUI = GUICreate($sTitle, $iW, $iH, $iX, $iY, _
         $WS_POPUP, BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW, $WS_EX_LAYERED))
+    GUISwitch($hGUI) ; ensure this GUI is active for subsequent GUICtrlCreate* calls
     GUISetBkColor($iBgColor)
     _WinAPI_SetLayeredWindowAttributes($hGUI, 0, $iAlpha, $LWA_ALPHA)
     Return $hGUI
@@ -487,6 +488,7 @@ Func _Theme_Toast($sText, $iX, $iY, $iDuration = 2000, $iIconColor = -1)
 
     $__g_Toast_hGUI = GUICreate("Toast", $iW, $iH, $iX, $iY, $WS_POPUP, _
         BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW, $WS_EX_LAYERED))
+    GUISwitch($__g_Toast_hGUI)
     GUISetBkColor($THEME_BG_POPUP)
 
     ; Status icon (colored circle)
@@ -607,6 +609,7 @@ Func _Theme_ShowTooltip($sText, $iX = -1, $iY = -1)
 
     $__g_Tooltip_hGUI = GUICreate("Tooltip", $iW, $iH, $iX, $iY, $WS_POPUP, _
         BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW, $WS_EX_LAYERED))
+    GUISwitch($__g_Tooltip_hGUI)
     GUISetBkColor($THEME_BG_POPUP)
     _WinAPI_SetLayeredWindowAttributes($__g_Tooltip_hGUI, 0, 240, $LWA_ALPHA)
 
