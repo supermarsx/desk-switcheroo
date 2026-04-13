@@ -194,19 +194,10 @@ Func _UC_CheckNow()
 
     GUISetState(@SW_SHOW, $hDlg)
 
-    ; Drain stale messages to prevent handle-reuse false positives
-    Local $aDrain
-    For $aDrain = 1 To 5
-        GUIGetMsg(1)
-    Next
-    ; Clear stale Escape key state
-    DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
-    Sleep(50)
-
     Local $iHovered = 0
     While 1
         Local $aMsg = GUIGetMsg(1)
-        If $aMsg[1] = $hDlg And $aMsg[0] <> 0 Then
+        If $aMsg[1] = $hDlg Then
             If $aMsg[0] = $GUI_EVENT_CLOSE Or $aMsg[0] = $idClose Then ExitLoop
             If $idDownload <> 0 And $aMsg[0] = $idDownload Then
                 GUIDelete($hDlg)
@@ -311,19 +302,11 @@ Func _UC_DownloadPortable()
 
     GUISetState(@SW_SHOW, $hDlg)
 
-    ; Drain stale messages and clear Escape state
-    Local $aDrain2
-    For $aDrain2 = 1 To 5
-        GUIGetMsg(1)
-    Next
-    DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
-    Sleep(50)
-
     Local $bProceed = False
     Local $iHovered = 0
     While 1
         Local $aMsg = GUIGetMsg(1)
-        If $aMsg[1] = $hDlg And $aMsg[0] <> 0 Then
+        If $aMsg[1] = $hDlg Then
             If $aMsg[0] = $GUI_EVENT_CLOSE Or $aMsg[0] = $idNo Then ExitLoop
             If $aMsg[0] = $idYes Then
                 $bProceed = True
@@ -434,18 +417,10 @@ Func _UC_DownloadPortable()
     GUICtrlSetCursor($idClose, 0)
 
     GUISetState(@SW_SHOW, $hDlg)
-    ; Drain stale messages and clear Escape state
-    Local $aDrain3
-    For $aDrain3 = 1 To 5
-        GUIGetMsg(1)
-    Next
-    DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
-    Sleep(50)
-
     Local $iHovered = 0
     While 1
         Local $aMsg2 = GUIGetMsg(1)
-        If $aMsg2[1] = $hDlg And $aMsg2[0] <> 0 Then
+        If $aMsg2[1] = $hDlg Then
             If $aMsg2[0] = $GUI_EVENT_CLOSE Or $aMsg2[0] = $idClose Then ExitLoop
         EndIf
         Local $retEsc2 = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
