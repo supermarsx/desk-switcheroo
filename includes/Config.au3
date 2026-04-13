@@ -35,6 +35,7 @@ Global $__g_Cfg_bAutoUpdateEnabled = False
 Global $__g_Cfg_iAutoUpdateInterval = 168
 Global $__g_Cfg_bSingletonEnabled   = True
 Global $__g_Cfg_iMinDesktops        = 0
+Global $__g_Cfg_iMaxDesktops        = 0       ; 0 = unlimited
 Global $__g_Cfg_bTaskbarFocusTrick  = False
 Global $__g_Cfg_bAutoFocusAfterSwitch = False
 Global $__g_Cfg_bCapslockModifier   = False
@@ -266,7 +267,8 @@ Func _Cfg_Load()
     $__g_Cfg_bAutoUpdateEnabled = __Cfg_ReadBool($f, "General", "auto_update_enabled", False)
     $__g_Cfg_iAutoUpdateInterval = __Cfg_ReadInt($f, "General", "auto_update_interval", 168, 1, 720)
     $__g_Cfg_bSingletonEnabled   = __Cfg_ReadBool($f, "General", "singleton_enabled", True)
-    $__g_Cfg_iMinDesktops        = __Cfg_ReadInt($f, "General", "min_desktops", 0, 0, 20)
+    $__g_Cfg_iMinDesktops        = __Cfg_ReadInt($f, "General", "min_desktops", 0, 0, 50)
+    $__g_Cfg_iMaxDesktops        = __Cfg_ReadInt($f, "General", "max_desktops", 0, 0, 50)
     $__g_Cfg_bTaskbarFocusTrick  = __Cfg_ReadBool($f, "General", "taskbar_focus_trick", False)
     $__g_Cfg_bAutoFocusAfterSwitch = __Cfg_ReadBool($f, "General", "auto_focus_after_switch", False)
     $__g_Cfg_bCapslockModifier   = __Cfg_ReadBool($f, "General", "capslock_modifier", False)
@@ -464,6 +466,7 @@ Func _Cfg_Save()
     IniWrite($f, "General", "auto_update_interval", $__g_Cfg_iAutoUpdateInterval)
     __Cfg_WriteBool($f, "General", "singleton_enabled", $__g_Cfg_bSingletonEnabled)
     IniWrite($f, "General", "min_desktops", $__g_Cfg_iMinDesktops)
+    IniWrite($f, "General", "max_desktops", $__g_Cfg_iMaxDesktops)
     __Cfg_WriteBool($f, "General", "taskbar_focus_trick", $__g_Cfg_bTaskbarFocusTrick)
     __Cfg_WriteBool($f, "General", "auto_focus_after_switch", $__g_Cfg_bAutoFocusAfterSwitch)
     __Cfg_WriteBool($f, "General", "capslock_modifier", $__g_Cfg_bCapslockModifier)
@@ -654,6 +657,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "General", "auto_update_interval", 168)
     __Cfg_DefaultBool($f, "General", "singleton_enabled", True)
     __Cfg_DefaultVal($f, "General", "min_desktops", 0)
+    __Cfg_DefaultVal($f, "General", "max_desktops", 0)
     __Cfg_DefaultBool($f, "General", "taskbar_focus_trick", False)
     __Cfg_DefaultBool($f, "General", "auto_focus_after_switch", False)
     __Cfg_DefaultBool($f, "General", "capslock_modifier", False)
@@ -864,6 +868,9 @@ Func _Cfg_GetSingletonEnabled()
 EndFunc
 Func _Cfg_GetMinDesktops()
     Return $__g_Cfg_iMinDesktops
+EndFunc
+Func _Cfg_GetMaxDesktops()
+    Return $__g_Cfg_iMaxDesktops
 EndFunc
 Func _Cfg_GetTaskbarFocusTrick()
     Return $__g_Cfg_bTaskbarFocusTrick
@@ -1386,8 +1393,13 @@ Func _Cfg_SetSingletonEnabled($b)
 EndFunc
 Func _Cfg_SetMinDesktops($i)
     If $i < 0 Then $i = 0
-    If $i > 20 Then $i = 20
+    If $i > 50 Then $i = 50
     $__g_Cfg_iMinDesktops = $i
+EndFunc
+Func _Cfg_SetMaxDesktops($i)
+    If $i < 0 Then $i = 0
+    If $i > 50 Then $i = 50
+    $__g_Cfg_iMaxDesktops = $i
 EndFunc
 Func _Cfg_SetTaskbarFocusTrick($b)
     $__g_Cfg_bTaskbarFocusTrick = $b

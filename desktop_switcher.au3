@@ -16,7 +16,7 @@ Global Const $VK_9       = 0x39
 Global Const $VK_KEYDOWN = 0x8000
 Global Const $TRIPLE_CLICK_MS = 500
 Global Const $QUICK_ACCESS_TIMEOUT = 3000
-Global Const $DESKTOP_LIMIT = 20
+Global Const $DESKTOP_LIMIT_HARD = 50 ; absolute safety cap
 
 #include "includes\Config.au3"
 #include "includes\Logger.au3"
@@ -158,7 +158,7 @@ If $__iMinDesktops > 0 Then
     Local $__iCurCount = _VD_GetCount()
     If $__iCurCount < $__iMinDesktops Then
         Local $__iCreated = 0
-        While _VD_GetCount() < $__iMinDesktops And _VD_GetCount() < $DESKTOP_LIMIT
+        While _VD_GetCount() < $__iMinDesktops And _VD_GetCount() < _GetDesktopLimit()
             _VD_CreateDesktop()
             $__iCreated += 1
             Sleep(100)
@@ -402,7 +402,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 If $iDesktop < $iCount2 Then
                     _VD_GoTo($iDesktop + 1)
                 ElseIf _Cfg_GetAutoCreateDesktop() Then
-                    If _VD_GetCount() >= $DESKTOP_LIMIT Then
+                    If _VD_GetCount() >= _GetDesktopLimit() Then
                         _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
                     Else
                         _VD_CreateDesktop()
@@ -450,7 +450,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 _DL_SetPinned(Not _DL_IsPinned(), $iTaskbarY, $iDesktop)
             Case "add"
                 _CM_Destroy()
-                If _VD_GetCount() >= $DESKTOP_LIMIT Then
+                If _VD_GetCount() >= _GetDesktopLimit() Then
                     _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
                 Else
                     _VD_CreateDesktop()
@@ -546,7 +546,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 EndIf
             Case "add"
                 _DL_CtxDestroy()
-                If _VD_GetCount() >= $DESKTOP_LIMIT Then
+                If _VD_GetCount() >= _GetDesktopLimit() Then
                     _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
                 Else
                     _VD_CreateDesktop()
@@ -639,7 +639,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                     _WL_Refresh($iDesktop)
                 EndIf
             Case "send_new"
-                If _VD_GetCount() < $DESKTOP_LIMIT Then
+                If _VD_GetCount() < _GetDesktopLimit() Then
                     _VD_CreateDesktop()
                     Sleep(100)
                     Local $iWLNew = _VD_GetCount()
@@ -1232,6 +1232,15 @@ Func _RefreshIndex()
     _ForceTopMost()
 EndFunc
 
+; Name:        _GetDesktopLimit
+; Description: Returns the effective desktop limit (config max_desktops, or hard cap if 0/unlimited)
+; Return:      Integer limit
+Func _GetDesktopLimit()
+    Local $iMax = _Cfg_GetMaxDesktops()
+    If $iMax <= 0 Then Return $DESKTOP_LIMIT_HARD
+    Return $iMax
+EndFunc
+
 ; Name:        _AutoFocusTopWindow
 ; Description: Activates the topmost visible, non-minimized window on the current desktop
 Func _AutoFocusTopWindow()
@@ -1715,7 +1724,7 @@ Func _HK_Next()
     If $iDesktop < $iCount Then
         _VD_GoTo($iDesktop + 1)
     ElseIf _Cfg_GetAutoCreateDesktop() Then
-        If _VD_GetCount() >= $DESKTOP_LIMIT Then
+        If _VD_GetCount() >= _GetDesktopLimit() Then
             _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
         Else
             _VD_CreateDesktop()
@@ -1938,7 +1947,7 @@ EndFunc
 Func _HK_SendNewDesktop()
     Local $hWnd = WinGetHandle("[ACTIVE]")
     If $hWnd = $gui Then Return
-    If _VD_GetCount() >= $DESKTOP_LIMIT Then
+    If _VD_GetCount() >= _GetDesktopLimit() Then
         _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
         Return
     EndIf
@@ -1984,7 +1993,7 @@ EndFunc
 ; Name:        _HK_AddDesktop
 ; Description: Hotkey callback to create a new virtual desktop
 Func _HK_AddDesktop()
-    If _VD_GetCount() >= $DESKTOP_LIMIT Then
+    If _VD_GetCount() >= _GetDesktopLimit() Then
         _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
         Return
     EndIf
@@ -2093,7 +2102,7 @@ Func _CheckTrayMessages()
             $iRenameTarget = $iDesktop
             _RD_Show($iDesktop, $iTaskbarY)
         Case $__g_iTrayAddDesktop
-            If _VD_GetCount() >= $DESKTOP_LIMIT Then
+            If _VD_GetCount() >= _GetDesktopLimit() Then
                 _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
             Else
                 _VD_CreateDesktop()

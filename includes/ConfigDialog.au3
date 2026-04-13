@@ -113,7 +113,7 @@ Global $__g_CD_idLblLastChecked, $__g_CD_idLblNextCheck
 
 ; -- Tab 1 extras: General --
 Global $__g_CD_idChkSingleton, $__g_CD_idChkTaskbarFocus, $__g_CD_idChkAutoFocus
-Global $__g_CD_idChkCapslockMod, $__g_CD_idInpMinDesktops
+Global $__g_CD_idChkCapslockMod, $__g_CD_idInpMinDesktops, $__g_CD_idInpMaxDesktops
 
 ; -- Tab 4 extras: Hotkeys --
 Global $__g_CD_idInpHkLastDesktop, $__g_CD_idInpHkMoveFollowNext, $__g_CD_idInpHkMoveFollowPrev
@@ -646,6 +646,20 @@ Func __CD_BuildTabGeneral()
     _Theme_FlattenInput($__g_CD_idInpMinDesktops)
     __CD_RegCtrl($t, $__g_CD_idInpMinDesktops)
     _Theme_SetTooltip($__g_CD_idInpMinDesktops, _i18n("Settings.General.tip_min_desktops", "Ensure at least this many desktops exist on startup"))
+    $iY += 30
+
+    Local $idMaxLbl = GUICtrlCreateLabel(_i18n("Settings.General.lbl_max_desktops", "Max desktops (0=unlimited):"), $iX, $iY + 2, 200, 18)
+    GUICtrlSetFont($idMaxLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idMaxLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idMaxLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idMaxLbl)
+    $__g_CD_idInpMaxDesktops = GUICtrlCreateInput("", $iX + 205, $iY, 50, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpMaxDesktops, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpMaxDesktops, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpMaxDesktops, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpMaxDesktops)
+    __CD_RegCtrl($t, $__g_CD_idInpMaxDesktops)
+    _Theme_SetTooltip($__g_CD_idInpMaxDesktops, _i18n("Settings.General.tip_max_desktops", "Maximum number of desktops allowed (0 = unlimited)"))
 EndFunc
 
 Func __CD_BuildTabDisplay()
@@ -2333,6 +2347,7 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkAutoFocus, _Cfg_GetAutoFocusAfterSwitch())
     __CD_SetCheckState($__g_CD_idChkCapslockMod, _Cfg_GetCapslockModifier())
     GUICtrlSetData($__g_CD_idInpMinDesktops, _Cfg_GetMinDesktops())
+    GUICtrlSetData($__g_CD_idInpMaxDesktops, _Cfg_GetMaxDesktops())
 
     ; Hotkeys extras
     GUICtrlSetData($__g_CD_idInpHkLastDesktop, _Cfg_GetHotkeyToggleLast())
@@ -2626,6 +2641,8 @@ Func __CD_ApplyChanges()
     _Cfg_SetCapslockModifier(__CD_GetCheckState($__g_CD_idChkCapslockMod))
     $s = GUICtrlRead($__g_CD_idInpMinDesktops)
     If StringIsInt($s) Then _Cfg_SetMinDesktops(Int($s))
+    $s = GUICtrlRead($__g_CD_idInpMaxDesktops)
+    If StringIsInt($s) Then _Cfg_SetMaxDesktops(Int($s))
 
     ; Display
     _Cfg_SetShowCount(__CD_GetCheckState($__g_CD_idChkShowCount))

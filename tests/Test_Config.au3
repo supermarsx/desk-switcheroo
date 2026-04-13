@@ -456,7 +456,7 @@ Func _RunTest_Config()
     _Cfg_SetMinDesktops(-1)
     _Test_AssertGreaterEqual("min_desktops clamped low", _Cfg_GetMinDesktops(), 0)
     _Cfg_SetMinDesktops(25)
-    _Test_AssertLessEqual("min_desktops clamped high", _Cfg_GetMinDesktops(), 20)
+    _Test_AssertLessEqual("min_desktops clamped high", _Cfg_GetMinDesktops(), 50)
 
     ; -- [General] taskbar_focus_trick: default False, set/get --
     _Test_AssertFalse("Default: taskbar_focus_trick", _Cfg_GetTaskbarFocusTrick())
