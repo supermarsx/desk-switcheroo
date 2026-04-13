@@ -253,23 +253,29 @@ Func _UC_DownloadPortable()
     Local $aVer = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
     Local $sVersion = "unknown"
     If Not @error And UBound($aVer) >= 1 Then $sVersion = $aVer[0]
+    _Log_Debug("UC_Download: version=" & $sVersion)
 
     Local $aDate = StringRegExp($sJson, '"published_at"\s*:\s*"([^T"]+)', 1)
     Local $sDate = "unknown"
     If Not @error And UBound($aDate) >= 1 Then $sDate = $aDate[0]
+    _Log_Debug("UC_Download: date=" & $sDate)
 
     ; Find the portable asset block and extract URL + size from the same block
     Local $sAssetBlock = __UC_FindAssetBlock($sJson, "Portable")
+    _Log_Debug("UC_Download: assetBlock empty=" & ($sAssetBlock = "") & " len=" & StringLen($sAssetBlock))
     Local $sDownloadUrl = ""
     If $sAssetBlock <> "" Then
         $sDownloadUrl = __UC_ExtractField($sAssetBlock, "browser_download_url")
     EndIf
+    _Log_Debug("UC_Download: downloadUrl=" & $sDownloadUrl)
     If $sDownloadUrl = "" Then
+        _Log_Warn("UC_Download: no portable URL found, aborting")
         _Theme_Toast(_i18n("Toasts.toast_no_portable", "No portable download found"), 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_WARNING)
         Return
     EndIf
 
     Local $sSizeRaw = __UC_ExtractField($sAssetBlock, "size", True)
+    _Log_Debug("UC_Download: size=" & $sSizeRaw)
     Local $iSizeBytes = 0
     Local $sSizeStr = "unknown"
     If $sSizeRaw <> "" Then
@@ -284,10 +290,11 @@ Func _UC_DownloadPortable()
     EndIf
 
     ; Confirm dialog
+    _Log_Debug("UC_Download: creating confirm dialog")
     Local $iDlgW = 320, $iDlgH = 140
     Local $hDlg = _Theme_CreatePopup("Download", $iDlgW, $iDlgH, _
         (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
-    GUISwitch($hDlg)
+    _Log_Debug("UC_Download: confirm dialog handle=" & $hDlg)
 
     GUICtrlCreateLabel(_i18n_Format("Updates.upd_download_title", "Download Portable v{1}?", $sVersion), 14, 10, $iDlgW - 28, 20)
     GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
