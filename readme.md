@@ -94,6 +94,31 @@ AutoIt3_x64.exe desktop_switcher.au3
 - 33 locales with automatic language detection and in-app picker
 - 90+ settings across 9 tabs in the Settings dialog
 
+## How Desk Switcheroo Compares
+
+| Feature | Desk Switcheroo | SylphyHorn | Dexpot | VirtuaWin | VD Enhancer | PowerToys | [VD.ahk](https://github.com/FuPeiJiang/VD.ahk) | [Desktop Switcher](https://github.com/pmb6tz/windows-desktop-switcher) |
+|---------|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Per-desktop wallpaper | Yes | Yes | Yes | No | Yes | No | No | No |
+| Per-desktop colors | Yes | No | No | No | No | No | No | No |
+| Custom desktop labels | Yes | No | Partial | No | No | No | Yes | No |
+| Desktop peek/preview | Yes | No | Yes | No | No | No | No | No |
+| Window rules engine | Yes | No | No | No | No | No | No | No |
+| Session persistence | Yes | No | No | No | No | No | No | No |
+| Desktop profiles | Yes | No | Partial | No | No | No | No | No |
+| Global hotkeys | Yes | Yes | Yes | Yes | Yes | Limited | Yes | Yes |
+| Window management | Yes | Limited | Yes | Yes | Limited | Yes | Yes | Yes |
+| Drag-to-reorder desktops | Yes | No | Yes | No | No | No | No | No |
+| Carousel mode | Yes | No | No | No | No | No | No | No |
+| Taskbar widget | Yes | No | No | No | No | No | No | No |
+| System tray mode | Yes | Yes | Yes | Yes | No | No | No | No |
+| CLI / IPC control | Yes | No | No | No | No | No | No | No |
+| Event hooks | Yes | No | No | No | No | No | Yes | No |
+| Locales | 33 | 2 | 5 | 3 | 1 | 20+ | 1 | 1 |
+| Themes | 5 | 1 | 3 | 1 | 1 | 1 | 0 | 0 |
+| Open source | Yes | Yes | No | Yes | Yes | Yes | Yes | Yes |
+| Price | Free | Free | Free/Paid | Free | Free | Free | Free | Free |
+| Actively maintained | Yes | Fragmented | Aging | Infrequent | Sporadic | Yes | Yes | Infrequent |
+
 ## Localization
 
 Desk Switcheroo supports 33 locales out of the box:
