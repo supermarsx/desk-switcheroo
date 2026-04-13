@@ -8,3 +8,4 @@ build/
 *.exe
 !tools/*.au3
 crash_*.log
+desk_switcheroo_state.ini
