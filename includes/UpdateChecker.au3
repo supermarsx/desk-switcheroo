@@ -94,23 +94,26 @@ EndFunc
 ; Description: Non-blocking fetch of GitHub releases API with 10s timeout
 ; Return:      JSON string, or "" on failure (shows toast on error)
 Func __UC_FetchReleaseJson($sLabel)
+    _Log_Debug("UC_Fetch: creating dialog")
     Local $iDlgW = 320, $iDlgH = 100
     Local $hDlg = _Theme_CreatePopup($sLabel, $iDlgW, $iDlgH, _
         (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
-    GUISwitch($hDlg)
+    _Log_Debug("UC_Fetch: popup handle=" & $hDlg)
     GUICtrlCreateLabel($sLabel & "...", 14, 14, $iDlgW - 28, 20)
     GUICtrlSetFont(-1, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
     GUISetState(@SW_SHOW, $hDlg)
-    Sleep(50)
+    _Log_Debug("UC_Fetch: dialog shown, starting InetGet")
 
     Local $sUrl = "https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest"
     Local $sTmp = @TempDir & "\ds_uc_" & @AutoItPID & ".tmp"
     Local $hInet = InetGet($sUrl, $sTmp, 1, 1)
+    _Log_Debug("UC_Fetch: InetGet started, handle=" & $hInet)
     Local $hTimeout = TimerInit()
     While Not InetGetInfo($hInet, 2)
         If TimerDiff($hTimeout) > 10000 Then
+            _Log_Warn("UC_Fetch: connection timeout after 10s")
             InetClose($hInet)
             FileDelete($sTmp)
             GUIDelete($hDlg)
@@ -119,11 +122,16 @@ Func __UC_FetchReleaseJson($sLabel)
         EndIf
         Sleep(50)
     WEnd
+    Local $bSuccess = InetGetInfo($hInet, 3)
+    Local $iBytesRead = InetGetInfo($hInet, 0)
+    _Log_Debug("UC_Fetch: InetGet complete, success=" & $bSuccess & " bytes=" & $iBytesRead)
     InetClose($hInet)
     GUIDelete($hDlg)
     Local $sJson = FileRead($sTmp)
     FileDelete($sTmp)
+    _Log_Debug("UC_Fetch: JSON length=" & StringLen($sJson))
     If $sJson = "" Then
+        _Log_Warn("UC_Fetch: empty response")
         _Theme_Toast(_i18n("Toasts.toast_connection_failed", "Connection failed"), 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
     EndIf
     Return $sJson
@@ -135,7 +143,11 @@ Func _UC_CheckNow()
     _Log_Info("Manual update check triggered")
 
     Local $sJson = __UC_FetchReleaseJson(_i18n("Updates.upd_checking", "Checking for updates"))
-    If $sJson = "" Then Return
+    _Log_Debug("UC_CheckNow: fetch returned, JSON empty=" & ($sJson = ""))
+    If $sJson = "" Then
+        _Log_Warn("UC_CheckNow: empty JSON, aborting")
+        Return
+    EndIf
 
     Local $aVer = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
     Local $sLatest = "unknown"
@@ -232,7 +244,11 @@ Func _UC_DownloadPortable()
     _Log_Info("Download latest portable triggered")
 
     Local $sJson = __UC_FetchReleaseJson(_i18n("Updates.upd_fetching", "Fetching release info"))
-    If $sJson = "" Then Return
+    _Log_Debug("UC_Download: fetch returned, JSON empty=" & ($sJson = ""))
+    If $sJson = "" Then
+        _Log_Warn("UC_Download: empty JSON, aborting")
+        Return
+    EndIf
 
     Local $aVer = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
     Local $sVersion = "unknown"

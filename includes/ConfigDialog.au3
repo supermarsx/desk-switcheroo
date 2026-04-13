@@ -2440,11 +2440,17 @@ Func __CD_MessageLoop()
                 Case $__g_CD_idBtnClose
                     ExitLoop
                 Case $__g_CD_idBtnCheckNow
+                    ; Hide Settings to avoid nested dialog loop conflicts
+                    GUISetState(@SW_HIDE, $__g_CD_hGUI)
                     _UC_CheckNow()
-                    GUISwitch($__g_CD_hGUI) ; restore active GUI after update dialogs
+                    GUISetState(@SW_SHOW, $__g_CD_hGUI)
+                    GUISwitch($__g_CD_hGUI)
                 Case $__g_CD_idBtnDownloadLatest
+                    ; Hide Settings to avoid nested dialog loop conflicts
+                    GUISetState(@SW_HIDE, $__g_CD_hGUI)
                     _UC_DownloadPortable()
-                    GUISwitch($__g_CD_hGUI) ; restore active GUI after download dialogs
+                    GUISetState(@SW_SHOW, $__g_CD_hGUI)
+                    GUISwitch($__g_CD_hGUI)
                 Case $__g_CD_idBtnLogBrowse
                     Local $sFolder = FileSelectFolder("Select log folder", "", 7, GUICtrlRead($__g_CD_idInpLogPath), $__g_CD_hGUI)
                     If $sFolder <> "" Then GUICtrlSetData($__g_CD_idInpLogPath, $sFolder)
