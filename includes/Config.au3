@@ -215,11 +215,51 @@ Global $__g_Cfg_bNotifyExplorerRecovery = False
 Global $__g_Cfg_bNotifyExplorerCrash    = False
 Global $__g_Cfg_sWindowListScope        = "current" ; "current" or "all"
 
+; [Notifications] OSD
+Global $__g_Cfg_bOsdEnabled            = False
+Global $__g_Cfg_bOsdShowName           = True
+Global $__g_Cfg_bOsdShowNumber         = True
+Global $__g_Cfg_iOsdDuration           = 1500
+Global $__g_Cfg_sOsdPosition           = "top-center"
+Global $__g_Cfg_iOsdFontSize           = 14
+Global $__g_Cfg_iOsdOpacity            = 220
+Global $__g_Cfg_sOsdFormat             = "{number}: {name}"
+
+; [Rules]
+Global $__g_Cfg_bRulesEnabled          = False
+Global $__g_Cfg_iRulesPollInterval     = 2000
+
+; [Session]
+Global $__g_Cfg_bSessionRestoreEnabled = False
+
+; [Hooks]
+Global $__g_Cfg_bHooksEnabled          = False
+Global $__g_Cfg_iHooksTimeout          = 10000
+
+; [Profiles]
+Global $__g_Cfg_bProfilesEnabled       = False
+
 ; [Carousel]
 Global $__g_Cfg_bCarouselEnabled       = False
 Global $__g_Cfg_iCarouselInterval      = 20000
 Global $__g_Cfg_bCarouselShowInMenu    = True
 Global $__g_Cfg_bNotifyCarouselToggle  = True
+
+; [Tray]
+Global $__g_Cfg_sTrayLeftClick          = "menu"
+Global $__g_Cfg_sTrayDoubleClick        = "settings"
+Global $__g_Cfg_sTrayMiddleClick        = "toggle_list"
+Global $__g_Cfg_bTrayTooltipShowLabel   = True
+Global $__g_Cfg_bTrayTooltipShowCount   = False
+Global $__g_Cfg_bTrayMenuShowList       = True
+Global $__g_Cfg_bTrayMenuShowEdit       = True
+Global $__g_Cfg_bTrayMenuShowAdd        = True
+Global $__g_Cfg_bTrayMenuShowDelete     = True
+Global $__g_Cfg_bTrayMenuShowDesktopSub = False
+Global $__g_Cfg_bTrayMenuShowMoveWindow = False
+Global $__g_Cfg_bTrayNotifySwitch       = False
+Global $__g_Cfg_iTrayBalloonDuration    = 2000
+Global $__g_Cfg_bTrayCloseToTray        = False
 
 ; #FUNCTIONS# ===================================================
 
@@ -465,11 +505,52 @@ Func _Cfg_Load()
     $__g_Cfg_bNotifyExplorerCrash    = __Cfg_ReadBool($f, "Notifications", "notify_explorer_crash", False)
     $__g_Cfg_sWindowListScope        = __Cfg_ReadEnum($f, "WindowList", "window_list_scope", "current", "current|all")
 
+    ; [Notifications] OSD
+    $__g_Cfg_bOsdEnabled             = __Cfg_ReadBool($f, "Notifications", "osd_enabled", False)
+    $__g_Cfg_bOsdShowName            = __Cfg_ReadBool($f, "Notifications", "osd_show_name", True)
+    $__g_Cfg_bOsdShowNumber          = __Cfg_ReadBool($f, "Notifications", "osd_show_number", True)
+    $__g_Cfg_iOsdDuration            = __Cfg_ReadInt($f, "Notifications", "osd_duration", 1500, 500, 5000)
+    $__g_Cfg_sOsdPosition            = __Cfg_ReadEnum($f, "Notifications", "osd_position", "top-center", _
+        "top-left|top-center|top-right|middle-left|middle-center|middle-right|bottom-left|bottom-center|bottom-right|widget")
+    $__g_Cfg_iOsdFontSize            = __Cfg_ReadInt($f, "Notifications", "osd_font_size", 14, 8, 48)
+    $__g_Cfg_iOsdOpacity             = __Cfg_ReadInt($f, "Notifications", "osd_opacity", 220, 0, 255)
+    $__g_Cfg_sOsdFormat              = IniRead($f, "Notifications", "osd_format", "{number}: {name}")
+
+    ; [Rules]
+    $__g_Cfg_bRulesEnabled           = __Cfg_ReadBool($f, "Rules", "rules_enabled", False)
+    $__g_Cfg_iRulesPollInterval      = __Cfg_ReadInt($f, "Rules", "rules_poll_interval", 2000, 500, 30000)
+
+    ; [Session]
+    $__g_Cfg_bSessionRestoreEnabled  = __Cfg_ReadBool($f, "Session", "session_restore_enabled", False)
+
+    ; [Hooks]
+    $__g_Cfg_bHooksEnabled           = __Cfg_ReadBool($f, "Hooks", "hooks_enabled", False)
+    $__g_Cfg_iHooksTimeout           = __Cfg_ReadInt($f, "Hooks", "hooks_timeout", 10000, 1000, 300000)
+
+    ; [Profiles]
+    $__g_Cfg_bProfilesEnabled        = __Cfg_ReadBool($f, "Profiles", "profiles_enabled", False)
+
     ; [Carousel]
     $__g_Cfg_bCarouselEnabled      = __Cfg_ReadBool($f, "Carousel", "carousel_enabled", False)
     $__g_Cfg_iCarouselInterval     = __Cfg_ReadInt($f, "Carousel", "carousel_interval", 20000, 3000, 300000)
     $__g_Cfg_bCarouselShowInMenu   = __Cfg_ReadBool($f, "Carousel", "carousel_show_in_menu", True)
     $__g_Cfg_bNotifyCarouselToggle = __Cfg_ReadBool($f, "Carousel", "notify_carousel_toggle", True)
+
+    ; [Tray]
+    $__g_Cfg_sTrayLeftClick          = __Cfg_ReadEnum($f, "Tray", "tray_left_click", "menu", "menu|toggle_list|next_desktop|nothing")
+    $__g_Cfg_sTrayDoubleClick        = __Cfg_ReadEnum($f, "Tray", "tray_double_click", "settings", "settings|toggle_list|menu|nothing")
+    $__g_Cfg_sTrayMiddleClick        = __Cfg_ReadEnum($f, "Tray", "tray_middle_click", "toggle_list", "toggle_list|add_desktop|toggle_carousel|nothing")
+    $__g_Cfg_bTrayTooltipShowLabel   = __Cfg_ReadBool($f, "Tray", "tray_tooltip_show_label", True)
+    $__g_Cfg_bTrayTooltipShowCount   = __Cfg_ReadBool($f, "Tray", "tray_tooltip_show_count", False)
+    $__g_Cfg_bTrayMenuShowList       = __Cfg_ReadBool($f, "Tray", "tray_menu_show_list", True)
+    $__g_Cfg_bTrayMenuShowEdit       = __Cfg_ReadBool($f, "Tray", "tray_menu_show_edit", True)
+    $__g_Cfg_bTrayMenuShowAdd        = __Cfg_ReadBool($f, "Tray", "tray_menu_show_add", True)
+    $__g_Cfg_bTrayMenuShowDelete     = __Cfg_ReadBool($f, "Tray", "tray_menu_show_delete", True)
+    $__g_Cfg_bTrayMenuShowDesktopSub = __Cfg_ReadBool($f, "Tray", "tray_menu_show_desktop_submenu", False)
+    $__g_Cfg_bTrayMenuShowMoveWindow = __Cfg_ReadBool($f, "Tray", "tray_menu_show_move_window", False)
+    $__g_Cfg_bTrayNotifySwitch       = __Cfg_ReadBool($f, "Tray", "tray_notify_desktop_switch", False)
+    $__g_Cfg_iTrayBalloonDuration    = __Cfg_ReadInt($f, "Tray", "tray_balloon_duration", 2000, 500, 10000)
+    $__g_Cfg_bTrayCloseToTray        = __Cfg_ReadBool($f, "Tray", "tray_close_to_tray", False)
 EndFunc
 
 ; Name:        _Cfg_Save
@@ -680,11 +761,51 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "Notifications", "notify_explorer_crash", $__g_Cfg_bNotifyExplorerCrash)
     IniWrite($f, "WindowList", "window_list_scope", $__g_Cfg_sWindowListScope)
 
+    ; [Notifications] OSD
+    __Cfg_WriteBool($f, "Notifications", "osd_enabled", $__g_Cfg_bOsdEnabled)
+    __Cfg_WriteBool($f, "Notifications", "osd_show_name", $__g_Cfg_bOsdShowName)
+    __Cfg_WriteBool($f, "Notifications", "osd_show_number", $__g_Cfg_bOsdShowNumber)
+    IniWrite($f, "Notifications", "osd_duration", $__g_Cfg_iOsdDuration)
+    IniWrite($f, "Notifications", "osd_position", $__g_Cfg_sOsdPosition)
+    IniWrite($f, "Notifications", "osd_font_size", $__g_Cfg_iOsdFontSize)
+    IniWrite($f, "Notifications", "osd_opacity", $__g_Cfg_iOsdOpacity)
+    IniWrite($f, "Notifications", "osd_format", $__g_Cfg_sOsdFormat)
+
+    ; [Rules]
+    __Cfg_WriteBool($f, "Rules", "rules_enabled", $__g_Cfg_bRulesEnabled)
+    IniWrite($f, "Rules", "rules_poll_interval", $__g_Cfg_iRulesPollInterval)
+
+    ; [Session]
+    __Cfg_WriteBool($f, "Session", "session_restore_enabled", $__g_Cfg_bSessionRestoreEnabled)
+
+    ; [Hooks]
+    __Cfg_WriteBool($f, "Hooks", "hooks_enabled", $__g_Cfg_bHooksEnabled)
+    IniWrite($f, "Hooks", "hooks_timeout", $__g_Cfg_iHooksTimeout)
+
+    ; [Profiles]
+    __Cfg_WriteBool($f, "Profiles", "profiles_enabled", $__g_Cfg_bProfilesEnabled)
+
     ; [Carousel]
     __Cfg_WriteBool($f, "Carousel", "carousel_enabled", $__g_Cfg_bCarouselEnabled)
     IniWrite($f, "Carousel", "carousel_interval", $__g_Cfg_iCarouselInterval)
     __Cfg_WriteBool($f, "Carousel", "carousel_show_in_menu", $__g_Cfg_bCarouselShowInMenu)
     __Cfg_WriteBool($f, "Carousel", "notify_carousel_toggle", $__g_Cfg_bNotifyCarouselToggle)
+
+    ; [Tray]
+    IniWrite($f, "Tray", "tray_left_click", $__g_Cfg_sTrayLeftClick)
+    IniWrite($f, "Tray", "tray_double_click", $__g_Cfg_sTrayDoubleClick)
+    IniWrite($f, "Tray", "tray_middle_click", $__g_Cfg_sTrayMiddleClick)
+    __Cfg_WriteBool($f, "Tray", "tray_tooltip_show_label", $__g_Cfg_bTrayTooltipShowLabel)
+    __Cfg_WriteBool($f, "Tray", "tray_tooltip_show_count", $__g_Cfg_bTrayTooltipShowCount)
+    __Cfg_WriteBool($f, "Tray", "tray_menu_show_list", $__g_Cfg_bTrayMenuShowList)
+    __Cfg_WriteBool($f, "Tray", "tray_menu_show_edit", $__g_Cfg_bTrayMenuShowEdit)
+    __Cfg_WriteBool($f, "Tray", "tray_menu_show_add", $__g_Cfg_bTrayMenuShowAdd)
+    __Cfg_WriteBool($f, "Tray", "tray_menu_show_delete", $__g_Cfg_bTrayMenuShowDelete)
+    __Cfg_WriteBool($f, "Tray", "tray_menu_show_desktop_submenu", $__g_Cfg_bTrayMenuShowDesktopSub)
+    __Cfg_WriteBool($f, "Tray", "tray_menu_show_move_window", $__g_Cfg_bTrayMenuShowMoveWindow)
+    __Cfg_WriteBool($f, "Tray", "tray_notify_desktop_switch", $__g_Cfg_bTrayNotifySwitch)
+    IniWrite($f, "Tray", "tray_balloon_duration", $__g_Cfg_iTrayBalloonDuration)
+    __Cfg_WriteBool($f, "Tray", "tray_close_to_tray", $__g_Cfg_bTrayCloseToTray)
 
     ; Verify write succeeded before replacing original (check multiple sections)
     Local $sVerify1 = IniRead($f, "General", "wrap_navigation", "")
@@ -887,11 +1008,51 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "Notifications", "notify_explorer_crash", False)
     __Cfg_DefaultVal($f, "WindowList", "window_list_scope", "current")
 
+    ; [Notifications] OSD
+    __Cfg_DefaultBool($f, "Notifications", "osd_enabled", False)
+    __Cfg_DefaultBool($f, "Notifications", "osd_show_name", True)
+    __Cfg_DefaultBool($f, "Notifications", "osd_show_number", True)
+    __Cfg_DefaultVal($f, "Notifications", "osd_duration", 1500)
+    __Cfg_DefaultVal($f, "Notifications", "osd_position", "top-center")
+    __Cfg_DefaultVal($f, "Notifications", "osd_font_size", 14)
+    __Cfg_DefaultVal($f, "Notifications", "osd_opacity", 220)
+    __Cfg_DefaultVal($f, "Notifications", "osd_format", "{number}: {name}")
+
+    ; [Rules]
+    __Cfg_DefaultBool($f, "Rules", "rules_enabled", False)
+    __Cfg_DefaultVal($f, "Rules", "rules_poll_interval", 2000)
+
+    ; [Session]
+    __Cfg_DefaultBool($f, "Session", "session_restore_enabled", False)
+
+    ; [Hooks]
+    __Cfg_DefaultBool($f, "Hooks", "hooks_enabled", False)
+    __Cfg_DefaultVal($f, "Hooks", "hooks_timeout", 10000)
+
+    ; [Profiles]
+    __Cfg_DefaultBool($f, "Profiles", "profiles_enabled", False)
+
     ; [Carousel]
     __Cfg_DefaultBool($f, "Carousel", "carousel_enabled", False)
     __Cfg_DefaultVal($f, "Carousel", "carousel_interval", 20000)
     __Cfg_DefaultBool($f, "Carousel", "carousel_show_in_menu", True)
     __Cfg_DefaultBool($f, "Carousel", "notify_carousel_toggle", True)
+
+    ; [Tray]
+    __Cfg_DefaultVal($f, "Tray", "tray_left_click", "menu")
+    __Cfg_DefaultVal($f, "Tray", "tray_double_click", "settings")
+    __Cfg_DefaultVal($f, "Tray", "tray_middle_click", "toggle_list")
+    __Cfg_DefaultBool($f, "Tray", "tray_tooltip_show_label", True)
+    __Cfg_DefaultBool($f, "Tray", "tray_tooltip_show_count", False)
+    __Cfg_DefaultBool($f, "Tray", "tray_menu_show_list", True)
+    __Cfg_DefaultBool($f, "Tray", "tray_menu_show_edit", True)
+    __Cfg_DefaultBool($f, "Tray", "tray_menu_show_add", True)
+    __Cfg_DefaultBool($f, "Tray", "tray_menu_show_delete", True)
+    __Cfg_DefaultBool($f, "Tray", "tray_menu_show_desktop_submenu", False)
+    __Cfg_DefaultBool($f, "Tray", "tray_menu_show_move_window", False)
+    __Cfg_DefaultBool($f, "Tray", "tray_notify_desktop_switch", False)
+    __Cfg_DefaultVal($f, "Tray", "tray_balloon_duration", 2000)
+    __Cfg_DefaultBool($f, "Tray", "tray_close_to_tray", False)
 EndFunc
 
 ; =============================================
@@ -1439,6 +1600,58 @@ Func _Cfg_GetNotifyExplorerRecovery()
 EndFunc
 Func _Cfg_GetWindowListScope()
     Return $__g_Cfg_sWindowListScope
+EndFunc
+
+; [Notifications] OSD
+Func _Cfg_GetOsdEnabled()
+    Return $__g_Cfg_bOsdEnabled
+EndFunc
+Func _Cfg_GetOsdShowName()
+    Return $__g_Cfg_bOsdShowName
+EndFunc
+Func _Cfg_GetOsdShowNumber()
+    Return $__g_Cfg_bOsdShowNumber
+EndFunc
+Func _Cfg_GetOsdDuration()
+    Return $__g_Cfg_iOsdDuration
+EndFunc
+Func _Cfg_GetOsdPosition()
+    Return $__g_Cfg_sOsdPosition
+EndFunc
+Func _Cfg_GetOsdFontSize()
+    Return $__g_Cfg_iOsdFontSize
+EndFunc
+Func _Cfg_GetOsdOpacity()
+    Return $__g_Cfg_iOsdOpacity
+EndFunc
+Func _Cfg_GetOsdFormat()
+    Return $__g_Cfg_sOsdFormat
+EndFunc
+
+; [Rules]
+Func _Cfg_GetRulesEnabled()
+    Return $__g_Cfg_bRulesEnabled
+EndFunc
+Func _Cfg_GetRulesPollInterval()
+    Return $__g_Cfg_iRulesPollInterval
+EndFunc
+
+; [Session]
+Func _Cfg_GetSessionRestoreEnabled()
+    Return $__g_Cfg_bSessionRestoreEnabled
+EndFunc
+
+; [Hooks]
+Func _Cfg_GetHooksEnabled()
+    Return $__g_Cfg_bHooksEnabled
+EndFunc
+Func _Cfg_GetHooksTimeout()
+    Return $__g_Cfg_iHooksTimeout
+EndFunc
+
+; [Profiles]
+Func _Cfg_GetProfilesEnabled()
+    Return $__g_Cfg_bProfilesEnabled
 EndFunc
 
 ; =============================================
@@ -2020,6 +2233,68 @@ Func _Cfg_SetWindowListScope($s)
     $__g_Cfg_sWindowListScope = $s
 EndFunc
 
+; [Notifications] OSD
+Func _Cfg_SetOsdEnabled($b)
+    $__g_Cfg_bOsdEnabled = $b
+EndFunc
+Func _Cfg_SetOsdShowName($b)
+    $__g_Cfg_bOsdShowName = $b
+EndFunc
+Func _Cfg_SetOsdShowNumber($b)
+    $__g_Cfg_bOsdShowNumber = $b
+EndFunc
+Func _Cfg_SetOsdDuration($i)
+    If $i < 500 Then $i = 500
+    If $i > 5000 Then $i = 5000
+    $__g_Cfg_iOsdDuration = $i
+EndFunc
+Func _Cfg_SetOsdPosition($s)
+    $__g_Cfg_sOsdPosition = $s
+EndFunc
+Func _Cfg_SetOsdFontSize($i)
+    If $i < 8 Then $i = 8
+    If $i > 48 Then $i = 48
+    $__g_Cfg_iOsdFontSize = $i
+EndFunc
+Func _Cfg_SetOsdOpacity($i)
+    If $i < 0 Then $i = 0
+    If $i > 255 Then $i = 255
+    $__g_Cfg_iOsdOpacity = $i
+EndFunc
+Func _Cfg_SetOsdFormat($s)
+    $__g_Cfg_sOsdFormat = $s
+EndFunc
+
+; [Rules]
+Func _Cfg_SetRulesEnabled($b)
+    $__g_Cfg_bRulesEnabled = $b
+EndFunc
+Func _Cfg_SetRulesPollInterval($i)
+    If $i < 500 Then $i = 500
+    If $i > 30000 Then $i = 30000
+    $__g_Cfg_iRulesPollInterval = $i
+EndFunc
+
+; [Session]
+Func _Cfg_SetSessionRestoreEnabled($b)
+    $__g_Cfg_bSessionRestoreEnabled = $b
+EndFunc
+
+; [Hooks]
+Func _Cfg_SetHooksEnabled($b)
+    $__g_Cfg_bHooksEnabled = $b
+EndFunc
+Func _Cfg_SetHooksTimeout($i)
+    If $i < 1000 Then $i = 1000
+    If $i > 300000 Then $i = 300000
+    $__g_Cfg_iHooksTimeout = $i
+EndFunc
+
+; [Profiles]
+Func _Cfg_SetProfilesEnabled($b)
+    $__g_Cfg_bProfilesEnabled = $b
+EndFunc
+
 ; [Carousel]
 Func _Cfg_GetCarouselEnabled()
     Return $__g_Cfg_bCarouselEnabled
@@ -2058,6 +2333,100 @@ Func _Cfg_GetHotkeyTaskView()
 EndFunc
 Func _Cfg_SetHotkeyTaskView($s)
     $__g_Cfg_sHotkeyTaskView = __Cfg_ClampStringLen($s, 32)
+EndFunc
+
+; [Tray]
+Func _Cfg_GetTrayLeftClick()
+    Return $__g_Cfg_sTrayLeftClick
+EndFunc
+Func _Cfg_SetTrayLeftClick($s)
+    Local $sValid = "menu|toggle_list|next_desktop|nothing"
+    If Not StringInStr("|" & $sValid & "|", "|" & $s & "|") Then $s = "menu"
+    $__g_Cfg_sTrayLeftClick = $s
+EndFunc
+Func _Cfg_GetTrayDoubleClick()
+    Return $__g_Cfg_sTrayDoubleClick
+EndFunc
+Func _Cfg_SetTrayDoubleClick($s)
+    Local $sValid = "settings|toggle_list|menu|nothing"
+    If Not StringInStr("|" & $sValid & "|", "|" & $s & "|") Then $s = "settings"
+    $__g_Cfg_sTrayDoubleClick = $s
+EndFunc
+Func _Cfg_GetTrayMiddleClick()
+    Return $__g_Cfg_sTrayMiddleClick
+EndFunc
+Func _Cfg_SetTrayMiddleClick($s)
+    Local $sValid = "toggle_list|add_desktop|toggle_carousel|nothing"
+    If Not StringInStr("|" & $sValid & "|", "|" & $s & "|") Then $s = "toggle_list"
+    $__g_Cfg_sTrayMiddleClick = $s
+EndFunc
+Func _Cfg_GetTrayTooltipShowLabel()
+    Return $__g_Cfg_bTrayTooltipShowLabel
+EndFunc
+Func _Cfg_SetTrayTooltipShowLabel($b)
+    $__g_Cfg_bTrayTooltipShowLabel = $b
+EndFunc
+Func _Cfg_GetTrayTooltipShowCount()
+    Return $__g_Cfg_bTrayTooltipShowCount
+EndFunc
+Func _Cfg_SetTrayTooltipShowCount($b)
+    $__g_Cfg_bTrayTooltipShowCount = $b
+EndFunc
+Func _Cfg_GetTrayMenuShowList()
+    Return $__g_Cfg_bTrayMenuShowList
+EndFunc
+Func _Cfg_SetTrayMenuShowList($b)
+    $__g_Cfg_bTrayMenuShowList = $b
+EndFunc
+Func _Cfg_GetTrayMenuShowEdit()
+    Return $__g_Cfg_bTrayMenuShowEdit
+EndFunc
+Func _Cfg_SetTrayMenuShowEdit($b)
+    $__g_Cfg_bTrayMenuShowEdit = $b
+EndFunc
+Func _Cfg_GetTrayMenuShowAdd()
+    Return $__g_Cfg_bTrayMenuShowAdd
+EndFunc
+Func _Cfg_SetTrayMenuShowAdd($b)
+    $__g_Cfg_bTrayMenuShowAdd = $b
+EndFunc
+Func _Cfg_GetTrayMenuShowDelete()
+    Return $__g_Cfg_bTrayMenuShowDelete
+EndFunc
+Func _Cfg_SetTrayMenuShowDelete($b)
+    $__g_Cfg_bTrayMenuShowDelete = $b
+EndFunc
+Func _Cfg_GetTrayMenuShowDesktopSub()
+    Return $__g_Cfg_bTrayMenuShowDesktopSub
+EndFunc
+Func _Cfg_SetTrayMenuShowDesktopSub($b)
+    $__g_Cfg_bTrayMenuShowDesktopSub = $b
+EndFunc
+Func _Cfg_GetTrayMenuShowMoveWindow()
+    Return $__g_Cfg_bTrayMenuShowMoveWindow
+EndFunc
+Func _Cfg_SetTrayMenuShowMoveWindow($b)
+    $__g_Cfg_bTrayMenuShowMoveWindow = $b
+EndFunc
+Func _Cfg_GetTrayNotifySwitch()
+    Return $__g_Cfg_bTrayNotifySwitch
+EndFunc
+Func _Cfg_SetTrayNotifySwitch($b)
+    $__g_Cfg_bTrayNotifySwitch = $b
+EndFunc
+Func _Cfg_GetTrayBalloonDuration()
+    Return $__g_Cfg_iTrayBalloonDuration
+EndFunc
+Func _Cfg_SetTrayBalloonDuration($i)
+    If $i < 500 Then $i = 500
+    If $i > 10000 Then $i = 10000
+    $__g_Cfg_iTrayBalloonDuration = $i
+EndFunc
+Func _Cfg_GetTrayCloseToTray()
+    Return $__g_Cfg_bTrayCloseToTray
+EndFunc
+Func _Cfg_SetTrayCloseToTray($b)
+    $__g_Cfg_bTrayCloseToTray = $b
 EndFunc
 
 ; =============================================
