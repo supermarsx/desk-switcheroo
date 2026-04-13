@@ -2,6 +2,7 @@
 #include <WindowsConstants.au3>
 #include <WinAPISysWin.au3>
 #include <StaticConstants.au3>
+#include <TrayConstants.au3>
 
 ; ---- Named constants (declared before includes so UDFs can reference them) ----
 Global Const $VK_LBUTTON = 0x01
@@ -35,6 +36,11 @@ Global Const $DESKTOP_LIMIT_HARD = 50 ; absolute safety cap
 #include "includes\ExplorerMonitor.au3"
 #include "includes\TaskbarAutoHide.au3"
 #include "includes\i18n.au3"
+#include "includes\WindowRules.au3"
+#include "includes\SessionRestore.au3"
+#include "includes\CLI.au3"
+#include "includes\Hooks.au3"
+#include "includes\Profiles.au3"
 
 ; ---- App version (read from VERSION file or fallback) ----
 Global $APP_VERSION = "dev"
@@ -130,6 +136,18 @@ _EM_Start()
 ; ---- Start taskbar auto-hide monitor ----
 _TAH_Start()
 
+; ---- Start window rules engine ----
+_WR_Start()
+
+; ---- Initialize hooks system ----
+_Hooks_Init()
+
+; ---- Initialize profiles system ----
+_Prof_Init()
+
+; ---- Register CLI/IPC handler ----
+_CLI_RegisterIPC()
+
 ; ---- Startup checks ----
 _RunStartupChecks()
 
@@ -142,11 +160,19 @@ EndIf
 
 ; ---- Parse command-line arguments ----
 Global $bAutoStart = False
+_CLI_ParseArgs()
 If $CmdLine[0] >= 1 Then
     Local $c
     For $c = 1 To $CmdLine[0]
         If $CmdLine[$c] = "-autostart" Then $bAutoStart = True
     Next
+EndIf
+; Handle CLI commands sent to running instance or execute locally
+If _CLI_HasCommand() Then
+    If _CLI_IsQueryCommand() Then
+        _CLI_ExecuteLocal()
+        Exit
+    EndIf
 EndIf
 
 ; ---- Initialize modules ----
@@ -220,6 +246,12 @@ Global $__g_iTrayToggleList = 0, $__g_iTrayEditLabel = 0
 Global $__g_iTrayAddDesktop = 0, $__g_iTrayDelDesktop = 0
 Global $__g_iTraySettings = 0, $__g_iTrayAbout = 0, $__g_iTrayQuit = 0
 Global $__g_iTrayCarousel = 0
+Global $__g_hTrayDesktopMenu = 0, $__g_hTrayMoveMenu = 0
+Global $__g_aTrayDesktopItems[51], $__g_aTrayMoveItems[51]
+Global $__g_iTrayDesktopSubCount = 0, $__g_iTrayMoveSubCount = 0
+Global $__g_bForceQuit = False
+Global $__g_hTrayClickTimer = 0
+Global $__g_bTrayClickPending = False
 
 ; ---- Config file watcher global ----
 Global $__g_sCfgFileTime = ""
@@ -420,16 +452,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 If $iDesktop < $iCount2 Then
                     _VD_GoTo($iDesktop + 1)
                 ElseIf _Cfg_GetAutoCreateDesktop() Then
-                    If _VD_GetCount() >= _GetDesktopLimit() Then
-                        _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
-                    Else
-                        _VD_CreateDesktop()
-                        Sleep(100)
-                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
-                            _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
-                        EndIf
-                        _VD_GoTo($iDesktop + 1)
-                    EndIf
+                    If _DoCreateDesktop() > 0 Then _VD_GoTo($iDesktop + 1)
                 ElseIf _Cfg_GetWrapNavigation() Then
                     _VD_GoTo(1)
                 EndIf
@@ -468,34 +491,10 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 _DL_SetPinned(Not _DL_IsPinned(), $iTaskbarY, $iDesktop)
             Case "add"
                 _CM_Destroy()
-                If _VD_GetCount() >= _GetDesktopLimit() Then
-                    _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
-                Else
-                    _VD_CreateDesktop()
-                    Sleep(100)
-                    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
-                        _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
-                    EndIf
-                    _RefreshIndex()
-                EndIf
+                _DoCreateDesktop()
             Case "delete"
                 _CM_Destroy()
-                If _VD_GetCount() <= 1 Then
-                    _Theme_Confirm(_i18n("Dialogs.confirm_cannot_delete_title", "Cannot Delete"), _i18n("Dialogs.confirm_cannot_delete_msg", "This is the last desktop."))
-                Else
-                    Local $sDelCurName = _Labels_Load($iDesktop)
-                    Local $sDelCurLabel = "Desktop " & $iDesktop
-                    If $sDelCurName <> "" Then $sDelCurLabel &= ' ("' & $sDelCurName & '")'
-                    If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm(_i18n_Format("Dialogs.confirm_delete_title", "Delete {1}?", $sDelCurLabel), _
-                            _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
-                        _VD_RemoveDesktop($iDesktop)
-                        Sleep(100)
-                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopDeleted() Then
-                            _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
-                        EndIf
-                        _RefreshIndex()
-                    EndIf
-                EndIf
+                _DoDeleteDesktop($iDesktop)
             Case "pin_window"
                 _CM_Destroy()
                 Local $hFg = WinGetHandle("[ACTIVE]")
@@ -567,34 +566,10 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 EndIf
             Case "add"
                 _DL_CtxDestroy()
-                If _VD_GetCount() >= _GetDesktopLimit() Then
-                    _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
-                Else
-                    _VD_CreateDesktop()
-                    Sleep(100)
-                    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
-                        _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
-                    EndIf
-                    _RefreshIndex()
-                EndIf
+                _DoCreateDesktop()
             Case "delete"
                 _DL_CtxDestroy()
-                If _VD_GetCount() <= 1 Then
-                    _Theme_Confirm(_i18n("Dialogs.confirm_cannot_delete_title", "Cannot Delete"), _i18n("Dialogs.confirm_cannot_delete_msg", "This is the last desktop."))
-                Else
-                    Local $sDelName = _Labels_Load($iCtxTarget)
-                    Local $sDelLabel = "Desktop " & $iCtxTarget
-                    If $sDelName <> "" Then $sDelLabel &= ' ("' & $sDelName & '")'
-                    If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm(_i18n_Format("Dialogs.confirm_delete_title", "Delete {1}?", $sDelLabel), _
-                        _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
-                        _VD_RemoveDesktop($iCtxTarget)
-                        Sleep(100)
-                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopDeleted() Then
-                            _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
-                        EndIf
-                        _RefreshIndex()
-                    EndIf
-                EndIf
+                _DoDeleteDesktop($iCtxTarget)
         EndSwitch
     EndIf
 
@@ -660,10 +635,8 @@ Func _ProcessGUIEvents($msg, $hFrom)
                     _WL_Refresh($iDesktop)
                 EndIf
             Case "send_new"
-                If _VD_GetCount() < _GetDesktopLimit() Then
-                    _VD_CreateDesktop()
-                    Sleep(100)
-                    Local $iWLNew = _VD_GetCount()
+                Local $iWLNew = _DoCreateDesktop()
+                If $iWLNew > 0 Then
                     _VD_MoveWindowToDesktop($hWLTarget, $iWLNew)
                     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLNew), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
                     _WL_Refresh($iDesktop)
@@ -838,24 +811,7 @@ Func _ProcessMouseInput()
     If $bMiddleWasDown And Not $bMiddleDown Then
         If _Cfg_GetMiddleClickDelete() And _DL_IsVisible() And _Theme_IsCursorOverWindow(_DL_GetGUI()) Then
             Local $iMiddleClickRow = _DL_GetItemAtPos()
-            If $iMiddleClickRow > 0 Then
-                If _VD_GetCount() <= 1 Then
-                    _Theme_Confirm(_i18n("Dialogs.confirm_cannot_delete_title", "Cannot Delete"), _i18n("Dialogs.confirm_cannot_delete_msg", "This is the last desktop."))
-                Else
-                    Local $sDelMCName = _Labels_Load($iMiddleClickRow)
-                    Local $sDelMCLabel = "Desktop " & $iMiddleClickRow
-                    If $sDelMCName <> "" Then $sDelMCLabel &= ' ("' & $sDelMCName & '")'
-                    If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm(_i18n_Format("Dialogs.confirm_delete_title", "Delete {1}?", $sDelMCLabel), _
-                        _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
-                        _VD_RemoveDesktop($iMiddleClickRow)
-                        Sleep(100)
-                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopDeleted() Then
-                            _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
-                        EndIf
-                        _RefreshIndex()
-                    EndIf
-                EndIf
-            EndIf
+            If $iMiddleClickRow > 0 Then _DoDeleteDesktop($iMiddleClickRow)
         EndIf
     EndIf
     $bMiddleWasDown = $bMiddleDown
@@ -1228,7 +1184,19 @@ Func _ApplyDesktopChange()
     ; Unlock — triggers a single repaint with all changes applied
     DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", 0)
     _DL_Refresh($iTaskbarY, $iDesktop)
-    If $__g_bTrayMode Then TraySetToolTip(_i18n_Format("Tray.tray_tooltip", "Desk Switcheroo - Desktop {1}", $iDesktop))
+    If $__g_bTrayMode Then
+        _UpdateTrayTooltip()
+        ; Balloon notification on desktop switch
+        If _Cfg_GetTrayNotifySwitch() Then
+            Local $sBalloon = "Desktop " & $iDesktop
+            Local $sBalloonLabel = _Labels_Load($iDesktop)
+            If $sBalloonLabel <> "" Then $sBalloon &= " " & ChrW(0x2014) & " " & $sBalloonLabel
+            TrayTip("Desk Switcheroo", $sBalloon, Int(_Cfg_GetTrayBalloonDuration() / 1000), 1)
+        EndIf
+        ; Refresh dynamic submenus
+        If _Cfg_GetTrayMenuShowDesktopSub() Then _UpdateTrayDesktopSubmenu()
+        If _Cfg_GetTrayMenuShowMoveWindow() Then _UpdateTrayMoveSubmenu()
+    EndIf
 EndFunc
 
 ; Name:        _ApplySettingsLive
@@ -1251,9 +1219,15 @@ Func _ApplySettingsLive()
     ; Apply Windows widgets toggle (Win11 taskbar widgets button)
     _ApplyWinWidgetsToggle()
 
-    ; Handle tray mode toggle
+    ; Handle tray mode toggle or tray settings change
     Local $bNewTrayMode = _Cfg_GetTrayIconMode()
-    If $bNewTrayMode And Not $__g_bTrayMode Then
+    If $bNewTrayMode And $__g_bTrayMode Then
+        ; Tray was and still is active — rebuild menu to reflect changed settings
+        $__g_bTrayMode = False
+        Opt("TrayIconHide", 1)
+        Opt("TrayMenuMode", 3)
+        _InitTrayMode()
+    ElseIf $bNewTrayMode And Not $__g_bTrayMode Then
         _InitTrayMode()
     ElseIf Not $bNewTrayMode And $__g_bTrayMode Then
         ; Disable tray mode: show widget, hide tray
@@ -1320,6 +1294,24 @@ Func _RefreshIndex()
         If _Cfg_GetAutoFocusAfterSwitch() Then _AutoFocusTopWindow()
         _WP_OnDesktopChanged($iDesktop)
         If _WL_IsVisible() Then _WL_Refresh($iDesktop)
+        ; OSD toast notification on desktop switch
+        If _Cfg_GetOsdEnabled() Then
+            Local $sOsdText = _Cfg_GetOsdFormat()
+            If _Cfg_GetOsdShowNumber() Then
+                $sOsdText = StringReplace($sOsdText, "{number}", $iDesktop)
+            Else
+                $sOsdText = StringReplace($sOsdText, "{number}", "")
+            EndIf
+            If _Cfg_GetOsdShowName() Then
+                $sOsdText = StringReplace($sOsdText, "{name}", _Labels_Load($iDesktop))
+            Else
+                $sOsdText = StringReplace($sOsdText, "{name}", "")
+            EndIf
+            $sOsdText = StringStripWS($sOsdText, 3)
+            If $sOsdText <> "" Then _Theme_Toast($sOsdText, 0, 0, _Cfg_GetOsdDuration(), $TOAST_INFO)
+        EndIf
+        ; Fire hook for desktop change
+        _Hooks_Fire("on_desktop_change", "desktop=" & $iDesktop & "|desktop_name=" & _Labels_Load($iDesktop) & "|desktop_count=" & _VD_GetCount() & "|prev_desktop=" & $iPrevDesktop)
     EndIf
     _ApplyDesktopChange()
     _ForceTopMost()
@@ -1332,6 +1324,50 @@ Func _GetDesktopLimit()
     Local $iMax = _Cfg_GetMaxDesktops()
     If $iMax <= 0 Then Return $DESKTOP_LIMIT_HARD
     Return $iMax
+EndFunc
+
+; Name:        _DoCreateDesktop
+; Description: Creates a new virtual desktop with limit check and toast notification.
+;              Does NOT call _RefreshIndex() — caller must handle refresh and any
+;              post-creation navigation (e.g. _VD_GoTo) as needed.
+; Return:      New desktop count on success, 0 if limit reached
+Func _DoCreateDesktop()
+    If _VD_GetCount() >= _GetDesktopLimit() Then
+        _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+        Return 0
+    EndIf
+    _VD_CreateDesktop()
+    Sleep(100)
+    Local $iNewCount = _VD_GetCount()
+    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
+        _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", $iNewCount), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
+    EndIf
+    _Hooks_Fire("on_desktop_create", "desktop=" & $iNewCount & "|desktop_count=" & $iNewCount)
+    Return $iNewCount
+EndFunc
+
+; Name:        _DoDeleteDesktop
+; Description: Deletes a virtual desktop with count check, confirmation, toast, and refresh.
+; Parameters:  $iTarget - desktop number to delete
+; Return:      True on success, False on cancel/failure
+Func _DoDeleteDesktop($iTarget)
+    If _VD_GetCount() <= 1 Then
+        _Theme_Confirm(_i18n("Dialogs.confirm_cannot_delete_title", "Cannot Delete"), _i18n("Dialogs.confirm_cannot_delete_msg", "This is the last desktop."))
+        Return False
+    EndIf
+    Local $sDelName = _Labels_Load($iTarget)
+    Local $sDelLabel = "Desktop " & $iTarget
+    If $sDelName <> "" Then $sDelLabel &= ' ("' & $sDelName & '")'
+    If _Cfg_GetConfirmDelete() And Not _Theme_Confirm(_i18n_Format("Dialogs.confirm_delete_title", "Delete {1}?", $sDelLabel), _
+            _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then Return False
+    _VD_RemoveDesktop($iTarget)
+    Sleep(100)
+    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopDeleted() Then
+        _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+    EndIf
+    _Hooks_Fire("on_desktop_delete", "desktop=" & $iTarget & "|desktop_count=" & _VD_GetCount())
+    _RefreshIndex()
+    Return True
 EndFunc
 
 ; Name:        _ApplyWinWidgetsToggle
@@ -1915,16 +1951,7 @@ Func _HK_Next()
     If $iDesktop < $iCount Then
         _VD_GoTo($iDesktop + 1)
     ElseIf _Cfg_GetAutoCreateDesktop() Then
-        If _VD_GetCount() >= _GetDesktopLimit() Then
-            _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
-        Else
-            _VD_CreateDesktop()
-            Sleep(100)
-            If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
-                _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
-            EndIf
-            _VD_GoTo($iDesktop + 1)
-        EndIf
+        If _DoCreateDesktop() > 0 Then _VD_GoTo($iDesktop + 1)
     ElseIf _Cfg_GetWrapNavigation() Then
         _VD_GoTo(1)
     EndIf
@@ -1945,70 +1972,44 @@ Func _HK_Prev()
     _RefreshIndex()
 EndFunc
 
-; Name:        _HK_Desktop1 through _HK_Desktop9
-; Description: Hotkey callbacks to switch directly to desktop 1-9
-Func _HK_Desktop1()
-    If 1 <= _VD_GetCount() Then
-        _VD_GoTo(1)
+; Name:        __HK_GotoDesktop
+; Description: Shared helper for direct desktop switching (1-9).
+;              HotKeySet requires named function stubs, so each _HK_DesktopN
+;              delegates here.
+Func __HK_GotoDesktop($iNum)
+    If $iNum <= _VD_GetCount() Then
+        _VD_GoTo($iNum)
         Sleep(50)
         _RefreshIndex()
     EndIf
+EndFunc
+
+Func _HK_Desktop1()
+    __HK_GotoDesktop(1)
 EndFunc
 Func _HK_Desktop2()
-    If 2 <= _VD_GetCount() Then
-        _VD_GoTo(2)
-        Sleep(50)
-        _RefreshIndex()
-    EndIf
+    __HK_GotoDesktop(2)
 EndFunc
 Func _HK_Desktop3()
-    If 3 <= _VD_GetCount() Then
-        _VD_GoTo(3)
-        Sleep(50)
-        _RefreshIndex()
-    EndIf
+    __HK_GotoDesktop(3)
 EndFunc
 Func _HK_Desktop4()
-    If 4 <= _VD_GetCount() Then
-        _VD_GoTo(4)
-        Sleep(50)
-        _RefreshIndex()
-    EndIf
+    __HK_GotoDesktop(4)
 EndFunc
 Func _HK_Desktop5()
-    If 5 <= _VD_GetCount() Then
-        _VD_GoTo(5)
-        Sleep(50)
-        _RefreshIndex()
-    EndIf
+    __HK_GotoDesktop(5)
 EndFunc
 Func _HK_Desktop6()
-    If 6 <= _VD_GetCount() Then
-        _VD_GoTo(6)
-        Sleep(50)
-        _RefreshIndex()
-    EndIf
+    __HK_GotoDesktop(6)
 EndFunc
 Func _HK_Desktop7()
-    If 7 <= _VD_GetCount() Then
-        _VD_GoTo(7)
-        Sleep(50)
-        _RefreshIndex()
-    EndIf
+    __HK_GotoDesktop(7)
 EndFunc
 Func _HK_Desktop8()
-    If 8 <= _VD_GetCount() Then
-        _VD_GoTo(8)
-        Sleep(50)
-        _RefreshIndex()
-    EndIf
+    __HK_GotoDesktop(8)
 EndFunc
 Func _HK_Desktop9()
-    If 9 <= _VD_GetCount() Then
-        _VD_GoTo(9)
-        Sleep(50)
-        _RefreshIndex()
-    EndIf
+    __HK_GotoDesktop(9)
 EndFunc
 
 ; Name:        _HK_ToggleList
@@ -2268,12 +2269,56 @@ Func _InitTrayMode()
     $__g_bTrayMode = True
     GUISetState(@SW_HIDE, $gui)
     Opt("TrayMenuMode", 3) ; no default menu items
-    $__g_iTrayToggleList = TrayCreateItem(_i18n("Tray.tray_show_list", "Show Desktop List"))
-    $__g_iTrayEditLabel = TrayCreateItem(_i18n("Tray.tray_edit_label", "Edit Label"))
-    TrayCreateItem("") ; separator
-    $__g_iTrayAddDesktop = TrayCreateItem(_i18n("Tray.tray_add_desktop", "Add Desktop"))
-    $__g_iTrayDelDesktop = TrayCreateItem(_i18n("Tray.tray_delete_desktop", "Delete Desktop"))
-    TrayCreateItem("")
+
+    ; Reset item handles
+    $__g_iTrayToggleList = 0
+    $__g_iTrayEditLabel = 0
+    $__g_iTrayAddDesktop = 0
+    $__g_iTrayDelDesktop = 0
+    $__g_iTrayCarousel = 0
+    $__g_hTrayDesktopMenu = 0
+    $__g_hTrayMoveMenu = 0
+    $__g_iTrayDesktopSubCount = 0
+    $__g_iTrayMoveSubCount = 0
+
+    ; Build menu conditionally based on settings
+    Local $bHasTopSection = False
+    If _Cfg_GetTrayMenuShowList() Then
+        $__g_iTrayToggleList = TrayCreateItem(_i18n("Tray.tray_show_list", "Show Desktop List"))
+        $bHasTopSection = True
+    EndIf
+    If _Cfg_GetTrayMenuShowEdit() Then
+        $__g_iTrayEditLabel = TrayCreateItem(_i18n("Tray.tray_edit_label", "Edit Label"))
+        $bHasTopSection = True
+    EndIf
+    If $bHasTopSection Then TrayCreateItem("")
+
+    Local $bHasMidSection = False
+    If _Cfg_GetTrayMenuShowAdd() Then
+        $__g_iTrayAddDesktop = TrayCreateItem(_i18n("Tray.tray_add_desktop", "Add Desktop"))
+        $bHasMidSection = True
+    EndIf
+    If _Cfg_GetTrayMenuShowDelete() Then
+        $__g_iTrayDelDesktop = TrayCreateItem(_i18n("Tray.tray_delete_desktop", "Delete Desktop"))
+        $bHasMidSection = True
+    EndIf
+
+    ; Desktop quick-switch submenu
+    If _Cfg_GetTrayMenuShowDesktopSub() Then
+        $__g_hTrayDesktopMenu = TrayCreateMenu(_i18n("Tray.tray_desktop_submenu", "Switch to Desktop"))
+        _UpdateTrayDesktopSubmenu()
+        $bHasMidSection = True
+    EndIf
+
+    ; Move window submenu
+    If _Cfg_GetTrayMenuShowMoveWindow() Then
+        $__g_hTrayMoveMenu = TrayCreateMenu(_i18n("Tray.tray_move_submenu", "Move Window to"))
+        _UpdateTrayMoveSubmenu()
+        $bHasMidSection = True
+    EndIf
+
+    If $bHasMidSection Then TrayCreateItem("")
+
     If _Cfg_GetCarouselEnabled() Then
         $__g_iTrayCarousel = TrayCreateItem(_i18n("Tray.tray_toggle_carousel", "Toggle Carousel"))
     EndIf
@@ -2281,35 +2326,108 @@ Func _InitTrayMode()
     $__g_iTrayAbout = TrayCreateItem(_i18n("Tray.tray_about", "About"))
     TrayCreateItem("")
     $__g_iTrayQuit = TrayCreateItem(_i18n("Tray.tray_quit", "Quit"))
+
     ; Validate tray menu creation
-    If $__g_iTrayToggleList = 0 Or $__g_iTrayQuit = 0 Then
+    If $__g_iTraySettings = 0 Or $__g_iTrayQuit = 0 Then
         _Log_Error("Tray menu creation failed")
         $__g_bTrayMode = False
         GUISetState(@SW_SHOW, $gui)
         Return
     EndIf
-    TraySetToolTip(_i18n_Format("Tray.tray_tooltip", "Desk Switcheroo - Desktop {1}", $iDesktop))
+
+    ; Configure which clicks show the context menu
+    Local $iClickMask = 2 ; right-click always shows menu
+    If _Cfg_GetTrayLeftClick() = "menu" Then $iClickMask = BitOR($iClickMask, 1)
+    If _Cfg_GetTrayDoubleClick() = "menu" Then $iClickMask = BitOR($iClickMask, 4)
+    TraySetClick($iClickMask)
+
+    ; Set tooltip and icon
+    _UpdateTrayTooltip()
     If FileExists(@ScriptDir & "\assets\desk_switcheroo.ico") Then
         TraySetIcon(@ScriptDir & "\assets\desk_switcheroo.ico")
     EndIf
     TraySetState(1)
+
+    ; Register middle-click handler if needed
+    If _Cfg_GetTrayMiddleClick() <> "nothing" Then
+        GUIRegisterMsg(0x0401, "_WM_TrayNotify")
+    EndIf
 EndFunc
 
-; Name:        _CheckTrayMessages
-; Description: Poll tray menu for clicks and dispatch actions
-Func _CheckTrayMessages()
+; Name:        _UpdateTrayTooltip
+; Description: Builds and sets the tray tooltip with optional label and count
+Func _UpdateTrayTooltip()
     If Not $__g_bTrayMode Then Return
-    Local $iTrayMsg = TrayGetMsg()
-    Switch $iTrayMsg
-        Case $__g_iTrayToggleList
+    Local $sTip = _i18n_Format("Tray.tray_tooltip", "Desk Switcheroo - Desktop {1}", $iDesktop)
+    If _Cfg_GetTrayTooltipShowLabel() Then
+        Local $sLabel = _Labels_Load($iDesktop)
+        If $sLabel <> "" Then $sTip &= " " & ChrW(0x2014) & " " & $sLabel
+    EndIf
+    If _Cfg_GetTrayTooltipShowCount() Then
+        $sTip &= " (" & $iDesktop & "/" & _VD_GetCount() & ")"
+    EndIf
+    If StringLen($sTip) > 127 Then $sTip = StringLeft($sTip, 127)
+    TraySetToolTip($sTip)
+EndFunc
+
+; Name:        _UpdateTrayDesktopSubmenu
+; Description: Rebuilds the desktop quick-switch submenu items
+Func _UpdateTrayDesktopSubmenu()
+    If $__g_hTrayDesktopMenu = 0 Then Return
+    Local $i
+    For $i = 1 To $__g_iTrayDesktopSubCount
+        TrayItemDelete($__g_aTrayDesktopItems[$i])
+    Next
+    Local $iCount = _VD_GetCount()
+    If $iCount > 50 Then $iCount = 50
+    $__g_iTrayDesktopSubCount = $iCount
+    For $i = 1 To $iCount
+        Local $sLabel = _Labels_Load($i)
+        Local $sText = "Desktop " & $i
+        If $sLabel <> "" Then $sText &= " " & ChrW(0x2014) & " " & $sLabel
+        $__g_aTrayDesktopItems[$i] = TrayCreateItem($sText, $__g_hTrayDesktopMenu)
+        If $i = $iDesktop Then TrayItemSetState($__g_aTrayDesktopItems[$i], $TRAY_CHECKED)
+    Next
+EndFunc
+
+; Name:        _UpdateTrayMoveSubmenu
+; Description: Rebuilds the move-window-to submenu items
+Func _UpdateTrayMoveSubmenu()
+    If $__g_hTrayMoveMenu = 0 Then Return
+    Local $i
+    For $i = 1 To $__g_iTrayMoveSubCount
+        TrayItemDelete($__g_aTrayMoveItems[$i])
+    Next
+    Local $iCount = _VD_GetCount()
+    If $iCount > 50 Then $iCount = 50
+    $__g_iTrayMoveSubCount = $iCount
+    For $i = 1 To $iCount
+        Local $sLabel = _Labels_Load($i)
+        Local $sText = "Desktop " & $i
+        If $sLabel <> "" Then $sText &= " " & ChrW(0x2014) & " " & $sLabel
+        $__g_aTrayMoveItems[$i] = TrayCreateItem($sText, $__g_hTrayMoveMenu)
+    Next
+EndFunc
+
+; Name:        _DispatchTrayAction
+; Description: Centralized action dispatcher for tray click actions
+Func _DispatchTrayAction($sAction)
+    Switch $sAction
+        Case "toggle_list"
             _DL_Toggle($iTaskbarY, $iDesktop)
-        Case $__g_iTrayEditLabel
-            $iRenameTarget = $iDesktop
-            _RD_Show($iDesktop, $iTaskbarY)
-        Case $__g_iTrayAddDesktop
-            If _VD_GetCount() >= _GetDesktopLimit() Then
-                _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
-            Else
+        Case "settings"
+            _CD_Show()
+        Case "next_desktop"
+            Local $iCount = _VD_GetCount()
+            If $iDesktop < $iCount Then
+                _VD_GoTo($iDesktop + 1)
+            ElseIf _Cfg_GetWrapNavigation() Then
+                _VD_GoTo(1)
+            EndIf
+            Sleep(50)
+            _RefreshIndex()
+        Case "add_desktop"
+            If _VD_GetCount() < _GetDesktopLimit() Then
                 _VD_CreateDesktop()
                 Sleep(100)
                 If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
@@ -2317,15 +2435,119 @@ Func _CheckTrayMessages()
                 EndIf
                 _RefreshIndex()
             EndIf
-        Case $__g_iTrayDelDesktop
-            If _VD_GetCount() > 1 Then
-                If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm("Delete Desktop " & $iDesktop & "?", _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
-                    _VD_RemoveDesktop($iDesktop)
+        Case "toggle_carousel"
+            _CarouselToggle()
+    EndSwitch
+EndFunc
+
+; Name:        _WM_TrayNotify
+; Description: Handles tray icon middle-click via Windows message callback
+Func _WM_TrayNotify($hWnd, $iMsg, $wParam, $lParam)
+    #forceref $hWnd, $iMsg, $wParam
+    If $lParam = 0x0208 Then ; WM_MBUTTONUP
+        _DispatchTrayAction(_Cfg_GetTrayMiddleClick())
+    EndIf
+    Return $GUI_RUNDEFMSG
+EndFunc
+
+; Name:        _CheckTraySubmenus
+; Description: Handles clicks on dynamic tray submenu items
+Func _CheckTraySubmenus($iTrayMsg)
+    Local $i
+    ; Desktop quick-switch submenu
+    For $i = 1 To $__g_iTrayDesktopSubCount
+        If $iTrayMsg = $__g_aTrayDesktopItems[$i] Then
+            _VD_GoTo($i)
+            Sleep(50)
+            _RefreshIndex()
+            Return
+        EndIf
+    Next
+    ; Move window submenu
+    For $i = 1 To $__g_iTrayMoveSubCount
+        If $iTrayMsg = $__g_aTrayMoveItems[$i] Then
+            Local $hWin = WinGetHandle("[ACTIVE]")
+            If $hWin <> 0 Then
+                _VD_MoveWindowToDesktop($hWin, $i)
+                If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
+                    _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $i), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                EndIf
+            EndIf
+            Return
+        EndIf
+    Next
+EndFunc
+
+; Name:        _CheckTrayMessages
+; Description: Poll tray menu for clicks and dispatch actions
+Func _CheckTrayMessages()
+    If Not $__g_bTrayMode Then Return
+
+    ; Handle debounced left-click (fires after 200ms if no double-click followed)
+    If $__g_bTrayClickPending And TimerDiff($__g_hTrayClickTimer) > 200 Then
+        $__g_bTrayClickPending = False
+        _DispatchTrayAction(_Cfg_GetTrayLeftClick())
+    EndIf
+
+    Local $iTrayMsg = TrayGetMsg()
+
+    ; Handle tray event constants (click differentiation)
+    Switch $iTrayMsg
+        Case $TRAY_EVENT_PRIMARYDOUBLE
+            ; Cancel pending single-click and dispatch double-click action
+            $__g_bTrayClickPending = False
+            Local $sDoubleAction = _Cfg_GetTrayDoubleClick()
+            If $sDoubleAction <> "menu" Then _DispatchTrayAction($sDoubleAction)
+            Return
+        Case $TRAY_EVENT_PRIMARYUP
+            Local $sLeftAction = _Cfg_GetTrayLeftClick()
+            If $sLeftAction <> "menu" Then
+                ; If double-click also has a non-menu action, debounce to avoid both firing
+                If _Cfg_GetTrayDoubleClick() <> "menu" And _Cfg_GetTrayDoubleClick() <> "nothing" Then
+                    $__g_bTrayClickPending = True
+                    $__g_hTrayClickTimer = TimerInit()
+                Else
+                    _DispatchTrayAction($sLeftAction)
+                EndIf
+            EndIf
+            Return
+    EndSwitch
+
+    ; Handle standard menu item clicks
+    Switch $iTrayMsg
+        Case 0
+            Return
+        Case $__g_iTrayToggleList
+            If $__g_iTrayToggleList <> 0 Then _DL_Toggle($iTaskbarY, $iDesktop)
+        Case $__g_iTrayEditLabel
+            If $__g_iTrayEditLabel <> 0 Then
+                $iRenameTarget = $iDesktop
+                _RD_Show($iDesktop, $iTaskbarY)
+            EndIf
+        Case $__g_iTrayAddDesktop
+            If $__g_iTrayAddDesktop <> 0 Then
+                If _VD_GetCount() >= _GetDesktopLimit() Then
+                    _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+                Else
+                    _VD_CreateDesktop()
                     Sleep(100)
-                    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopDeleted() Then
-                        _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
+                        _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
                     EndIf
                     _RefreshIndex()
+                EndIf
+            EndIf
+        Case $__g_iTrayDelDesktop
+            If $__g_iTrayDelDesktop <> 0 Then
+                If _VD_GetCount() > 1 Then
+                    If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm("Delete Desktop " & $iDesktop & "?", _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
+                        _VD_RemoveDesktop($iDesktop)
+                        Sleep(100)
+                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopDeleted() Then
+                            _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                        EndIf
+                        _RefreshIndex()
+                    EndIf
                 EndIf
             EndIf
         Case $__g_iTraySettings
@@ -2335,7 +2557,10 @@ Func _CheckTrayMessages()
         Case $__g_iTrayCarousel
             If $__g_iTrayCarousel <> 0 Then _CarouselToggle()
         Case $__g_iTrayQuit
+            $__g_bForceQuit = True
             _Shutdown()
+        Case Else
+            _CheckTraySubmenus($iTrayMsg)
     EndSwitch
 EndFunc
 
@@ -2720,13 +2945,31 @@ EndFunc
 ; Description: Cleanup and exit with reentrancy guard
 Func _Shutdown()
     If $__g_bShuttingDown Then Return
+    ; Close-to-tray: minimize to tray instead of quitting
+    If _Cfg_GetTrayCloseToTray() And _Cfg_GetTrayIconMode() And Not $__g_bForceQuit Then
+        If Not $__g_bTrayMode Then _InitTrayMode()
+        Return
+    EndIf
+    $__g_bForceQuit = False
     ; Quit confirmation (skip if already shutting down from OnExit)
     If _Cfg_GetConfirmQuit() Then
         If Not _Theme_Confirm(_i18n("Dialogs.confirm_quit_title", "Quit Desk Switcheroo?"), _i18n("Dialogs.confirm_quit_msg", "Are you sure you want to exit?")) Then Return
     EndIf
     $__g_bShuttingDown = True
 
+    ; Fire shutdown hook before stopping services
+    _Hooks_Fire("on_shutdown", "desktop=" & $iDesktop & "|desktop_count=" & _VD_GetCount())
+
+    ; Save session state if enabled
+    If _Cfg_GetSessionRestoreEnabled() Then
+        Local $iSaved = _SR_SaveSession()
+        _Log_Info("Session save: " & $iSaved & " windows saved")
+    EndIf
+
     ; Stop all periodic tasks first (prevent interference during fade)
+    _WR_Stop()
+    _Hooks_Shutdown()
+    _CLI_UnregisterIPC()
     _EM_Stop()
     _TAH_Stop()
     _UnregisterHotkeys()
@@ -2827,4 +3070,13 @@ Func _RunStartupChecks()
     _Log_Debug("Startup check: running as user " & @UserName)
 
     _Log_Info("All startup checks passed")
+
+    ; Restore session if enabled
+    If _Cfg_GetSessionRestoreEnabled() Then
+        Local $iRestored = _SR_RestoreSession()
+        If $iRestored > 0 Then _Log_Info("Session restore: " & $iRestored & " windows restored to previous desktops")
+    EndIf
+
+    ; Fire startup hook
+    _Hooks_Fire("on_startup", "desktop=" & _VD_GetCurrent() & "|desktop_count=" & _VD_GetCount())
 EndFunc
