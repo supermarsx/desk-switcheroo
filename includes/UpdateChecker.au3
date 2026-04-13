@@ -229,7 +229,7 @@ Func _UC_CheckNow()
 
     Local $idDownload = 0
     If $bUpdateAvailable Then
-        $idDownload = GUICtrlCreateLabel(ChrW(0x2B07) & " " & _i18n("Settings.Updates.btn_download", "Download Latest"), 14, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+        $idDownload = GUICtrlCreateLabel(ChrW(0x2B07) & " " & _i18n("Settings.Updates.btn_download", "Download Latest"), 14, $iDlgH - 40, 130, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
         GUICtrlSetFont($idDownload, 9, 400, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor($idDownload, $THEME_FG_MENU)
         GUICtrlSetBkColor($idDownload, $THEME_BG_HOVER)
@@ -349,7 +349,7 @@ Func _UC_DownloadPortable()
     GUICtrlSetColor(-1, $THEME_FG_LABEL)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
-    Local $idYes = GUICtrlCreateLabel(ChrW(0x2B07) & " " & _i18n("Settings.Updates.btn_download", "Download Latest"), 14, $iDlgH - 40, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idYes = GUICtrlCreateLabel(ChrW(0x2B07) & " " & _i18n("Settings.Updates.btn_download", "Download Latest"), 14, $iDlgH - 40, 130, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idYes, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idYes, $THEME_FG_MENU)
     GUICtrlSetBkColor($idYes, $THEME_BG_HOVER)
