@@ -2440,19 +2440,11 @@ Func __CD_MessageLoop()
                 Case $__g_CD_idBtnClose
                     ExitLoop
                 Case $__g_CD_idBtnCheckNow
-                    ; Close Settings first, then run update check (avoids nested dialog loops)
-                    _Theme_ClearTooltips()
-                    _Theme_ToastDestroy()
-                    _CD_Destroy()
                     _UC_CheckNow()
-                    Return
+                    GUISwitch($__g_CD_hGUI) ; restore active GUI after update dialogs
                 Case $__g_CD_idBtnDownloadLatest
-                    ; Close Settings first, then run download (avoids nested dialog loops)
-                    _Theme_ClearTooltips()
-                    _Theme_ToastDestroy()
-                    _CD_Destroy()
                     _UC_DownloadPortable()
-                    Return
+                    GUISwitch($__g_CD_hGUI) ; restore active GUI after download dialogs
                 Case $__g_CD_idBtnLogBrowse
                     Local $sFolder = FileSelectFolder("Select log folder", "", 7, GUICtrlRead($__g_CD_idInpLogPath), $__g_CD_hGUI)
                     If $sFolder <> "" Then GUICtrlSetData($__g_CD_idInpLogPath, $sFolder)
