@@ -45,6 +45,11 @@ EndFunc
 #include "..\includes\Wallpaper.au3"
 #include "..\includes\ExplorerMonitor.au3"
 #include "..\includes\TaskbarAutoHide.au3"
+#include "..\includes\WindowRules.au3"
+#include "..\includes\SessionRestore.au3"
+#include "..\includes\Hooks.au3"
+#include "..\includes\CLI.au3"
+#include "..\includes\Profiles.au3"
 
 ; ---- Include test files ----
 #include "Test_Theme.au3"
@@ -64,6 +69,11 @@ EndFunc
 #include "Test_Wallpaper.au3"
 #include "Test_ExplorerMonitor.au3"
 #include "Test_TaskbarAutoHide.au3"
+#include "Test_WindowRules.au3"
+#include "Test_SessionRestore.au3"
+#include "Test_Hooks.au3"
+#include "Test_CLI.au3"
+#include "Test_Profiles.au3"
 
 ; ---- Load bundled fonts ----
 _Theme_LoadFonts()
@@ -89,6 +99,11 @@ _RunTest_WindowList()
 _RunTest_Wallpaper()
 _RunTest_ExplorerMonitor()
 _RunTest_TaskbarAutoHide()
+_RunTest_WindowRules()
+_RunTest_SessionRestore()
+_RunTest_Hooks()
+_RunTest_CLI()
+_RunTest_Profiles()
 
 ; ---- Cleanup ----
 _VD_Shutdown()
