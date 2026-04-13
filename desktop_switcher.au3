@@ -1637,6 +1637,31 @@ Func _RegisterHotkeys()
     If $sKey <> "" Then
         If HotKeySet($sKey, "_HK_OpenSettings") = 0 Then _Log_Warn("Hotkey failed: " & $sKey & " (settings)")
     EndIf
+    $sKey = _Cfg_GetHotkeyAddDesktop()
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_AddDesktop")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (add desktop)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyDeleteDesktop()
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_DeleteDesktop")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (delete desktop)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyRenameDesktop()
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_RenameDesktop")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (rename desktop)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyCloseWindow()
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_CloseWindow")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (close window)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyMinimizeWindow()
+    If $sKey <> "" Then
+        $iRet = HotKeySet($sKey, "_HK_MinimizeWindow")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (minimize window)")
+    EndIf
 EndFunc
 
 ; Name:        _UnregisterHotkeys
@@ -1670,6 +1695,16 @@ Func _UnregisterHotkeys()
     $sKey = _Cfg_GetHotkeyToggleWindowList()
     If $sKey <> "" Then HotKeySet($sKey)
     $sKey = _Cfg_GetHotkeyOpenSettings()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyAddDesktop()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyDeleteDesktop()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyRenameDesktop()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyCloseWindow()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyMinimizeWindow()
     If $sKey <> "" Then HotKeySet($sKey)
 EndFunc
 
@@ -1944,6 +1979,69 @@ Func _HK_ToggleWindowList()
     If Not _Cfg_GetWindowListEnabled() Then Return
     _Log_Debug("Hotkey: toggle window list")
     _WL_Toggle($iDesktop)
+EndFunc
+
+; Name:        _HK_AddDesktop
+; Description: Hotkey callback to create a new virtual desktop
+Func _HK_AddDesktop()
+    If _VD_GetCount() >= $DESKTOP_LIMIT Then
+        _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+        Return
+    EndIf
+    _Log_Debug("Hotkey: add desktop")
+    _VD_CreateDesktop()
+    Sleep(100)
+    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
+        _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
+    EndIf
+    _RefreshIndex()
+EndFunc
+
+; Name:        _HK_DeleteDesktop
+; Description: Hotkey callback to delete the current virtual desktop
+Func _HK_DeleteDesktop()
+    If _VD_GetCount() <= 1 Then
+        _Theme_Confirm(_i18n("Dialogs.confirm_cannot_delete_title", "Cannot Delete"), _i18n("Dialogs.confirm_cannot_delete_msg", "This is the last desktop."))
+        Return
+    EndIf
+    Local $sDelCurName = _Labels_Load($iDesktop)
+    Local $sDelCurLabel = "Desktop " & $iDesktop
+    If $sDelCurName <> "" Then $sDelCurLabel &= ' ("' & $sDelCurName & '")'
+    If _Cfg_GetConfirmDelete() And Not _Theme_Confirm(_i18n_Format("Dialogs.confirm_delete_title", "Delete {1}?", $sDelCurLabel), _
+            _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then Return
+    _Log_Debug("Hotkey: delete desktop " & $iDesktop)
+    _VD_RemoveDesktop($iDesktop)
+    Sleep(100)
+    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopDeleted() Then
+        _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+    EndIf
+    _RefreshIndex()
+EndFunc
+
+; Name:        _HK_RenameDesktop
+; Description: Hotkey callback to open rename dialog for the current desktop
+Func _HK_RenameDesktop()
+    _Log_Debug("Hotkey: rename desktop " & $iDesktop)
+    $iRenameTarget = $iDesktop
+    _RD_Show($iDesktop, $iTaskbarY)
+EndFunc
+
+; Name:        _HK_CloseWindow
+; Description: Hotkey callback to close the active window
+Func _HK_CloseWindow()
+    Local $hWnd = WinGetHandle("[ACTIVE]")
+    If $hWnd = $gui Then Return
+    _Log_Debug("Hotkey: close window -> " & $hWnd)
+    WinClose($hWnd)
+EndFunc
+
+; Name:        _HK_MinimizeWindow
+; Description: Hotkey callback to minimize the active window
+Func _HK_MinimizeWindow()
+    Local $hWnd = WinGetHandle("[ACTIVE]")
+    If $hWnd = $gui Then Return
+    _Log_Debug("Hotkey: minimize window -> " & $hWnd)
+    WinSetState($hWnd, "", @SW_MINIMIZE)
 EndFunc
 
 ; About dialog extracted to includes\AboutDialog.au3

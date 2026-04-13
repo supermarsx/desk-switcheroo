@@ -69,24 +69,29 @@ Global $__g_Cfg_bListScrollEnabled = False
 Global $__g_Cfg_sListScrollAction  = "switch"
 
 ; [Hotkeys]
-Global $__g_Cfg_sHotkeyNext        = ""
-Global $__g_Cfg_sHotkeyPrev        = ""
+Global $__g_Cfg_sHotkeyNext        = "^!{RIGHT}"
+Global $__g_Cfg_sHotkeyPrev        = "^!{LEFT}"
 Global $__g_Cfg_sHotkeyDesktop[10] ; index 1-9
 $__g_Cfg_sHotkeyDesktop[0] = 9
 For $__i = 1 To 9
     $__g_Cfg_sHotkeyDesktop[$__i] = ""
 Next
-Global $__g_Cfg_sHotkeyToggleList  = ""
-Global $__g_Cfg_sHotkeyToggleLast  = ""
-Global $__g_Cfg_sHotkeyMoveFollowNext = ""
-Global $__g_Cfg_sHotkeyMoveFollowPrev = ""
-Global $__g_Cfg_sHotkeyMoveNext    = ""
-Global $__g_Cfg_sHotkeyMovePrev    = ""
-Global $__g_Cfg_sHotkeySendNewDesktop = ""
-Global $__g_Cfg_sHotkeyPinWindow   = ""
-Global $__g_Cfg_sHotkeyToggleWindowList = ""
+Global $__g_Cfg_sHotkeyToggleList  = "^!{DOWN}"
+Global $__g_Cfg_sHotkeyToggleLast  = "^!{TAB}"
+Global $__g_Cfg_sHotkeyMoveFollowNext = "^!+{RIGHT}"
+Global $__g_Cfg_sHotkeyMoveFollowPrev = "^!+{LEFT}"
+Global $__g_Cfg_sHotkeyMoveNext    = "^#{RIGHT}"
+Global $__g_Cfg_sHotkeyMovePrev    = "^#{LEFT}"
+Global $__g_Cfg_sHotkeySendNewDesktop = "^!n"
+Global $__g_Cfg_sHotkeyPinWindow   = "^!p"
+Global $__g_Cfg_sHotkeyToggleWindowList = "^!w"
 Global $__g_Cfg_sHotkeyOpenSettings = "^!s"
 Global $__g_Cfg_bHotkeysEnabled = True
+Global $__g_Cfg_sHotkeyAddDesktop   = "^!{INSERT}"
+Global $__g_Cfg_sHotkeyDeleteDesktop = ""
+Global $__g_Cfg_sHotkeyRenameDesktop = "^!r"
+Global $__g_Cfg_sHotkeyCloseWindow  = ""
+Global $__g_Cfg_sHotkeyMinimizeWindow = ""
 
 ; [Behavior]
 Global $__g_Cfg_bConfirmDelete     = True
@@ -298,23 +303,28 @@ Func _Cfg_Load()
 
     ; [Hotkeys]
     $__g_Cfg_iHotkeyDesktopCount = __Cfg_ReadInt($f, "Hotkeys", "hotkey_desktop_count", 9, 1, 9)
-    $__g_Cfg_sHotkeyNext       = IniRead($f, "Hotkeys", "hotkey_next", "")
-    $__g_Cfg_sHotkeyPrev       = IniRead($f, "Hotkeys", "hotkey_prev", "")
+    $__g_Cfg_sHotkeyNext       = IniRead($f, "Hotkeys", "hotkey_next", "^!{RIGHT}")
+    $__g_Cfg_sHotkeyPrev       = IniRead($f, "Hotkeys", "hotkey_prev", "^!{LEFT}")
     Local $i
     For $i = 1 To 9
         $__g_Cfg_sHotkeyDesktop[$i] = IniRead($f, "Hotkeys", "hotkey_desktop_" & $i, "")
     Next
-    $__g_Cfg_sHotkeyToggleList = IniRead($f, "Hotkeys", "hotkey_toggle_list", "")
-    $__g_Cfg_sHotkeyToggleLast = IniRead($f, "Hotkeys", "hotkey_toggle_last", "")
-    $__g_Cfg_sHotkeyMoveFollowNext = IniRead($f, "Hotkeys", "hotkey_move_follow_next", "")
-    $__g_Cfg_sHotkeyMoveFollowPrev = IniRead($f, "Hotkeys", "hotkey_move_follow_prev", "")
-    $__g_Cfg_sHotkeyMoveNext    = IniRead($f, "Hotkeys", "hotkey_move_next", "")
-    $__g_Cfg_sHotkeyMovePrev    = IniRead($f, "Hotkeys", "hotkey_move_prev", "")
-    $__g_Cfg_sHotkeySendNewDesktop = IniRead($f, "Hotkeys", "hotkey_send_new_desktop", "")
-    $__g_Cfg_sHotkeyPinWindow   = IniRead($f, "Hotkeys", "hotkey_pin_window", "")
-    $__g_Cfg_sHotkeyToggleWindowList = IniRead($f, "Hotkeys", "hotkey_toggle_window_list", "")
+    $__g_Cfg_sHotkeyToggleList = IniRead($f, "Hotkeys", "hotkey_toggle_list", "^!{DOWN}")
+    $__g_Cfg_sHotkeyToggleLast = IniRead($f, "Hotkeys", "hotkey_toggle_last", "^!{TAB}")
+    $__g_Cfg_sHotkeyMoveFollowNext = IniRead($f, "Hotkeys", "hotkey_move_follow_next", "^!+{RIGHT}")
+    $__g_Cfg_sHotkeyMoveFollowPrev = IniRead($f, "Hotkeys", "hotkey_move_follow_prev", "^!+{LEFT}")
+    $__g_Cfg_sHotkeyMoveNext    = IniRead($f, "Hotkeys", "hotkey_move_next", "^#{RIGHT}")
+    $__g_Cfg_sHotkeyMovePrev    = IniRead($f, "Hotkeys", "hotkey_move_prev", "^#{LEFT}")
+    $__g_Cfg_sHotkeySendNewDesktop = IniRead($f, "Hotkeys", "hotkey_send_new_desktop", "^!n")
+    $__g_Cfg_sHotkeyPinWindow   = IniRead($f, "Hotkeys", "hotkey_pin_window", "^!p")
+    $__g_Cfg_sHotkeyToggleWindowList = IniRead($f, "Hotkeys", "hotkey_toggle_window_list", "^!w")
     $__g_Cfg_sHotkeyOpenSettings = IniRead($f, "Hotkeys", "hotkey_open_settings", "^!s")
     $__g_Cfg_bHotkeysEnabled = __Cfg_ReadBool($f, "Hotkeys", "hotkeys_enabled", True)
+    $__g_Cfg_sHotkeyAddDesktop   = IniRead($f, "Hotkeys", "hotkey_add_desktop", "^!{INSERT}")
+    $__g_Cfg_sHotkeyDeleteDesktop = IniRead($f, "Hotkeys", "hotkey_delete_desktop", "")
+    $__g_Cfg_sHotkeyRenameDesktop = IniRead($f, "Hotkeys", "hotkey_rename_desktop", "^!r")
+    $__g_Cfg_sHotkeyCloseWindow  = IniRead($f, "Hotkeys", "hotkey_close_window", "")
+    $__g_Cfg_sHotkeyMinimizeWindow = IniRead($f, "Hotkeys", "hotkey_minimize_window", "")
 
     ; [Behavior]
     $__g_Cfg_bConfirmDelete     = __Cfg_ReadBool($f, "Behavior", "confirm_delete", True)
@@ -507,6 +517,11 @@ Func _Cfg_Save()
     IniWrite($f, "Hotkeys", "hotkey_toggle_window_list", $__g_Cfg_sHotkeyToggleWindowList)
     IniWrite($f, "Hotkeys", "hotkey_open_settings", $__g_Cfg_sHotkeyOpenSettings)
     __Cfg_WriteBool($f, "Hotkeys", "hotkeys_enabled", $__g_Cfg_bHotkeysEnabled)
+    IniWrite($f, "Hotkeys", "hotkey_add_desktop", $__g_Cfg_sHotkeyAddDesktop)
+    IniWrite($f, "Hotkeys", "hotkey_delete_desktop", $__g_Cfg_sHotkeyDeleteDesktop)
+    IniWrite($f, "Hotkeys", "hotkey_rename_desktop", $__g_Cfg_sHotkeyRenameDesktop)
+    IniWrite($f, "Hotkeys", "hotkey_close_window", $__g_Cfg_sHotkeyCloseWindow)
+    IniWrite($f, "Hotkeys", "hotkey_minimize_window", $__g_Cfg_sHotkeyMinimizeWindow)
 
     ; [Behavior]
     __Cfg_WriteBool($f, "Behavior", "confirm_delete", $__g_Cfg_bConfirmDelete)
@@ -671,23 +686,28 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Scroll", "list_scroll_action", "switch")
 
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_desktop_count", 9)
-    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_next", "")
-    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_prev", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_next", "^!{RIGHT}")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_prev", "^!{LEFT}")
     Local $i
     For $i = 1 To 9
         __Cfg_DefaultVal($f, "Hotkeys", "hotkey_desktop_" & $i, "")
     Next
-    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_list", "")
-    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_last", "")
-    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_move_follow_next", "")
-    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_move_follow_prev", "")
-    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_move_next", "")
-    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_move_prev", "")
-    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_send_new_desktop", "")
-    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_pin_window", "")
-    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_window_list", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_list", "^!{DOWN}")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_last", "^!{TAB}")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_move_follow_next", "^!+{RIGHT}")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_move_follow_prev", "^!+{LEFT}")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_move_next", "^#{RIGHT}")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_move_prev", "^#{LEFT}")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_send_new_desktop", "^!n")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_pin_window", "^!p")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_window_list", "^!w")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_open_settings", "^!s")
     __Cfg_DefaultBool($f, "Hotkeys", "hotkeys_enabled", True)
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_add_desktop", "^!{INSERT}")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_delete_desktop", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_rename_desktop", "^!r")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_close_window", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_minimize_window", "")
 
     __Cfg_DefaultBool($f, "Behavior", "confirm_delete", True)
     __Cfg_DefaultBool($f, "Behavior", "middle_click_delete", False)
@@ -1525,6 +1545,36 @@ Func _Cfg_SetHotkeyOpenSettings($s)
 EndFunc
 Func _Cfg_SetHotkeysEnabled($b)
     $__g_Cfg_bHotkeysEnabled = $b
+EndFunc
+Func _Cfg_GetHotkeyAddDesktop()
+    Return $__g_Cfg_sHotkeyAddDesktop
+EndFunc
+Func _Cfg_SetHotkeyAddDesktop($s)
+    $__g_Cfg_sHotkeyAddDesktop = $s
+EndFunc
+Func _Cfg_GetHotkeyDeleteDesktop()
+    Return $__g_Cfg_sHotkeyDeleteDesktop
+EndFunc
+Func _Cfg_SetHotkeyDeleteDesktop($s)
+    $__g_Cfg_sHotkeyDeleteDesktop = $s
+EndFunc
+Func _Cfg_GetHotkeyRenameDesktop()
+    Return $__g_Cfg_sHotkeyRenameDesktop
+EndFunc
+Func _Cfg_SetHotkeyRenameDesktop($s)
+    $__g_Cfg_sHotkeyRenameDesktop = $s
+EndFunc
+Func _Cfg_GetHotkeyCloseWindow()
+    Return $__g_Cfg_sHotkeyCloseWindow
+EndFunc
+Func _Cfg_SetHotkeyCloseWindow($s)
+    $__g_Cfg_sHotkeyCloseWindow = $s
+EndFunc
+Func _Cfg_GetHotkeyMinimizeWindow()
+    Return $__g_Cfg_sHotkeyMinimizeWindow
+EndFunc
+Func _Cfg_SetHotkeyMinimizeWindow($s)
+    $__g_Cfg_sHotkeyMinimizeWindow = $s
 EndFunc
 
 ; [Behavior]

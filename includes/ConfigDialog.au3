@@ -60,7 +60,7 @@ Global $__g_CD_idLblScrollDir, $__g_CD_idLblListAction
 ; -- Tab 4: Hotkeys --
 Global $__g_CD_idInpHkNext, $__g_CD_idInpHkPrev, $__g_CD_idInpHkToggleList
 Global $__g_CD_aidInpHkDesktop[10] ; index 1-9
-Global $__g_CD_idBtnHkBuild[21]    ; index 0-20 for each hotkey row "..." button
+Global $__g_CD_idBtnHkBuild[26]    ; index 0-25 for each hotkey row "..." button
 
 ; -- Tab 1 extras: General --
 Global $__g_CD_idChkWidgetDrag, $__g_CD_idChkWidgetColorBar, $__g_CD_idChkTrayMode, $__g_CD_idChkQuickAccess
@@ -120,6 +120,8 @@ Global $__g_CD_idInpHkLastDesktop, $__g_CD_idInpHkMoveFollowNext, $__g_CD_idInpH
 Global $__g_CD_idInpHkMoveToNext, $__g_CD_idInpHkMoveToPrev
 Global $__g_CD_idInpHkSendToNew, $__g_CD_idInpHkPinWindow, $__g_CD_idInpHkToggleWL
 Global $__g_CD_idChkHotkeysEnabled, $__g_CD_idInpHkOpenSettings
+Global $__g_CD_idInpHkAddDesktop, $__g_CD_idInpHkDeleteDesktop, $__g_CD_idInpHkRenameDesktop
+Global $__g_CD_idInpHkCloseWindow, $__g_CD_idInpHkMinimizeWindow
 
 ; -- Tab 4: Hotkey sub-tabs --
 Global $__g_CD_idHkSubNav = 0, $__g_CD_idHkSubWin = 0, $__g_CD_idHkSubDesk = 0
@@ -1036,6 +1038,81 @@ Func __CD_BuildTabHotkeys()
     _Theme_SetTooltip($__g_CD_idBtnHkBuild[20], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
     $iY += 28
 
+    ; Add Desktop (build index 21)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_hotkey_add_desktop", "Add desktop:"), $iX, $iY + 2, $iLblW, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegHkSub(1, $idLbl)
+    $__g_CD_idInpHkAddDesktop = GUICtrlCreateInput("", $iX + $iLblW, $iY, $iInpW, 20)
+    GUICtrlSetFont($__g_CD_idInpHkAddDesktop, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idInpHkAddDesktop, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpHkAddDesktop, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkAddDesktop)
+    __CD_RegCtrl($t, $__g_CD_idInpHkAddDesktop)
+    __CD_RegHkSub(1, $__g_CD_idInpHkAddDesktop)
+    _Theme_SetTooltip($__g_CD_idInpHkAddDesktop, _i18n("Settings.Hotkeys.tip_hotkey_add_desktop", "Global hotkey to create a new virtual desktop"))
+    $__g_CD_idBtnHkBuild[21] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBtnHkBuild[21], 8, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBtnHkBuild[21], $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[21], $THEME_BG_HOVER)
+    GUICtrlSetCursor($__g_CD_idBtnHkBuild[21], 0)
+    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[21])
+    __CD_RegHkSub(1, $__g_CD_idBtnHkBuild[21])
+    _Theme_SetTooltip($__g_CD_idBtnHkBuild[21], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+    $iY += 24
+
+    ; Delete Desktop (build index 22)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_hotkey_delete_desktop", "Delete desktop:"), $iX, $iY + 2, $iLblW, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegHkSub(1, $idLbl)
+    $__g_CD_idInpHkDeleteDesktop = GUICtrlCreateInput("", $iX + $iLblW, $iY, $iInpW, 20)
+    GUICtrlSetFont($__g_CD_idInpHkDeleteDesktop, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idInpHkDeleteDesktop, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpHkDeleteDesktop, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkDeleteDesktop)
+    __CD_RegCtrl($t, $__g_CD_idInpHkDeleteDesktop)
+    __CD_RegHkSub(1, $__g_CD_idInpHkDeleteDesktop)
+    _Theme_SetTooltip($__g_CD_idInpHkDeleteDesktop, _i18n("Settings.Hotkeys.tip_hotkey_delete_desktop", "Global hotkey to delete the current virtual desktop"))
+    $__g_CD_idBtnHkBuild[22] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBtnHkBuild[22], 8, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBtnHkBuild[22], $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[22], $THEME_BG_HOVER)
+    GUICtrlSetCursor($__g_CD_idBtnHkBuild[22], 0)
+    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[22])
+    __CD_RegHkSub(1, $__g_CD_idBtnHkBuild[22])
+    _Theme_SetTooltip($__g_CD_idBtnHkBuild[22], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+    $iY += 24
+
+    ; Rename Desktop (build index 23)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_hotkey_rename_desktop", "Rename desktop:"), $iX, $iY + 2, $iLblW, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegHkSub(1, $idLbl)
+    $__g_CD_idInpHkRenameDesktop = GUICtrlCreateInput("", $iX + $iLblW, $iY, $iInpW, 20)
+    GUICtrlSetFont($__g_CD_idInpHkRenameDesktop, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idInpHkRenameDesktop, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpHkRenameDesktop, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkRenameDesktop)
+    __CD_RegCtrl($t, $__g_CD_idInpHkRenameDesktop)
+    __CD_RegHkSub(1, $__g_CD_idInpHkRenameDesktop)
+    _Theme_SetTooltip($__g_CD_idInpHkRenameDesktop, _i18n("Settings.Hotkeys.tip_hotkey_rename_desktop", "Global hotkey to rename the current desktop label"))
+    $__g_CD_idBtnHkBuild[23] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBtnHkBuild[23], 8, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBtnHkBuild[23], $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[23], $THEME_BG_HOVER)
+    GUICtrlSetCursor($__g_CD_idBtnHkBuild[23], 0)
+    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[23])
+    __CD_RegHkSub(1, $__g_CD_idBtnHkBuild[23])
+    _Theme_SetTooltip($__g_CD_idBtnHkBuild[23], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+    $iY += 28
+
     ; Format help (Navigation)
     $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_format_help", "^=Ctrl  !=Alt  +=Shift  #=Win  e.g. ^!{RIGHT}"), $iX, $iY, 380, 16)
     GUICtrlSetFont($idLbl, 7, 400, 0, $THEME_FONT_MAIN)
@@ -1208,6 +1285,56 @@ Func __CD_BuildTabHotkeys()
     GUICtrlSetCursor($__g_CD_idBtnHkBuild[19], 0)
     __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[19])
     __CD_RegHkSub(2, $__g_CD_idBtnHkBuild[19])
+    $iY += 24
+
+    ; Close Window (build index 24)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_hotkey_close_window", "Close window:"), $iX, $iY + 2, $iLblW, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegHkSub(2, $idLbl)
+    $__g_CD_idInpHkCloseWindow = GUICtrlCreateInput("", $iX + $iLblW, $iY, $iInpW, 20)
+    GUICtrlSetFont($__g_CD_idInpHkCloseWindow, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idInpHkCloseWindow, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpHkCloseWindow, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkCloseWindow)
+    __CD_RegCtrl($t, $__g_CD_idInpHkCloseWindow)
+    __CD_RegHkSub(2, $__g_CD_idInpHkCloseWindow)
+    _Theme_SetTooltip($__g_CD_idInpHkCloseWindow, _i18n("Settings.Hotkeys.tip_hotkey_close_window", "Global hotkey to close the active window"))
+    $__g_CD_idBtnHkBuild[24] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBtnHkBuild[24], 8, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBtnHkBuild[24], $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[24], $THEME_BG_HOVER)
+    GUICtrlSetCursor($__g_CD_idBtnHkBuild[24], 0)
+    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[24])
+    __CD_RegHkSub(2, $__g_CD_idBtnHkBuild[24])
+    _Theme_SetTooltip($__g_CD_idBtnHkBuild[24], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+    $iY += 24
+
+    ; Minimize Window (build index 25)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_hotkey_minimize_window", "Minimize window:"), $iX, $iY + 2, $iLblW, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegHkSub(2, $idLbl)
+    $__g_CD_idInpHkMinimizeWindow = GUICtrlCreateInput("", $iX + $iLblW, $iY, $iInpW, 20)
+    GUICtrlSetFont($__g_CD_idInpHkMinimizeWindow, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idInpHkMinimizeWindow, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpHkMinimizeWindow, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkMinimizeWindow)
+    __CD_RegCtrl($t, $__g_CD_idInpHkMinimizeWindow)
+    __CD_RegHkSub(2, $__g_CD_idInpHkMinimizeWindow)
+    _Theme_SetTooltip($__g_CD_idInpHkMinimizeWindow, _i18n("Settings.Hotkeys.tip_hotkey_minimize_window", "Global hotkey to minimize the active window"))
+    $__g_CD_idBtnHkBuild[25] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBtnHkBuild[25], 8, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBtnHkBuild[25], $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[25], $THEME_BG_HOVER)
+    GUICtrlSetCursor($__g_CD_idBtnHkBuild[25], 0)
+    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[25])
+    __CD_RegHkSub(2, $__g_CD_idBtnHkBuild[25])
+    _Theme_SetTooltip($__g_CD_idBtnHkBuild[25], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
 
     ; ========================================
     ; Group 3: Desktops (sub-tab 3)
@@ -2217,6 +2344,11 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpHkPinWindow, _Cfg_GetHotkeyPinWindow())
     GUICtrlSetData($__g_CD_idInpHkToggleWL, _Cfg_GetHotkeyToggleWindowList())
     GUICtrlSetData($__g_CD_idInpHkOpenSettings, _Cfg_GetHotkeyOpenSettings())
+    GUICtrlSetData($__g_CD_idInpHkAddDesktop, _Cfg_GetHotkeyAddDesktop())
+    GUICtrlSetData($__g_CD_idInpHkDeleteDesktop, _Cfg_GetHotkeyDeleteDesktop())
+    GUICtrlSetData($__g_CD_idInpHkRenameDesktop, _Cfg_GetHotkeyRenameDesktop())
+    GUICtrlSetData($__g_CD_idInpHkCloseWindow, _Cfg_GetHotkeyCloseWindow())
+    GUICtrlSetData($__g_CD_idInpHkMinimizeWindow, _Cfg_GetHotkeyMinimizeWindow())
 
     ; Wallpaper
     __CD_SetCheckState($__g_CD_idChkWallpaper, _Cfg_GetWallpaperEnabled())
@@ -2547,6 +2679,11 @@ Func __CD_ApplyChanges()
     _Cfg_SetHotkeyPinWindow(GUICtrlRead($__g_CD_idInpHkPinWindow))
     _Cfg_SetHotkeyToggleWindowList(GUICtrlRead($__g_CD_idInpHkToggleWL))
     _Cfg_SetHotkeyOpenSettings(GUICtrlRead($__g_CD_idInpHkOpenSettings))
+    _Cfg_SetHotkeyAddDesktop(GUICtrlRead($__g_CD_idInpHkAddDesktop))
+    _Cfg_SetHotkeyDeleteDesktop(GUICtrlRead($__g_CD_idInpHkDeleteDesktop))
+    _Cfg_SetHotkeyRenameDesktop(GUICtrlRead($__g_CD_idInpHkRenameDesktop))
+    _Cfg_SetHotkeyCloseWindow(GUICtrlRead($__g_CD_idInpHkCloseWindow))
+    _Cfg_SetHotkeyMinimizeWindow(GUICtrlRead($__g_CD_idInpHkMinimizeWindow))
 
     ; Behavior
     _Cfg_SetConfirmDelete(__CD_GetCheckState($__g_CD_idChkConfirmDel))
@@ -2855,6 +2992,16 @@ Func __CD_HandleHotkeyBuildClick($id)
         $idInput = $__g_CD_idInpHkToggleWL
     ElseIf $id = $__g_CD_idBtnHkBuild[20] Then
         $idInput = $__g_CD_idInpHkOpenSettings
+    ElseIf $id = $__g_CD_idBtnHkBuild[21] Then
+        $idInput = $__g_CD_idInpHkAddDesktop
+    ElseIf $id = $__g_CD_idBtnHkBuild[22] Then
+        $idInput = $__g_CD_idInpHkDeleteDesktop
+    ElseIf $id = $__g_CD_idBtnHkBuild[23] Then
+        $idInput = $__g_CD_idInpHkRenameDesktop
+    ElseIf $id = $__g_CD_idBtnHkBuild[24] Then
+        $idInput = $__g_CD_idInpHkCloseWindow
+    ElseIf $id = $__g_CD_idBtnHkBuild[25] Then
+        $idInput = $__g_CD_idInpHkMinimizeWindow
     Else
         Local $i
         For $i = 1 To 9
