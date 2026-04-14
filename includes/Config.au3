@@ -98,6 +98,20 @@ Global $__g_Cfg_sHotkeyCloseWindow  = ""
 Global $__g_Cfg_sHotkeyMinimizeWindow = ""
 Global $__g_Cfg_sHotkeyToggleCarousel = ""
 Global $__g_Cfg_sHotkeyTaskView     = ""
+Global $__g_Cfg_sHotkeyToggleRules  = ""
+Global $__g_Cfg_sHotkeyLoadNextProfile = ""
+Global $__g_Cfg_sHotkeyLoadPrevProfile = ""
+Global $__g_Cfg_sHotkeyToggleOsd    = ""
+Global $__g_Cfg_sHotkeyToggleWidget = ""
+Global $__g_Cfg_sHotkeyMaximizeWindow = ""
+Global $__g_Cfg_sHotkeyRestoreWindow = ""
+Global $__g_Cfg_sHotkeySwapDesktops = ""
+Global $__g_Cfg_sHotkeyGatherWindows = ""
+Global $__g_Cfg_sHotkeyToggleSession = ""
+Global $__g_Cfg_sHotkeyMoveToDesktop[10] ; index 1-9, direct send-to-desktop
+For $__i = 1 To 9
+    $__g_Cfg_sHotkeyMoveToDesktop[$__i] = ""
+Next
 
 ; [Behavior]
 Global $__g_Cfg_bConfirmDelete     = True
@@ -225,6 +239,7 @@ Global $__g_Cfg_sOsdPosition           = "top-center"
 Global $__g_Cfg_iOsdFontSize           = 14
 Global $__g_Cfg_iOsdOpacity            = 220
 Global $__g_Cfg_sOsdFormat             = "{number}: {name}"
+Global $__g_Cfg_iOsdWidth              = 300
 
 ; [Rules]
 Global $__g_Cfg_bRulesEnabled          = False
@@ -388,6 +403,19 @@ Func _Cfg_Load()
     $__g_Cfg_sHotkeyMinimizeWindow = IniRead($f, "Hotkeys", "hotkey_minimize_window", "")
     $__g_Cfg_sHotkeyToggleCarousel = IniRead($f, "Hotkeys", "hotkey_toggle_carousel", "")
     $__g_Cfg_sHotkeyTaskView     = IniRead($f, "Hotkeys", "hotkey_task_view", "")
+    $__g_Cfg_sHotkeyToggleRules  = IniRead($f, "Hotkeys", "hotkey_toggle_rules", "")
+    $__g_Cfg_sHotkeyLoadNextProfile = IniRead($f, "Hotkeys", "hotkey_load_next_profile", "")
+    $__g_Cfg_sHotkeyLoadPrevProfile = IniRead($f, "Hotkeys", "hotkey_load_prev_profile", "")
+    $__g_Cfg_sHotkeyToggleOsd    = IniRead($f, "Hotkeys", "hotkey_toggle_osd", "")
+    $__g_Cfg_sHotkeyToggleWidget = IniRead($f, "Hotkeys", "hotkey_toggle_widget", "")
+    $__g_Cfg_sHotkeyMaximizeWindow = IniRead($f, "Hotkeys", "hotkey_maximize_window", "")
+    $__g_Cfg_sHotkeyRestoreWindow = IniRead($f, "Hotkeys", "hotkey_restore_window", "")
+    $__g_Cfg_sHotkeySwapDesktops = IniRead($f, "Hotkeys", "hotkey_swap_desktops", "")
+    $__g_Cfg_sHotkeyGatherWindows = IniRead($f, "Hotkeys", "hotkey_gather_windows", "")
+    $__g_Cfg_sHotkeyToggleSession = IniRead($f, "Hotkeys", "hotkey_toggle_session", "")
+    For $i = 1 To 9
+        $__g_Cfg_sHotkeyMoveToDesktop[$i] = IniRead($f, "Hotkeys", "hotkey_move_to_desktop_" & $i, "")
+    Next
 
     ; [Behavior]
     $__g_Cfg_bConfirmDelete     = __Cfg_ReadBool($f, "Behavior", "confirm_delete", True)
@@ -464,7 +492,7 @@ Func _Cfg_Load()
     ; [WindowList]
     $__g_Cfg_bWindowListEnabled   = __Cfg_ReadBool($f, "WindowList", "window_list_enabled", False)
     $__g_Cfg_sWindowListPosition  = __Cfg_ReadEnum($f, "WindowList", "window_list_position", "top-left", _
-        "top-left|top-right|bottom-left|bottom-right")
+        "top-left|top-center|top-right|middle-left|middle-center|middle-right|bottom-left|bottom-center|bottom-right")
     $__g_Cfg_iWindowListWidth     = __Cfg_ReadInt($f, "WindowList", "window_list_width", 280, 150, 600)
     $__g_Cfg_iWindowListMaxVisible = __Cfg_ReadInt($f, "WindowList", "window_list_max_visible", 15, 5, 50)
     $__g_Cfg_bWindowListShowIcons = __Cfg_ReadBool($f, "WindowList", "window_list_show_icons", True)
@@ -518,6 +546,7 @@ Func _Cfg_Load()
     $__g_Cfg_iOsdFontSize            = __Cfg_ReadInt($f, "Notifications", "osd_font_size", 14, 8, 48)
     $__g_Cfg_iOsdOpacity             = __Cfg_ReadInt($f, "Notifications", "osd_opacity", 220, 0, 255)
     $__g_Cfg_sOsdFormat              = IniRead($f, "Notifications", "osd_format", "{number}: {name}")
+    $__g_Cfg_iOsdWidth               = __Cfg_ReadInt($f, "Notifications", "osd_width", 300, 100, 800)
 
     ; [Rules]
     $__g_Cfg_bRulesEnabled           = __Cfg_ReadBool($f, "Rules", "rules_enabled", False)
@@ -652,6 +681,19 @@ Func _Cfg_Save()
     IniWrite($f, "Hotkeys", "hotkey_minimize_window", $__g_Cfg_sHotkeyMinimizeWindow)
     IniWrite($f, "Hotkeys", "hotkey_toggle_carousel", $__g_Cfg_sHotkeyToggleCarousel)
     IniWrite($f, "Hotkeys", "hotkey_task_view", $__g_Cfg_sHotkeyTaskView)
+    IniWrite($f, "Hotkeys", "hotkey_toggle_rules", $__g_Cfg_sHotkeyToggleRules)
+    IniWrite($f, "Hotkeys", "hotkey_load_next_profile", $__g_Cfg_sHotkeyLoadNextProfile)
+    IniWrite($f, "Hotkeys", "hotkey_load_prev_profile", $__g_Cfg_sHotkeyLoadPrevProfile)
+    IniWrite($f, "Hotkeys", "hotkey_toggle_osd", $__g_Cfg_sHotkeyToggleOsd)
+    IniWrite($f, "Hotkeys", "hotkey_toggle_widget", $__g_Cfg_sHotkeyToggleWidget)
+    IniWrite($f, "Hotkeys", "hotkey_maximize_window", $__g_Cfg_sHotkeyMaximizeWindow)
+    IniWrite($f, "Hotkeys", "hotkey_restore_window", $__g_Cfg_sHotkeyRestoreWindow)
+    IniWrite($f, "Hotkeys", "hotkey_swap_desktops", $__g_Cfg_sHotkeySwapDesktops)
+    IniWrite($f, "Hotkeys", "hotkey_gather_windows", $__g_Cfg_sHotkeyGatherWindows)
+    IniWrite($f, "Hotkeys", "hotkey_toggle_session", $__g_Cfg_sHotkeyToggleSession)
+    For $i = 1 To 9
+        IniWrite($f, "Hotkeys", "hotkey_move_to_desktop_" & $i, $__g_Cfg_sHotkeyMoveToDesktop[$i])
+    Next
 
     ; [Behavior]
     __Cfg_WriteBool($f, "Behavior", "confirm_delete", $__g_Cfg_bConfirmDelete)
@@ -774,6 +816,7 @@ Func _Cfg_Save()
     IniWrite($f, "Notifications", "osd_font_size", $__g_Cfg_iOsdFontSize)
     IniWrite($f, "Notifications", "osd_opacity", $__g_Cfg_iOsdOpacity)
     IniWrite($f, "Notifications", "osd_format", $__g_Cfg_sOsdFormat)
+    IniWrite($f, "Notifications", "osd_width", $__g_Cfg_iOsdWidth)
 
     ; [Rules]
     __Cfg_WriteBool($f, "Rules", "rules_enabled", $__g_Cfg_bRulesEnabled)
@@ -913,6 +956,19 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_minimize_window", "")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_carousel", "")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_task_view", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_rules", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_load_next_profile", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_load_prev_profile", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_osd", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_widget", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_maximize_window", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_restore_window", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_swap_desktops", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_gather_windows", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_session", "")
+    For $i = 1 To 9
+        __Cfg_DefaultVal($f, "Hotkeys", "hotkey_move_to_desktop_" & $i, "")
+    Next
 
     __Cfg_DefaultBool($f, "Behavior", "confirm_delete", True)
     __Cfg_DefaultBool($f, "Behavior", "middle_click_delete", False)
@@ -1022,6 +1078,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Notifications", "osd_font_size", 14)
     __Cfg_DefaultVal($f, "Notifications", "osd_opacity", 220)
     __Cfg_DefaultVal($f, "Notifications", "osd_format", "{number}: {name}")
+    __Cfg_DefaultVal($f, "Notifications", "osd_width", 300)
 
     ; [Rules]
     __Cfg_DefaultBool($f, "Rules", "rules_enabled", False)
@@ -1635,6 +1692,9 @@ EndFunc
 Func _Cfg_GetOsdFormat()
     Return $__g_Cfg_sOsdFormat
 EndFunc
+Func _Cfg_GetOsdWidth()
+    Return $__g_Cfg_iOsdWidth
+EndFunc
 
 ; [Rules]
 Func _Cfg_GetRulesEnabled()
@@ -2094,7 +2154,7 @@ Func _Cfg_SetWindowListEnabled($b)
     $__g_Cfg_bWindowListEnabled = $b
 EndFunc
 Func _Cfg_SetWindowListPosition($s)
-    Local $sValid = "top-left|top-right|bottom-left|bottom-right"
+    Local $sValid = "top-left|top-center|top-right|middle-left|middle-center|middle-right|bottom-left|bottom-center|bottom-right"
     If Not StringInStr("|" & $sValid & "|", "|" & $s & "|") Then $s = "top-left"
     $__g_Cfg_sWindowListPosition = $s
 EndFunc
@@ -2277,6 +2337,11 @@ EndFunc
 Func _Cfg_SetOsdFormat($s)
     $__g_Cfg_sOsdFormat = $s
 EndFunc
+Func _Cfg_SetOsdWidth($i)
+    If $i < 100 Then $i = 100
+    If $i > 800 Then $i = 800
+    $__g_Cfg_iOsdWidth = $i
+EndFunc
 
 ; [Rules]
 Func _Cfg_SetRulesEnabled($b)
@@ -2349,6 +2414,74 @@ Func _Cfg_GetHotkeyTaskView()
 EndFunc
 Func _Cfg_SetHotkeyTaskView($s)
     $__g_Cfg_sHotkeyTaskView = __Cfg_ClampStringLen($s, 32)
+EndFunc
+Func _Cfg_GetHotkeyToggleRules()
+    Return $__g_Cfg_sHotkeyToggleRules
+EndFunc
+Func _Cfg_SetHotkeyToggleRules($s)
+    $__g_Cfg_sHotkeyToggleRules = __Cfg_ClampStringLen($s, 32)
+EndFunc
+Func _Cfg_GetHotkeyLoadNextProfile()
+    Return $__g_Cfg_sHotkeyLoadNextProfile
+EndFunc
+Func _Cfg_SetHotkeyLoadNextProfile($s)
+    $__g_Cfg_sHotkeyLoadNextProfile = __Cfg_ClampStringLen($s, 32)
+EndFunc
+Func _Cfg_GetHotkeyLoadPrevProfile()
+    Return $__g_Cfg_sHotkeyLoadPrevProfile
+EndFunc
+Func _Cfg_SetHotkeyLoadPrevProfile($s)
+    $__g_Cfg_sHotkeyLoadPrevProfile = __Cfg_ClampStringLen($s, 32)
+EndFunc
+Func _Cfg_GetHotkeyToggleOsd()
+    Return $__g_Cfg_sHotkeyToggleOsd
+EndFunc
+Func _Cfg_SetHotkeyToggleOsd($s)
+    $__g_Cfg_sHotkeyToggleOsd = __Cfg_ClampStringLen($s, 32)
+EndFunc
+Func _Cfg_GetHotkeyToggleWidget()
+    Return $__g_Cfg_sHotkeyToggleWidget
+EndFunc
+Func _Cfg_SetHotkeyToggleWidget($s)
+    $__g_Cfg_sHotkeyToggleWidget = __Cfg_ClampStringLen($s, 32)
+EndFunc
+Func _Cfg_GetHotkeyMaximizeWindow()
+    Return $__g_Cfg_sHotkeyMaximizeWindow
+EndFunc
+Func _Cfg_SetHotkeyMaximizeWindow($s)
+    $__g_Cfg_sHotkeyMaximizeWindow = __Cfg_ClampStringLen($s, 32)
+EndFunc
+Func _Cfg_GetHotkeyRestoreWindow()
+    Return $__g_Cfg_sHotkeyRestoreWindow
+EndFunc
+Func _Cfg_SetHotkeyRestoreWindow($s)
+    $__g_Cfg_sHotkeyRestoreWindow = __Cfg_ClampStringLen($s, 32)
+EndFunc
+Func _Cfg_GetHotkeySwapDesktops()
+    Return $__g_Cfg_sHotkeySwapDesktops
+EndFunc
+Func _Cfg_SetHotkeySwapDesktops($s)
+    $__g_Cfg_sHotkeySwapDesktops = __Cfg_ClampStringLen($s, 32)
+EndFunc
+Func _Cfg_GetHotkeyGatherWindows()
+    Return $__g_Cfg_sHotkeyGatherWindows
+EndFunc
+Func _Cfg_SetHotkeyGatherWindows($s)
+    $__g_Cfg_sHotkeyGatherWindows = __Cfg_ClampStringLen($s, 32)
+EndFunc
+Func _Cfg_GetHotkeyToggleSession()
+    Return $__g_Cfg_sHotkeyToggleSession
+EndFunc
+Func _Cfg_SetHotkeyToggleSession($s)
+    $__g_Cfg_sHotkeyToggleSession = __Cfg_ClampStringLen($s, 32)
+EndFunc
+Func _Cfg_GetHotkeyMoveToDesktop($i)
+    If $i < 1 Or $i > 9 Then Return ""
+    Return $__g_Cfg_sHotkeyMoveToDesktop[$i]
+EndFunc
+Func _Cfg_SetHotkeyMoveToDesktop($i, $s)
+    If $i < 1 Or $i > 9 Then Return
+    $__g_Cfg_sHotkeyMoveToDesktop[$i] = __Cfg_ClampStringLen($s, 32)
 EndFunc
 
 ; [Tray]

@@ -21,12 +21,12 @@ Global $__g_CD_bVisible = False
 Global $__g_CD_iActiveTab = 0
 
 ; -- Tab button IDs --
-Global $__g_CD_aidTabBtn[16] ; index 1-15
-Global Const $__g_CD_aTabNames = "General,Display,Scroll,Hotkeys,Behavior,Logging,Updates,Desktops,Animations,Wallpaper,Window List,Explorer,Notifications,Taskbar,Tray"
+Global $__g_CD_aidTabBtn[16] ; index 1-14
+Global Const $__g_CD_aTabNames = "General,Display,Hotkeys,Behavior,Logging,Updates,Desktops,Animations,OSD,Window List,Explorer,Notifications,Taskbar,Tray"
 
 ; -- Controls per tab (arrays of IDs to show/hide + scroll) --
 Global Const $__g_CD_MAX_CTRLS = 200
-Global $__g_CD_aidTabCtrls[16][$__g_CD_MAX_CTRLS] ; [tab 1-15][up to 200 controls per tab]
+Global $__g_CD_aidTabCtrls[16][$__g_CD_MAX_CTRLS] ; [tab 1-14][up to 200 controls per tab]
 Global $__g_CD_aiTabCtrlY[16][$__g_CD_MAX_CTRLS]  ; original Y position per control
 Global $__g_CD_aiTabCtrlX[16][$__g_CD_MAX_CTRLS]  ; cached X position per control
 Global $__g_CD_aiTabCtrlW[16][$__g_CD_MAX_CTRLS]  ; cached width per control
@@ -52,12 +52,12 @@ Global $__g_CD_idLblTheme
 Global $__g_CD_idChkThumbnails, $__g_CD_idInpThumbW, $__g_CD_idInpThumbH
 Global $__g_CD_idChkThumbScreenshot, $__g_CD_idInpThumbCacheTTL
 
-; -- Tab 3: Scroll --
+; -- Scroll (General sub-tab 4) --
 Global $__g_CD_idChkScroll, $__g_CD_idChkScrollWrap
 Global $__g_CD_idChkListScroll
 Global $__g_CD_idLblScrollDir, $__g_CD_idLblListAction
 
-; -- Tab 4: Hotkeys --
+; -- Tab 3: Hotkeys --
 Global $__g_CD_idInpHkNext, $__g_CD_idInpHkPrev, $__g_CD_idInpHkToggleList
 Global $__g_CD_aidInpHkDesktop[10] ; index 1-9
 Global $__g_CD_idBtnHkBuild[28]    ; index 0-27 for each hotkey row "..." button
@@ -70,13 +70,13 @@ Global $__g_CD_idComboOverlay = 0
 Global $__g_CD_bDropdownOpen = False
 Global $__g_CD_iSavedHighlight = 0, $__g_CD_iSavedHighlightText = 0
 
-; -- Tab 8: Updates --
+; -- Tab 6: Updates --
 Global $__g_CD_idChkAutoUpdate, $__g_CD_idInpUpdateInterval
 Global $__g_CD_idChkUpdateOnStartup, $__g_CD_idInpUpdateCheckDays
 Global $__g_CD_idBtnCheckNow, $__g_CD_idBtnDownloadLatest
 Global $__g_CD_iContentH = 450
 
-; -- Tab 9: Animations --
+; -- Tab 8: Animations --
 Global $__g_CD_idChkAnimEnabled
 Global $__g_CD_idChkAnimList, $__g_CD_idChkAnimMenus, $__g_CD_idChkAnimDialogs
 Global $__g_CD_idChkAnimToasts, $__g_CD_idChkAnimWidget
@@ -85,30 +85,30 @@ Global $__g_CD_idInpFadeStep, $__g_CD_idInpFadeSleep
 Global $__g_CD_idInpToastFadeOut
 Global $__g_CD_idInpHoverSpeed, $__g_CD_idLblToastPosition
 
-; -- Tab 10: Wallpaper --
+; -- Tab 9: OSD --
 Global $__g_CD_idChkWallpaper, $__g_CD_idInpWallpaperDelay
-Global $__g_CD_aidWallpaperPath[10]   ; index 1-9
-Global $__g_CD_aidWallpaperBrowse[10] ; index 1-9
+Global $__g_CD_aidWallpaperPath[51]   ; index 1-50
+Global $__g_CD_aidWallpaperBrowse[51] ; index 1-50
 
-; -- Tab 11: Window List --
+; -- Tab 10: Window List --
 Global $__g_CD_idChkWLEnabled, $__g_CD_idLblWLPosition
 Global $__g_CD_idInpWLWidth, $__g_CD_idInpWLMaxVisible
 Global $__g_CD_idChkWLIcons, $__g_CD_idChkWLSearch
 Global $__g_CD_idChkWLAutoRefresh, $__g_CD_idInpWLRefreshInterval
 
-; -- Tab 12: Explorer --
+; -- Tab 11: Explorer --
 Global $__g_CD_idChkExplorerMonitor, $__g_CD_idInpExplorerInterval, $__g_CD_idChkExplorerNotify
 Global $__g_CD_idInpShellProcess, $__g_CD_idInpMaxRetries, $__g_CD_idInpRetryDelay
 Global $__g_CD_idChkExpBackoff, $__g_CD_idInpMaxRetryDelay
 Global $__g_CD_idChkAutoRestart, $__g_CD_idInpRestartDelay
 
-; -- Tab 13: Notifications --
+; -- Tab 12: Notifications --
 Global $__g_CD_idChkNotificationsEnabled
 Global $__g_CD_idChkNotifyMoved, $__g_CD_idChkNotifyCreated, $__g_CD_idChkNotifyDeleted, $__g_CD_idChkNotifyPinned
 Global $__g_CD_idChkNotifyUnpinned, $__g_CD_idChkNotifyExplorerRecov, $__g_CD_idChkNotifyExplorerCrash
 Global $__g_CD_idLblWLScope
 
-; -- Tab 13: OSD Toast --
+; -- Tab 9: OSD Toast --
 Global $__g_CD_idChkOsdEnabled = 0
 Global $__g_CD_idChkOsdShowName = 0
 Global $__g_CD_idChkOsdShowNumber = 0
@@ -117,8 +117,9 @@ Global $__g_CD_idCycOsdPosition = 0
 Global $__g_CD_idInpOsdFontSize = 0
 Global $__g_CD_idInpOsdOpacity = 0
 Global $__g_CD_idInpOsdFormat = 0
+Global $__g_CD_idInpOsdWidth = 0
 
-; -- Tab 14: Taskbar Auto-Hide --
+; -- Tab 13: Taskbar Auto-Hide --
 Global $__g_CD_idChkAutoHideSync, $__g_CD_idInpAutoHidePoll
 Global $__g_CD_idInpAutoHideHideDelay, $__g_CD_idInpAutoHideShowDelay
 Global $__g_CD_idChkAutoHideFade, $__g_CD_idInpAutoHideFadeDur
@@ -126,7 +127,7 @@ Global $__g_CD_idChkAutoHideSyncDL, $__g_CD_idChkAutoHideSyncWL
 Global $__g_CD_idInpAutoHideThreshold, $__g_CD_idInpAutoHideRecheck
 Global $__g_CD_idChkAutoHideSkipDialog
 
-; -- Tab 15: Tray --
+; -- Tab 14: Tray --
 Global $__g_CD_idLblTrayLeftClick, $__g_CD_idLblTrayDoubleClick, $__g_CD_idLblTrayMiddleClick
 Global $__g_CD_idChkTrayTooltipLabel, $__g_CD_idChkTrayTooltipCount
 Global $__g_CD_idChkTrayMenuList, $__g_CD_idChkTrayMenuEdit, $__g_CD_idChkTrayMenuAdd
@@ -134,7 +135,7 @@ Global $__g_CD_idChkTrayMenuDelete, $__g_CD_idChkTrayMenuDesktopSub, $__g_CD_idC
 Global $__g_CD_idChkTrayNotifySwitch, $__g_CD_idInpTrayBalloonDur
 Global $__g_CD_idChkTrayCloseToTray
 
-; -- Tab 7: Updates (info labels) --
+; -- Tab 6: Updates (info labels) --
 Global $__g_CD_idLblLastChecked, $__g_CD_idLblNextCheck
 
 ; -- Tab 1 extras: General --
@@ -142,16 +143,26 @@ Global $__g_CD_idChkSingleton, $__g_CD_idChkTaskbarFocus, $__g_CD_idChkAutoFocus
 Global $__g_CD_idChkCapslockMod, $__g_CD_idChkDisableWinWidgets, $__g_CD_idInpMinDesktops, $__g_CD_idInpMaxDesktops
 
 ; -- Tab 1: General sub-tabs --
-Global $__g_CD_idGenSubWidget = 0, $__g_CD_idGenSubDesktop = 0, $__g_CD_idGenSubSystem = 0
+Global $__g_CD_idGenSubWidget = 0, $__g_CD_idGenSubDesktop = 0, $__g_CD_idGenSubSystem = 0, $__g_CD_idGenSubScroll = 0
 Global $__g_CD_aGenWidgetCtrls[50]   ; Widget sub-tab control IDs
 Global $__g_CD_iGenWidgetCount = 0
 Global $__g_CD_aGenDesktopCtrls[50]  ; Desktop sub-tab control IDs
 Global $__g_CD_iGenDesktopCount = 0
 Global $__g_CD_aGenSystemCtrls[50]   ; System sub-tab control IDs
 Global $__g_CD_iGenSystemCount = 0
-Global $__g_CD_iGenActiveSub = 1     ; 1=Widget, 2=Desktop, 3=System
+Global $__g_CD_aGenScrollCtrls[50]   ; Scroll sub-tab control IDs
+Global $__g_CD_iGenScrollCount = 0
+Global $__g_CD_iGenActiveSub = 1     ; 1=Widget, 2=Desktop, 3=System, 4=Scroll
 
-; -- Tab 4 extras: Hotkeys --
+; -- Tab 2: Display sub-tabs --
+Global $__g_CD_idDispSubAppearance = 0, $__g_CD_idDispSubThumbnails = 0
+Global $__g_CD_aDispAppearanceCtrls[50]
+Global $__g_CD_iDispAppearanceCount = 0
+Global $__g_CD_aDispThumbnailsCtrls[50]
+Global $__g_CD_iDispThumbnailsCount = 0
+Global $__g_CD_iDispActiveSub = 1
+
+; -- Tab 3 extras: Hotkeys --
 Global $__g_CD_idInpHkLastDesktop, $__g_CD_idInpHkMoveFollowNext, $__g_CD_idInpHkMoveFollowPrev
 Global $__g_CD_idInpHkMoveToNext, $__g_CD_idInpHkMoveToPrev
 Global $__g_CD_idInpHkSendToNew, $__g_CD_idInpHkPinWindow, $__g_CD_idInpHkToggleWL
@@ -160,7 +171,7 @@ Global $__g_CD_idInpHkAddDesktop, $__g_CD_idInpHkDeleteDesktop, $__g_CD_idInpHkR
 Global $__g_CD_idInpHkCloseWindow, $__g_CD_idInpHkMinimizeWindow
 Global $__g_CD_idInpHkTaskView
 
-; -- Tab 4: Hotkey sub-tabs --
+; -- Tab 3: Hotkey sub-tabs --
 Global $__g_CD_idHkSubNav = 0, $__g_CD_idHkSubWin = 0, $__g_CD_idHkSubDesk = 0
 Global $__g_CD_aHkNavCtrls[50]   ; Navigation sub-tab control IDs
 Global $__g_CD_iHkNavCount = 0
@@ -170,7 +181,7 @@ Global $__g_CD_aHkDeskCtrls[50]  ; Desktops sub-tab control IDs
 Global $__g_CD_iHkDeskCount = 0
 Global $__g_CD_iHkActiveSub = 1  ; 1=Nav, 2=Win, 3=Desk
 
-; -- Tab 5: Behavior --
+; -- Tab 4: Behavior --
 Global $__g_CD_idChkConfirmDel, $__g_CD_idChkMidClick, $__g_CD_idChkMoveWin
 Global $__g_CD_idInpPeekDelay, $__g_CD_idInpAutoHide, $__g_CD_idInpTopmost, $__g_CD_idInpCmDelay
 Global $__g_CD_idChkConfigWatcher, $__g_CD_idInpWatcherInterval
@@ -184,20 +195,20 @@ Global $__g_CD_idInpListFont, $__g_CD_idInpListFontSize, $__g_CD_idInpTooltipFon
 Global $__g_CD_idChkListScrollable, $__g_CD_idInpListMaxVisible, $__g_CD_idInpListScrollSpeed
 Global $__g_CD_idChkDLShowNumbers
 
-; -- Tab 7: Logging --
+; -- Tab 5: Logging --
 Global $__g_CD_idChkLogging, $__g_CD_idInpLogPath, $__g_CD_idBtnLogBrowse, $__g_CD_idLblLogLevel
 Global $__g_CD_idInpLogMaxSize
 Global $__g_CD_idInpLogRotateCount, $__g_CD_idChkLogCompress
 Global $__g_CD_idChkLogPID, $__g_CD_idLblLogDateFormat, $__g_CD_idChkLogFlush
 
-; -- Tab 5: Behavior extras --
+; -- Tab 4: Behavior extras --
 Global $__g_CD_idChkConfirmQuit, $__g_CD_idChkConfirmRestart, $__g_CD_idChkDebugMode
 
-; -- Tab 5: Carousel --
+; -- Tab 4: Carousel --
 Global $__g_CD_idChkCarouselEnabled, $__g_CD_idInpCarouselInterval
 Global $__g_CD_idChkCarouselMenu, $__g_CD_idChkNotifyCarousel
 
-; -- Tab 5: Behavior sub-tabs --
+; -- Tab 4: Behavior sub-tabs --
 Global $__g_CD_idBhvSubInteract = 0, $__g_CD_idBhvSubTimers = 0, $__g_CD_idBhvSubCarousel = 0, $__g_CD_idBhvSubRules = 0
 Global $__g_CD_aBhvInteractCtrls[50]
 Global $__g_CD_iBhvInteractCount = 0
@@ -209,7 +220,7 @@ Global $__g_CD_aBhvRulesCtrls[50]
 Global $__g_CD_iBhvRulesCount = 0
 Global $__g_CD_iBhvActiveSub = 1     ; 1=Interaction, 2=Timers, 3=Carousel, 4=Rules
 
-; -- Tab 5: Rules engine controls --
+; -- Tab 4: Rules engine controls --
 Global $__g_CD_idChkRulesEnabled = 0
 Global $__g_CD_idInpRulesPollInterval = 0
 Global Const $__g_CD_iRuleRowCount = 10
@@ -217,7 +228,7 @@ Global $__g_CD_aidRuleType[11]     ; cycle labels: "Process" / "Class"
 Global $__g_CD_aidRulePattern[11]  ; pattern input fields
 Global $__g_CD_aidRuleDesktop[11]  ; target desktop number inputs
 
-; -- Tab 4: Carousel hotkey --
+; -- Tab 3: Carousel hotkey --
 Global $__g_CD_idInpHkCarousel
 
 ; -- Buttons --
@@ -231,11 +242,18 @@ Global $__g_CD_aChkTexts[100]   ; original text per checkbox
 Global $__g_CD_iChkCount = 0
 Global $__g_CD_hBrushCombo = 0 ; GDI brush for combo dropdown theming
 
-; -- Tab 9: Desktops --
-Global $__g_CD_aidDeskLabel[21]   ; input fields for desktop labels, index 1-20
-Global $__g_CD_aidDeskColor[21]   ; input fields for desktop colors, index 1-20
-Global $__g_CD_aidDeskPreview[21] ; color preview labels, index 1-20
+; -- Tab 7: Desktops --
+Global $__g_CD_aidDeskLabel[51]   ; input fields for desktop labels, index 1-50
+Global $__g_CD_aidDeskColor[51]   ; input fields for desktop colors, index 1-50
+Global $__g_CD_aidDeskPreview[51] ; color preview labels, index 1-50
+Global $__g_CD_aidDeskNum[51]     ; desktop number labels, index 1-50
 Global $__g_CD_iDeskCount = 0     ; how many desktop rows were created
+
+; -- Desktops tab pagination --
+Global $__g_CD_iDeskPage = 1         ; current page (1-based)
+Global $__g_CD_iDeskPageCount = 1    ; total pages
+Global Const $__g_CD_DESK_PER_PAGE = 15
+Global $__g_CD_aidDeskPageBtn[6]     ; page sub-tab buttons, index 1-5 (up to 50 desktops / 10 per page)
 
 ; -- Reset button --
 Global $__g_CD_idBtnReset
@@ -259,13 +277,13 @@ Func _CD_Show()
     ; Reset state
     $__g_CD_iChkCount = 0
     Local $t
-    For $t = 1 To 15
+    For $t = 1 To 14
         $__g_CD_aiTabCtrlCount[$t] = 0
         $__g_CD_aiTabScroll[$t] = 0
         $__g_CD_abTabYInit[$t] = False
     Next
 
-    ; Create custom tab bar (3 rows: 5 + 5 + 3 tabs)
+    ; Create custom tab bar (3 rows: 5 + 5 + 4 tabs)
     Local $aNames = StringSplit($__g_CD_aTabNames, ",")
     Local $iTabW = 102, $iTabH = 22, $iTabX = 10, $iTabY = 8
     Local $iTabsPerRow = 5
@@ -295,14 +313,13 @@ Func _CD_Show()
     ; Build each tab's controls
     __CD_BuildTabGeneral()
     __CD_BuildTabDisplay()
-    __CD_BuildTabScroll()
     __CD_BuildTabHotkeys()
     __CD_BuildTabBehavior()
     __CD_BuildTabLogging()
     __CD_BuildTabUpdates()
     __CD_BuildTabDesktops()
     __CD_BuildTabAnimations()
-    __CD_BuildTabWallpaper()
+    __CD_BuildTabOSD()
     __CD_BuildTabWindowList()
     __CD_BuildTabExplorer()
     __CD_BuildTabNotifications()
@@ -429,7 +446,7 @@ Func __CD_SwitchTab($iTab)
 
     ; Update tab button styles
     Local $t, $c
-    For $t = 1 To 15
+    For $t = 1 To 14
         If $t = $iTab Then
             GUICtrlSetColor($__g_CD_aidTabBtn[$t], $THEME_FG_WHITE)
             GUICtrlSetBkColor($__g_CD_aidTabBtn[$t], $THEME_BG_ACTIVE)
@@ -441,7 +458,7 @@ Func __CD_SwitchTab($iTab)
         EndIf
     Next
     ; Hide all inactive tab controls; show active tab controls
-    For $t = 1 To 15
+    For $t = 1 To 14
         If $t <> $iTab Then
             For $c = 0 To $__g_CD_aiTabCtrlCount[$t] - 1
                 GUICtrlSetState($__g_CD_aidTabCtrls[$t][$c], $GUI_HIDE)
@@ -456,10 +473,11 @@ Func __CD_SwitchTab($iTab)
     ; Unlock window — triggers a single repaint with all changes applied
     DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", 0)
 
-    ; For the Hotkeys tab, apply sub-tab visibility
+    ; For tabs with sub-tabs, apply sub-tab visibility
     If $iTab = 1 Then __CD_SwitchGenSub($__g_CD_iGenActiveSub)
-    If $iTab = 4 Then __CD_SwitchHkSub($__g_CD_iHkActiveSub)
-    If $iTab = 5 Then __CD_SwitchBhvSub($__g_CD_iBhvActiveSub)
+    If $iTab = 2 Then __CD_SwitchDispSub($__g_CD_iDispActiveSub)
+    If $iTab = 3 Then __CD_SwitchHkSub($__g_CD_iHkActiveSub)
+    If $iTab = 4 Then __CD_SwitchBhvSub($__g_CD_iBhvActiveSub)
 EndFunc
 
 Func __CD_RegCtrl($iTab, $idCtrl)
@@ -617,11 +635,12 @@ Func __CD_BuildTabGeneral()
     $__g_CD_iGenWidgetCount = 0
     $__g_CD_iGenDesktopCount = 0
     $__g_CD_iGenSystemCount = 0
+    $__g_CD_iGenScrollCount = 0
     $__g_CD_iGenActiveSub = 1
 
     ; Sub-tab buttons
     Local $iSubY = $iY
-    Local $iSubBtnW = 90
+    Local $iSubBtnW = 80
     Local $iSubGap = 4
 
     $__g_CD_idGenSubWidget = GUICtrlCreateLabel("Widget", $iX, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
@@ -644,6 +663,13 @@ Func __CD_BuildTabGeneral()
     GUICtrlSetBkColor($__g_CD_idGenSubSystem, $THEME_BG_MAIN)
     GUICtrlSetCursor($__g_CD_idGenSubSystem, 0)
     __CD_RegCtrl($t, $__g_CD_idGenSubSystem)
+
+    $__g_CD_idGenSubScroll = GUICtrlCreateLabel("Scroll", $iX + ($iSubBtnW + $iSubGap) * 3, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idGenSubScroll, 7, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idGenSubScroll, $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idGenSubScroll, $THEME_BG_MAIN)
+    GUICtrlSetCursor($__g_CD_idGenSubScroll, 0)
+    __CD_RegCtrl($t, $__g_CD_idGenSubScroll)
 
     $iY += 30 ; space below sub-tabs
     $iContentStartY = $iY
@@ -810,28 +836,101 @@ Func __CD_BuildTabGeneral()
     _Theme_SetTooltip($__g_CD_idChkDisableWinWidgets, _i18n("Settings.General.tip_disable_widgets", "Hide the Windows 11 Widgets button from the taskbar to free up space"))
     __CD_RegGenSub(3, $__g_CD_idChkDisableWinWidgets)
 
+    ; ========================================
+    ; Sub-tab 4: Scroll
+    ; ========================================
+    $iY = $iContentStartY
+
+    $__g_CD_idChkScroll = __CD_CreateCheckbox(_i18n("Settings.Scroll.chk_scroll_enabled", "Scroll wheel on widget"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkScroll, _i18n("Settings.Scroll.tip_scroll_enabled", "Use mouse wheel on the widget to cycle desktops"))
+    __CD_RegGenSub(4, $__g_CD_idChkScroll)
+    $iY += 26
+    $__g_CD_idLblScrollDir = __CD_CreateCycleLabel(_i18n("Settings.Scroll.lbl_scroll_dir", "Direction:"), $iX + 20, $iY, 145, 90, $t)
+    _Theme_SetTooltip($__g_CD_idLblScrollDir, _i18n("Settings.Scroll.tip_scroll_dir", "Click to toggle: normal or inverted scroll direction"))
+    __CD_RegGenSub(4, $__g_CD_idLblScrollDir - 1)
+    __CD_RegGenSub(4, $__g_CD_idLblScrollDir)
+    $iY += 26
+    $__g_CD_idChkScrollWrap = __CD_CreateCheckbox(_i18n("Settings.Scroll.chk_scroll_wrap", "Wrap at ends"), $iX + 20, $iY, 280, $t)
+    _Theme_SetTooltip($__g_CD_idChkScrollWrap, _i18n("Settings.Scroll.tip_scroll_wrap", "Scroll past last desktop wraps to first"))
+    __CD_RegGenSub(4, $__g_CD_idChkScrollWrap)
+    $iY += 34
+    $__g_CD_idChkListScroll = __CD_CreateCheckbox(_i18n("Settings.Scroll.chk_list_scroll", "Scroll on desktop list"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkListScroll, _i18n("Settings.Scroll.tip_list_scroll", "Use mouse wheel on the desktop list panel"))
+    __CD_RegGenSub(4, $__g_CD_idChkListScroll)
+    $iY += 26
+    Local $idLblLA = GUICtrlCreateLabel(_i18n("Settings.Scroll.lbl_list_scroll_action", "List action:"), $iX + 20, $iY + 2, 145, 18)
+    GUICtrlSetFont($idLblLA, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblLA, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblLA, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblLA)
+    __CD_RegGenSub(4, $idLblLA)
+    $__g_CD_idLblListAction = GUICtrlCreateCombo("", $iX + 20 + 145, $iY, 90, 22, 0x0003) ; CBS_DROPDOWNLIST
+    GUICtrlSetFont($__g_CD_idLblListAction, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idLblListAction, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idLblListAction, $THEME_BG_INPUT)
+    GUICtrlSetCursor($__g_CD_idLblListAction, 0)
+    __CD_RegCtrl($t, $__g_CD_idLblListAction)
+    __CD_RegGenSub(4, $__g_CD_idLblListAction)
+    _Theme_SetTooltip($__g_CD_idLblListAction, _i18n("Settings.Scroll.tip_list_scroll_action", "Select action: 'switch' changes desktops, 'scroll' scrolls the list"))
+
     ; Apply initial sub-tab visibility
     __CD_SwitchGenSub(1)
 EndFunc
 
 Func __CD_BuildTabDisplay()
     Local $t = 2, $iX = 20, $iY = 94
+    Local $idLbl, $iContentStartY
+
+    ; Reset sub-tab tracking
+    $__g_CD_iDispAppearanceCount = 0
+    $__g_CD_iDispThumbnailsCount = 0
+    $__g_CD_iDispActiveSub = 1
+
+    ; Sub-tab buttons
+    Local $iSubY = $iY
+    Local $iSubBtnW = 90
+    Local $iSubGap = 4
+
+    $__g_CD_idDispSubAppearance = GUICtrlCreateLabel("Appearance", $iX, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idDispSubAppearance, 7, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idDispSubAppearance, $THEME_FG_WHITE)
+    GUICtrlSetBkColor($__g_CD_idDispSubAppearance, $THEME_BG_ACTIVE)
+    GUICtrlSetCursor($__g_CD_idDispSubAppearance, 0)
+    __CD_RegCtrl($t, $__g_CD_idDispSubAppearance)
+
+    $__g_CD_idDispSubThumbnails = GUICtrlCreateLabel("Thumbnails", $iX + $iSubBtnW + $iSubGap, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idDispSubThumbnails, 7, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idDispSubThumbnails, $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idDispSubThumbnails, $THEME_BG_MAIN)
+    GUICtrlSetCursor($__g_CD_idDispSubThumbnails, 0)
+    __CD_RegCtrl($t, $__g_CD_idDispSubThumbnails)
+
+    $iY += 30 ; space below sub-tabs
+    $iContentStartY = $iY
+
+    ; ========================================
+    ; Sub-tab 1: Appearance
+    ; ========================================
+    $iY = $iContentStartY
 
     $__g_CD_idChkShowCount = __CD_CreateCheckbox(_i18n("Settings.Display.chk_show_count", "Show desktop count (2/5)"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkShowCount, _i18n("Settings.Display.tip_show_count", "Show total count next to current number (e.g. '2/5')"))
+    __CD_RegDispSub(1, $__g_CD_idChkShowCount)
     $iY += 34
 
-    Local $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_count_font", "Count font size:"), $iX, $iY + 2, 165, 18)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_count_font", "Count font size:"), $iX, $iY + 2, 165, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $idLbl)
+    __CD_RegDispSub(1, $idLbl)
     $__g_CD_idInpCountFont = GUICtrlCreateInput("", $iX + 170, $iY, 50, 22, $ES_NUMBER)
     GUICtrlSetFont($__g_CD_idInpCountFont, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpCountFont, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpCountFont, $THEME_BG_INPUT)
     _Theme_FlattenInput($__g_CD_idInpCountFont)
     __CD_RegCtrl($t, $__g_CD_idInpCountFont)
+    __CD_RegDispSub(1, $__g_CD_idInpCountFont)
     _Theme_SetTooltip($__g_CD_idInpCountFont, _i18n("Settings.Display.tip_count_font", "Font size for the desktop number on the widget"))
     $iY += 30
 
@@ -840,12 +939,14 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $idLbl)
+    __CD_RegDispSub(1, $idLbl)
     $__g_CD_idInpOpacity = GUICtrlCreateInput("", $iX + 170, $iY, 50, 22, $ES_NUMBER)
     GUICtrlSetFont($__g_CD_idInpOpacity, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpOpacity, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpOpacity, $THEME_BG_INPUT)
     _Theme_FlattenInput($__g_CD_idInpOpacity)
     __CD_RegCtrl($t, $__g_CD_idInpOpacity)
+    __CD_RegDispSub(1, $__g_CD_idInpOpacity)
     _Theme_SetTooltip($__g_CD_idInpOpacity, _i18n("Settings.Display.tip_opacity", "Widget transparency (50 = very transparent, 255 = fully opaque)"))
     $iY += 30
 
@@ -854,12 +955,14 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($idLblTheme, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLblTheme, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $idLblTheme)
+    __CD_RegDispSub(1, $idLblTheme)
     $__g_CD_idLblTheme = GUICtrlCreateCombo("", $iX + 165, $iY, 90, 22, 0x0003) ; CBS_DROPDOWNLIST
     GUICtrlSetFont($__g_CD_idLblTheme, 9, 400, 0, $THEME_FONT_MONO)
     GUICtrlSetColor($__g_CD_idLblTheme, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idLblTheme, $THEME_BG_INPUT)
     GUICtrlSetCursor($__g_CD_idLblTheme, 0)
     __CD_RegCtrl($t, $__g_CD_idLblTheme)
+    __CD_RegDispSub(1, $__g_CD_idLblTheme)
     _Theme_SetTooltip($__g_CD_idLblTheme, _i18n("Settings.Display.tip_theme", "Select color scheme (requires restart)"))
     $iY += 26
 
@@ -868,56 +971,7 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($idThemeHint, $THEME_FG_LABEL)
     GUICtrlSetBkColor($idThemeHint, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $idThemeHint)
-    $iY += 30
-
-    $__g_CD_idChkThumbnails = __CD_CreateCheckbox(_i18n("Settings.Display.chk_thumbnails", "Show desktop thumbnails on hover"), $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkThumbnails, _i18n("Settings.Display.tip_thumbnails", "Show a preview popup with window list when hovering a desktop"))
-    $iY += 34
-
-    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_thumb_width", "Thumbnail width (px):"), $iX, $iY + 2, 165, 18)
-    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
-    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
-    __CD_RegCtrl($t, $idLbl)
-    $__g_CD_idInpThumbW = GUICtrlCreateInput("", $iX + 170, $iY, 50, 22, $ES_NUMBER)
-    GUICtrlSetFont($__g_CD_idInpThumbW, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idInpThumbW, $THEME_FG_TEXT)
-    GUICtrlSetBkColor($__g_CD_idInpThumbW, $THEME_BG_INPUT)
-    _Theme_FlattenInput($__g_CD_idInpThumbW)
-    __CD_RegCtrl($t, $__g_CD_idInpThumbW)
-    _Theme_SetTooltip($__g_CD_idInpThumbW, _i18n("Settings.Display.tip_thumb_width", "Size of the thumbnail preview popup in pixels"))
-    $iY += 30
-
-    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_thumb_height", "Thumbnail height (px):"), $iX, $iY + 2, 165, 18)
-    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
-    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
-    __CD_RegCtrl($t, $idLbl)
-    $__g_CD_idInpThumbH = GUICtrlCreateInput("", $iX + 170, $iY, 50, 22, $ES_NUMBER)
-    GUICtrlSetFont($__g_CD_idInpThumbH, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idInpThumbH, $THEME_FG_TEXT)
-    GUICtrlSetBkColor($__g_CD_idInpThumbH, $THEME_BG_INPUT)
-    _Theme_FlattenInput($__g_CD_idInpThumbH)
-    __CD_RegCtrl($t, $__g_CD_idInpThumbH)
-    _Theme_SetTooltip($__g_CD_idInpThumbH, _i18n("Settings.Display.tip_thumb_height", "Size of the thumbnail preview popup in pixels"))
-    $iY += 30
-
-    $__g_CD_idChkThumbScreenshot = __CD_CreateCheckbox(_i18n("Settings.Display.chk_thumb_screenshot", "Use real desktop screenshots"), $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkThumbScreenshot, _i18n("Settings.Display.tip_thumb_screenshot", "Capture actual desktop screenshots instead of text preview (briefly switches desktops)"))
-    $iY += 34
-
-    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_thumb_cache_ttl", "Screenshot cache TTL (s):"), $iX, $iY + 2, 165, 18)
-    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
-    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
-    __CD_RegCtrl($t, $idLbl)
-    $__g_CD_idInpThumbCacheTTL = GUICtrlCreateInput("", $iX + 170, $iY, 50, 22, $ES_NUMBER)
-    GUICtrlSetFont($__g_CD_idInpThumbCacheTTL, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idInpThumbCacheTTL, $THEME_FG_TEXT)
-    GUICtrlSetBkColor($__g_CD_idInpThumbCacheTTL, $THEME_BG_INPUT)
-    _Theme_FlattenInput($__g_CD_idInpThumbCacheTTL)
-    __CD_RegCtrl($t, $__g_CD_idInpThumbCacheTTL)
-    _Theme_SetTooltip($__g_CD_idInpThumbCacheTTL, _i18n("Settings.Display.tip_thumb_cache_ttl", "How many seconds before cached screenshots expire (5-300)"))
+    __CD_RegDispSub(1, $idThemeHint)
     $iY += 30
 
     $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_list_font", "List font name:"), $iX, $iY + 2, 165, 18)
@@ -925,12 +979,14 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $idLbl)
+    __CD_RegDispSub(1, $idLbl)
     $__g_CD_idInpListFont = GUICtrlCreateInput("", $iX + 170, $iY, 200, 22)
     GUICtrlSetFont($__g_CD_idInpListFont, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpListFont, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpListFont, $THEME_BG_INPUT)
     _Theme_FlattenInput($__g_CD_idInpListFont)
     __CD_RegCtrl($t, $__g_CD_idInpListFont)
+    __CD_RegDispSub(1, $__g_CD_idInpListFont)
     _Theme_SetTooltip($__g_CD_idInpListFont, _i18n("Settings.Display.tip_list_font", "Font for desktop list items (empty = default Fira Code/Consolas)"))
     $iY += 30
 
@@ -939,21 +995,25 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $idLbl)
+    __CD_RegDispSub(1, $idLbl)
     $__g_CD_idInpListFontSize = GUICtrlCreateInput("", $iX + 170, $iY, 50, 22, $ES_NUMBER)
     GUICtrlSetFont($__g_CD_idInpListFontSize, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpListFontSize, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpListFontSize, $THEME_BG_INPUT)
     _Theme_FlattenInput($__g_CD_idInpListFontSize)
     __CD_RegCtrl($t, $__g_CD_idInpListFontSize)
+    __CD_RegDispSub(1, $__g_CD_idInpListFontSize)
     _Theme_SetTooltip($__g_CD_idInpListFontSize, _i18n("Settings.Display.tip_list_font_size", "Font size for desktop list items"))
     $iY += 34
 
     $__g_CD_idChkDLShowNumbers = __CD_CreateCheckbox(_i18n("Settings.Display.chk_dl_numbers", "Show desktop numbers in list"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkDLShowNumbers, _i18n("Settings.Display.tip_dl_numbers", "Show desktop number prefix (1, 2, 3...) in the desktop list"))
+    __CD_RegDispSub(1, $__g_CD_idChkDLShowNumbers)
     $iY += 26
 
     $__g_CD_idChkListScrollable = __CD_CreateCheckbox(_i18n("Settings.Display.chk_list_scrollable", "Scrollable desktop list"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkListScrollable, _i18n("Settings.Display.tip_list_scrollable", "Enable scrolling when many desktops (shows scroll arrows)"))
+    __CD_RegDispSub(1, $__g_CD_idChkListScrollable)
     $iY += 30
 
     $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_list_max_visible", "Max visible items (3-30):"), $iX + 20, $iY + 2, 165, 18)
@@ -961,12 +1021,14 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $idLbl)
+    __CD_RegDispSub(1, $idLbl)
     $__g_CD_idInpListMaxVisible = GUICtrlCreateInput("", $iX + 190, $iY, 50, 22, $ES_NUMBER)
     GUICtrlSetFont($__g_CD_idInpListMaxVisible, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpListMaxVisible, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpListMaxVisible, $THEME_BG_INPUT)
     _Theme_FlattenInput($__g_CD_idInpListMaxVisible)
     __CD_RegCtrl($t, $__g_CD_idInpListMaxVisible)
+    __CD_RegDispSub(1, $__g_CD_idInpListMaxVisible)
     _Theme_SetTooltip($__g_CD_idInpListMaxVisible, _i18n("Settings.Display.tip_list_max_visible", "Maximum items visible before scrolling activates"))
     $iY += 30
 
@@ -975,12 +1037,14 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $idLbl)
+    __CD_RegDispSub(1, $idLbl)
     $__g_CD_idInpListScrollSpeed = GUICtrlCreateInput("", $iX + 190, $iY, 50, 22, $ES_NUMBER)
     GUICtrlSetFont($__g_CD_idInpListScrollSpeed, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpListScrollSpeed, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpListScrollSpeed, $THEME_BG_INPUT)
     _Theme_FlattenInput($__g_CD_idInpListScrollSpeed)
     __CD_RegCtrl($t, $__g_CD_idInpListScrollSpeed)
+    __CD_RegDispSub(1, $__g_CD_idInpListScrollSpeed)
     _Theme_SetTooltip($__g_CD_idInpListScrollSpeed, _i18n("Settings.Display.tip_list_scroll_speed", "Number of items to scroll per step"))
     $iY += 30
 
@@ -989,46 +1053,84 @@ Func __CD_BuildTabDisplay()
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $idLbl)
+    __CD_RegDispSub(1, $idLbl)
     $__g_CD_idInpTooltipFontSize = GUICtrlCreateInput("", $iX + 190, $iY, 50, 22, $ES_NUMBER)
     GUICtrlSetFont($__g_CD_idInpTooltipFontSize, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idInpTooltipFontSize, $THEME_FG_TEXT)
     GUICtrlSetBkColor($__g_CD_idInpTooltipFontSize, $THEME_BG_INPUT)
     _Theme_FlattenInput($__g_CD_idInpTooltipFontSize)
     __CD_RegCtrl($t, $__g_CD_idInpTooltipFontSize)
+    __CD_RegDispSub(1, $__g_CD_idInpTooltipFontSize)
     _Theme_SetTooltip($__g_CD_idInpTooltipFontSize, _i18n("Settings.Display.tip_tooltip_font", "Font size for dark-themed tooltips"))
-EndFunc
 
-Func __CD_BuildTabScroll()
-    Local $t = 3, $iX = 20, $iY = 94
+    ; ========================================
+    ; Sub-tab 2: Thumbnails
+    ; ========================================
+    $iY = $iContentStartY
 
-    $__g_CD_idChkScroll = __CD_CreateCheckbox(_i18n("Settings.Scroll.chk_scroll_enabled", "Scroll wheel on widget"), $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkScroll, _i18n("Settings.Scroll.tip_scroll_enabled", "Use mouse wheel on the widget to cycle desktops"))
-    $iY += 26
-    $__g_CD_idLblScrollDir = __CD_CreateCycleLabel(_i18n("Settings.Scroll.lbl_scroll_dir", "Direction:"), $iX + 20, $iY, 145, 90, $t)
-    _Theme_SetTooltip($__g_CD_idLblScrollDir, _i18n("Settings.Scroll.tip_scroll_dir", "Click to toggle: normal or inverted scroll direction"))
-    $iY += 26
-    $__g_CD_idChkScrollWrap = __CD_CreateCheckbox(_i18n("Settings.Scroll.chk_scroll_wrap", "Wrap at ends"), $iX + 20, $iY, 280, $t)
-    _Theme_SetTooltip($__g_CD_idChkScrollWrap, _i18n("Settings.Scroll.tip_scroll_wrap", "Scroll past last desktop wraps to first"))
+    $__g_CD_idChkThumbnails = __CD_CreateCheckbox(_i18n("Settings.Display.chk_thumbnails", "Show desktop thumbnails on hover"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkThumbnails, _i18n("Settings.Display.tip_thumbnails", "Show a preview popup with window list when hovering a desktop"))
+    __CD_RegDispSub(2, $__g_CD_idChkThumbnails)
     $iY += 34
-    $__g_CD_idChkListScroll = __CD_CreateCheckbox(_i18n("Settings.Scroll.chk_list_scroll", "Scroll on desktop list"), $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkListScroll, _i18n("Settings.Scroll.tip_list_scroll", "Use mouse wheel on the desktop list panel"))
-    $iY += 26
-    Local $idLblLA = GUICtrlCreateLabel(_i18n("Settings.Scroll.lbl_list_scroll_action", "List action:"), $iX + 20, $iY + 2, 145, 18)
-    GUICtrlSetFont($idLblLA, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idLblLA, $THEME_FG_DIM)
-    GUICtrlSetBkColor($idLblLA, $GUI_BKCOLOR_TRANSPARENT)
-    __CD_RegCtrl($t, $idLblLA)
-    $__g_CD_idLblListAction = GUICtrlCreateCombo("", $iX + 20 + 145, $iY, 90, 22, 0x0003) ; CBS_DROPDOWNLIST
-    GUICtrlSetFont($__g_CD_idLblListAction, 9, 400, 0, $THEME_FONT_MONO)
-    GUICtrlSetColor($__g_CD_idLblListAction, $THEME_FG_TEXT)
-    GUICtrlSetBkColor($__g_CD_idLblListAction, $THEME_BG_INPUT)
-    GUICtrlSetCursor($__g_CD_idLblListAction, 0)
-    __CD_RegCtrl($t, $__g_CD_idLblListAction)
-    _Theme_SetTooltip($__g_CD_idLblListAction, _i18n("Settings.Scroll.tip_list_scroll_action", "Select action: 'switch' changes desktops, 'scroll' scrolls the list"))
+
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_thumb_width", "Thumbnail width (px):"), $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegDispSub(2, $idLbl)
+    $__g_CD_idInpThumbW = GUICtrlCreateInput("", $iX + 170, $iY, 50, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpThumbW, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpThumbW, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpThumbW, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpThumbW)
+    __CD_RegCtrl($t, $__g_CD_idInpThumbW)
+    __CD_RegDispSub(2, $__g_CD_idInpThumbW)
+    _Theme_SetTooltip($__g_CD_idInpThumbW, _i18n("Settings.Display.tip_thumb_width", "Size of the thumbnail preview popup in pixels"))
+    $iY += 30
+
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_thumb_height", "Thumbnail height (px):"), $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegDispSub(2, $idLbl)
+    $__g_CD_idInpThumbH = GUICtrlCreateInput("", $iX + 170, $iY, 50, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpThumbH, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpThumbH, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpThumbH, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpThumbH)
+    __CD_RegCtrl($t, $__g_CD_idInpThumbH)
+    __CD_RegDispSub(2, $__g_CD_idInpThumbH)
+    _Theme_SetTooltip($__g_CD_idInpThumbH, _i18n("Settings.Display.tip_thumb_height", "Size of the thumbnail preview popup in pixels"))
+    $iY += 30
+
+    $__g_CD_idChkThumbScreenshot = __CD_CreateCheckbox(_i18n("Settings.Display.chk_thumb_screenshot", "Use real desktop screenshots"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkThumbScreenshot, _i18n("Settings.Display.tip_thumb_screenshot", "Capture actual desktop screenshots instead of text preview (briefly switches desktops)"))
+    __CD_RegDispSub(2, $__g_CD_idChkThumbScreenshot)
+    $iY += 34
+
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Display.lbl_thumb_cache_ttl", "Screenshot cache TTL (s):"), $iX, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegDispSub(2, $idLbl)
+    $__g_CD_idInpThumbCacheTTL = GUICtrlCreateInput("", $iX + 170, $iY, 50, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpThumbCacheTTL, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpThumbCacheTTL, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpThumbCacheTTL, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpThumbCacheTTL)
+    __CD_RegCtrl($t, $__g_CD_idInpThumbCacheTTL)
+    __CD_RegDispSub(2, $__g_CD_idInpThumbCacheTTL)
+    _Theme_SetTooltip($__g_CD_idInpThumbCacheTTL, _i18n("Settings.Display.tip_thumb_cache_ttl", "How many seconds before cached screenshots expire (5-300)"))
+
+    ; Apply initial sub-tab visibility
+    __CD_SwitchDispSub(1)
 EndFunc
 
 Func __CD_BuildTabHotkeys()
-    Local $t = 4, $iX = 20, $iY = 94
+    Local $t = 3, $iX = 20, $iY = 94
     Local $iLblW = 100, $iInpW = 130, $iBtnBuildW = 24, $i
     Local $idLbl, $iContentStartY
 
@@ -1684,6 +1786,9 @@ Func __CD_RegGenSub($iSub, $idCtrl)
         Case 3
             $__g_CD_aGenSystemCtrls[$__g_CD_iGenSystemCount] = $idCtrl
             $__g_CD_iGenSystemCount += 1
+        Case 4
+            $__g_CD_aGenScrollCtrls[$__g_CD_iGenScrollCount] = $idCtrl
+            $__g_CD_iGenScrollCount += 1
     EndSwitch
 EndFunc
 
@@ -1709,6 +1814,13 @@ Func __CD_SwitchGenSub($iSub)
             GUICtrlSetState($__g_CD_aGenSystemCtrls[$i], $GUI_SHOW)
         Else
             GUICtrlSetState($__g_CD_aGenSystemCtrls[$i], $GUI_HIDE)
+        EndIf
+    Next
+    For $i = 0 To $__g_CD_iGenScrollCount - 1
+        If $iSub = 4 Then
+            GUICtrlSetState($__g_CD_aGenScrollCtrls[$i], $GUI_SHOW)
+        Else
+            GUICtrlSetState($__g_CD_aGenScrollCtrls[$i], $GUI_HIDE)
         EndIf
     Next
     ; Update sub-tab button styles
@@ -1738,6 +1850,64 @@ Func __CD_SwitchGenSub($iSub)
         GUICtrlSetColor($__g_CD_idGenSubSystem, $THEME_FG_DIM)
         GUICtrlSetBkColor($__g_CD_idGenSubSystem, $THEME_BG_MAIN)
         GUICtrlSetFont($__g_CD_idGenSubSystem, 7, 400, 0, $THEME_FONT_MAIN)
+    EndIf
+    If $iSub = 4 Then
+        GUICtrlSetColor($__g_CD_idGenSubScroll, $THEME_FG_WHITE)
+        GUICtrlSetBkColor($__g_CD_idGenSubScroll, $THEME_BG_ACTIVE)
+        GUICtrlSetFont($__g_CD_idGenSubScroll, 7, 700, 0, $THEME_FONT_MAIN)
+    Else
+        GUICtrlSetColor($__g_CD_idGenSubScroll, $THEME_FG_DIM)
+        GUICtrlSetBkColor($__g_CD_idGenSubScroll, $THEME_BG_MAIN)
+        GUICtrlSetFont($__g_CD_idGenSubScroll, 7, 400, 0, $THEME_FONT_MAIN)
+    EndIf
+EndFunc
+
+Func __CD_RegDispSub($iSub, $idCtrl)
+    Switch $iSub
+        Case 1
+            $__g_CD_aDispAppearanceCtrls[$__g_CD_iDispAppearanceCount] = $idCtrl
+            $__g_CD_iDispAppearanceCount += 1
+        Case 2
+            $__g_CD_aDispThumbnailsCtrls[$__g_CD_iDispThumbnailsCount] = $idCtrl
+            $__g_CD_iDispThumbnailsCount += 1
+    EndSwitch
+EndFunc
+
+Func __CD_SwitchDispSub($iSub)
+    $__g_CD_iDispActiveSub = $iSub
+    Local $i
+    For $i = 0 To $__g_CD_iDispAppearanceCount - 1
+        If $iSub = 1 Then
+            GUICtrlSetState($__g_CD_aDispAppearanceCtrls[$i], $GUI_SHOW)
+        Else
+            GUICtrlSetState($__g_CD_aDispAppearanceCtrls[$i], $GUI_HIDE)
+        EndIf
+    Next
+    For $i = 0 To $__g_CD_iDispThumbnailsCount - 1
+        If $iSub = 2 Then
+            GUICtrlSetState($__g_CD_aDispThumbnailsCtrls[$i], $GUI_SHOW)
+        Else
+            GUICtrlSetState($__g_CD_aDispThumbnailsCtrls[$i], $GUI_HIDE)
+        EndIf
+    Next
+    ; Update sub-tab button styles
+    If $iSub = 1 Then
+        GUICtrlSetColor($__g_CD_idDispSubAppearance, $THEME_FG_WHITE)
+        GUICtrlSetBkColor($__g_CD_idDispSubAppearance, $THEME_BG_ACTIVE)
+        GUICtrlSetFont($__g_CD_idDispSubAppearance, 7, 700, 0, $THEME_FONT_MAIN)
+    Else
+        GUICtrlSetColor($__g_CD_idDispSubAppearance, $THEME_FG_DIM)
+        GUICtrlSetBkColor($__g_CD_idDispSubAppearance, $THEME_BG_MAIN)
+        GUICtrlSetFont($__g_CD_idDispSubAppearance, 7, 400, 0, $THEME_FONT_MAIN)
+    EndIf
+    If $iSub = 2 Then
+        GUICtrlSetColor($__g_CD_idDispSubThumbnails, $THEME_FG_WHITE)
+        GUICtrlSetBkColor($__g_CD_idDispSubThumbnails, $THEME_BG_ACTIVE)
+        GUICtrlSetFont($__g_CD_idDispSubThumbnails, 7, 700, 0, $THEME_FONT_MAIN)
+    Else
+        GUICtrlSetColor($__g_CD_idDispSubThumbnails, $THEME_FG_DIM)
+        GUICtrlSetBkColor($__g_CD_idDispSubThumbnails, $THEME_BG_MAIN)
+        GUICtrlSetFont($__g_CD_idDispSubThumbnails, 7, 400, 0, $THEME_FONT_MAIN)
     EndIf
 EndFunc
 
@@ -1829,7 +1999,7 @@ Func __CD_SwitchBhvSub($iSub)
 EndFunc
 
 Func __CD_BuildTabBehavior()
-    Local $t = 5, $iX = 20, $iY = 94
+    Local $t = 4, $iX = 20, $iY = 94
     Local $idLbl, $iContentStartY
 
     ; Reset sub-tab tracking
@@ -2159,7 +2329,7 @@ EndFunc
 
 
 Func __CD_BuildTabLogging()
-    Local $t = 6, $iX = 20, $iY = 94
+    Local $t = 5, $iX = 20, $iY = 94
 
     $__g_CD_idChkLogging = __CD_CreateCheckbox(_i18n("Settings.Logging.chk_logging", "Enable logging"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkLogging, _i18n("Settings.Logging.tip_logging", "Write debug information to a log file for troubleshooting"))
@@ -2254,7 +2424,7 @@ Func __CD_BuildTabLogging()
 EndFunc
 
 Func __CD_BuildTabUpdates()
-    Local $t = 7, $iX = 20, $iY = 94
+    Local $t = 6, $iX = 20, $iY = 94
 
     ; Current version display
     Local $idVerLbl = GUICtrlCreateLabel(_i18n_Format("Settings.Updates.lbl_current_version", "Current version: v{1}", $APP_VERSION), $iX, $iY, 300, 18)
@@ -2340,40 +2510,105 @@ Func __CD_BuildTabUpdates()
 EndFunc
 
 Func __CD_BuildTabDesktops()
-    Local $t = 8, $iX = 20, $iY = 94
+    Local $t = 7, $iX = 20, $iY = 94
+    Local $idLbl
 
-    ; Enable desktop colors checkbox (moved from removed Colors tab)
-    $__g_CD_idChkColorsEnabled = __CD_CreateCheckbox(_i18n("Settings.Desktops.chk_colors_enabled", "Enable desktop colors"), $iX, $iY, 300, $t)
+    ; Enable toggles side by side
+    $__g_CD_idChkColorsEnabled = __CD_CreateCheckbox(_i18n("Settings.Desktops.chk_colors_enabled", "Enable desktop colors"), $iX, $iY, 220, $t)
     _Theme_SetTooltip($__g_CD_idChkColorsEnabled, _i18n("Settings.Desktops.tip_colors_enabled", "Show colored indicators next to desktop names in the list"))
-    $iY += 28
 
-    ; Get current desktop count, limit to what fits in content area
+    $__g_CD_idChkWallpaper = __CD_CreateCheckbox(_i18n("Settings.Wallpaper.chk_wallpaper_enabled", "Enable wallpaper"), $iX + 230, $iY, 200, $t)
+    _Theme_SetTooltip($__g_CD_idChkWallpaper, _i18n("Settings.Wallpaper.tip_wallpaper_enabled", "Automatically change wallpaper when switching desktops"))
+    $iY += 26
+
+    ; Wallpaper delay
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Wallpaper.lbl_wallpaper_delay", "Change delay (ms):"), $iX, $iY + 2, 130, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpWallpaperDelay = GUICtrlCreateInput("", $iX + 135, $iY, 55, 20, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpWallpaperDelay, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpWallpaperDelay, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpWallpaperDelay, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpWallpaperDelay)
+    __CD_RegCtrl($t, $__g_CD_idInpWallpaperDelay)
+    _Theme_SetTooltip($__g_CD_idInpWallpaperDelay, _i18n("Settings.Wallpaper.tip_wallpaper_delay", "Delay before applying wallpaper after switching (ms)"))
+    $iY += 26
+
+    ; Desktop count and pagination
     Local $iCount = _VD_GetCount()
-    Local $iMaxRows = Int(($__g_CD_iContentH - 100) / 24) ; 100px for checkbox + header + padding
-    If $iMaxRows < 3 Then $iMaxRows = 3
-    If $iCount > $iMaxRows Then $iCount = $iMaxRows
-    If $iCount > 20 Then $iCount = 20
+    If $iCount > 50 Then $iCount = 50
     $__g_CD_iDeskCount = $iCount
+    $__g_CD_iDeskPageCount = Ceiling($iCount / $__g_CD_DESK_PER_PAGE)
+    If $__g_CD_iDeskPageCount < 1 Then $__g_CD_iDeskPageCount = 1
+    $__g_CD_iDeskPage = 1
 
-    ; Header
-    Local $idHdr = GUICtrlCreateLabel(_i18n("Settings.Desktops.lbl_desktop_header", "Desktop    Label                     Color"), $iX, $iY, 400, 16)
+    ; Page sub-tab buttons (only if more than 10 desktops)
+    If $__g_CD_iDeskPageCount > 1 Then
+        Local $iPageBtnW = 55, $iPageGap = 4
+        Local $p
+        For $p = 1 To $__g_CD_iDeskPageCount
+            Local $iFrom = ($p - 1) * $__g_CD_DESK_PER_PAGE + 1
+            Local $iTo = $p * $__g_CD_DESK_PER_PAGE
+            If $iTo > $iCount Then $iTo = $iCount
+            Local $sBtnText = $iFrom & "-" & $iTo
+            $__g_CD_aidDeskPageBtn[$p] = GUICtrlCreateLabel($sBtnText, $iX + ($iPageBtnW + $iPageGap) * ($p - 1), $iY, $iPageBtnW, 18, _
+                BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+            GUICtrlSetFont($__g_CD_aidDeskPageBtn[$p], 7, ($p = 1) ? 700 : 400, 0, $THEME_FONT_MAIN)
+            GUICtrlSetColor($__g_CD_aidDeskPageBtn[$p], ($p = 1) ? $THEME_FG_WHITE : $THEME_FG_DIM)
+            GUICtrlSetBkColor($__g_CD_aidDeskPageBtn[$p], ($p = 1) ? $THEME_BG_ACTIVE : $THEME_BG_MAIN)
+            GUICtrlSetCursor($__g_CD_aidDeskPageBtn[$p], 0)
+            __CD_RegCtrl($t, $__g_CD_aidDeskPageBtn[$p])
+        Next
+        $iY += 22
+    EndIf
+
+    ; Column headers
+    ;   #(22) Label(130) Color(55) [■](16) Wallpaper(180) [...](24)
+    Local $idHdr
+    $idHdr = GUICtrlCreateLabel("#", $iX, $iY, 20, 14)
     GUICtrlSetFont($idHdr, 7, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idHdr, $THEME_FG_DIM)
     GUICtrlSetBkColor($idHdr, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $idHdr)
-    $iY += 20
 
+    $idHdr = GUICtrlCreateLabel(_i18n("Settings.Desktops.col_label", "Label"), $iX + 24, $iY, 128, 14)
+    GUICtrlSetFont($idHdr, 7, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idHdr, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idHdr, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idHdr)
+
+    $idHdr = GUICtrlCreateLabel(_i18n("Settings.Desktops.col_color", "Color"), $iX + 158, $iY, 50, 14)
+    GUICtrlSetFont($idHdr, 7, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idHdr, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idHdr, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idHdr)
+
+    $idHdr = GUICtrlCreateLabel(_i18n("Settings.Desktops.col_wallpaper", "Wallpaper"), $iX + 230, $iY, 200, 14)
+    GUICtrlSetFont($idHdr, 7, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idHdr, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idHdr, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idHdr)
+    $iY += 18
+
+    ; Desktop rows — single line each, all pages created at same Y positions
+    Local $iRowStartY = $iY
     Local $i
     For $i = 1 To $iCount
-        ; Desktop number
-        Local $idNum = GUICtrlCreateLabel(StringRight("0" & $i, 2), $iX, $iY + 2, 30, 18)
-        GUICtrlSetFont($idNum, 8, 700, 0, $THEME_FONT_MONO)
-        GUICtrlSetColor($idNum, $THEME_FG_PRIMARY)
-        GUICtrlSetBkColor($idNum, $GUI_BKCOLOR_TRANSPARENT)
-        __CD_RegCtrl($t, $idNum)
+        ; Calculate row Y based on position within page (0-9)
+        Local $iSlot = Mod($i - 1, $__g_CD_DESK_PER_PAGE)
+        Local $iRowY = $iRowStartY + ($iSlot * 22)
+
+        ; Number label
+        $__g_CD_aidDeskNum[$i] = GUICtrlCreateLabel(StringRight("0" & $i, 2), $iX, $iRowY + 2, 20, 18)
+        GUICtrlSetFont($__g_CD_aidDeskNum[$i], 8, 700, 0, $THEME_FONT_MONO)
+        GUICtrlSetColor($__g_CD_aidDeskNum[$i], $THEME_FG_PRIMARY)
+        GUICtrlSetBkColor($__g_CD_aidDeskNum[$i], $GUI_BKCOLOR_TRANSPARENT)
+        __CD_RegCtrl($t, $__g_CD_aidDeskNum[$i])
 
         ; Label input
-        $__g_CD_aidDeskLabel[$i] = GUICtrlCreateInput("", $iX + 35, $iY, 180, 20)
+        $__g_CD_aidDeskLabel[$i] = GUICtrlCreateInput("", $iX + 24, $iRowY, 128, 20)
         GUICtrlSetFont($__g_CD_aidDeskLabel[$i], 8, 400, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor($__g_CD_aidDeskLabel[$i], $THEME_FG_TEXT)
         GUICtrlSetBkColor($__g_CD_aidDeskLabel[$i], $THEME_BG_INPUT)
@@ -2381,67 +2616,195 @@ Func __CD_BuildTabDesktops()
         __CD_RegCtrl($t, $__g_CD_aidDeskLabel[$i])
 
         ; Color hex input
-        $__g_CD_aidDeskColor[$i] = GUICtrlCreateInput("", $iX + 225, $iY, 70, 20)
-        GUICtrlSetFont($__g_CD_aidDeskColor[$i], 8, 400, 0, $THEME_FONT_MONO)
+        $__g_CD_aidDeskColor[$i] = GUICtrlCreateInput("", $iX + 158, $iRowY, 50, 20)
+        GUICtrlSetFont($__g_CD_aidDeskColor[$i], 7, 400, 0, $THEME_FONT_MONO)
         GUICtrlSetColor($__g_CD_aidDeskColor[$i], $THEME_FG_TEXT)
         GUICtrlSetBkColor($__g_CD_aidDeskColor[$i], $THEME_BG_INPUT)
         _Theme_FlattenInput($__g_CD_aidDeskColor[$i])
         __CD_RegCtrl($t, $__g_CD_aidDeskColor[$i])
 
-        ; Color preview
-        $__g_CD_aidDeskPreview[$i] = GUICtrlCreateLabel("", $iX + 305, $iY + 2, 16, 16)
+        ; Color preview swatch
+        $__g_CD_aidDeskPreview[$i] = GUICtrlCreateLabel("", $iX + 214, $iRowY + 2, 14, 16)
         __CD_RegCtrl($t, $__g_CD_aidDeskPreview[$i])
 
-        $iY += 24
-    Next
-EndFunc
-
-Func __CD_BuildTabWallpaper()
-    Local $t = 10, $iX = 20, $iY = 94
-
-    $__g_CD_idChkWallpaper = __CD_CreateCheckbox(_i18n("Settings.Wallpaper.chk_wallpaper_enabled", "Enable per-desktop wallpaper"), $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkWallpaper, _i18n("Settings.Wallpaper.tip_wallpaper_enabled", "Automatically change wallpaper when switching desktops"))
-    $iY += 34
-
-    Local $idLbl = GUICtrlCreateLabel(_i18n("Settings.Wallpaper.lbl_wallpaper_delay", "Change delay (ms, 50-2000):"), $iX, $iY + 2, 200, 18)
-    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
-    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
-    __CD_RegCtrl($t, $idLbl)
-    $__g_CD_idInpWallpaperDelay = GUICtrlCreateInput("", $iX + 205, $iY, 60, 22, $ES_NUMBER)
-    GUICtrlSetFont($__g_CD_idInpWallpaperDelay, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idInpWallpaperDelay, $THEME_FG_TEXT)
-    GUICtrlSetBkColor($__g_CD_idInpWallpaperDelay, $THEME_BG_INPUT)
-    _Theme_FlattenInput($__g_CD_idInpWallpaperDelay)
-    __CD_RegCtrl($t, $__g_CD_idInpWallpaperDelay)
-    _Theme_SetTooltip($__g_CD_idInpWallpaperDelay, _i18n("Settings.Wallpaper.tip_wallpaper_delay", "Delay before applying wallpaper after switching (ms)"))
-    $iY += 34
-
-    Local $i
-    For $i = 1 To 9
-        $idLbl = GUICtrlCreateLabel(_i18n_Format("Settings.Wallpaper.lbl_desktop_n", "Desktop {1}:", $i), $iX, $iY + 2, 65, 18)
-        GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
-        GUICtrlSetColor($idLbl, $THEME_FG_DIM)
-        GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
-        __CD_RegCtrl($t, $idLbl)
-        $__g_CD_aidWallpaperPath[$i] = GUICtrlCreateInput("", $iX + 70, $iY, 270, 20)
-        GUICtrlSetFont($__g_CD_aidWallpaperPath[$i], 8, 400, 0, $THEME_FONT_MAIN)
-        GUICtrlSetColor($__g_CD_aidWallpaperPath[$i], $THEME_FG_TEXT)
+        ; Wallpaper path input
+        $__g_CD_aidWallpaperPath[$i] = GUICtrlCreateInput("", $iX + 234, $iRowY, 220, 20)
+        GUICtrlSetFont($__g_CD_aidWallpaperPath[$i], 7, 400, 0, $THEME_FONT_MAIN)
+        GUICtrlSetColor($__g_CD_aidWallpaperPath[$i], $THEME_FG_DIM)
         GUICtrlSetBkColor($__g_CD_aidWallpaperPath[$i], $THEME_BG_INPUT)
         _Theme_FlattenInput($__g_CD_aidWallpaperPath[$i])
         __CD_RegCtrl($t, $__g_CD_aidWallpaperPath[$i])
-        $__g_CD_aidWallpaperBrowse[$i] = GUICtrlCreateLabel("...", $iX + 344, $iY, 24, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+
+        ; Wallpaper browse button
+        $__g_CD_aidWallpaperBrowse[$i] = GUICtrlCreateLabel("...", $iX + 458, $iRowY, 24, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
         GUICtrlSetFont($__g_CD_aidWallpaperBrowse[$i], 8, 700, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor($__g_CD_aidWallpaperBrowse[$i], $THEME_FG_DIM)
         GUICtrlSetBkColor($__g_CD_aidWallpaperBrowse[$i], $THEME_BG_HOVER)
         GUICtrlSetCursor($__g_CD_aidWallpaperBrowse[$i], 0)
         __CD_RegCtrl($t, $__g_CD_aidWallpaperBrowse[$i])
-        $iY += 24
+
+        ; Hide rows not on page 1
+        If $i > $__g_CD_DESK_PER_PAGE Then
+            GUICtrlSetState($__g_CD_aidDeskNum[$i], $GUI_HIDE)
+            GUICtrlSetState($__g_CD_aidDeskLabel[$i], $GUI_HIDE)
+            GUICtrlSetState($__g_CD_aidDeskColor[$i], $GUI_HIDE)
+            GUICtrlSetState($__g_CD_aidDeskPreview[$i], $GUI_HIDE)
+            GUICtrlSetState($__g_CD_aidWallpaperPath[$i], $GUI_HIDE)
+            GUICtrlSetState($__g_CD_aidWallpaperBrowse[$i], $GUI_HIDE)
+        EndIf
     Next
 EndFunc
 
+; Name:        __CD_SwitchDeskPage
+; Description: Switches the visible page of desktop rows in the Desktops tab.
+; Parameters:  $iPage - page number (1-based)
+Func __CD_SwitchDeskPage($iPage)
+    If $iPage < 1 Or $iPage > $__g_CD_iDeskPageCount Then Return
+    $__g_CD_iDeskPage = $iPage
+
+    ; Show/hide rows per page
+    Local $i
+    For $i = 1 To $__g_CD_iDeskCount
+        Local $iRowPage = Ceiling($i / $__g_CD_DESK_PER_PAGE)
+        If $iRowPage = $iPage Then
+            GUICtrlSetState($__g_CD_aidDeskNum[$i], $GUI_SHOW)
+            GUICtrlSetState($__g_CD_aidDeskLabel[$i], $GUI_SHOW)
+            GUICtrlSetState($__g_CD_aidDeskColor[$i], $GUI_SHOW)
+            GUICtrlSetState($__g_CD_aidDeskPreview[$i], $GUI_SHOW)
+            GUICtrlSetState($__g_CD_aidWallpaperPath[$i], $GUI_SHOW)
+            GUICtrlSetState($__g_CD_aidWallpaperBrowse[$i], $GUI_SHOW)
+        Else
+            GUICtrlSetState($__g_CD_aidDeskNum[$i], $GUI_HIDE)
+            GUICtrlSetState($__g_CD_aidDeskLabel[$i], $GUI_HIDE)
+            GUICtrlSetState($__g_CD_aidDeskColor[$i], $GUI_HIDE)
+            GUICtrlSetState($__g_CD_aidDeskPreview[$i], $GUI_HIDE)
+            GUICtrlSetState($__g_CD_aidWallpaperPath[$i], $GUI_HIDE)
+            GUICtrlSetState($__g_CD_aidWallpaperBrowse[$i], $GUI_HIDE)
+        EndIf
+    Next
+
+    ; Update page button styles
+    Local $p
+    For $p = 1 To $__g_CD_iDeskPageCount
+        If $p = $iPage Then
+            GUICtrlSetFont($__g_CD_aidDeskPageBtn[$p], 7, 700, 0, $THEME_FONT_MAIN)
+            GUICtrlSetColor($__g_CD_aidDeskPageBtn[$p], $THEME_FG_WHITE)
+            GUICtrlSetBkColor($__g_CD_aidDeskPageBtn[$p], $THEME_BG_ACTIVE)
+        Else
+            GUICtrlSetFont($__g_CD_aidDeskPageBtn[$p], 7, 400, 0, $THEME_FONT_MAIN)
+            GUICtrlSetColor($__g_CD_aidDeskPageBtn[$p], $THEME_FG_DIM)
+            GUICtrlSetBkColor($__g_CD_aidDeskPageBtn[$p], $THEME_BG_MAIN)
+        EndIf
+    Next
+EndFunc
+
+Func __CD_BuildTabOSD()
+    Local $t = 9, $iX = 20, $iY = 94
+
+    $__g_CD_idChkOsdEnabled = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_osd_enabled", "Show notification on desktop switch"), $iX, $iY, 400, $t)
+    _Theme_SetTooltip($__g_CD_idChkOsdEnabled, _i18n("Settings.Notifications.tip_osd_enabled", "Display an on-screen notification when switching desktops"))
+    $iY += 26
+
+    $__g_CD_idChkOsdShowName = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_osd_show_name", "Show desktop name"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkOsdShowName, _i18n("Settings.Notifications.tip_osd_show_name", "Include the desktop name in the OSD notification"))
+    $iY += 26
+
+    $__g_CD_idChkOsdShowNumber = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_osd_show_number", "Show desktop number"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkOsdShowNumber, _i18n("Settings.Notifications.tip_osd_show_number", "Include the desktop number in the OSD notification"))
+    $iY += 30
+
+    ; OSD Duration
+    Local $idLblOsdDur = GUICtrlCreateLabel(_i18n("Settings.Notifications.lbl_osd_duration", "OSD duration (ms):"), $iX, $iY + 2, 200, 18)
+    GUICtrlSetFont($idLblOsdDur, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblOsdDur, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblOsdDur, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblOsdDur)
+    $__g_CD_idInpOsdDuration = GUICtrlCreateInput("1500", $iX + 210, $iY, 60, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpOsdDuration, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpOsdDuration, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpOsdDuration, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpOsdDuration)
+    __CD_RegCtrl($t, $__g_CD_idInpOsdDuration)
+    _Theme_SetTooltip($__g_CD_idInpOsdDuration, _i18n("Settings.Notifications.tip_osd_duration", "How long the OSD notification stays visible (500-5000)"))
+    $iY += 30
+
+    ; OSD Position (combo dropdown)
+    Local $idLblPos = GUICtrlCreateLabel(_i18n("Settings.Notifications.lbl_osd_position", "OSD position:"), $iX, $iY + 2, 120, 18)
+    GUICtrlSetFont($idLblPos, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblPos, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblPos, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblPos)
+    $__g_CD_idCycOsdPosition = GUICtrlCreateCombo("", $iX + 130, $iY, 200, 22, 0x0003) ; CBS_DROPDOWNLIST
+    GUICtrlSetFont($__g_CD_idCycOsdPosition, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idCycOsdPosition, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idCycOsdPosition, $THEME_BG_INPUT)
+    GUICtrlSetCursor($__g_CD_idCycOsdPosition, 0)
+    __CD_RegCtrl($t, $__g_CD_idCycOsdPosition)
+    _Theme_SetTooltip($__g_CD_idCycOsdPosition, _i18n("Settings.Notifications.tip_osd_position", "Where to display the OSD notification on screen"))
+    $iY += 30
+
+    ; OSD Font Size
+    Local $idLblOsdFont = GUICtrlCreateLabel(_i18n("Settings.Notifications.lbl_osd_font_size", "OSD font size:"), $iX, $iY + 2, 200, 18)
+    GUICtrlSetFont($idLblOsdFont, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblOsdFont, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblOsdFont, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblOsdFont)
+    $__g_CD_idInpOsdFontSize = GUICtrlCreateInput("14", $iX + 210, $iY, 60, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpOsdFontSize, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpOsdFontSize, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpOsdFontSize, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpOsdFontSize)
+    __CD_RegCtrl($t, $__g_CD_idInpOsdFontSize)
+    _Theme_SetTooltip($__g_CD_idInpOsdFontSize, _i18n("Settings.Notifications.tip_osd_font_size", "Font size for the OSD notification text (8-48)"))
+    $iY += 30
+
+    ; OSD Opacity
+    Local $idLblOsdOpac = GUICtrlCreateLabel(_i18n("Settings.Notifications.lbl_osd_opacity", "OSD opacity (0-255):"), $iX, $iY + 2, 200, 18)
+    GUICtrlSetFont($idLblOsdOpac, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblOsdOpac, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblOsdOpac, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblOsdOpac)
+    $__g_CD_idInpOsdOpacity = GUICtrlCreateInput("220", $iX + 210, $iY, 60, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpOsdOpacity, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpOsdOpacity, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpOsdOpacity, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpOsdOpacity)
+    __CD_RegCtrl($t, $__g_CD_idInpOsdOpacity)
+    _Theme_SetTooltip($__g_CD_idInpOsdOpacity, _i18n("Settings.Notifications.tip_osd_opacity", "Transparency of the OSD notification window (0=invisible, 255=opaque)"))
+    $iY += 30
+
+    ; OSD Format
+    Local $idLblOsdFmt = GUICtrlCreateLabel(_i18n("Settings.Notifications.lbl_osd_format", "OSD format:"), $iX, $iY + 2, 200, 18)
+    GUICtrlSetFont($idLblOsdFmt, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblOsdFmt, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblOsdFmt, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblOsdFmt)
+    $__g_CD_idInpOsdFormat = GUICtrlCreateInput("{number}: {name}", $iX + 210, $iY, 180, 22)
+    GUICtrlSetFont($__g_CD_idInpOsdFormat, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idInpOsdFormat, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpOsdFormat, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpOsdFormat)
+    __CD_RegCtrl($t, $__g_CD_idInpOsdFormat)
+    _Theme_SetTooltip($__g_CD_idInpOsdFormat, _i18n("Settings.Notifications.tip_osd_format", "Template for the OSD text. Use {number} and {name} as placeholders"))
+    $iY += 30
+
+    ; OSD Width
+    Local $idLblOsdW = GUICtrlCreateLabel(_i18n("Settings.OSD.lbl_osd_width", "OSD width (px):"), $iX, $iY + 2, 200, 18)
+    GUICtrlSetFont($idLblOsdW, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLblOsdW, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLblOsdW, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLblOsdW)
+    $__g_CD_idInpOsdWidth = GUICtrlCreateInput("300", $iX + 210, $iY, 60, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpOsdWidth, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpOsdWidth, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpOsdWidth, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpOsdWidth)
+    __CD_RegCtrl($t, $__g_CD_idInpOsdWidth)
+    _Theme_SetTooltip($__g_CD_idInpOsdWidth, _i18n("Settings.OSD.tip_osd_width", "Width of the OSD notification window in pixels (100-800)"))
+EndFunc
+
 Func __CD_BuildTabWindowList()
-    Local $t = 11, $iX = 20, $iY = 94
+    Local $t = 10, $iX = 20, $iY = 94
 
     $__g_CD_idChkWLEnabled = __CD_CreateCheckbox(_i18n("Settings.WindowList.chk_wl_enabled", "Enable window list"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkWLEnabled, _i18n("Settings.WindowList.tip_wl_enabled", "Show a panel listing windows on the current desktop"))
@@ -2528,7 +2891,7 @@ Func __CD_BuildTabWindowList()
 EndFunc
 
 Func __CD_BuildTabExplorer()
-    Local $t = 12, $iX = 20, $iY = 94
+    Local $t = 11, $iX = 20, $iY = 94
 
     $__g_CD_idChkExplorerMonitor = __CD_CreateCheckbox(_i18n("Settings.Explorer.chk_explorer_monitor", "Enable shell monitor"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkExplorerMonitor, _i18n("Settings.Explorer.tip_explorer_monitor", "Monitor the shell process and attempt recovery on crash"))
@@ -2640,7 +3003,7 @@ Func __CD_BuildTabExplorer()
 EndFunc
 
 Func __CD_BuildTabNotifications()
-    Local $t = 13, $iX = 20, $iY = 94
+    Local $t = 12, $iX = 20, $iY = 94
 
     $__g_CD_idChkNotificationsEnabled = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_notifications_enabled", "Enable notifications"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkNotificationsEnabled, _i18n("Settings.Notifications.tip_notifications_enabled", "Master toggle for all toast notifications"))
@@ -2666,95 +3029,10 @@ Func __CD_BuildTabNotifications()
     $iY += 26
     $__g_CD_idChkNotifyExplorerCrash = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_notify_crash", "Shell crash detected"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkNotifyExplorerCrash, _i18n("Settings.Notifications.tip_notify_crash", "Show a toast when the shell process crashes"))
-    $iY += 34
-
-    ; --- Desktop Switch OSD ---
-    Local $idOsdSep = GUICtrlCreateLabel("--- " & _i18n("Settings.Notifications.lbl_osd_section", "Desktop Switch OSD") & " ---", $iX, $iY, 400, 18, BitOR($SS_CENTER, $SS_CENTERIMAGE))
-    GUICtrlSetFont($idOsdSep, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idOsdSep, $THEME_FG_DIM)
-    GUICtrlSetBkColor($idOsdSep, $GUI_BKCOLOR_TRANSPARENT)
-    __CD_RegCtrl($t, $idOsdSep)
-    $iY += 26
-
-    $__g_CD_idChkOsdEnabled = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_osd_enabled", "Show notification on desktop switch"), $iX, $iY, 400, $t)
-    _Theme_SetTooltip($__g_CD_idChkOsdEnabled, _i18n("Settings.Notifications.tip_osd_enabled", "Display an on-screen notification when switching desktops"))
-    $iY += 26
-
-    $__g_CD_idChkOsdShowName = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_osd_show_name", "Show desktop name"), $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkOsdShowName, _i18n("Settings.Notifications.tip_osd_show_name", "Include the desktop name in the OSD notification"))
-    $iY += 26
-
-    $__g_CD_idChkOsdShowNumber = __CD_CreateCheckbox(_i18n("Settings.Notifications.chk_osd_show_number", "Show desktop number"), $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkOsdShowNumber, _i18n("Settings.Notifications.tip_osd_show_number", "Include the desktop number in the OSD notification"))
-    $iY += 30
-
-    ; OSD Duration
-    Local $idLblOsdDur = GUICtrlCreateLabel(_i18n("Settings.Notifications.lbl_osd_duration", "OSD duration (ms):"), $iX, $iY + 2, 200, 18)
-    GUICtrlSetFont($idLblOsdDur, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idLblOsdDur, $THEME_FG_DIM)
-    GUICtrlSetBkColor($idLblOsdDur, $GUI_BKCOLOR_TRANSPARENT)
-    __CD_RegCtrl($t, $idLblOsdDur)
-    $__g_CD_idInpOsdDuration = GUICtrlCreateInput("1500", $iX + 210, $iY, 60, 22, $ES_NUMBER)
-    GUICtrlSetFont($__g_CD_idInpOsdDuration, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idInpOsdDuration, $THEME_FG_TEXT)
-    GUICtrlSetBkColor($__g_CD_idInpOsdDuration, $THEME_BG_INPUT)
-    _Theme_FlattenInput($__g_CD_idInpOsdDuration)
-    __CD_RegCtrl($t, $__g_CD_idInpOsdDuration)
-    _Theme_SetTooltip($__g_CD_idInpOsdDuration, _i18n("Settings.Notifications.tip_osd_duration", "How long the OSD notification stays visible (500-5000)"))
-    $iY += 30
-
-    ; OSD Position (cycle label)
-    $__g_CD_idCycOsdPosition = __CD_CreateCycleLabel(_i18n("Settings.Notifications.lbl_osd_position", "OSD position:"), $iX, $iY, 200, 140, $t)
-    _Theme_SetTooltip($__g_CD_idCycOsdPosition, _i18n("Settings.Notifications.tip_osd_position", "Where to display the OSD notification on screen"))
-    $iY += 30
-
-    ; OSD Font Size
-    Local $idLblOsdFont = GUICtrlCreateLabel(_i18n("Settings.Notifications.lbl_osd_font_size", "OSD font size:"), $iX, $iY + 2, 200, 18)
-    GUICtrlSetFont($idLblOsdFont, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idLblOsdFont, $THEME_FG_DIM)
-    GUICtrlSetBkColor($idLblOsdFont, $GUI_BKCOLOR_TRANSPARENT)
-    __CD_RegCtrl($t, $idLblOsdFont)
-    $__g_CD_idInpOsdFontSize = GUICtrlCreateInput("14", $iX + 210, $iY, 60, 22, $ES_NUMBER)
-    GUICtrlSetFont($__g_CD_idInpOsdFontSize, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idInpOsdFontSize, $THEME_FG_TEXT)
-    GUICtrlSetBkColor($__g_CD_idInpOsdFontSize, $THEME_BG_INPUT)
-    _Theme_FlattenInput($__g_CD_idInpOsdFontSize)
-    __CD_RegCtrl($t, $__g_CD_idInpOsdFontSize)
-    _Theme_SetTooltip($__g_CD_idInpOsdFontSize, _i18n("Settings.Notifications.tip_osd_font_size", "Font size for the OSD notification text (8-48)"))
-    $iY += 30
-
-    ; OSD Opacity
-    Local $idLblOsdOpac = GUICtrlCreateLabel(_i18n("Settings.Notifications.lbl_osd_opacity", "OSD opacity (0-255):"), $iX, $iY + 2, 200, 18)
-    GUICtrlSetFont($idLblOsdOpac, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idLblOsdOpac, $THEME_FG_DIM)
-    GUICtrlSetBkColor($idLblOsdOpac, $GUI_BKCOLOR_TRANSPARENT)
-    __CD_RegCtrl($t, $idLblOsdOpac)
-    $__g_CD_idInpOsdOpacity = GUICtrlCreateInput("220", $iX + 210, $iY, 60, 22, $ES_NUMBER)
-    GUICtrlSetFont($__g_CD_idInpOsdOpacity, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idInpOsdOpacity, $THEME_FG_TEXT)
-    GUICtrlSetBkColor($__g_CD_idInpOsdOpacity, $THEME_BG_INPUT)
-    _Theme_FlattenInput($__g_CD_idInpOsdOpacity)
-    __CD_RegCtrl($t, $__g_CD_idInpOsdOpacity)
-    _Theme_SetTooltip($__g_CD_idInpOsdOpacity, _i18n("Settings.Notifications.tip_osd_opacity", "Transparency of the OSD notification window (0=invisible, 255=opaque)"))
-    $iY += 30
-
-    ; OSD Format
-    Local $idLblOsdFmt = GUICtrlCreateLabel(_i18n("Settings.Notifications.lbl_osd_format", "OSD format:"), $iX, $iY + 2, 200, 18)
-    GUICtrlSetFont($idLblOsdFmt, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idLblOsdFmt, $THEME_FG_DIM)
-    GUICtrlSetBkColor($idLblOsdFmt, $GUI_BKCOLOR_TRANSPARENT)
-    __CD_RegCtrl($t, $idLblOsdFmt)
-    $__g_CD_idInpOsdFormat = GUICtrlCreateInput("{number}: {name}", $iX + 210, $iY, 180, 22)
-    GUICtrlSetFont($__g_CD_idInpOsdFormat, 9, 400, 0, $THEME_FONT_MONO)
-    GUICtrlSetColor($__g_CD_idInpOsdFormat, $THEME_FG_TEXT)
-    GUICtrlSetBkColor($__g_CD_idInpOsdFormat, $THEME_BG_INPUT)
-    _Theme_FlattenInput($__g_CD_idInpOsdFormat)
-    __CD_RegCtrl($t, $__g_CD_idInpOsdFormat)
-    _Theme_SetTooltip($__g_CD_idInpOsdFormat, _i18n("Settings.Notifications.tip_osd_format", "Template for the OSD text. Use {number} and {name} as placeholders"))
 EndFunc
 
 Func __CD_BuildTabTaskbar()
-    Local $t = 14, $iX = 20, $iY = 94
+    Local $t = 13, $iX = 20, $iY = 94
 
     $__g_CD_idChkAutoHideSync = __CD_CreateCheckbox(_i18n("Settings.Taskbar.chk_autohide_sync", "Sync widget with taskbar auto-hide"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkAutoHideSync, _i18n("Settings.Taskbar.tip_autohide_sync", "Hide widget when taskbar auto-hides, show when taskbar appears"))
@@ -2805,26 +3083,6 @@ Func __CD_BuildTabTaskbar()
     _Theme_SetTooltip($__g_CD_idInpAutoHideShowDelay, _i18n("Settings.Taskbar.tip_show_delay", "Wait this long before showing widget after taskbar shows (0-5000)"))
     $iY += 34
 
-    ; Use fade
-    $__g_CD_idChkAutoHideFade = __CD_CreateCheckbox(_i18n("Settings.Taskbar.chk_use_fade", "Use fade animation"), $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkAutoHideFade, _i18n("Settings.Taskbar.tip_use_fade", "Fade widget in/out instead of instant show/hide"))
-    $iY += 26
-
-    ; Fade duration
-    Local $idLbl4 = GUICtrlCreateLabel(_i18n("Settings.Taskbar.lbl_fade_duration", "Fade duration (ms):"), $iX, $iY + 2, 165, 18)
-    GUICtrlSetFont($idLbl4, 8, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idLbl4, $THEME_FG_DIM)
-    GUICtrlSetBkColor($idLbl4, $GUI_BKCOLOR_TRANSPARENT)
-    __CD_RegCtrl($t, $idLbl4)
-    $__g_CD_idInpAutoHideFadeDur = GUICtrlCreateInput("", $iX + 170, $iY, 80, 22, $ES_NUMBER)
-    GUICtrlSetFont($__g_CD_idInpAutoHideFadeDur, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idInpAutoHideFadeDur, $THEME_FG_TEXT)
-    GUICtrlSetBkColor($__g_CD_idInpAutoHideFadeDur, $THEME_BG_INPUT)
-    _Theme_FlattenInput($__g_CD_idInpAutoHideFadeDur)
-    __CD_RegCtrl($t, $__g_CD_idInpAutoHideFadeDur)
-    _Theme_SetTooltip($__g_CD_idInpAutoHideFadeDur, _i18n("Settings.Taskbar.tip_fade_duration", "How long the fade animation takes (10-1000)"))
-    $iY += 34
-
     ; Sync desktop list
     $__g_CD_idChkAutoHideSyncDL = __CD_CreateCheckbox(_i18n("Settings.Taskbar.chk_sync_desktop_list", "Also sync desktop list"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkAutoHideSyncDL, _i18n("Settings.Taskbar.tip_sync_desktop_list", "Hide/show the desktop list panel with the widget"))
@@ -2871,7 +3129,7 @@ Func __CD_BuildTabTaskbar()
 EndFunc
 
 Func __CD_BuildTabTray()
-    Local $t = 15, $iX = 20, $iY = 94
+    Local $t = 14, $iX = 20, $iY = 94
     Local $idLbl
 
     ; -- Click Actions section --
@@ -2969,7 +3227,7 @@ EndFunc
 ; =============================================
 
 Func __CD_BuildTabAnimations()
-    Local $t = 9, $iX = 20, $iY = 94
+    Local $t = 8, $iX = 20, $iY = 94
 
     $__g_CD_idChkAnimEnabled = __CD_CreateCheckbox(_i18n("Settings.Animations.chk_enabled", "Enable animations"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkAnimEnabled, _i18n("Settings.Animations.tip_enabled", "Master toggle for all fade-in/fade-out animations"))
@@ -3080,6 +3338,25 @@ Func __CD_BuildTabAnimations()
     GUICtrlSetCursor($__g_CD_idLblToastPosition, 0)
     __CD_RegCtrl($t, $__g_CD_idLblToastPosition)
     _Theme_SetTooltip($__g_CD_idLblToastPosition, _i18n("Settings.Animations.tip_toast_position", "Where toast notifications appear (widget = near widget)"))
+    $iY += 34
+
+    ; Taskbar auto-hide fade
+    $__g_CD_idChkAutoHideFade = __CD_CreateCheckbox(_i18n("Settings.Animations.chk_use_fade", "Use fade animation (taskbar auto-hide)"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkAutoHideFade, _i18n("Settings.Animations.tip_use_fade", "Fade widget in/out instead of instant show/hide"))
+    $iY += 26
+
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Animations.lbl_fade_duration", "Fade duration (ms):"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    $__g_CD_idInpAutoHideFadeDur = GUICtrlCreateInput("", $iX + 180, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpAutoHideFadeDur, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpAutoHideFadeDur, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpAutoHideFadeDur, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpAutoHideFadeDur)
+    __CD_RegCtrl($t, $__g_CD_idInpAutoHideFadeDur)
+    _Theme_SetTooltip($__g_CD_idInpAutoHideFadeDur, _i18n("Settings.Animations.tip_fade_duration", "How long the fade animation takes (10-1000)"))
 EndFunc
 
 Func __CD_PopulateControls()
@@ -3266,16 +3543,16 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpHkMinimizeWindow, _Cfg_GetHotkeyMinimizeWindow())
     GUICtrlSetData($__g_CD_idInpHkTaskView, _Cfg_GetHotkeyTaskView())
 
-    ; Wallpaper
+    ; Wallpaper (integrated into desktop rows)
     __CD_SetCheckState($__g_CD_idChkWallpaper, _Cfg_GetWallpaperEnabled())
     GUICtrlSetData($__g_CD_idInpWallpaperDelay, _Cfg_GetWallpaperChangeDelay())
-    For $i = 1 To 9
+    For $i = 1 To $__g_CD_iDeskCount
         GUICtrlSetData($__g_CD_aidWallpaperPath[$i], _Cfg_GetDesktopWallpaper($i))
     Next
 
     ; Window List
     __CD_SetCheckState($__g_CD_idChkWLEnabled, _Cfg_GetWindowListEnabled())
-    GUICtrlSetData($__g_CD_idLblWLPosition, "top-left|top-right|bottom-left|bottom-right", _Cfg_GetWindowListPosition())
+    GUICtrlSetData($__g_CD_idLblWLPosition, "top-left|top-center|top-right|middle-left|middle-center|middle-right|bottom-left|bottom-center|bottom-right", _Cfg_GetWindowListPosition())
     GUICtrlSetData($__g_CD_idInpWLWidth, _Cfg_GetWindowListWidth())
     GUICtrlSetData($__g_CD_idInpWLMaxVisible, _Cfg_GetWindowListMaxVisible())
     __CD_SetCheckState($__g_CD_idChkWLIcons, _Cfg_GetWindowListShowIcons())
@@ -3317,18 +3594,19 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpOsdFontSize, _Cfg_GetOsdFontSize())
     GUICtrlSetData($__g_CD_idInpOsdOpacity, _Cfg_GetOsdOpacity())
     GUICtrlSetData($__g_CD_idInpOsdFormat, _Cfg_GetOsdFormat())
+    GUICtrlSetData($__g_CD_idInpOsdWidth, _Cfg_GetOsdWidth())
 
     ; Animations extras
     GUICtrlSetData($__g_CD_idInpHoverSpeed, _Cfg_GetAnimHoverSpeed())
     GUICtrlSetData($__g_CD_idLblToastPosition, "top-left|top-right|bottom-left|bottom-right|widget", _Cfg_GetToastPosition())
+    __CD_SetCheckState($__g_CD_idChkAutoHideFade, _Cfg_GetAutoHideUseFade())
+    GUICtrlSetData($__g_CD_idInpAutoHideFadeDur, _Cfg_GetAutoHideFadeDuration())
 
     ; Taskbar Auto-Hide
     __CD_SetCheckState($__g_CD_idChkAutoHideSync, _Cfg_GetAutoHideSyncEnabled())
     GUICtrlSetData($__g_CD_idInpAutoHidePoll, _Cfg_GetAutoHidePollInterval())
     GUICtrlSetData($__g_CD_idInpAutoHideHideDelay, _Cfg_GetAutoHideHideDelay())
     GUICtrlSetData($__g_CD_idInpAutoHideShowDelay, _Cfg_GetAutoHideShowDelay())
-    __CD_SetCheckState($__g_CD_idChkAutoHideFade, _Cfg_GetAutoHideUseFade())
-    GUICtrlSetData($__g_CD_idInpAutoHideFadeDur, _Cfg_GetAutoHideFadeDuration())
     __CD_SetCheckState($__g_CD_idChkAutoHideSyncDL, _Cfg_GetAutoHideSyncDesktopList())
     __CD_SetCheckState($__g_CD_idChkAutoHideSyncWL, _Cfg_GetAutoHideSyncWindowList())
     GUICtrlSetData($__g_CD_idInpAutoHideThreshold, _Cfg_GetAutoHideHiddenThreshold())
@@ -3398,27 +3676,41 @@ Func __CD_MessageLoop()
 
             ; Wallpaper browse button clicks
             Local $iBrowseIdx
-            For $iBrowseIdx = 1 To 9
+            For $iBrowseIdx = 1 To $__g_CD_iDeskCount
                 If $id = $__g_CD_aidWallpaperBrowse[$iBrowseIdx] Then
                     Local $sWpFile = FileOpenDialog("Select wallpaper", "", "Images (*.jpg;*.jpeg;*.png;*.bmp)", 1, "", $__g_CD_hGUI)
                     If $sWpFile <> "" Then GUICtrlSetData($__g_CD_aidWallpaperPath[$iBrowseIdx], $sWpFile)
+                    ExitLoop
                 EndIf
             Next
 
-            ; Hotkey sub-tab clicks
+            ; Sub-tab clicks
             If $id = $__g_CD_idGenSubWidget Then __CD_SwitchGenSub(1)
             If $id = $__g_CD_idGenSubDesktop Then __CD_SwitchGenSub(2)
             If $id = $__g_CD_idGenSubSystem Then __CD_SwitchGenSub(3)
+            If $id = $__g_CD_idGenSubScroll Then __CD_SwitchGenSub(4)
+            If $id = $__g_CD_idDispSubAppearance Then __CD_SwitchDispSub(1)
+            If $id = $__g_CD_idDispSubThumbnails Then __CD_SwitchDispSub(2)
             If $id = $__g_CD_idBhvSubInteract Then __CD_SwitchBhvSub(1)
             If $id = $__g_CD_idBhvSubTimers Then __CD_SwitchBhvSub(2)
             If $id = $__g_CD_idBhvSubCarousel Then __CD_SwitchBhvSub(3)
             If $id = $__g_CD_idBhvSubRules Then __CD_SwitchBhvSub(4)
+            ; Desktop page buttons
+            If $__g_CD_iDeskPageCount > 1 Then
+                Local $dp
+                For $dp = 1 To $__g_CD_iDeskPageCount
+                    If $id = $__g_CD_aidDeskPageBtn[$dp] Then
+                        __CD_SwitchDeskPage($dp)
+                        ExitLoop
+                    EndIf
+                Next
+            EndIf
             If $id = $__g_CD_idHkSubNav Then __CD_SwitchHkSub(1)
             If $id = $__g_CD_idHkSubWin Then __CD_SwitchHkSub(2)
             If $id = $__g_CD_idHkSubDesk Then __CD_SwitchHkSub(3)
 
             ; Tab button clicks
-            For $t = 1 To 15
+            For $t = 1 To 14
                 If $id = $__g_CD_aidTabBtn[$t] Then
                     $iTabHovered = 0
                     __CD_SwitchTab($t)
@@ -3438,7 +3730,6 @@ Func __CD_MessageLoop()
             If $id = $__g_CD_idLblTrayLeftClick Then __CD_CycleValue($id, "menu|toggle_list|next_desktop|nothing")
             If $id = $__g_CD_idLblTrayDoubleClick Then __CD_CycleValue($id, "settings|toggle_list|menu|nothing")
             If $id = $__g_CD_idLblTrayMiddleClick Then __CD_CycleValue($id, "toggle_list|add_desktop|toggle_carousel|nothing")
-            If $id = $__g_CD_idCycOsdPosition Then __CD_CycleValue($id, "top-left|top-center|top-right|middle-left|middle-center|middle-right|bottom-left|bottom-center|bottom-right|widget")
             ; Rule type cycle labels (Process <-> Class)
             For $r = 1 To $__g_CD_iRuleRowCount
                 If $id = $__g_CD_aidRuleType[$r] Then
@@ -3529,7 +3820,7 @@ Func __CD_MessageLoop()
 
             ; Tab hover (inactive tabs highlight on mouseover)
             Local $iTabFound = 0
-            For $t = 1 To 15
+            For $t = 1 To 14
                 If $aCursor[4] = $__g_CD_aidTabBtn[$t] And $t <> $__g_CD_iActiveTab Then
                     $iTabFound = $t
                     ExitLoop
@@ -3793,12 +4084,14 @@ Func __CD_ApplyChanges()
     $s = GUICtrlRead($__g_CD_idInpHoverSpeed)
     If StringIsInt($s) Then _Cfg_SetAnimHoverSpeed(Int($s))
     _Cfg_SetToastPosition(GUICtrlRead($__g_CD_idLblToastPosition))
+    _Cfg_SetAutoHideUseFade(__CD_GetCheckState($__g_CD_idChkAutoHideFade))
+    _Cfg_SetAutoHideFadeDuration(Int(GUICtrlRead($__g_CD_idInpAutoHideFadeDur)))
 
-    ; Wallpaper
+    ; Wallpaper (integrated into desktop rows)
     _Cfg_SetWallpaperEnabled(__CD_GetCheckState($__g_CD_idChkWallpaper))
     $s = GUICtrlRead($__g_CD_idInpWallpaperDelay)
     If StringIsInt($s) Then _Cfg_SetWallpaperChangeDelay(Int($s))
-    For $i = 1 To 9
+    For $i = 1 To $__g_CD_iDeskCount
         _Cfg_SetDesktopWallpaper($i, GUICtrlRead($__g_CD_aidWallpaperPath[$i]))
     Next
 
@@ -3855,14 +4148,14 @@ Func __CD_ApplyChanges()
     $s = GUICtrlRead($__g_CD_idInpOsdOpacity)
     If StringIsInt($s) Then _Cfg_SetOsdOpacity(Int($s))
     _Cfg_SetOsdFormat(GUICtrlRead($__g_CD_idInpOsdFormat))
+    $s = GUICtrlRead($__g_CD_idInpOsdWidth)
+    If StringIsInt($s) Then _Cfg_SetOsdWidth(Int($s))
 
     ; Taskbar Auto-Hide
     _Cfg_SetAutoHideSyncEnabled(__CD_GetCheckState($__g_CD_idChkAutoHideSync))
     _Cfg_SetAutoHidePollInterval(Int(GUICtrlRead($__g_CD_idInpAutoHidePoll)))
     _Cfg_SetAutoHideHideDelay(Int(GUICtrlRead($__g_CD_idInpAutoHideHideDelay)))
     _Cfg_SetAutoHideShowDelay(Int(GUICtrlRead($__g_CD_idInpAutoHideShowDelay)))
-    _Cfg_SetAutoHideUseFade(__CD_GetCheckState($__g_CD_idChkAutoHideFade))
-    _Cfg_SetAutoHideFadeDuration(Int(GUICtrlRead($__g_CD_idInpAutoHideFadeDur)))
     _Cfg_SetAutoHideSyncDesktopList(__CD_GetCheckState($__g_CD_idChkAutoHideSyncDL))
     _Cfg_SetAutoHideSyncWindowList(__CD_GetCheckState($__g_CD_idChkAutoHideSyncWL))
     _Cfg_SetAutoHideHiddenThreshold(Int(GUICtrlRead($__g_CD_idInpAutoHideThreshold)))

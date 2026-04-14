@@ -205,15 +205,32 @@ EndFunc
 ;              ByRef $iX - receives X position
 ;              ByRef $iY - receives Y position
 Func __WL_CalcPosition($sPosition, $iW, $iH, ByRef $iX, ByRef $iY)
+    Local $iCenterX = Int((@DesktopWidth - $iW) / 2)
+    Local $iCenterY = Int((@DesktopHeight - $iH) / 2)
     Switch $sPosition
         Case "top-left"
             $iX = 10
             $iY = 10
+        Case "top-center"
+            $iX = $iCenterX
+            $iY = 10
         Case "top-right"
             $iX = @DesktopWidth - $iW - 10
             $iY = 10
+        Case "middle-left"
+            $iX = 10
+            $iY = $iCenterY
+        Case "middle-center"
+            $iX = $iCenterX
+            $iY = $iCenterY
+        Case "middle-right"
+            $iX = @DesktopWidth - $iW - 10
+            $iY = $iCenterY
         Case "bottom-left"
             $iX = 10
+            $iY = @DesktopHeight - $iH - 50
+        Case "bottom-center"
+            $iX = $iCenterX
             $iY = @DesktopHeight - $iH - 50
         Case "bottom-right"
             $iX = @DesktopWidth - $iW - 10
