@@ -1107,6 +1107,9 @@ Func _ProcessTimersAndSleep($bCursorActive)
     ; Toast fade-out tick
     _Theme_ToastTick()
 
+    ; OSD fade-out tick
+    _Theme_OsdTick()
+
     ; Themed tooltip auto-dismiss
     _Theme_TooltipTick()
 
@@ -1321,7 +1324,7 @@ Func _RefreshIndex()
                 $sOsdText = StringReplace($sOsdText, "{name}", "")
             EndIf
             $sOsdText = StringStripWS($sOsdText, 3)
-            If $sOsdText <> "" Then _Theme_Toast($sOsdText, 0, 0, _Cfg_GetOsdDuration(), $TOAST_INFO)
+            If $sOsdText <> "" Then _Theme_ShowOsd($sOsdText, _Cfg_GetOsdDuration(), _Cfg_GetOsdPosition(), _Cfg_GetOsdFontSize(), _Cfg_GetOsdOpacity(), _Cfg_GetOsdWidth())
         EndIf
         ; Fire hook for desktop change
         _Hooks_Fire("on_desktop_change", "desktop=" & $iDesktop & "|desktop_name=" & _Labels_Load($iDesktop) & "|desktop_count=" & _VD_GetCount() & "|prev_desktop=" & $iPrevDesktop)
@@ -1900,6 +1903,52 @@ Func _RegisterHotkeys()
         $iRet = HotKeySet($sKey, "_HK_TaskView")
         If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (task view)")
     EndIf
+    $sKey = _Cfg_GetHotkeyToggleRules()
+    If $sKey <> "" Then
+        If HotKeySet($sKey, "_HK_ToggleRules") = 0 Then _Log_Warn("Hotkey failed: " & $sKey & " (toggle rules)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyLoadNextProfile()
+    If $sKey <> "" Then
+        If HotKeySet($sKey, "_HK_LoadNextProfile") = 0 Then _Log_Warn("Hotkey failed: " & $sKey & " (next profile)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyLoadPrevProfile()
+    If $sKey <> "" Then
+        If HotKeySet($sKey, "_HK_LoadPrevProfile") = 0 Then _Log_Warn("Hotkey failed: " & $sKey & " (prev profile)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyToggleOsd()
+    If $sKey <> "" Then
+        If HotKeySet($sKey, "_HK_ToggleOsd") = 0 Then _Log_Warn("Hotkey failed: " & $sKey & " (toggle OSD)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyToggleWidget()
+    If $sKey <> "" Then
+        If HotKeySet($sKey, "_HK_ToggleWidget") = 0 Then _Log_Warn("Hotkey failed: " & $sKey & " (toggle widget)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyMaximizeWindow()
+    If $sKey <> "" Then
+        If HotKeySet($sKey, "_HK_MaximizeWindow") = 0 Then _Log_Warn("Hotkey failed: " & $sKey & " (maximize)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyRestoreWindow()
+    If $sKey <> "" Then
+        If HotKeySet($sKey, "_HK_RestoreWindow") = 0 Then _Log_Warn("Hotkey failed: " & $sKey & " (restore)")
+    EndIf
+    $sKey = _Cfg_GetHotkeySwapDesktops()
+    If $sKey <> "" Then
+        If HotKeySet($sKey, "_HK_SwapDesktops") = 0 Then _Log_Warn("Hotkey failed: " & $sKey & " (swap desktops)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyGatherWindows()
+    If $sKey <> "" Then
+        If HotKeySet($sKey, "_HK_GatherWindows") = 0 Then _Log_Warn("Hotkey failed: " & $sKey & " (gather windows)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyToggleSession()
+    If $sKey <> "" Then
+        If HotKeySet($sKey, "_HK_ToggleSession") = 0 Then _Log_Warn("Hotkey failed: " & $sKey & " (toggle session)")
+    EndIf
+    For $i = 1 To 9
+        $sKey = _Cfg_GetHotkeyMoveToDesktop($i)
+        If $sKey <> "" Then
+            If HotKeySet($sKey, "_HK_MoveToDesktop" & $i) = 0 Then _Log_Warn("Hotkey failed: " & $sKey & " (move to desktop " & $i & ")")
+        EndIf
+    Next
 EndFunc
 
 ; Name:        _UnregisterHotkeys
@@ -1948,6 +1997,30 @@ Func _UnregisterHotkeys()
     If $sKey <> "" Then HotKeySet($sKey)
     $sKey = _Cfg_GetHotkeyTaskView()
     If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyToggleRules()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyLoadNextProfile()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyLoadPrevProfile()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyToggleOsd()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyToggleWidget()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyMaximizeWindow()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyRestoreWindow()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeySwapDesktops()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyGatherWindows()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyToggleSession()
+    If $sKey <> "" Then HotKeySet($sKey)
+    For $i = 1 To 9
+        $sKey = _Cfg_GetHotkeyMoveToDesktop($i)
+        If $sKey <> "" Then HotKeySet($sKey)
+    Next
 EndFunc
 
 ; Name:        _HK_Next
@@ -2193,6 +2266,160 @@ EndFunc
 Func _HK_TaskView()
     _Log_Debug("Hotkey: task view")
     Send("#{TAB}")
+EndFunc
+
+Func _HK_ToggleRules()
+    _Log_Debug("Hotkey: toggle rules")
+    _Cfg_SetRulesEnabled(Not _Cfg_GetRulesEnabled())
+    If _Cfg_GetRulesEnabled() Then
+        _WR_Start()
+        _Theme_Toast("Rules engine enabled", 0, 0, 1500, $TOAST_SUCCESS)
+    Else
+        _WR_Stop()
+        _Theme_Toast("Rules engine disabled", 0, 0, 1500, $TOAST_INFO)
+    EndIf
+    _Cfg_Save()
+EndFunc
+
+Func _HK_LoadNextProfile()
+    _Log_Debug("Hotkey: load next profile")
+    Local $sList = _Prof_ListProfiles()
+    If $sList = "" Then Return
+    Local $aProfiles = StringSplit($sList, "|")
+    ; Find current profile index and advance (wrap around)
+    ; Simple: just load the next one in alphabetical order
+    Static Local $s_iProfileIdx = 0
+    $s_iProfileIdx += 1
+    If $s_iProfileIdx > $aProfiles[0] Then $s_iProfileIdx = 1
+    _Prof_LoadProfile($aProfiles[$s_iProfileIdx])
+    _Theme_Toast("Profile: " & $aProfiles[$s_iProfileIdx], 0, 0, 1500, $TOAST_INFO)
+    _RefreshIndex()
+EndFunc
+
+Func _HK_LoadPrevProfile()
+    _Log_Debug("Hotkey: load prev profile")
+    Local $sList = _Prof_ListProfiles()
+    If $sList = "" Then Return
+    Local $aProfiles = StringSplit($sList, "|")
+    Static Local $s_iProfileIdx2 = 0
+    $s_iProfileIdx2 -= 1
+    If $s_iProfileIdx2 < 1 Then $s_iProfileIdx2 = $aProfiles[0]
+    _Prof_LoadProfile($aProfiles[$s_iProfileIdx2])
+    _Theme_Toast("Profile: " & $aProfiles[$s_iProfileIdx2], 0, 0, 1500, $TOAST_INFO)
+    _RefreshIndex()
+EndFunc
+
+Func _HK_ToggleOsd()
+    _Log_Debug("Hotkey: toggle OSD")
+    _Cfg_SetOsdEnabled(Not _Cfg_GetOsdEnabled())
+    If _Cfg_GetOsdEnabled() Then
+        _Theme_Toast("OSD enabled", 0, 0, 1500, $TOAST_SUCCESS)
+    Else
+        _Theme_Toast("OSD disabled", 0, 0, 1500, $TOAST_INFO)
+    EndIf
+    _Cfg_Save()
+EndFunc
+
+Func _HK_ToggleWidget()
+    _Log_Debug("Hotkey: toggle widget")
+    If BitAND(WinGetState($gui), 2) Then ; visible
+        GUISetState(@SW_HIDE, $gui)
+    Else
+        GUISetState(@SW_SHOWNOACTIVATE, $gui)
+        _ForceTopMost()
+    EndIf
+EndFunc
+
+Func _HK_MaximizeWindow()
+    _Log_Debug("Hotkey: maximize window")
+    Local $hFg = WinGetHandle("[ACTIVE]")
+    If $hFg <> 0 Then WinSetState($hFg, "", @SW_MAXIMIZE)
+EndFunc
+
+Func _HK_RestoreWindow()
+    _Log_Debug("Hotkey: restore window")
+    Local $hFg = WinGetHandle("[ACTIVE]")
+    If $hFg <> 0 Then WinSetState($hFg, "", @SW_RESTORE)
+EndFunc
+
+Func _HK_SwapDesktops()
+    _Log_Debug("Hotkey: swap desktops (current <-> previous)")
+    If $iPrevDesktop > 0 And $iPrevDesktop <= _VD_GetCount() Then
+        _VD_SwapDesktops($iDesktop, $iPrevDesktop)
+        Sleep(50)
+        _RefreshIndex()
+    EndIf
+EndFunc
+
+Func _HK_GatherWindows()
+    _Log_Debug("Hotkey: gather all windows to current desktop")
+    Local $iCur = _VD_GetCurrent()
+    Local $iCount = _VD_GetCount()
+    Local $d
+    For $d = 1 To $iCount
+        If $d = $iCur Then ContinueLoop
+        Local $aWins = _VD_EnumWindowsOnDesktop($d)
+        If IsArray($aWins) And $aWins[0] > 0 Then
+            Local $w
+            For $w = 1 To $aWins[0]
+                _VD_MoveWindowToDesktop($aWins[$w], $iCur)
+            Next
+        EndIf
+    Next
+    _Theme_Toast("All windows gathered", 0, 0, 1500, $TOAST_SUCCESS)
+    If _WL_IsVisible() Then _WL_Refresh($iCur)
+EndFunc
+
+Func _HK_ToggleSession()
+    _Log_Debug("Hotkey: toggle session restore")
+    _Cfg_SetSessionRestoreEnabled(Not _Cfg_GetSessionRestoreEnabled())
+    If _Cfg_GetSessionRestoreEnabled() Then
+        _Theme_Toast("Session restore enabled", 0, 0, 1500, $TOAST_SUCCESS)
+    Else
+        _Theme_Toast("Session restore disabled", 0, 0, 1500, $TOAST_INFO)
+    EndIf
+    _Cfg_Save()
+EndFunc
+
+; Move-to-desktop hotkey stubs (1-9) — same pattern as HK_Desktop1-9
+Func __HK_MoveToDesktop($iNum)
+    If $iNum <= _VD_GetCount() Then
+        Local $hFg = WinGetHandle("[ACTIVE]")
+        If $hFg <> 0 Then
+            _VD_MoveWindowToDesktop($hFg, $iNum)
+            If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
+                _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iNum), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+            EndIf
+            _Hooks_Fire("on_window_move", "desktop=" & $iNum & "|window_title=" & WinGetTitle($hFg) & "|window_process=")
+        EndIf
+    EndIf
+EndFunc
+Func _HK_MoveToDesktop1()
+    __HK_MoveToDesktop(1)
+EndFunc
+Func _HK_MoveToDesktop2()
+    __HK_MoveToDesktop(2)
+EndFunc
+Func _HK_MoveToDesktop3()
+    __HK_MoveToDesktop(3)
+EndFunc
+Func _HK_MoveToDesktop4()
+    __HK_MoveToDesktop(4)
+EndFunc
+Func _HK_MoveToDesktop5()
+    __HK_MoveToDesktop(5)
+EndFunc
+Func _HK_MoveToDesktop6()
+    __HK_MoveToDesktop(6)
+EndFunc
+Func _HK_MoveToDesktop7()
+    __HK_MoveToDesktop(7)
+EndFunc
+Func _HK_MoveToDesktop8()
+    __HK_MoveToDesktop(8)
+EndFunc
+Func _HK_MoveToDesktop9()
+    __HK_MoveToDesktop(9)
 EndFunc
 
 ; Name:        _HK_AddDesktop

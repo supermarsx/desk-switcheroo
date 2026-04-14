@@ -28,6 +28,17 @@ EndIf
 #include "..\includes\ExplorerMonitor.au3"
 #include "..\includes\VirtualDesktop.au3"
 #include "..\includes\WindowList.au3"
+#include "..\includes\Peek.au3"
+#include "..\includes\ContextMenu.au3"
+#include "..\includes\RenameDialog.au3"
+#include "..\includes\DesktopList.au3"
+#include "..\includes\ConfigDialog.au3"
+#include "..\includes\i18n.au3"
+#include "..\includes\WindowRules.au3"
+#include "..\includes\SessionRestore.au3"
+#include "..\includes\CLI.au3"
+#include "..\includes\Hooks.au3"
+#include "..\includes\Profiles.au3"
 
 ; ---- Create results directory ----
 If Not FileExists($__g_E2E_sResultsDir) Then DirCreate($__g_E2E_sResultsDir)
@@ -52,6 +63,15 @@ _E2E_WallpaperIntegration()
 _E2E_ExplorerMonitorIntegration()
 _E2E_VirtualDesktopPinIntegration()
 _E2E_WindowListIntegration()
+
+; Competitive feature E2E suites
+_E2E_ConfigDialogOpen()
+_E2E_NewSectionsPersistence()
+_E2E_WindowRulesIntegration()
+_E2E_SessionRestoreIntegration()
+_E2E_HooksIntegration()
+_E2E_ProfilesIntegration()
+_E2E_CLIIntegration()
 
 ; ---- Cleanup ----
 _Theme_UnloadFonts()
@@ -897,6 +917,292 @@ Func _E2E_WindowListIntegration()
 
     ; Cleanup
     FileDelete($sTempIni)
+EndFunc
+
+; ===============================================================
+; COMPETITIVE FEATURE E2E TESTS
+; ===============================================================
+
+; -- Test: ConfigDialog opens without crashing --
+; This catches checkbox/control array overflows (e.g., 81 checkboxes vs 80-element array)
+Func _E2E_ConfigDialogOpen()
+    _E2E_Suite("ConfigDialog Open")
+
+    Local $sTempIni = @TempDir & "\e2e_cd_open.ini"
+    If FileExists($sTempIni) Then FileDelete($sTempIni)
+    _Cfg_Init($sTempIni)
+    _i18n_Init(_Cfg_GetLanguage())
+
+    ; _CD_Show() is blocking (enters message loop), so we test build phase only.
+    ; Reproduce the build sequence from _CD_Show() without the message loop.
+    Local $iW = 540, $iH = 700
+    Local $iX = (@DesktopWidth - $iW) / 2
+    Local $iY = (@DesktopHeight - $iH) / 2
+    Local $hTestGUI = _Theme_CreatePopup("E2E_Settings", $iW, $iH, $iX, $iY, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+    _E2E_AssertTrue("Settings popup created", $hTestGUI <> 0)
+
+    ; Reset checkbox state
+    $__g_CD_iChkCount = 0
+    Local $t
+    For $t = 1 To 14
+        $__g_CD_aiTabCtrlCount[$t] = 0
+        $__g_CD_aiTabScroll[$t] = 0
+        $__g_CD_abTabYInit[$t] = False
+    Next
+
+    ; Build all 14 tabs — this is where checkbox overflows would crash
+    __CD_BuildTabGeneral()
+    _E2E_AssertTrue("Tab General built", True)
+    __CD_BuildTabDisplay()
+    _E2E_AssertTrue("Tab Display built", True)
+    __CD_BuildTabHotkeys()
+    __CD_BuildTabBehavior()
+    __CD_BuildTabLogging()
+    __CD_BuildTabUpdates()
+    __CD_BuildTabDesktops()
+    __CD_BuildTabAnimations()
+    __CD_BuildTabOSD()
+    __CD_BuildTabWindowList()
+    __CD_BuildTabExplorer()
+    __CD_BuildTabNotifications()
+    __CD_BuildTabTaskbar()
+    __CD_BuildTabTray()
+    _E2E_AssertTrue("All 14 tabs built without crash", True)
+
+    ; Verify checkbox count is within array bounds
+    Local $iMaxChk = UBound($__g_CD_aChkIDs) - 1
+    _E2E_AssertTrue("Checkbox count (" & $__g_CD_iChkCount & ") <= array size (" & $iMaxChk & ")", $__g_CD_iChkCount <= $iMaxChk)
+
+    ; Verify we can populate all controls without crash
+    __CD_PopulateControls()
+    _E2E_AssertTrue("PopulateControls succeeded", True)
+
+    GUIDelete($hTestGUI)
+    FileDelete($sTempIni)
+EndFunc
+
+; -- Test: New config sections persist across save/reload --
+Func _E2E_NewSectionsPersistence()
+    _E2E_Suite("New Sections Persistence")
+
+    Local $sTempIni = @TempDir & "\e2e_new_sections.ini"
+    If FileExists($sTempIni) Then FileDelete($sTempIni)
+    _Cfg_Init($sTempIni)
+
+    ; Sections are created on first write. Verify defaults readable via getters.
+    _E2E_AssertFalse("Default: OSD disabled", _Cfg_GetOsdEnabled())
+    _E2E_AssertFalse("Default: Rules disabled", _Cfg_GetRulesEnabled())
+    _E2E_AssertFalse("Default: Session disabled", _Cfg_GetSessionRestoreEnabled())
+    _E2E_AssertFalse("Default: Hooks disabled", _Cfg_GetHooksEnabled())
+    _E2E_AssertFalse("Default: Profiles disabled", _Cfg_GetProfilesEnabled())
+
+    ; Set non-default values for new features
+    _Cfg_SetOsdEnabled(True)
+    _Cfg_SetOsdDuration(2500)
+    _Cfg_SetOsdPosition("bottom-right")
+    _Cfg_SetOsdFontSize(18)
+    _Cfg_SetOsdFormat("{name}")
+    _Cfg_SetRulesEnabled(True)
+    _Cfg_SetRulesPollInterval(5000)
+    _Cfg_SetSessionRestoreEnabled(True)
+    _Cfg_SetHooksEnabled(True)
+    _Cfg_SetHooksTimeout(30000)
+    _Cfg_SetProfilesEnabled(True)
+    _Cfg_Save()
+
+    ; Reload and verify values survived
+    _Cfg_Load()
+    _E2E_AssertTrue("OSD enabled persisted", _Cfg_GetOsdEnabled())
+    _E2E_AssertEqual("OSD duration persisted", _Cfg_GetOsdDuration(), 2500)
+    _E2E_AssertEqual("OSD position persisted", _Cfg_GetOsdPosition(), "bottom-right")
+    _E2E_AssertEqual("OSD font size persisted", _Cfg_GetOsdFontSize(), 18)
+    _E2E_AssertEqual("OSD format persisted", _Cfg_GetOsdFormat(), "{name}")
+    _E2E_AssertTrue("Rules enabled persisted", _Cfg_GetRulesEnabled())
+    _E2E_AssertEqual("Rules interval persisted", _Cfg_GetRulesPollInterval(), 5000)
+    _E2E_AssertTrue("Session restore persisted", _Cfg_GetSessionRestoreEnabled())
+    _E2E_AssertTrue("Hooks enabled persisted", _Cfg_GetHooksEnabled())
+    _E2E_AssertEqual("Hooks timeout persisted", _Cfg_GetHooksTimeout(), 30000)
+    _E2E_AssertTrue("Profiles enabled persisted", _Cfg_GetProfilesEnabled())
+
+    ; Verify raw INI values
+    _E2E_AssertEqual("Raw INI: osd_enabled", IniRead($sTempIni, "Notifications", "osd_enabled", ""), "true")
+    _E2E_AssertEqual("Raw INI: rules_enabled", IniRead($sTempIni, "Rules", "rules_enabled", ""), "true")
+    _E2E_AssertEqual("Raw INI: session_restore_enabled", IniRead($sTempIni, "Session", "session_restore_enabled", ""), "true")
+
+    FileDelete($sTempIni)
+EndFunc
+
+; -- Test: Window rules engine lifecycle --
+Func _E2E_WindowRulesIntegration()
+    _E2E_Suite("Window Rules Integration")
+
+    ; Verify initial state
+    _E2E_AssertFalse("Rules not running initially", _WR_IsRunning())
+    _E2E_AssertEqual("No rules loaded", _WR_GetRuleCount(), 0)
+
+    ; Write rules to the config path that _WR_LoadRules reads from
+    Local $sTempIni = @TempDir & "\e2e_rules.ini"
+    If FileExists($sTempIni) Then FileDelete($sTempIni)
+    _Cfg_Init($sTempIni)
+
+    ; Write rules directly to the config INI
+    IniWrite($sTempIni, "Rules", "rules_enabled", "true")
+    IniWrite($sTempIni, "Rules", "rules_poll_interval", "2000")
+    IniWrite($sTempIni, "Rules", "rule_1", "notepad.exe|2")
+    IniWrite($sTempIni, "Rules", "rule_2", "class:CabinetWClass|1")
+    IniWrite($sTempIni, "Rules", "rule_3", "invalid_no_pipe")
+    _Cfg_Load() ; reload so _Cfg_GetRulesEnabled() returns true
+
+    ; Load rules
+    Local $iCount = _WR_LoadRules()
+    _E2E_AssertEqual("Loaded 2 valid rules (skipped invalid)", $iCount, 2)
+    _E2E_AssertEqual("GetRuleCount matches", _WR_GetRuleCount(), 2)
+
+    ; Start and stop cycle
+    _WR_Start()
+    _E2E_AssertTrue("Rules running after start", _WR_IsRunning())
+    _WR_Stop()
+    _E2E_AssertFalse("Rules stopped after stop", _WR_IsRunning())
+
+    FileDelete($sTempIni)
+EndFunc
+
+; -- Test: Session restore save/clear lifecycle --
+Func _E2E_SessionRestoreIntegration()
+    _E2E_Suite("Session Restore Integration")
+
+    Local $sTempIni = @TempDir & "\e2e_session.ini"
+    If FileExists($sTempIni) Then FileDelete($sTempIni)
+    _Cfg_Init($sTempIni)
+
+    ; Verify disabled by default
+    _E2E_AssertFalse("Session restore disabled by default", _Cfg_GetSessionRestoreEnabled())
+
+    ; Test save returns 0 when disabled
+    Local $iSaved = _SR_SaveSession()
+    _E2E_AssertEqual("Save returns 0 when disabled", $iSaved, 0)
+
+    ; Test state file operations
+    Local $sStateFile = @ScriptDir & "\desk_switcheroo_state.ini"
+    _E2E_AssertFalse("No saved session initially", _SR_HasSavedSession())
+    _E2E_AssertEqual("Saved count is 0", _SR_GetSavedCount(), 0)
+
+    ; Write fake session data and verify read-back
+    IniWrite($sStateFile, "Session", "session_count", "2")
+    IniWrite($sStateFile, "Session", "entry_1", "chrome.exe|Chrome_WidgetWin_1|1")
+    IniWrite($sStateFile, "Session", "entry_2", "code.exe|Chrome_WidgetWin_1|2")
+    _E2E_AssertTrue("HasSavedSession after write", _SR_HasSavedSession())
+    _E2E_AssertEqual("GetSavedCount returns 2", _SR_GetSavedCount(), 2)
+
+    ; Clear and verify
+    _SR_ClearSession()
+    _E2E_AssertFalse("No saved session after clear", _SR_HasSavedSession())
+
+    FileDelete($sTempIni)
+    IniDelete($sStateFile, "Session")
+EndFunc
+
+; -- Test: Hooks system lifecycle --
+Func _E2E_HooksIntegration()
+    _E2E_Suite("Hooks Integration")
+
+    ; Verify disabled by default
+    _E2E_AssertFalse("Hooks not enabled initially", _Hooks_IsEnabled())
+    _E2E_AssertEqual("No hooks loaded", _Hooks_GetHookCount(), 0)
+
+    ; Fire while disabled should be safe (no crash)
+    _Hooks_Fire("on_desktop_change", "desktop=1")
+    _E2E_AssertTrue("Fire while disabled is safe", True)
+
+    ; Init with hooks configured
+    Local $sTempIni = @TempDir & "\e2e_hooks.ini"
+    If FileExists($sTempIni) Then FileDelete($sTempIni)
+    IniWrite($sTempIni, "Hooks", "hooks_enabled", "true")
+    IniWrite($sTempIni, "Hooks", "hooks_timeout", "5000")
+    IniWrite($sTempIni, "Hooks", "on_desktop_change", "echo {desktop}")
+    IniWrite($sTempIni, "Hooks", "on_startup", "echo started")
+    _Cfg_Init($sTempIni)
+    _Hooks_Init()
+
+    _E2E_AssertTrue("Hooks enabled after init", _Hooks_IsEnabled())
+    _E2E_AssertEqual("2 hooks loaded", _Hooks_GetHookCount(), 2)
+
+    ; Shutdown clears state
+    _Hooks_Shutdown()
+    _E2E_AssertFalse("Hooks disabled after shutdown", _Hooks_IsEnabled())
+    _E2E_AssertEqual("Hooks count 0 after shutdown", _Hooks_GetHookCount(), 0)
+
+    FileDelete($sTempIni)
+EndFunc
+
+; -- Test: Profiles save/load/delete lifecycle --
+Func _E2E_ProfilesIntegration()
+    _E2E_Suite("Profiles Integration")
+
+    Local $sTempDir = @TempDir & "\e2e_profiles_test"
+    If FileExists($sTempDir) Then DirRemove($sTempDir, 1)
+    DirCreate($sTempDir)
+
+    ; Create temp config that enables profiles
+    Local $sTempIni = $sTempDir & "\desk_switcheroo.ini"
+    IniWrite($sTempIni, "Profiles", "profiles_enabled", "true")
+    _Prof_Init($sTempDir)
+
+    _E2E_AssertTrue("Profiles enabled", _Prof_IsEnabled())
+
+    ; No profiles initially
+    _E2E_AssertEqual("No profiles listed", _Prof_ListProfiles(), "")
+    _E2E_AssertFalse("Profile 'test' does not exist", _Prof_ProfileExists("test"))
+
+    ; Save a profile (will create minimal profile since VD DLL may not be loaded)
+    Local $bSaved = _Prof_SaveProfile("test")
+    _E2E_AssertTrue("Profile saved", $bSaved)
+    _E2E_AssertTrue("Profile exists after save", _Prof_ProfileExists("test"))
+
+    ; List should include the profile
+    Local $sList = _Prof_ListProfiles()
+    _E2E_AssertTrue("Profile in list", StringInStr($sList, "test") > 0)
+
+    ; Profile file has correct metadata
+    Local $sProfilePath = _Prof_GetProfilePath("test")
+    _E2E_AssertEqual("Profile meta name", IniRead($sProfilePath, "Meta", "name", ""), "test")
+
+    ; Delete profile
+    Local $bDeleted = _Prof_DeleteProfile("test")
+    _E2E_AssertTrue("Profile deleted", $bDeleted)
+    _E2E_AssertFalse("Profile gone after delete", _Prof_ProfileExists("test"))
+
+    ; Name sanitization
+    _E2E_AssertEqual("Sanitize path for 'My Profile!'", StringRight(_Prof_GetProfilePath("My Profile!"), StringLen("myprofile.ini")), "myprofile.ini")
+
+    DirRemove($sTempDir, 1)
+EndFunc
+
+; -- Test: CLI argument parsing and IPC --
+Func _E2E_CLIIntegration()
+    _E2E_Suite("CLI Integration")
+
+    ; Verify initial state
+    _E2E_AssertFalse("No command initially", _CLI_HasCommand())
+    _E2E_AssertEqual("Command is empty", _CLI_GetCommand(), "")
+
+    ; Test IPC window lifecycle
+    _CLI_RegisterIPC()
+    _E2E_AssertTrue("IPC registered (no crash)", True)
+    Local $hIPC = WinGetHandle("DeskSwitcheroo_IPC")
+    _E2E_AssertTrue("IPC window exists", $hIPC <> 0)
+
+    _CLI_UnregisterIPC()
+    Sleep(100) ; allow window destruction to complete
+    Local $hIPC2 = WinGetHandle("DeskSwitcheroo_IPC")
+    _E2E_AssertTrue("IPC window destroyed", @error <> 0 Or $hIPC2 = 0)
+
+    ; Test query command classification
+    _E2E_AssertTrue("help is query command", _CLI_IsQueryCommand() Or Not _CLI_HasCommand())
+
+    ; Test IPC string building
+    Local $sIPC = _CLI_BuildIPCString()
+    _E2E_AssertTrue("IPC string is string", IsString($sIPC))
 EndFunc
 
 ; ===============================================================

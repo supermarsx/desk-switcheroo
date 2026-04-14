@@ -565,6 +565,115 @@ Func _Theme_ToastDestroy()
 EndFunc
 
 ; =============================================
+; OSD NOTIFICATION
+; =============================================
+
+Global $__g_OSD_hGUI = 0
+Global $__g_OSD_hTimer = 0
+Global $__g_OSD_iDuration = 0
+Global $__g_OSD_iFadeStep = 0
+Global $__g_OSD_iAlpha = 0
+
+; Name:        _Theme_ShowOsd
+; Description: Shows a large OSD popup for desktop switch notifications.
+;              Non-blocking. Call _Theme_OsdTick() from the main loop to
+;              handle fade-out and cleanup.
+; Parameters:  $sText     - OSD text
+;              $iDuration - how long to show in ms
+;              $sPosition - position string (e.g. "top-center", "middle-center")
+;              $iFontSize - font size for the OSD text
+;              $iOpacity  - window opacity (0-255)
+;              $iWidth    - width of the OSD window in pixels
+Func _Theme_ShowOsd($sText, $iDuration, $sPosition, $iFontSize, $iOpacity, $iWidth)
+    _Theme_OsdDestroy()
+
+    Local $iH = $iFontSize * 3
+    If $iH < 40 Then $iH = 40
+    Local $iW = $iWidth
+
+    ; Calculate position
+    Local $iX = 0, $iY = 0
+    Switch $sPosition
+        Case "top-left"
+            $iX = 20
+            $iY = 20
+        Case "top-center"
+            $iX = (@DesktopWidth - $iW) / 2
+            $iY = 20
+        Case "top-right"
+            $iX = @DesktopWidth - $iW - 20
+            $iY = 20
+        Case "middle-left"
+            $iX = 20
+            $iY = (@DesktopHeight - $iH) / 2
+        Case "middle-center"
+            $iX = (@DesktopWidth - $iW) / 2
+            $iY = (@DesktopHeight - $iH) / 2
+        Case "middle-right"
+            $iX = @DesktopWidth - $iW - 20
+            $iY = (@DesktopHeight - $iH) / 2
+        Case "bottom-left"
+            $iX = 20
+            $iY = @DesktopHeight - $iH - 60
+        Case "bottom-center"
+            $iX = (@DesktopWidth - $iW) / 2
+            $iY = @DesktopHeight - $iH - 60
+        Case "bottom-right"
+            $iX = @DesktopWidth - $iW - 20
+            $iY = @DesktopHeight - $iH - 60
+        Case "widget"
+            $iX = (@DesktopWidth - $iW) / 2
+            $iY = @DesktopHeight - $iH - 60
+    EndSwitch
+
+    $__g_OSD_hGUI = GUICreate("OSD", $iW, $iH, $iX, $iY, $WS_POPUP, BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW, $WS_EX_LAYERED))
+    GUISwitch($__g_OSD_hGUI)
+    GUISetBkColor($THEME_BG_POPUP)
+
+    GUICtrlCreateLabel($sText, 0, 0, $iW, $iH, BitOR($SS_CENTER, $SS_CENTERIMAGE))
+    GUICtrlSetFont(-1, $iFontSize, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
+    GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
+
+    $__g_OSD_iAlpha = $iOpacity
+    _WinAPI_SetLayeredWindowAttributes($__g_OSD_hGUI, 0, $__g_OSD_iAlpha, $LWA_ALPHA)
+    GUISetState(@SW_SHOWNOACTIVATE, $__g_OSD_hGUI)
+    $__g_OSD_iDuration = $iDuration
+    $__g_OSD_iFadeStep = 0
+    $__g_OSD_hTimer = TimerInit()
+EndFunc
+
+; Name:        _Theme_OsdTick
+; Description: Call from main loop. Handles fade-out and cleanup.
+; Return:      None
+Func _Theme_OsdTick()
+    If $__g_OSD_hGUI = 0 Or $__g_OSD_hTimer = 0 Then Return
+    If $__g_OSD_iFadeStep = 0 Then
+        If TimerDiff($__g_OSD_hTimer) >= $__g_OSD_iDuration Then $__g_OSD_iFadeStep = 1
+        Return
+    EndIf
+    $__g_OSD_iAlpha -= 15
+    If $__g_OSD_iAlpha <= 0 Then
+        _Theme_OsdDestroy()
+        Return
+    EndIf
+    _WinAPI_SetLayeredWindowAttributes($__g_OSD_hGUI, 0, $__g_OSD_iAlpha, $LWA_ALPHA)
+EndFunc
+
+; Name:        _Theme_OsdDestroy
+; Description: Destroys the OSD window if visible
+Func _Theme_OsdDestroy()
+    If $__g_OSD_hGUI <> 0 Then
+        GUIDelete($__g_OSD_hGUI)
+        $__g_OSD_hGUI = 0
+    EndIf
+    $__g_OSD_hTimer = 0
+    $__g_OSD_iDuration = 0
+    $__g_OSD_iFadeStep = 0
+    $__g_OSD_iAlpha = 0
+EndFunc
+
+; =============================================
 ; THEMED TOOLTIP
 ; =============================================
 
