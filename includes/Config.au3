@@ -107,6 +107,7 @@ Global $__g_Cfg_iPeekBounceDelay   = 500
 Global $__g_Cfg_iAutoHideTimeout   = 3000
 Global $__g_Cfg_iTopmostInterval   = 300
 Global $__g_Cfg_iCmAutoHideDelay   = 500
+Global $__g_Cfg_iCtxAutoHideDelay  = 750
 Global $__g_Cfg_bConfigWatcherEnabled = False
 Global $__g_Cfg_iConfigWatcherInterval = 60000
 Global $__g_Cfg_iCountCacheTTL = 1000
@@ -396,6 +397,7 @@ Func _Cfg_Load()
     $__g_Cfg_iAutoHideTimeout   = __Cfg_ReadInt($f, "Behavior", "auto_hide_timeout", 3000, 500, 30000)
     $__g_Cfg_iTopmostInterval   = __Cfg_ReadInt($f, "Behavior", "topmost_interval", 300, 100, 5000)
     $__g_Cfg_iCmAutoHideDelay   = __Cfg_ReadInt($f, "Behavior", "cm_auto_hide_delay", 500, 100, 5000)
+    $__g_Cfg_iCtxAutoHideDelay  = __Cfg_ReadInt($f, "Behavior", "ctx_auto_hide_delay", 750, 100, 5000)
     $__g_Cfg_bConfigWatcherEnabled = __Cfg_ReadBool($f, "Behavior", "config_watcher_enabled", False)
     $__g_Cfg_iConfigWatcherInterval = __Cfg_ReadInt($f, "Behavior", "config_watcher_interval", 60000, 5000, 300000)
     $__g_Cfg_iCountCacheTTL = __Cfg_ReadInt($f, "Behavior", "count_cache_ttl", 1000, 100, 10000)
@@ -659,6 +661,7 @@ Func _Cfg_Save()
     IniWrite($f, "Behavior", "auto_hide_timeout", $__g_Cfg_iAutoHideTimeout)
     IniWrite($f, "Behavior", "topmost_interval", $__g_Cfg_iTopmostInterval)
     IniWrite($f, "Behavior", "cm_auto_hide_delay", $__g_Cfg_iCmAutoHideDelay)
+    IniWrite($f, "Behavior", "ctx_auto_hide_delay", $__g_Cfg_iCtxAutoHideDelay)
     __Cfg_WriteBool($f, "Behavior", "config_watcher_enabled", $__g_Cfg_bConfigWatcherEnabled)
     IniWrite($f, "Behavior", "config_watcher_interval", $__g_Cfg_iConfigWatcherInterval)
     IniWrite($f, "Behavior", "count_cache_ttl", $__g_Cfg_iCountCacheTTL)
@@ -918,6 +921,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Behavior", "auto_hide_timeout", 3000)
     __Cfg_DefaultVal($f, "Behavior", "topmost_interval", 300)
     __Cfg_DefaultVal($f, "Behavior", "cm_auto_hide_delay", 500)
+    __Cfg_DefaultVal($f, "Behavior", "ctx_auto_hide_delay", 750)
     __Cfg_DefaultBool($f, "Behavior", "config_watcher_enabled", False)
     __Cfg_DefaultVal($f, "Behavior", "config_watcher_interval", 60000)
     __Cfg_DefaultVal($f, "Behavior", "count_cache_ttl", 1000)
@@ -1290,6 +1294,9 @@ Func _Cfg_GetTopmostInterval()
 EndFunc
 Func _Cfg_GetCmAutoHideDelay()
     Return $__g_Cfg_iCmAutoHideDelay
+EndFunc
+Func _Cfg_GetCtxAutoHideDelay()
+    Return $__g_Cfg_iCtxAutoHideDelay
 EndFunc
 Func _Cfg_GetConfigWatcherEnabled()
     Return $__g_Cfg_bConfigWatcherEnabled
@@ -1972,6 +1979,11 @@ Func _Cfg_SetCmAutoHideDelay($i)
     If $i < 100 Then $i = 100
     If $i > 5000 Then $i = 5000
     $__g_Cfg_iCmAutoHideDelay = $i
+EndFunc
+Func _Cfg_SetCtxAutoHideDelay($i)
+    If $i < 100 Then $i = 100
+    If $i > 5000 Then $i = 5000
+    $__g_Cfg_iCtxAutoHideDelay = $i
 EndFunc
 Func _Cfg_SetConfigWatcherEnabled($b)
     $__g_Cfg_bConfigWatcherEnabled = $b

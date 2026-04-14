@@ -48,6 +48,8 @@ Global $__g_DL_iCtxAdd       = 0
 Global $__g_DL_iCtxDelete    = 0
 Global $__g_DL_iCtxPin       = 0
 Global $__g_DL_iCtxHovered   = 0
+Global $__g_DL_hCtxGraceTimer = 0
+Global $__g_DL_hCtxAwayTimer = 0
 
 ; -- Color picker submenu state --
 Global $__g_DL_hColorGUI = 0
@@ -334,6 +336,7 @@ EndFunc
 Func _DL_CheckHover($iCurrentDesktop)
     If Not $__g_DL_bVisible Or $__g_DL_hGUI = 0 Then Return
     If $__g_DL_iDragState = 2 Then Return ; drag controls visuals during active drag
+    If $__g_DL_bCtxVisible Then Return ; keep hover locked on right-clicked item
     Local $iItemBound = UBound($__g_DL_aItems) - 1
     Local $iPeekBound = UBound($__g_DL_aPeekBtns) - 1
     If $iItemBound < 1 Or $__g_DL_aItems[0] < 1 Then Return
@@ -898,10 +901,11 @@ Func _DL_CtxShow($iTarget)
     If _Cfg_GetPinningEnabled() Then $iItemCount += 1
     Local $iMenuH = $iItemCount * $THEME_MENU_ITEM_H + $iSepH + 12
 
-    Local $iMenuX = $__g_Theme_iCachedCursorX
-    Local $iMenuY = $__g_Theme_iCachedCursorY - $iMenuH
+    Local $iMenuX = $__g_Theme_iCachedCursorX - 8
+    Local $iMenuY = $__g_Theme_iCachedCursorY - $iMenuH + 8
     ; Keep menu on screen
     If $iMenuY < 0 Then $iMenuY = $__g_Theme_iCachedCursorY
+    If $iMenuX < 0 Then $iMenuX = 0
 
     $__g_DL_hCtxGUI = _Theme_CreatePopup("DLCtx", $iMenuW, $iMenuH, $iMenuX, $iMenuY, $THEME_BG_POPUP, $THEME_ALPHA_MENU)
     If $__g_DL_hCtxGUI = 0 Then
@@ -949,6 +953,7 @@ Func _DL_CtxShow($iTarget)
     GUISetState(@SW_SHOW, $__g_DL_hCtxGUI)
     $__g_DL_bCtxVisible = True
     $__g_DL_iCtxHovered = 0
+    $__g_DL_hCtxGraceTimer = TimerInit()
 EndFunc
 
 ; Name:        _DL_CtxDestroy
@@ -960,6 +965,8 @@ Func _DL_CtxDestroy()
         $__g_DL_hCtxGUI = 0
     EndIf
     $__g_DL_bCtxVisible = False
+    $__g_DL_hCtxGraceTimer = 0
+    $__g_DL_hCtxAwayTimer = 0
     $__g_DL_iCtxTarget = 0
     $__g_DL_iCtxSwitch = 0
     $__g_DL_iCtxRename = 0
@@ -1041,9 +1048,26 @@ EndFunc
 ; Return:      True if dismissed, False otherwise
 Func _DL_CtxCheckAutoHide()
     If Not $__g_DL_bCtxVisible Or $__g_DL_hCtxGUI = 0 Then Return False
-    If _Theme_IsCursorOverWindow($__g_DL_hCtxGUI) Then Return False
-    If _Theme_IsCursorOverWindow($__g_DL_hGUI) Then Return False
-    If $__g_DL_bColorVisible And _Theme_IsCursorOverWindow($__g_DL_hColorGUI) Then Return False
+    If $__g_DL_hCtxGraceTimer <> 0 And TimerDiff($__g_DL_hCtxGraceTimer) < 300 Then Return False
+
+    ; Check if cursor is over any related window
+    Local $bOver = False
+    If _Theme_IsCursorOverWindow($__g_DL_hCtxGUI) Then $bOver = True
+    If Not $bOver And _Theme_IsCursorOverWindow($__g_DL_hGUI) Then $bOver = True
+    If Not $bOver And $__g_DL_bColorVisible And _Theme_IsCursorOverWindow($__g_DL_hColorGUI) Then $bOver = True
+
+    If $bOver Then
+        $__g_DL_hCtxAwayTimer = 0
+        Return False
+    EndIf
+
+    ; Cursor is away — start or check timer
+    If $__g_DL_hCtxAwayTimer = 0 Then
+        $__g_DL_hCtxAwayTimer = TimerInit()
+        Return False
+    EndIf
+    If TimerDiff($__g_DL_hCtxAwayTimer) < _Cfg_GetCtxAutoHideDelay() Then Return False
+
     _DL_CtxDestroy()
     Return True
 EndFunc
