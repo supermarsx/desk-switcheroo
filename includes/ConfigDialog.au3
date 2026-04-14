@@ -198,14 +198,24 @@ Global $__g_CD_idChkCarouselEnabled, $__g_CD_idInpCarouselInterval
 Global $__g_CD_idChkCarouselMenu, $__g_CD_idChkNotifyCarousel
 
 ; -- Tab 5: Behavior sub-tabs --
-Global $__g_CD_idBhvSubInteract = 0, $__g_CD_idBhvSubTimers = 0, $__g_CD_idBhvSubCarousel = 0
+Global $__g_CD_idBhvSubInteract = 0, $__g_CD_idBhvSubTimers = 0, $__g_CD_idBhvSubCarousel = 0, $__g_CD_idBhvSubRules = 0
 Global $__g_CD_aBhvInteractCtrls[50]
 Global $__g_CD_iBhvInteractCount = 0
 Global $__g_CD_aBhvTimersCtrls[50]
 Global $__g_CD_iBhvTimersCount = 0
 Global $__g_CD_aBhvCarouselCtrls[50]
 Global $__g_CD_iBhvCarouselCount = 0
-Global $__g_CD_iBhvActiveSub = 1     ; 1=Interaction, 2=Timers, 3=Carousel
+Global $__g_CD_aBhvRulesCtrls[50]
+Global $__g_CD_iBhvRulesCount = 0
+Global $__g_CD_iBhvActiveSub = 1     ; 1=Interaction, 2=Timers, 3=Carousel, 4=Rules
+
+; -- Tab 5: Rules engine controls --
+Global $__g_CD_idChkRulesEnabled = 0
+Global $__g_CD_idInpRulesPollInterval = 0
+Global Const $__g_CD_iRuleRowCount = 10
+Global $__g_CD_aidRuleType[11]     ; cycle labels: "Process" / "Class"
+Global $__g_CD_aidRulePattern[11]  ; pattern input fields
+Global $__g_CD_aidRuleDesktop[11]  ; target desktop number inputs
 
 ; -- Tab 4: Carousel hotkey --
 Global $__g_CD_idInpHkCarousel
@@ -215,9 +225,9 @@ Global $__g_CD_idBtnApply, $__g_CD_idBtnClose
 Global $__g_CD_idBtnImport, $__g_CD_idBtnExport, $__g_CD_idBtnRestart
 
 ; -- Checkbox state tracking --
-Global $__g_CD_aChkIDs[80]     ; control IDs (2 per checkbox: box + text)
-Global $__g_CD_aChkStates[80]  ; boolean states
-Global $__g_CD_aChkTexts[80]   ; original text per checkbox
+Global $__g_CD_aChkIDs[100]     ; control IDs (2 per checkbox: box + text)
+Global $__g_CD_aChkStates[100]  ; boolean states
+Global $__g_CD_aChkTexts[100]   ; original text per checkbox
 Global $__g_CD_iChkCount = 0
 Global $__g_CD_hBrushCombo = 0 ; GDI brush for combo dropdown theming
 
@@ -1742,6 +1752,9 @@ Func __CD_RegBhvSub($iSub, $idCtrl)
         Case 3
             $__g_CD_aBhvCarouselCtrls[$__g_CD_iBhvCarouselCount] = $idCtrl
             $__g_CD_iBhvCarouselCount += 1
+        Case 4
+            $__g_CD_aBhvRulesCtrls[$__g_CD_iBhvRulesCount] = $idCtrl
+            $__g_CD_iBhvRulesCount += 1
     EndSwitch
 EndFunc
 
@@ -1767,6 +1780,13 @@ Func __CD_SwitchBhvSub($iSub)
             GUICtrlSetState($__g_CD_aBhvCarouselCtrls[$i], $GUI_SHOW)
         Else
             GUICtrlSetState($__g_CD_aBhvCarouselCtrls[$i], $GUI_HIDE)
+        EndIf
+    Next
+    For $i = 0 To $__g_CD_iBhvRulesCount - 1
+        If $iSub = 4 Then
+            GUICtrlSetState($__g_CD_aBhvRulesCtrls[$i], $GUI_SHOW)
+        Else
+            GUICtrlSetState($__g_CD_aBhvRulesCtrls[$i], $GUI_HIDE)
         EndIf
     Next
     ; Update sub-tab button styles
@@ -1797,6 +1817,15 @@ Func __CD_SwitchBhvSub($iSub)
         GUICtrlSetBkColor($__g_CD_idBhvSubCarousel, $THEME_BG_MAIN)
         GUICtrlSetFont($__g_CD_idBhvSubCarousel, 7, 400, 0, $THEME_FONT_MAIN)
     EndIf
+    If $iSub = 4 Then
+        GUICtrlSetColor($__g_CD_idBhvSubRules, $THEME_FG_WHITE)
+        GUICtrlSetBkColor($__g_CD_idBhvSubRules, $THEME_BG_ACTIVE)
+        GUICtrlSetFont($__g_CD_idBhvSubRules, 7, 700, 0, $THEME_FONT_MAIN)
+    Else
+        GUICtrlSetColor($__g_CD_idBhvSubRules, $THEME_FG_DIM)
+        GUICtrlSetBkColor($__g_CD_idBhvSubRules, $THEME_BG_MAIN)
+        GUICtrlSetFont($__g_CD_idBhvSubRules, 7, 400, 0, $THEME_FONT_MAIN)
+    EndIf
 EndFunc
 
 Func __CD_BuildTabBehavior()
@@ -1807,33 +1836,41 @@ Func __CD_BuildTabBehavior()
     $__g_CD_iBhvInteractCount = 0
     $__g_CD_iBhvTimersCount = 0
     $__g_CD_iBhvCarouselCount = 0
+    $__g_CD_iBhvRulesCount = 0
     $__g_CD_iBhvActiveSub = 1
 
-    ; Sub-tab buttons
+    ; Sub-tab buttons (4 buttons: Interaction, Timers, Carousel, Rules)
     Local $iSubY = $iY
-    Local $iSubBtnW = 90
+    Local $iSubBtnW = 80
     Local $iSubGap = 4
 
-    $__g_CD_idBhvSubInteract = GUICtrlCreateLabel("Interaction", $iX, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    $__g_CD_idBhvSubInteract = GUICtrlCreateLabel(_i18n("Settings.Behavior.sub_interaction", "Interaction"), $iX, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBhvSubInteract, 7, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBhvSubInteract, $THEME_FG_WHITE)
     GUICtrlSetBkColor($__g_CD_idBhvSubInteract, $THEME_BG_ACTIVE)
     GUICtrlSetCursor($__g_CD_idBhvSubInteract, 0)
     __CD_RegCtrl($t, $__g_CD_idBhvSubInteract)
 
-    $__g_CD_idBhvSubTimers = GUICtrlCreateLabel("Timers", $iX + $iSubBtnW + $iSubGap, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    $__g_CD_idBhvSubTimers = GUICtrlCreateLabel(_i18n("Settings.Behavior.sub_timers", "Timers"), $iX + $iSubBtnW + $iSubGap, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBhvSubTimers, 7, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBhvSubTimers, $THEME_FG_DIM)
     GUICtrlSetBkColor($__g_CD_idBhvSubTimers, $THEME_BG_MAIN)
     GUICtrlSetCursor($__g_CD_idBhvSubTimers, 0)
     __CD_RegCtrl($t, $__g_CD_idBhvSubTimers)
 
-    $__g_CD_idBhvSubCarousel = GUICtrlCreateLabel("Carousel", $iX + ($iSubBtnW + $iSubGap) * 2, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    $__g_CD_idBhvSubCarousel = GUICtrlCreateLabel(_i18n("Settings.Behavior.sub_carousel", "Carousel"), $iX + ($iSubBtnW + $iSubGap) * 2, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBhvSubCarousel, 7, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBhvSubCarousel, $THEME_FG_DIM)
     GUICtrlSetBkColor($__g_CD_idBhvSubCarousel, $THEME_BG_MAIN)
     GUICtrlSetCursor($__g_CD_idBhvSubCarousel, 0)
     __CD_RegCtrl($t, $__g_CD_idBhvSubCarousel)
+
+    $__g_CD_idBhvSubRules = GUICtrlCreateLabel(_i18n("Settings.Behavior.sub_rules", "Rules"), $iX + ($iSubBtnW + $iSubGap) * 3, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBhvSubRules, 7, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBhvSubRules, $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idBhvSubRules, $THEME_BG_MAIN)
+    GUICtrlSetCursor($__g_CD_idBhvSubRules, 0)
+    __CD_RegCtrl($t, $__g_CD_idBhvSubRules)
 
     $iY += 30
     $iContentStartY = $iY
@@ -2007,6 +2044,114 @@ Func __CD_BuildTabBehavior()
     $__g_CD_idChkNotifyCarousel = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_notify_carousel", "Toast on carousel toggle"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkNotifyCarousel, _i18n("Settings.Behavior.tip_notify_carousel", "Show a toast when carousel is toggled on or off"))
     __CD_RegBhvSub(3, $__g_CD_idChkNotifyCarousel)
+
+    ; ========================================
+    ; Sub-tab 4: Rules
+    ; ========================================
+    $iY = $iContentStartY
+
+    $__g_CD_idChkRulesEnabled = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_rules_enabled", "Enable window rules engine"), $iX, $iY, 400, $t)
+    _Theme_SetTooltip($__g_CD_idChkRulesEnabled, _i18n("Settings.Behavior.tip_rules_enabled", "Automatically move windows to specific desktops based on process name or window class"))
+    __CD_RegBhvSub(4, $__g_CD_idChkRulesEnabled)
+    $iY += 28
+
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_rules_interval", "Poll interval (ms):"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegBhvSub(4, $idLbl)
+    $__g_CD_idInpRulesPollInterval = GUICtrlCreateInput("", $iX + 180, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpRulesPollInterval, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpRulesPollInterval, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpRulesPollInterval, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpRulesPollInterval)
+    __CD_RegCtrl($t, $__g_CD_idInpRulesPollInterval)
+    __CD_RegBhvSub(4, $__g_CD_idInpRulesPollInterval)
+    _Theme_SetTooltip($__g_CD_idInpRulesPollInterval, _i18n("Settings.Behavior.tip_rules_interval", "How often to check windows against rules (500-30000)"))
+    $iY += 30
+
+    ; Rules builder header row
+    Local $iColType = $iX
+    Local $iColPattern = $iX + 72
+    Local $iColDesk = $iX + 310
+    Local $iColW_Type = 68
+    Local $iColW_Pattern = 232
+    Local $iColW_Desk = 40
+
+    ; Rules builder info label
+    Local $idRulesInfo = GUICtrlCreateLabel("(?) " & _i18n("Settings.Behavior.lbl_rules_help", "How rules work"), $iX, $iY, 200, 16)
+    GUICtrlSetFont($idRulesInfo, 7, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idRulesInfo, $THEME_FG_LINK)
+    GUICtrlSetBkColor($idRulesInfo, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idRulesInfo)
+    __CD_RegBhvSub(4, $idRulesInfo)
+    _Theme_SetTooltip($idRulesInfo, _i18n("Settings.Behavior.tip_rules_help", _
+        "Rules automatically move new windows to a specific desktop." & @CRLF & @CRLF & _
+        "Type: Click to toggle between Process and Class." & @CRLF & _
+        "  Process — match by executable name (e.g. chrome.exe)" & @CRLF & _
+        "  Class — match by window class (e.g. CabinetWClass)" & @CRLF & @CRLF & _
+        "Pattern: The text to match against. Wildcards * and ? are supported." & @CRLF & _
+        "  e.g. discord* matches discord.exe and discordptb.exe" & @CRLF & @CRLF & _
+        "Desk: The desktop number to send matching windows to." & @CRLF & _
+        "Leave a row empty to skip it."))
+    $iY += 18
+
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_rule_col_type", "Type"), $iColType, $iY, $iColW_Type, 16)
+    GUICtrlSetFont($idLbl, 7, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegBhvSub(4, $idLbl)
+
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_rule_col_pattern", "Match Pattern"), $iColPattern, $iY, $iColW_Pattern, 16)
+    GUICtrlSetFont($idLbl, 7, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegBhvSub(4, $idLbl)
+
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_rule_col_desktop", "Desk"), $iColDesk, $iY, $iColW_Desk, 16, $SS_CENTER)
+    GUICtrlSetFont($idLbl, 7, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegBhvSub(4, $idLbl)
+    $iY += 18
+
+    ; Rule builder rows
+    Local $r
+    For $r = 1 To $__g_CD_iRuleRowCount
+        ; Type cycle label (Process / Class)
+        $__g_CD_aidRuleType[$r] = GUICtrlCreateLabel(_i18n("Settings.Behavior.rule_type_process", "Process"), $iColType, $iY, $iColW_Type, 20, _
+            BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+        GUICtrlSetFont($__g_CD_aidRuleType[$r], 7, 400, 0, $THEME_FONT_MAIN)
+        GUICtrlSetColor($__g_CD_aidRuleType[$r], $THEME_FG_LINK)
+        GUICtrlSetBkColor($__g_CD_aidRuleType[$r], $THEME_BG_INPUT)
+        GUICtrlSetCursor($__g_CD_aidRuleType[$r], 0)
+        __CD_RegCtrl($t, $__g_CD_aidRuleType[$r])
+        __CD_RegBhvSub(4, $__g_CD_aidRuleType[$r])
+
+        ; Pattern input (e.g. "chrome.exe" or "CabinetWClass")
+        $__g_CD_aidRulePattern[$r] = GUICtrlCreateInput("", $iColPattern, $iY, $iColW_Pattern, 20)
+        GUICtrlSetFont($__g_CD_aidRulePattern[$r], 8, 400, 0, $THEME_FONT_MONO)
+        GUICtrlSetColor($__g_CD_aidRulePattern[$r], $THEME_FG_TEXT)
+        GUICtrlSetBkColor($__g_CD_aidRulePattern[$r], $THEME_BG_INPUT)
+        _Theme_FlattenInput($__g_CD_aidRulePattern[$r])
+        __CD_RegCtrl($t, $__g_CD_aidRulePattern[$r])
+        __CD_RegBhvSub(4, $__g_CD_aidRulePattern[$r])
+
+        ; Desktop number input
+        $__g_CD_aidRuleDesktop[$r] = GUICtrlCreateInput("", $iColDesk, $iY, $iColW_Desk, 20, BitOR($ES_NUMBER, $ES_CENTER))
+        GUICtrlSetFont($__g_CD_aidRuleDesktop[$r], 8, 400, 0, $THEME_FONT_MONO)
+        GUICtrlSetColor($__g_CD_aidRuleDesktop[$r], $THEME_FG_TEXT)
+        GUICtrlSetBkColor($__g_CD_aidRuleDesktop[$r], $THEME_BG_INPUT)
+        _Theme_FlattenInput($__g_CD_aidRuleDesktop[$r])
+        __CD_RegCtrl($t, $__g_CD_aidRuleDesktop[$r])
+        __CD_RegBhvSub(4, $__g_CD_aidRuleDesktop[$r])
+
+        $iY += 24
+    Next
 
     ; Apply initial sub-tab visibility
     __CD_SwitchBhvSub(1)
@@ -3023,6 +3168,35 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkCarouselMenu, _Cfg_GetCarouselShowInMenu())
     __CD_SetCheckState($__g_CD_idChkNotifyCarousel, _Cfg_GetNotifyCarouselToggle())
 
+    ; Rules engine
+    __CD_SetCheckState($__g_CD_idChkRulesEnabled, _Cfg_GetRulesEnabled())
+    GUICtrlSetData($__g_CD_idInpRulesPollInterval, _Cfg_GetRulesPollInterval())
+    Local $sIniPath = _Cfg_GetPath()
+    Local $r
+    For $r = 1 To $__g_CD_iRuleRowCount
+        Local $sRule = IniRead($sIniPath, "Rules", "rule_" & $r, "")
+        If $sRule <> "" Then
+            ; Parse rule format: "process.exe|N" or "class:ClassName|N"
+            Local $aParts = StringSplit($sRule, "|")
+            If $aParts[0] >= 2 Then
+                Local $sPattern = $aParts[1]
+                Local $sDesk = $aParts[2]
+                If StringLeft(StringLower($sPattern), 6) = "class:" Then
+                    GUICtrlSetData($__g_CD_aidRuleType[$r], _i18n("Settings.Behavior.rule_type_class", "Class"))
+                    GUICtrlSetData($__g_CD_aidRulePattern[$r], StringMid($sPattern, 7))
+                Else
+                    GUICtrlSetData($__g_CD_aidRuleType[$r], _i18n("Settings.Behavior.rule_type_process", "Process"))
+                    GUICtrlSetData($__g_CD_aidRulePattern[$r], $sPattern)
+                EndIf
+                GUICtrlSetData($__g_CD_aidRuleDesktop[$r], $sDesk)
+            EndIf
+        Else
+            GUICtrlSetData($__g_CD_aidRuleType[$r], _i18n("Settings.Behavior.rule_type_process", "Process"))
+            GUICtrlSetData($__g_CD_aidRulePattern[$r], "")
+            GUICtrlSetData($__g_CD_aidRuleDesktop[$r], "")
+        EndIf
+    Next
+
     ; Logging
     __CD_SetCheckState($__g_CD_idChkLogging, _Cfg_GetLoggingEnabled())
     GUICtrlSetData($__g_CD_idInpLogPath, _Cfg_GetLogFolder())
@@ -3238,6 +3412,7 @@ Func __CD_MessageLoop()
             If $id = $__g_CD_idBhvSubInteract Then __CD_SwitchBhvSub(1)
             If $id = $__g_CD_idBhvSubTimers Then __CD_SwitchBhvSub(2)
             If $id = $__g_CD_idBhvSubCarousel Then __CD_SwitchBhvSub(3)
+            If $id = $__g_CD_idBhvSubRules Then __CD_SwitchBhvSub(4)
             If $id = $__g_CD_idHkSubNav Then __CD_SwitchHkSub(1)
             If $id = $__g_CD_idHkSubWin Then __CD_SwitchHkSub(2)
             If $id = $__g_CD_idHkSubDesk Then __CD_SwitchHkSub(3)
@@ -3264,6 +3439,18 @@ Func __CD_MessageLoop()
             If $id = $__g_CD_idLblTrayDoubleClick Then __CD_CycleValue($id, "settings|toggle_list|menu|nothing")
             If $id = $__g_CD_idLblTrayMiddleClick Then __CD_CycleValue($id, "toggle_list|add_desktop|toggle_carousel|nothing")
             If $id = $__g_CD_idCycOsdPosition Then __CD_CycleValue($id, "top-left|top-center|top-right|middle-left|middle-center|middle-right|bottom-left|bottom-center|bottom-right|widget")
+            ; Rule type cycle labels (Process <-> Class)
+            For $r = 1 To $__g_CD_iRuleRowCount
+                If $id = $__g_CD_aidRuleType[$r] Then
+                    Local $sCur = GUICtrlRead($__g_CD_aidRuleType[$r])
+                    If $sCur = _i18n("Settings.Behavior.rule_type_process", "Process") Then
+                        GUICtrlSetData($__g_CD_aidRuleType[$r], _i18n("Settings.Behavior.rule_type_class", "Class"))
+                    Else
+                        GUICtrlSetData($__g_CD_aidRuleType[$r], _i18n("Settings.Behavior.rule_type_process", "Process"))
+                    EndIf
+                    ExitLoop
+                EndIf
+            Next
             ; Language combo overlay click — toggle dropdown
             If $id = $__g_CD_idComboOverlay Then
                 Local $hCombo = GUICtrlGetHandle($__g_CD_idLblLanguage)
@@ -3521,6 +3708,29 @@ Func __CD_ApplyChanges()
     If StringIsInt($s) Then _Cfg_SetCarouselInterval(Int($s))
     _Cfg_SetCarouselShowInMenu(__CD_GetCheckState($__g_CD_idChkCarouselMenu))
     _Cfg_SetNotifyCarouselToggle(__CD_GetCheckState($__g_CD_idChkNotifyCarousel))
+
+    ; Rules engine
+    _Cfg_SetRulesEnabled(__CD_GetCheckState($__g_CD_idChkRulesEnabled))
+    $s = GUICtrlRead($__g_CD_idInpRulesPollInterval)
+    If StringIsInt($s) Then _Cfg_SetRulesPollInterval(Int($s))
+    Local $sIniApply = _Cfg_GetPath()
+    Local $r
+    For $r = 1 To $__g_CD_iRuleRowCount
+        Local $sPattern = StringStripWS(GUICtrlRead($__g_CD_aidRulePattern[$r]), 3)
+        Local $sDesk = StringStripWS(GUICtrlRead($__g_CD_aidRuleDesktop[$r]), 3)
+        If $sPattern <> "" And $sDesk <> "" Then
+            Local $sType = GUICtrlRead($__g_CD_aidRuleType[$r])
+            Local $sRuleVal
+            If $sType = _i18n("Settings.Behavior.rule_type_class", "Class") Then
+                $sRuleVal = "class:" & $sPattern & "|" & $sDesk
+            Else
+                $sRuleVal = $sPattern & "|" & $sDesk
+            EndIf
+            IniWrite($sIniApply, "Rules", "rule_" & $r, $sRuleVal)
+        Else
+            IniDelete($sIniApply, "Rules", "rule_" & $r)
+        EndIf
+    Next
 
     ; Logging
     _Cfg_SetLoggingEnabled(__CD_GetCheckState($__g_CD_idChkLogging))
