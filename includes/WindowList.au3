@@ -52,11 +52,11 @@ Global $__g_WL_hCtxGUI = 0
 Global $__g_WL_bCtxVisible = False
 Global $__g_WL_hCtxTarget = 0  ; HWND of targeted window
 Global $__g_WL_iCtxHovered = 0
+Global $__g_WL_hCtxGraceTimer = 0  ; grace period before auto-hide kicks in
+Global $__g_WL_hCtxAwayTimer = 0  ; tracks how long cursor has been away from ctx menu
 
 ; Context menu item IDs
-Global $__g_WL_iCtxSendNext = 0
-Global $__g_WL_iCtxSendPrev = 0
-Global $__g_WL_iCtxSendNew = 0
+Global $__g_WL_iCtxSendToParent = 0 ; "Send to Desktop ▶" parent item
 Global $__g_WL_iCtxPull = 0
 Global $__g_WL_iCtxPin = 0
 Global $__g_WL_iCtxMinimize = 0
@@ -66,10 +66,16 @@ Global $__g_WL_iCtxClose = 0
 Global $__g_WL_iCtxGoTo = 0
 Global $__g_WL_iCtxPinApp = 0
 
-; Send to Desktop N context menu items
-Global $__g_WL_aCtxSendTo[10]      ; control IDs for Send to Desktop items
-Global $__g_WL_aiCtxSendToDest[10] ; target desktop number for each send-to item
-Global $__g_WL_iCtxSendToCount = 0
+; Send to Desktop submenu state
+Global $__g_WL_hSendGUI = 0
+Global $__g_WL_bSendVisible = False
+Global $__g_WL_iSendHovered = 0
+Global $__g_WL_iSendNext = 0
+Global $__g_WL_iSendPrev = 0
+Global $__g_WL_iSendNew = 0
+Global $__g_WL_aSendTo[101]        ; control IDs for Send to Desktop items
+Global $__g_WL_aiSendToDest[101]   ; target desktop number for each send-to item
+Global $__g_WL_iSendToCount = 0
 
 ; Auto-refresh
 Global $__g_WL_hRefreshTimer = 0
@@ -574,6 +580,8 @@ EndFunc
 Func _WL_CheckHover()
     If Not $__g_WL_bVisible Or $__g_WL_hGUI = 0 Then Return
     If $__g_WL_iItemCount < 1 Then Return
+    ; Keep hover locked on the right-clicked item while context menu is open
+    If $__g_WL_bCtxVisible Then Return
 
     Local $iMaxVisible = _Cfg_GetWindowListMaxVisible()
     Local $iVisibleCount = $__g_WL_iItemCount
@@ -797,20 +805,10 @@ Func _WL_CtxShow($hTargetWnd)
     Local $iWinDesktop = _VD_GetWindowDesktopNumber($hTargetWnd)
     Local $bDifferentDesktop = ($iWinDesktop > 0 And $iWinDesktop <> $__g_WL_iDesktop)
 
-    ; Calculate how many Send to Desktop N items we need
-    Local $iDeskCount = _VD_GetCount()
-    Local $iSendToCount = 0
-    Local $d
-    For $d = 1 To $iDeskCount
-        If $d = $iWinDesktop Then ContinueLoop
-        If $iSendToCount >= 9 Then ExitLoop
-        $iSendToCount += 1
-    Next
-
     ; Count menu items to calculate height
     Local $iMenuW = 220
     Local $iSepH = 1
-    Local $iItemCount = 3 + $iSendToCount ; send_next, send_prev, send_new + send_to_N items
+    Local $iItemCount = 1 ; "Send to Desktop ▶" parent item
     Local $iSepCount = 2
     If _Cfg_GetPinningEnabled() Then
         $iItemCount += 2 ; pin window + pin app
@@ -829,9 +827,9 @@ Func _WL_CtxShow($hTargetWnd)
 
     Local $iMenuH = $iItemCount * $THEME_MENU_ITEM_H + $iSepCount * ($iSepH + 4) + 12
 
-    ; Position near cursor
-    Local $iMenuX = $__g_Theme_iCachedCursorX
-    Local $iMenuY = $__g_Theme_iCachedCursorY - $iMenuH
+    ; Position near cursor (offset so cursor starts inside the menu, not on its edge)
+    Local $iMenuX = $__g_Theme_iCachedCursorX - 8
+    Local $iMenuY = $__g_Theme_iCachedCursorY - $iMenuH + 8
     ; Keep menu on screen
     If $iMenuY < 0 Then $iMenuY = $__g_Theme_iCachedCursorY
     If $iMenuX + $iMenuW > @DesktopWidth Then $iMenuX = @DesktopWidth - $iMenuW - 4
@@ -844,9 +842,7 @@ Func _WL_CtxShow($hTargetWnd)
     EndIf
 
     ; Reset all item IDs
-    $__g_WL_iCtxSendNext = 0
-    $__g_WL_iCtxSendPrev = 0
-    $__g_WL_iCtxSendNew = 0
+    $__g_WL_iCtxSendToParent = 0
     $__g_WL_iCtxPull = 0
     $__g_WL_iCtxPin = 0
     $__g_WL_iCtxPinApp = 0
@@ -855,37 +851,13 @@ Func _WL_CtxShow($hTargetWnd)
     $__g_WL_iCtxMaximize = 0
     $__g_WL_iCtxRestore = 0
     $__g_WL_iCtxClose = 0
-    $__g_WL_iCtxSendToCount = 0
 
     Local $iY = 4
 
-    ; Send to Next Desktop
-    $__g_WL_iCtxSendNext = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_send_next", "Send to Next Desktop"), _
+    ; Send to Desktop ▶ (opens submenu on hover)
+    $__g_WL_iCtxSendToParent = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_send_to_desktop_menu", "Send to Desktop") & "  " & ChrW(0x25B6), _
         4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
-
-    ; Send to Previous Desktop
-    $__g_WL_iCtxSendPrev = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_send_prev", "Send to Previous Desktop"), _
-        4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
-    $iY += $THEME_MENU_ITEM_H
-
-    ; Send to New Desktop
-    $__g_WL_iCtxSendNew = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_send_new", "Send to New Desktop"), _
-        4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
-    $iY += $THEME_MENU_ITEM_H
-
-    ; Send to Desktop N items (one per desktop, skip current desktop of window)
-    For $d = 1 To $iDeskCount
-        If $d = $iWinDesktop Then ContinueLoop
-        If $__g_WL_iCtxSendToCount >= 9 Then ExitLoop
-        $__g_WL_iCtxSendToCount += 1
-        $__g_WL_aiCtxSendToDest[$__g_WL_iCtxSendToCount] = $d
-        $__g_WL_aCtxSendTo[$__g_WL_iCtxSendToCount] = _Theme_CreateMenuItem( _
-            "    " & _i18n_Format("WindowList.wl_send_to_desktop", "Send to Desktop {1}", $d), _
-            4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
-        GUICtrlSetColor($__g_WL_aCtxSendTo[$__g_WL_iCtxSendToCount], $THEME_FG_DIM)
-        $iY += $THEME_MENU_ITEM_H
-    Next
 
     ; Pull to current (only if window is on a different desktop)
     If $bDifferentDesktop Then
@@ -965,11 +937,13 @@ Func _WL_CtxShow($hTargetWnd)
     GUISetState(@SW_SHOW, $__g_WL_hCtxGUI)
     $__g_WL_bCtxVisible = True
     $__g_WL_iCtxHovered = 0
+    $__g_WL_hCtxGraceTimer = TimerInit()
 EndFunc
 
 ; Name:        _WL_CtxDestroy
 ; Description: Destroys the window list context menu and resets state
 Func _WL_CtxDestroy()
+    _WL_SendToDestroy()
     If $__g_WL_hCtxGUI <> 0 Then
         GUIDelete($__g_WL_hCtxGUI)
         $__g_WL_hCtxGUI = 0
@@ -977,9 +951,11 @@ Func _WL_CtxDestroy()
     $__g_WL_bCtxVisible = False
     $__g_WL_hCtxTarget = 0
     $__g_WL_iCtxHovered = 0
-    $__g_WL_iCtxSendNext = 0
-    $__g_WL_iCtxSendPrev = 0
-    $__g_WL_iCtxSendNew = 0
+    $__g_WL_hCtxGraceTimer = 0
+    $__g_WL_hCtxAwayTimer = 0
+    ; Reset WL auto-hide timer so it doesn't fire immediately after ctx closes
+    $__g_WL_hAutoHideTimer = TimerInit()
+    $__g_WL_iCtxSendToParent = 0
     $__g_WL_iCtxPull = 0
     $__g_WL_iCtxPin = 0
     $__g_WL_iCtxPinApp = 0
@@ -988,7 +964,6 @@ Func _WL_CtxDestroy()
     $__g_WL_iCtxMaximize = 0
     $__g_WL_iCtxRestore = 0
     $__g_WL_iCtxClose = 0
-    $__g_WL_iCtxSendToCount = 0
 EndFunc
 
 ; Name:        _WL_CtxIsVisible
@@ -1015,20 +990,10 @@ EndFunc
 ; Name:        _WL_CtxHandleClick
 ; Description: Processes a click on a window list context menu item
 ; Parameters:  $msg - GUI message from GUIGetMsg
-; Return:      Action string: "send_next", "send_prev", "send_new", "send_to:N", "pull", "pin",
-;              "pin_app", "goto", "minimize", "maximize", "restore", "close", or "" if no match
+; Return:      Action string: "pull", "pin", "pin_app", "goto", "minimize", "maximize",
+;              "restore", "close", or "" if no match
 Func _WL_CtxHandleClick($msg)
     If $msg <= 0 Then Return ""
-    If $__g_WL_iCtxSendNext <> 0 And $msg = $__g_WL_iCtxSendNext Then Return "send_next"
-    If $__g_WL_iCtxSendPrev <> 0 And $msg = $__g_WL_iCtxSendPrev Then Return "send_prev"
-    If $__g_WL_iCtxSendNew <> 0 And $msg = $__g_WL_iCtxSendNew Then Return "send_new"
-    ; Send to Desktop N items
-    Local $d
-    For $d = 1 To $__g_WL_iCtxSendToCount
-        If $__g_WL_aCtxSendTo[$d] <> 0 And $msg = $__g_WL_aCtxSendTo[$d] Then
-            Return "send_to:" & $__g_WL_aiCtxSendToDest[$d]
-        EndIf
-    Next
     If $__g_WL_iCtxPull <> 0 And $msg = $__g_WL_iCtxPull Then Return "pull"
     If $__g_WL_iCtxPin <> 0 And $msg = $__g_WL_iCtxPin Then Return "pin"
     If $__g_WL_iCtxPinApp <> 0 And $msg = $__g_WL_iCtxPinApp Then Return "pin_app"
@@ -1046,8 +1011,8 @@ Func _WL_CtxCheckHover()
     If Not $__g_WL_bCtxVisible Or $__g_WL_hCtxGUI = 0 Then Return
     Local $aCursor = GUIGetCursorInfo($__g_WL_hCtxGUI)
     If @error Then
-        ; Cursor left the context menu
-        If $__g_WL_iCtxHovered <> 0 Then
+        ; Cursor left the context menu — keep hover on parent item while submenu is open
+        If $__g_WL_iCtxHovered <> 0 And Not ($__g_WL_bSendVisible And $__g_WL_iCtxHovered = $__g_WL_iCtxSendToParent) Then
             Local $iFg = $THEME_FG_MENU
             If $__g_WL_iCtxHovered = $__g_WL_iCtxClose Then $iFg = 0xCC6666
             _Theme_RemoveHover($__g_WL_iCtxHovered, $iFg)
@@ -1058,14 +1023,7 @@ Func _WL_CtxCheckHover()
 
     ; Find which item is hovered
     Local $iFound = 0
-    If $__g_WL_iCtxSendNext <> 0 And $aCursor[4] = $__g_WL_iCtxSendNext Then $iFound = $__g_WL_iCtxSendNext
-    If $__g_WL_iCtxSendPrev <> 0 And $aCursor[4] = $__g_WL_iCtxSendPrev Then $iFound = $__g_WL_iCtxSendPrev
-    If $__g_WL_iCtxSendNew <> 0 And $aCursor[4] = $__g_WL_iCtxSendNew Then $iFound = $__g_WL_iCtxSendNew
-    ; Send to Desktop N items
-    Local $d
-    For $d = 1 To $__g_WL_iCtxSendToCount
-        If $__g_WL_aCtxSendTo[$d] <> 0 And $aCursor[4] = $__g_WL_aCtxSendTo[$d] Then $iFound = $__g_WL_aCtxSendTo[$d]
-    Next
+    If $__g_WL_iCtxSendToParent <> 0 And $aCursor[4] = $__g_WL_iCtxSendToParent Then $iFound = $__g_WL_iCtxSendToParent
     If $__g_WL_iCtxPull <> 0 And $aCursor[4] = $__g_WL_iCtxPull Then $iFound = $__g_WL_iCtxPull
     If $__g_WL_iCtxPin <> 0 And $aCursor[4] = $__g_WL_iCtxPin Then $iFound = $__g_WL_iCtxPin
     If $__g_WL_iCtxPinApp <> 0 And $aCursor[4] = $__g_WL_iCtxPinApp Then $iFound = $__g_WL_iCtxPinApp
@@ -1078,21 +1036,10 @@ Func _WL_CtxCheckHover()
     ; No change — skip update
     If $iFound = $__g_WL_iCtxHovered Then Return
 
-    ; Determine the original foreground color for the previously hovered item
-    Local $iFgOld = $THEME_FG_MENU
     ; Remove old hover
     If $__g_WL_iCtxHovered <> 0 Then
-        If $__g_WL_iCtxHovered = $__g_WL_iCtxClose Then
-            $iFgOld = 0xCC6666
-        Else
-            ; Check if it's a send-to item (dimmer text)
-            For $d = 1 To $__g_WL_iCtxSendToCount
-                If $__g_WL_iCtxHovered = $__g_WL_aCtxSendTo[$d] Then
-                    $iFgOld = $THEME_FG_DIM
-                    ExitLoop
-                EndIf
-            Next
-        EndIf
+        Local $iFgOld = $THEME_FG_MENU
+        If $__g_WL_iCtxHovered = $__g_WL_iCtxClose Then $iFgOld = 0xCC6666
         _Theme_RemoveHover($__g_WL_iCtxHovered, $iFgOld)
     EndIf
 
@@ -1101,18 +1048,230 @@ Func _WL_CtxCheckHover()
     If $__g_WL_iCtxHovered <> 0 Then
         _Theme_ApplyHover($__g_WL_iCtxHovered, $THEME_FG_WHITE, $THEME_BG_HOVER)
     EndIf
+
+    ; Auto-show send-to submenu on hover over parent item
+    If $iFound = $__g_WL_iCtxSendToParent And $__g_WL_iCtxSendToParent <> 0 And Not $__g_WL_bSendVisible Then
+        _WL_SendToShow()
+    ElseIf $iFound <> $__g_WL_iCtxSendToParent And $__g_WL_bSendVisible Then
+        If Not _Theme_IsCursorOverWindow($__g_WL_hSendGUI) Then
+            _WL_SendToDestroy()
+        EndIf
+    EndIf
 EndFunc
 
 ; Name:        _WL_CtxCheckAutoHide
 ; Description: Auto-dismisses the context menu when cursor moves away from both
-;              the context menu and the window list
+;              the context menu, the send-to submenu, and the window list
 ; Return:      True if dismissed, False otherwise
 Func _WL_CtxCheckAutoHide()
     If Not $__g_WL_bCtxVisible Or $__g_WL_hCtxGUI = 0 Then Return False
-    If _Theme_IsCursorOverWindow($__g_WL_hCtxGUI) Then Return False
-    If _Theme_IsCursorOverWindow($__g_WL_hGUI) Then Return False
+    ; Grace period: don't auto-hide within 300ms of showing (gives user time to reach menu items)
+    If $__g_WL_hCtxGraceTimer <> 0 And TimerDiff($__g_WL_hCtxGraceTimer) < 300 Then Return False
+
+    ; Check if cursor is over any related window
+    Local $bOver = False
+    If _Theme_IsCursorOverWindow($__g_WL_hCtxGUI) Then $bOver = True
+    If Not $bOver And $__g_WL_bSendVisible And _Theme_IsCursorOverWindow($__g_WL_hSendGUI) Then $bOver = True
+    If Not $bOver And _Theme_IsCursorOverWindow($__g_WL_hGUI) Then $bOver = True
+
+    If $bOver Then
+        ; Cursor is back — reset away timer
+        $__g_WL_hCtxAwayTimer = 0
+        Return False
+    EndIf
+
+    ; Cursor is away — start or check timer
+    If $__g_WL_hCtxAwayTimer = 0 Then
+        $__g_WL_hCtxAwayTimer = TimerInit()
+        Return False
+    EndIf
+    If TimerDiff($__g_WL_hCtxAwayTimer) < _Cfg_GetCtxAutoHideDelay() Then Return False
+
     _WL_CtxDestroy()
     Return True
+EndFunc
+
+; =============================================
+; WINDOW LIST — SEND TO DESKTOP SUBMENU
+; =============================================
+
+; Name:        _WL_SendToShow
+; Description: Creates the Send to Desktop submenu popup next to the context menu
+Func _WL_SendToShow()
+    If $__g_WL_bSendVisible Then _WL_SendToDestroy()
+
+    Local $hTargetWnd = $__g_WL_hCtxTarget
+    Local $iWinDesktop = _VD_GetWindowDesktopNumber($hTargetWnd)
+    Local $iDeskCount = _VD_GetCount()
+
+    ; Count items: Next, Prev, New + separator + one per desktop (skip window's current)
+    Local $iSendToCount = 0
+    Local $d
+    For $d = 1 To $iDeskCount
+        If $d = $iWinDesktop Then ContinueLoop
+        If $iSendToCount >= 100 Then ExitLoop
+        $iSendToCount += 1
+    Next
+
+    Local $iSubW = 200
+    Local $iSepH = 1
+    Local $iItemCount = 3 + $iSendToCount ; next, prev, new + desktop items
+    Local $iSepCount = 1
+    Local $iSubH = $iItemCount * $THEME_MENU_ITEM_H + $iSepCount * ($iSepH + 4) + 12
+
+    ; Position: to the right of the context menu
+    Local $iSubX = 0, $iSubY = 0
+    If $__g_WL_hCtxGUI <> 0 Then
+        Local $aCtxPos = WinGetPos($__g_WL_hCtxGUI)
+        If Not @error Then
+            $iSubX = $aCtxPos[0] + $aCtxPos[2]
+            $iSubY = $aCtxPos[1]
+        EndIf
+    EndIf
+    ; Keep on screen
+    If $iSubX + $iSubW > @DesktopWidth Then
+        ; Open to the left instead
+        If $__g_WL_hCtxGUI <> 0 Then
+            Local $aCtxPos2 = WinGetPos($__g_WL_hCtxGUI)
+            If Not @error Then $iSubX = $aCtxPos2[0] - $iSubW
+        EndIf
+    EndIf
+    If $iSubX < 0 Then $iSubX = 0
+    If $iSubY + $iSubH > @DesktopHeight Then $iSubY = @DesktopHeight - $iSubH
+    If $iSubY < 0 Then $iSubY = 0
+
+    $__g_WL_hSendGUI = _Theme_CreatePopup("WLSendTo", $iSubW, $iSubH, $iSubX, $iSubY, $THEME_BG_POPUP, $THEME_ALPHA_MENU)
+    If $__g_WL_hSendGUI = 0 Then Return
+
+    ; Reset submenu item IDs
+    $__g_WL_iSendNext = 0
+    $__g_WL_iSendPrev = 0
+    $__g_WL_iSendNew = 0
+    $__g_WL_iSendToCount = 0
+
+    Local $iY = 4
+
+    ; Next Desktop
+    $__g_WL_iSendNext = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_send_to_next", "Send to Next Desktop"), _
+        4, $iY, $iSubW - 8, $THEME_MENU_ITEM_H)
+    $iY += $THEME_MENU_ITEM_H
+
+    ; Previous Desktop
+    $__g_WL_iSendPrev = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_send_to_prev", "Send to Previous Desktop"), _
+        4, $iY, $iSubW - 8, $THEME_MENU_ITEM_H)
+    $iY += $THEME_MENU_ITEM_H
+
+    ; New Desktop
+    $__g_WL_iSendNew = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_send_to_new", "Send to New Desktop"), _
+        4, $iY, $iSubW - 8, $THEME_MENU_ITEM_H)
+    $iY += $THEME_MENU_ITEM_H
+
+    ; Separator
+    GUICtrlCreateLabel("", 8, $iY + 2, $iSubW - 16, $iSepH)
+    GUICtrlSetBkColor(-1, $THEME_BG_SEPARATOR)
+    $iY += $iSepH + 4
+
+    ; Desktop N items (skip window's current desktop)
+    For $d = 1 To $iDeskCount
+        If $d = $iWinDesktop Then ContinueLoop
+        If $__g_WL_iSendToCount >= 100 Then ExitLoop
+        $__g_WL_iSendToCount += 1
+        $__g_WL_aiSendToDest[$__g_WL_iSendToCount] = $d
+        Local $sName = _VD_GetName($d)
+        If $sName <> "" Then
+            $sName = "Desktop " & $d & " (" & $sName & ")"
+        Else
+            $sName = _i18n_Format("WindowList.wl_send_to_desktop", "Desktop {1}", $d)
+        EndIf
+        $__g_WL_aSendTo[$__g_WL_iSendToCount] = _Theme_CreateMenuItem( _
+            "  " & $sName, 4, $iY, $iSubW - 8, $THEME_MENU_ITEM_H)
+        $iY += $THEME_MENU_ITEM_H
+    Next
+
+    GUISetState(@SW_SHOW, $__g_WL_hSendGUI)
+    $__g_WL_bSendVisible = True
+    $__g_WL_iSendHovered = 0
+EndFunc
+
+; Name:        _WL_SendToDestroy
+; Description: Destroys the send-to submenu popup
+Func _WL_SendToDestroy()
+    If $__g_WL_hSendGUI <> 0 Then
+        GUIDelete($__g_WL_hSendGUI)
+        $__g_WL_hSendGUI = 0
+    EndIf
+    $__g_WL_bSendVisible = False
+    $__g_WL_iSendHovered = 0
+    $__g_WL_iSendNext = 0
+    $__g_WL_iSendPrev = 0
+    $__g_WL_iSendNew = 0
+    $__g_WL_iSendToCount = 0
+EndFunc
+
+; Name:        _WL_SendToHandleClick
+; Description: Processes a click on a send-to submenu item
+; Parameters:  $msg - GUI message from GUIGetMsg
+; Return:      Action string: "send_next", "send_prev", "send_new", "send_to:N", or "" if no match
+Func _WL_SendToHandleClick($msg)
+    If $msg <= 0 Then Return ""
+    If $__g_WL_iSendNext <> 0 And $msg = $__g_WL_iSendNext Then Return "send_next"
+    If $__g_WL_iSendPrev <> 0 And $msg = $__g_WL_iSendPrev Then Return "send_prev"
+    If $__g_WL_iSendNew <> 0 And $msg = $__g_WL_iSendNew Then Return "send_new"
+    Local $d
+    For $d = 1 To $__g_WL_iSendToCount
+        If $__g_WL_aSendTo[$d] <> 0 And $msg = $__g_WL_aSendTo[$d] Then
+            Return "send_to:" & $__g_WL_aiSendToDest[$d]
+        EndIf
+    Next
+    Return ""
+EndFunc
+
+; Name:        _WL_SendToCheckHover
+; Description: Updates hover highlighting on the send-to submenu
+Func _WL_SendToCheckHover()
+    If Not $__g_WL_bSendVisible Or $__g_WL_hSendGUI = 0 Then Return
+    Local $aCursor = GUIGetCursorInfo($__g_WL_hSendGUI)
+    If @error Then
+        If $__g_WL_iSendHovered <> 0 Then
+            _Theme_RemoveHover($__g_WL_iSendHovered, $THEME_FG_MENU)
+            $__g_WL_iSendHovered = 0
+        EndIf
+        Return
+    EndIf
+
+    ; Find hovered item
+    Local $iFound = 0
+    If $__g_WL_iSendNext <> 0 And $aCursor[4] = $__g_WL_iSendNext Then $iFound = $__g_WL_iSendNext
+    If $__g_WL_iSendPrev <> 0 And $aCursor[4] = $__g_WL_iSendPrev Then $iFound = $__g_WL_iSendPrev
+    If $__g_WL_iSendNew <> 0 And $aCursor[4] = $__g_WL_iSendNew Then $iFound = $__g_WL_iSendNew
+    Local $d
+    For $d = 1 To $__g_WL_iSendToCount
+        If $__g_WL_aSendTo[$d] <> 0 And $aCursor[4] = $__g_WL_aSendTo[$d] Then $iFound = $__g_WL_aSendTo[$d]
+    Next
+
+    If $iFound = $__g_WL_iSendHovered Then Return
+
+    If $__g_WL_iSendHovered <> 0 Then
+        _Theme_RemoveHover($__g_WL_iSendHovered, $THEME_FG_MENU)
+    EndIf
+    $__g_WL_iSendHovered = $iFound
+    If $__g_WL_iSendHovered <> 0 Then
+        _Theme_ApplyHover($__g_WL_iSendHovered, $THEME_FG_WHITE, $THEME_BG_HOVER)
+    EndIf
+EndFunc
+
+; Name:        _WL_SendToIsVisible
+; Description: Returns whether the send-to submenu is visible
+; Return:      True/False
+Func _WL_SendToIsVisible()
+    Return $__g_WL_bSendVisible
+EndFunc
+
+; Name:        _WL_SendToGetGUI
+; Description: Returns the send-to submenu GUI handle
+; Return:      GUI handle or 0
+Func _WL_SendToGetGUI()
+    Return $__g_WL_hSendGUI
 EndFunc
 
 ; Name:        _WL_GetItemAtPos

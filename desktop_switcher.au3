@@ -617,29 +617,6 @@ Func _ProcessGUIEvents($msg, $hFrom)
         Local $hWLTarget = _WL_GetCtxTarget()
         If $sWLAction <> "" Then _Log_Debug("WindowList ctx: " & $sWLAction)
         Switch $sWLAction
-            Case "send_next"
-                Local $iWLNext = $iDesktop + 1
-                If $iWLNext > _VD_GetCount() And _Cfg_GetWrapNavigation() Then $iWLNext = 1
-                If $iWLNext >= 1 And $iWLNext <= _VD_GetCount() Then
-                    _VD_MoveWindowToDesktop($hWLTarget, $iWLNext)
-                    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLNext), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
-                    _WL_Refresh($iDesktop)
-                EndIf
-            Case "send_prev"
-                Local $iWLPrev = $iDesktop - 1
-                If $iWLPrev < 1 And _Cfg_GetWrapNavigation() Then $iWLPrev = _VD_GetCount()
-                If $iWLPrev >= 1 And $iWLPrev <= _VD_GetCount() Then
-                    _VD_MoveWindowToDesktop($hWLTarget, $iWLPrev)
-                    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLPrev), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
-                    _WL_Refresh($iDesktop)
-                EndIf
-            Case "send_new"
-                Local $iWLNew = _DoCreateDesktop()
-                If $iWLNew > 0 Then
-                    _VD_MoveWindowToDesktop($hWLTarget, $iWLNew)
-                    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLNew), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
-                    _WL_Refresh($iDesktop)
-                EndIf
             Case "pin"
                 If _Cfg_GetPinningEnabled() Then
                     Local $bWasPinnedWL = _VD_IsPinnedWindow($hWLTarget)
@@ -687,19 +664,54 @@ Func _ProcessGUIEvents($msg, $hFrom)
                     EndIf
                     _WL_Refresh($iDesktop)
                 EndIf
-            Case Else
-                If StringLeft($sWLAction, 8) = "send_to:" Then
-                    Local $iTargetDesk = Int(StringMid($sWLAction, 9))
-                    If $iTargetDesk >= 1 And $iTargetDesk <= _VD_GetCount() Then
-                        _VD_MoveWindowToDesktop($hWLTarget, $iTargetDesk)
-                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
-                            _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iTargetDesk), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
-                        EndIf
+        EndSwitch
+        If $sWLAction <> "" Then _WL_CtxDestroy()
+    EndIf
+
+    ; Window list send-to submenu events
+    If _WL_SendToIsVisible() And $hFrom = _WL_SendToGetGUI() Then
+        Local $sSendAction = _WL_SendToHandleClick($msg)
+        Local $hSendTarget = _WL_GetCtxTarget()
+        If $sSendAction <> "" Then
+            _Log_Debug("WindowList send-to: " & $sSendAction)
+            Switch $sSendAction
+                Case "send_next"
+                    Local $iWLNext = $iDesktop + 1
+                    If $iWLNext > _VD_GetCount() And _Cfg_GetWrapNavigation() Then $iWLNext = 1
+                    If $iWLNext >= 1 And $iWLNext <= _VD_GetCount() Then
+                        _VD_MoveWindowToDesktop($hSendTarget, $iWLNext)
+                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLNext), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
                         _WL_Refresh($iDesktop)
                     EndIf
-                EndIf
-        EndSwitch
-        _WL_CtxDestroy()
+                Case "send_prev"
+                    Local $iWLPrev = $iDesktop - 1
+                    If $iWLPrev < 1 And _Cfg_GetWrapNavigation() Then $iWLPrev = _VD_GetCount()
+                    If $iWLPrev >= 1 And $iWLPrev <= _VD_GetCount() Then
+                        _VD_MoveWindowToDesktop($hSendTarget, $iWLPrev)
+                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLPrev), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                        _WL_Refresh($iDesktop)
+                    EndIf
+                Case "send_new"
+                    Local $iWLNew = _DoCreateDesktop()
+                    If $iWLNew > 0 Then
+                        _VD_MoveWindowToDesktop($hSendTarget, $iWLNew)
+                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLNew), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                        _WL_Refresh($iDesktop)
+                    EndIf
+                Case Else
+                    If StringLeft($sSendAction, 8) = "send_to:" Then
+                        Local $iTargetDesk = Int(StringMid($sSendAction, 9))
+                        If $iTargetDesk >= 1 And $iTargetDesk <= _VD_GetCount() Then
+                            _VD_MoveWindowToDesktop($hSendTarget, $iTargetDesk)
+                            If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
+                                _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iTargetDesk), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                            EndIf
+                            _WL_Refresh($iDesktop)
+                        EndIf
+                    EndIf
+            EndSwitch
+            _WL_CtxDestroy()
+        EndIf
     EndIf
 
     ; Rename dialog events
@@ -1055,7 +1067,8 @@ Func _ProcessHoverAndVisuals()
     Local $bOverThumb = (_DL_ThumbIsVisible() And _Theme_IsCursorOverWindow(_DL_ThumbGetGUI()))
     Local $bOverWL = (_WL_IsVisible() And _Theme_IsCursorOverWindow(_WL_GetGUI()))
     Local $bOverWLCtx = (_WL_CtxIsVisible() And _Theme_IsCursorOverWindow(_WL_CtxGetGUI()))
-    Local $bCursorActive = ($bOverWidget Or $bOverDL Or $bOverCM Or $bOverCtx Or $bOverCP Or $bOverRD Or $bOverThumb Or $bOverWL Or $bOverWLCtx)
+    Local $bOverWLSend = (_WL_SendToIsVisible() And _Theme_IsCursorOverWindow(_WL_SendToGetGUI()))
+    Local $bCursorActive = ($bOverWidget Or $bOverDL Or $bOverCM Or $bOverCtx Or $bOverCP Or $bOverRD Or $bOverThumb Or $bOverWL Or $bOverWLCtx Or $bOverWLSend)
 
     ; Hover effects — reuse hit-test results (no redundant WinGetPos calls)
     If $bCursorActive And $bStateChanged Then
@@ -1067,6 +1080,7 @@ Func _ProcessHoverAndVisuals()
         If $bOverRD Then _RD_CheckHover()
         If $bOverWL Then _WL_CheckHover()
         If $bOverWLCtx Then _WL_CtxCheckHover()
+        If $bOverWLSend Then _WL_SendToCheckHover()
     EndIf
 
     ; Clear hover states when cursor leaves all windows (prevents stuck highlights)
@@ -1136,7 +1150,7 @@ Func _ProcessTimersAndSleep($bCursorActive)
     ; 3 tiers: active hover (5ms), popups visible (15ms), fully idle (100ms)
     If $bCursorActive Then
         Sleep(5)
-    ElseIf _DL_IsVisible() Or _CM_IsVisible() Or _DL_CtxIsVisible() Or _DL_ColorPickerIsVisible() Then
+    ElseIf _DL_IsVisible() Or _CM_IsVisible() Or _DL_CtxIsVisible() Or _DL_ColorPickerIsVisible() Or _WL_CtxIsVisible() Or _WL_SendToIsVisible() Then
         Sleep(15)
     Else
         Sleep(100)

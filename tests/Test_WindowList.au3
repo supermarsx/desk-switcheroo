@@ -64,4 +64,88 @@ Func _RunTest_WindowList()
     _WL_ScrollUp()
     _WL_ScrollDown()
     _Test_AssertTrue("WL scroll without GUI no crash", True)
+
+    ; ---- Send-to submenu initial state ----
+    _Test_AssertFalse("SendTo: initially not visible", _WL_SendToIsVisible())
+    _Test_AssertEqual("SendTo: GUI is 0 initially", _WL_SendToGetGUI(), 0)
+
+    ; -- SendToHandleClick with no submenu returns empty --
+    _Test_AssertEqual("SendTo: HandleClick(0) = empty", _WL_SendToHandleClick(0), "")
+    _Test_AssertEqual("SendTo: HandleClick(-1) = empty", _WL_SendToHandleClick(-1), "")
+
+    ; -- SendToDestroy on already-destroyed state is safe --
+    _WL_SendToDestroy()
+    _Test_AssertFalse("SendTo: still hidden after double destroy", _WL_SendToIsVisible())
+
+    ; -- CtxHandleClick returns empty for non-matching IDs --
+    _Test_AssertEqual("WL Ctx: HandleClick(0) = empty", _WL_CtxHandleClick(0), "")
+    _Test_AssertEqual("WL Ctx: HandleClick(-1) = empty", _WL_CtxHandleClick(-1), "")
+    _Test_AssertEqual("WL Ctx: HandleClick(99999) = empty", _WL_CtxHandleClick(99999), "")
+
+    ; -- CtxDestroy cleans up send-to submenu --
+    _Test_AssertFalse("SendTo: hidden after CtxDestroy", _WL_SendToIsVisible())
+    _Test_AssertEqual("SendTo: GUI = 0 after CtxDestroy", _WL_SendToGetGUI(), 0)
+
+    ; -- CtxCheckAutoHide returns False when not visible --
+    _Test_AssertFalse("WL Ctx: auto-hide returns false when hidden", _WL_CtxCheckAutoHide())
+
+    ; ---- Context menu show/destroy with parent item ----
+    _Cfg_SetWindowListEnabled(True)
+    _WL_Show(1)
+    If _WL_IsVisible() Then
+        ; Simulate right-click target using a dummy HWND (0 is safe for state checks)
+        _WL_CtxShow(0)
+        _Test_AssertTrue("WL Ctx: visible after show", _WL_CtxIsVisible())
+        _Test_AssertNotEqual("WL Ctx: GUI <> 0", _WL_CtxGetGUI(), 0)
+
+        ; -- Parent item exists --
+        _Test_AssertNotEqual("WL Ctx: SendToParent item exists", $__g_WL_iCtxSendToParent, 0)
+
+        ; -- HandleClick does not match parent item (parent only opens submenu) --
+        _Test_AssertEqual("WL Ctx: HandleClick(parent) = empty", _WL_CtxHandleClick($__g_WL_iCtxSendToParent), "")
+
+        ; -- Close item exists and returns correct action --
+        _Test_AssertNotEqual("WL Ctx: Close item exists", $__g_WL_iCtxClose, 0)
+        _Test_AssertEqual("WL Ctx: HandleClick(close) = 'close'", _WL_CtxHandleClick($__g_WL_iCtxClose), "close")
+
+        ; -- Send-to submenu show --
+        _WL_SendToShow()
+        _Test_AssertTrue("SendTo: visible after show", _WL_SendToIsVisible())
+        _Test_AssertNotEqual("SendTo: GUI <> 0", _WL_SendToGetGUI(), 0)
+
+        ; -- Send-to submenu items exist --
+        _Test_AssertNotEqual("SendTo: Next item exists", $__g_WL_iSendNext, 0)
+        _Test_AssertNotEqual("SendTo: Prev item exists", $__g_WL_iSendPrev, 0)
+        _Test_AssertNotEqual("SendTo: New item exists", $__g_WL_iSendNew, 0)
+
+        ; -- HandleClick returns correct actions --
+        _Test_AssertEqual("SendTo: HandleClick(next)", _WL_SendToHandleClick($__g_WL_iSendNext), "send_next")
+        _Test_AssertEqual("SendTo: HandleClick(prev)", _WL_SendToHandleClick($__g_WL_iSendPrev), "send_prev")
+        _Test_AssertEqual("SendTo: HandleClick(new)", _WL_SendToHandleClick($__g_WL_iSendNew), "send_new")
+
+        ; -- SendToDestroy cleans up --
+        _WL_SendToDestroy()
+        _Test_AssertFalse("SendTo: hidden after destroy", _WL_SendToIsVisible())
+        _Test_AssertEqual("SendTo: GUI = 0 after destroy", _WL_SendToGetGUI(), 0)
+
+        ; -- CtxDestroy also destroys submenu --
+        _WL_SendToShow()
+        _Test_AssertTrue("SendTo: visible before CtxDestroy", _WL_SendToIsVisible())
+        _WL_CtxDestroy()
+        _Test_AssertFalse("WL Ctx: hidden after destroy", _WL_CtxIsVisible())
+        _Test_AssertFalse("SendTo: gone after CtxDestroy", _WL_SendToIsVisible())
+
+        ; -- WL_Destroy cascades to ctx and submenu --
+        _WL_Show(1)
+        _WL_CtxShow(0)
+        _WL_SendToShow()
+        _Test_AssertTrue("SendTo: visible before WL_Destroy", _WL_SendToIsVisible())
+        _WL_Destroy()
+        _Test_AssertFalse("WL: hidden after destroy", _WL_IsVisible())
+        _Test_AssertFalse("WL Ctx: gone after WL_Destroy", _WL_CtxIsVisible())
+        _Test_AssertFalse("SendTo: gone after WL_Destroy", _WL_SendToIsVisible())
+    Else
+        _Test_AssertTrue("WL skipped (could not show)", True)
+    EndIf
+    _Cfg_SetWindowListEnabled(False)
 EndFunc
