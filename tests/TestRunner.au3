@@ -74,6 +74,7 @@ EndFunc
 #include "Test_Hooks.au3"
 #include "Test_CLI.au3"
 #include "Test_Profiles.au3"
+#include "Test_Performance.au3"
 
 ; ---- Load bundled fonts ----
 _Theme_LoadFonts()
@@ -104,6 +105,7 @@ _RunTest_SessionRestore()
 _RunTest_Hooks()
 _RunTest_CLI()
 _RunTest_Profiles()
+_RunTest_Performance()
 
 ; ---- Cleanup ----
 _VD_Shutdown()
