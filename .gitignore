@@ -9,3 +9,6 @@ build/
 !tools/*.au3
 crash_*.log
 desk_switcheroo_state.ini
+tests/test_cd_trace.txt
+tests/e2e_out.txt
+tests/e2e_output.txt
