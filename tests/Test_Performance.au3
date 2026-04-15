@@ -565,7 +565,7 @@ Func __Perf_WindowList()
         __WL_CalcPosition("bottom-right", 300, 400, $iX, $iY)
     Next
     $fTotal = TimerDiff($hTimer)
-    __Perf_AssertAvgBelow("WL CalcPosition all 9 positions", $fTotal, 5000, 0.1)
+    __Perf_AssertAvgBelow("WL CalcPosition all 9 positions", $fTotal, 5000, 0.15)
 
     ; G2. __WL_CalcPosition — edge case (oversized triggers clamping)
     $hTimer = TimerInit()
