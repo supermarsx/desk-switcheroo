@@ -79,6 +79,48 @@ Func _RunTest_Labels()
     _Labels_InvalidateCache()
     _Test_AssertEqual("Label reloads after invalidate", _Labels_Load(1), "CachedLabel")
 
+    ; -- RemoveAndShift: middle removal shifts higher labels down --
+    FileDelete($sTempIni)
+    _Labels_InvalidateCache()
+    _Labels_Save(1, "A")
+    _Labels_Save(2, "B")
+    _Labels_Save(3, "C")
+    _Labels_Save(4, "D")
+    _Labels_Save(5, "E")
+    _Labels_RemoveAndShift(3, 5)
+    _Labels_InvalidateCache()
+    _Test_AssertEqual("Shift: pos 1 unchanged", _Labels_Load(1), "A")
+    _Test_AssertEqual("Shift: pos 2 unchanged", _Labels_Load(2), "B")
+    _Test_AssertEqual("Shift: pos 3 = old D", _Labels_Load(3), "D")
+    _Test_AssertEqual("Shift: pos 4 = old E", _Labels_Load(4), "E")
+    _Test_AssertEqual("Shift: pos 5 cleared", _Labels_Load(5), "")
+    ; Verify orphan key is actually removed (not just empty-valued)
+    _Test_AssertEqual("Shift: orphan key purged", IniRead($sTempIni, "Labels", "desktop_5", "MISSING"), "MISSING")
+
+    ; -- RemoveAndShift: end removal just purges the orphan --
+    FileDelete($sTempIni)
+    _Labels_InvalidateCache()
+    _Labels_Save(1, "A")
+    _Labels_Save(2, "B")
+    _Labels_Save(3, "C")
+    _Labels_RemoveAndShift(3, 3)
+    _Labels_InvalidateCache()
+    _Test_AssertEqual("End-shift: pos 1 unchanged", _Labels_Load(1), "A")
+    _Test_AssertEqual("End-shift: pos 2 unchanged", _Labels_Load(2), "B")
+    _Test_AssertEqual("End-shift: pos 3 purged", IniRead($sTempIni, "Labels", "desktop_3", "MISSING"), "MISSING")
+
+    ; -- RemoveAndShift: removing the first desktop shifts all down --
+    FileDelete($sTempIni)
+    _Labels_InvalidateCache()
+    _Labels_Save(1, "A")
+    _Labels_Save(2, "B")
+    _Labels_Save(3, "C")
+    _Labels_RemoveAndShift(1, 3)
+    _Labels_InvalidateCache()
+    _Test_AssertEqual("First-shift: pos 1 = old B", _Labels_Load(1), "B")
+    _Test_AssertEqual("First-shift: pos 2 = old C", _Labels_Load(2), "C")
+    _Test_AssertEqual("First-shift: pos 3 purged", IniRead($sTempIni, "Labels", "desktop_3", "MISSING"), "MISSING")
+
     ; -- Cleanup --
     FileDelete($sTempIni)
 EndFunc

@@ -206,7 +206,9 @@ Func _CLI_ExecuteLocal()
                 ConsoleWrite("Error: desktop number out of range (1-" & _VD_GetCount() & ")" & @CRLF)
                 Return False
             EndIf
+            Local $iCliOldCount = _VD_GetCount()
             _VD_RemoveDesktop($iRemove)
+            _Labels_RemoveAndShift($iRemove, $iCliOldCount)
             _Log_Info("CLI: removed desktop " & $iRemove)
         Case "rename"
             If $__g_CLI_sArg = "" Or Not StringIsInt($__g_CLI_sArg) Then

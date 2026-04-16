@@ -133,6 +133,45 @@ Func _Labels_SyncFromOS()
     Return $bChanged
 EndFunc
 
+; Name:        _Labels_RemoveAndShift
+; Description: Shifts labels down after a desktop is removed at $iRemovedIndex,
+;              and purges the orphan slot at the old last position. Called AFTER
+;              _VD_RemoveDesktop. Labels become authoritative regardless of whether
+;              Windows preserved OS names across the remove.
+; Parameters:  $iRemovedIndex - index of the removed desktop (1-based)
+;              $iOldCount - desktop count BEFORE the removal
+Func _Labels_RemoveAndShift($iRemovedIndex, $iOldCount)
+    If $iRemovedIndex < 1 Or $iOldCount < 1 Or $iRemovedIndex > $iOldCount Then Return
+    If $__g_Labels_IniPath = "" Then Return
+
+    ; Collect → shift → write: snapshot all old labels first so writes don't
+    ; pollute later reads. Prefer OS name when sync is on, fall back to INI.
+    Local $aLabels[$iOldCount + 1]
+    Local $i
+    For $i = 1 To $iOldCount
+        Local $s = ""
+        If $__g_Labels_bSyncOS Then $s = _VD_GetName($i)
+        If $s = "" Then $s = IniRead($__g_Labels_IniPath, "Labels", "desktop_" & $i, "")
+        $aLabels[$i] = $s
+    Next
+
+    ; Shift positions iRemovedIndex+1..iOldCount down by 1 (no-op when removing
+    ; the last desktop). _Labels_Save handles OS + INI + cache.
+    For $i = $iRemovedIndex To $iOldCount - 1
+        _Labels_Save($i, $aLabels[$i + 1])
+    Next
+
+    ; Purge orphan at old last position
+    IniDelete($__g_Labels_IniPath, "Labels", "desktop_" & $iOldCount)
+    If $iOldCount >= 1 And $iOldCount <= 20 Then $__g_Labels_aCache[$iOldCount] = ""
+    If $__g_Labels_bSyncOS Then _VD_SetName($iOldCount, "")
+
+    ; Update sync trackers so the next poll runs the normal pull-from-OS path
+    ; instead of re-pushing INI via the count-change branch.
+    $__g_Labels_iLastCount = $iOldCount - 1
+    $__g_Labels_sLastHash = ""
+EndFunc
+
 ; Name:        _Labels_InitialSync
 ; Description: One-time merge on startup: OS names win; INI-only names are pushed to OS.
 Func _Labels_InitialSync()
