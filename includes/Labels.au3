@@ -86,6 +86,34 @@ Func _Labels_Save($iIndex, $sText)
     If $iIndex >= 1 And $iIndex <= 20 Then $__g_Labels_aCache[$iIndex] = $sText
 EndFunc
 
+; Name:        _Labels_Swap
+; Description: Swaps two stored labels so Switcheroo stays aligned after a desktop
+;              reorder. When requested, also swaps the OS names.
+; Parameters:  $iA, $iB - desktop indices (1-based)
+;              $bOsAlreadySwapped - True when the caller already swapped OS names
+; Return:      True on success, False on invalid input
+Func _Labels_Swap($iA, $iB, $bOsAlreadySwapped = False)
+    If $iA < 1 Or $iB < 1 Then Return False
+    If $iA = $iB Then Return True
+    If $__g_Labels_IniPath = "" Then Return False
+
+    Local $sLabelA = IniRead($__g_Labels_IniPath, "Labels", "desktop_" & $iA, "")
+    Local $sLabelB = IniRead($__g_Labels_IniPath, "Labels", "desktop_" & $iB, "")
+
+    If $__g_Labels_bSyncOS And Not $bOsAlreadySwapped Then
+        _VD_SetName($iA, $sLabelB)
+        _VD_SetName($iB, $sLabelA)
+    EndIf
+
+    IniWrite($__g_Labels_IniPath, "Labels", "desktop_" & $iA, $sLabelB)
+    IniWrite($__g_Labels_IniPath, "Labels", "desktop_" & $iB, $sLabelA)
+
+    ; Force fresh reads so the next UI refresh uses the swapped labels immediately.
+    _Labels_InvalidateCache()
+    $__g_Labels_sLastHash = ""
+    Return True
+EndFunc
+
 ; Name:        _Labels_SyncFromOS
 ; Description: Checks if any OS desktop name changed externally (e.g. via Task View)
 ;              and updates the INI + returns whether anything changed.

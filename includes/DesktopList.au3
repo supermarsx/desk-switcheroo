@@ -88,6 +88,41 @@ Next
 
 ; #FUNCTIONS# ===================================================
 
+; Name:        __DL_CalcListXY
+; Description: Calculates the desktop list popup position relative to the main
+;              widget and clamps it to the visible desktop area.
+; Parameters:  $iTaskbarY - Y position of the taskbar
+;              $iListW, $iListH - current list dimensions
+; Return:      2-element array [X, Y]
+Func __DL_CalcListXY($iTaskbarY, $iListW, $iListH)
+    Local $sAnchor = _Cfg_GetWidgetPosition()
+    Local $iListX = 0
+    Local $iListY = $iTaskbarY + 2 - $iListH - 2 ; default: above taskbar
+    Local $aWP = WinGetPos($gui) ; $gui is the main widget handle (extern global)
+    If Not @error And IsArray($aWP) Then
+        $iListX = $aWP[0]
+        If StringLeft($sAnchor, 3) = "top" Then
+            $iListY = $aWP[1] + $aWP[3] + 2 ; below widget
+        ElseIf StringLeft($sAnchor, 6) = "middle" Then
+            $iListY = $aWP[1] - $iListH - 2 ; above widget
+        Else
+            $iListY = $aWP[1] - $iListH - 2 ; above widget (bottom anchor)
+        EndIf
+        ; Prefer the alternate side when the primary side falls off-screen.
+        If $iListY < 0 Then $iListY = $aWP[1] + $aWP[3] + 2
+        If $iListY + $iListH > @DesktopHeight Then $iListY = $aWP[1] - $iListH - 2
+    EndIf
+
+    ; Final hard clamp for resolution changes and narrow screens.
+    If $iListX + $iListW > @DesktopWidth Then $iListX = @DesktopWidth - $iListW
+    If $iListX < 0 Then $iListX = 0
+    If $iListY + $iListH > @DesktopHeight Then $iListY = @DesktopHeight - $iListH
+    If $iListY < 0 Then $iListY = 0
+
+    Local $aXY[2] = [$iListX, $iListY]
+    Return $aXY
+EndFunc
+
 ; Name:        _DL_ShowTemp
 ; Description: Shows the desktop list in temporary auto-hide mode (3 seconds).
 ;              If the list is pinned via config, shows as persistent (no auto-hide).
@@ -166,26 +201,9 @@ Func _DL_Show($iTaskbarY, $iCurrentDesktop)
 
     Local $iListW = $THEME_MAIN_WIDTH + $THEME_PEEK_ZONE_W
     Local $iListH = $iVisibleCount * $THEME_ITEM_HEIGHT + 6 + $iExtraH
-    ; Position list relative to widget anchor — above for bottom, below for top, beside for middle
-    Local $sAnchor = _Cfg_GetWidgetPosition()
-    Local $iListX = 0
-    Local $iListY = $iTaskbarY + 2 - $iListH - 2 ; default: above taskbar
-    Local $aWP = WinGetPos($gui) ; $gui is the main widget handle (extern global)
-    If Not @error And IsArray($aWP) Then
-        $iListX = $aWP[0]
-        If StringLeft($sAnchor, 3) = "top" Then
-            $iListY = $aWP[1] + $aWP[3] + 2 ; below widget
-        ElseIf StringLeft($sAnchor, 6) = "middle" Then
-            $iListY = $aWP[1] - $iListH - 2 ; above widget (could also go below)
-        Else
-            $iListY = $aWP[1] - $iListH - 2 ; above widget (bottom anchor)
-        EndIf
-        ; Keep on screen
-        If $iListY < 0 Then $iListY = $aWP[1] + $aWP[3] + 2
-        If $iListY + $iListH > @DesktopHeight Then $iListY = $aWP[1] - $iListH - 2
-    EndIf
+    Local $aListXY = __DL_CalcListXY($iTaskbarY, $iListW, $iListH)
 
-    $__g_DL_hGUI = _Theme_CreatePopup("DesktopList", $iListW, $iListH, $iListX, $iListY)
+    $__g_DL_hGUI = _Theme_CreatePopup("DesktopList", $iListW, $iListH, $aListXY[0], $aListXY[1])
     If $__g_DL_hGUI = 0 Then
         _Log_Error("DL_Show: Failed to create list GUI")
         Return
@@ -510,8 +528,31 @@ Func _DL_Refresh($iTaskbarY, $iCurrentDesktop)
         _DL_Destroy()
         _DL_Show($iTaskbarY, $iCurrentDesktop)
     Else
+        _DL_Reposition($iTaskbarY)
         _DL_UpdateHighlight($iCurrentDesktop)
     EndIf
+EndFunc
+
+; Name:        _DL_Reposition
+; Description: Moves the visible desktop list so it stays aligned with the main
+;              widget after widget movement, taskbar changes, or resolution changes.
+; Parameters:  $iTaskbarY - Y position of the taskbar
+; Return:      True if the list moved, False otherwise
+Func _DL_Reposition($iTaskbarY)
+    If Not $__g_DL_bVisible Or $__g_DL_hGUI = 0 Then Return False
+
+    Local $aListPos = WinGetPos($__g_DL_hGUI)
+    If @error Or Not IsArray($aListPos) Then Return False
+
+    Local $aXY = __DL_CalcListXY($iTaskbarY, $aListPos[2], $aListPos[3])
+    If $aListPos[0] = $aXY[0] And $aListPos[1] = $aXY[1] Then Return False
+
+    DllCall("user32.dll", "bool", "SetWindowPos", _
+        "hwnd", $__g_DL_hGUI, "hwnd", $HWND_TOPMOST, _
+        "int", $aXY[0], "int", $aXY[1], _
+        "int", $aListPos[2], "int", $aListPos[3], _
+        "uint", BitOR($SWP_NOACTIVATE, $SWP_SHOWWINDOW))
+    Return True
 EndFunc
 
 ; Name:        _DL_UpdateItemText
@@ -833,17 +874,18 @@ Func _DL_DragPerformReorder($iFrom, $iTo, $iCurrentDesktop)
     Local $iStep = 1
     If $iFrom > $iTo Then $iStep = -1
 
-    ; Adjacent swap chain — _VD_SwapDesktops handles windows, OS names, and colors
+    ; Pull any pending OS-side renames first so reordered labels start from the
+    ; latest desktop names instead of stale stored values.
+    If _Labels_IsSyncEnabled() Then _Labels_SyncFromOS()
+
+    ; Adjacent swap chain — _VD_SwapDesktops handles windows, OS names, and colors.
+    ; Keep Switcheroo's stored labels in lockstep after each step.
     Local $iPos = $iFrom
     While $iPos <> $iTo
         Local $iNext = $iPos + $iStep
         _VD_SwapDesktops($iPos, $iNext)
         Sleep(100) ; let Windows process the window moves between swaps
-        ; Swap INI labels (OS names already swapped inside _VD_SwapDesktops)
-        Local $sIniA = IniRead($__g_Labels_IniPath, "Labels", "desktop_" & $iPos, "")
-        Local $sIniB = IniRead($__g_Labels_IniPath, "Labels", "desktop_" & $iNext, "")
-        IniWrite($__g_Labels_IniPath, "Labels", "desktop_" & $iPos, $sIniB)
-        IniWrite($__g_Labels_IniPath, "Labels", "desktop_" & $iNext, $sIniA)
+        _Labels_Swap($iPos, $iNext, True)
         $iPos = $iNext
     WEnd
 

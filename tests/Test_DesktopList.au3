@@ -70,6 +70,21 @@ Func _RunTest_DesktopList()
     _Test_AssertEqual("HandleClick(-1) returns 0", $iResult2, 0)
     _DL_Destroy()
 
+    ; -- Reposition follows main widget movement --
+    Local $hTestWidget = GUICreate("DLWidget", 130, 40, 120, 200)
+    GUISetState(@SW_SHOW, $hTestWidget)
+    $gui = $hTestWidget
+    _DL_Show($iTestTaskbarY, $iCurrentDesktop)
+    Local $aListPos1 = WinGetPos(_DL_GetGUI())
+    _Test_AssertTrue("Reposition: initial list pos array", IsArray($aListPos1))
+    WinMove($gui, "", 240, 220)
+    _DL_Reposition($iTestTaskbarY)
+    Local $aListPos2 = WinGetPos(_DL_GetGUI())
+    _Test_AssertEqual("Reposition: list follows widget X", $aListPos2[0], 240)
+    _DL_Destroy()
+    GUIDelete($hTestWidget)
+    $gui = 0
+
     ; -- UpdateItemText does not crash when not visible --
     _DL_UpdateItemText(1, "Test") ; should be a no-op
 

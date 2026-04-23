@@ -79,6 +79,17 @@ Func _RunTest_Labels()
     _Labels_InvalidateCache()
     _Test_AssertEqual("Label reloads after invalidate", _Labels_Load(1), "CachedLabel")
 
+    ; -- Swap: updates stored labels and forces immediate reload --
+    FileDelete($sTempIni)
+    _Labels_InvalidateCache()
+    _Labels_Save(1, "Alpha")
+    _Labels_Save(2, "Beta")
+    _Labels_Swap(1, 2)
+    _Test_AssertEqual("Swap: pos 1 = old Beta", _Labels_Load(1), "Beta")
+    _Test_AssertEqual("Swap: pos 2 = old Alpha", _Labels_Load(2), "Alpha")
+    _Test_AssertEqual("Swap: INI pos 1", IniRead($sTempIni, "Labels", "desktop_1", ""), "Beta")
+    _Test_AssertEqual("Swap: INI pos 2", IniRead($sTempIni, "Labels", "desktop_2", ""), "Alpha")
+
     ; -- RemoveAndShift: middle removal shifts higher labels down --
     FileDelete($sTempIni)
     _Labels_InvalidateCache()

@@ -223,6 +223,7 @@ Global $bDesktopChanged = False
 Global $bNamesChanged = False
 Global $__g_iLastCursorX = -1, $__g_iLastCursorY = -1
 Global $__g_hFgTrackTimer = 0
+Global $__g_iLastScreenW = @DesktopWidth, $__g_iLastScreenH = @DesktopHeight
 Global Const $WM_VD_NOTIFY = 0x04C8 ; WM_USER + 200
 
 ; -- Triple-click to edit --
@@ -882,6 +883,7 @@ Func _ProcessMouseInput()
         If $iNewX < 0 Then $iNewX = 0
         If $iNewX + $__g_iWidgetW > @DesktopWidth Then $iNewX = @DesktopWidth - $__g_iWidgetW
         WinMove($gui, "", $iNewX, $iTaskbarY + 2)
+        If _DL_IsVisible() Then _DL_Reposition($iTaskbarY)
     EndIf
 
     ; LMB released
@@ -1670,6 +1672,11 @@ Func _ForceTopMost()
 
     ; Re-read taskbar dimensions in case screen resized or taskbar moved
     Local $bTaskbarMoved = False
+    Local $bScreenChanged = (@DesktopWidth <> $__g_iLastScreenW Or @DesktopHeight <> $__g_iLastScreenH)
+    If $bScreenChanged Then
+        $__g_iLastScreenW = @DesktopWidth
+        $__g_iLastScreenH = @DesktopHeight
+    EndIf
     Local $hTB = WinGetHandle("[CLASS:Shell_TrayWnd]")
     If $hTB Then
         Local $aTBPos = WinGetPos($hTB)
@@ -1685,26 +1692,34 @@ Func _ForceTopMost()
     ; Always keep topmost flag (cheap)
     WinSetOnTop($gui, "", 1)
 
-    ; Only reposition if taskbar moved
-    If $bTaskbarMoved Then
-        Local $aPos = __CalcWidgetXY()
+    Local $aPos = __CalcWidgetXY()
+    Local $bWidgetMoved = False
+    Local $aCurPos = WinGetPos($gui)
+    If $bTaskbarMoved Or $bScreenChanged Or @error Or Not IsArray($aCurPos) Then
+        $bWidgetMoved = True
+    ElseIf $aCurPos[0] <> $aPos[0] Or $aCurPos[1] <> $aPos[1] Or $aCurPos[2] <> $__g_iWidgetW Or $aCurPos[3] <> $__g_iWidgetH Then
+        $bWidgetMoved = True
+    EndIf
+
+    If $bWidgetMoved Then
         DllCall("user32.dll", "bool", "SetWindowPos", _
             "hwnd", $gui, "hwnd", $HWND_TOPMOST, _
             "int", $aPos[0], "int", $aPos[1], _
             "int", $__g_iWidgetW, "int", $__g_iWidgetH, _
             "uint", BitOR($SWP_NOACTIVATE, $SWP_SHOWWINDOW))
+        If _DL_IsVisible() Then _DL_Reposition($iTaskbarY)
     EndIf
 
     ; Always verify TOPMOST style bit - other windows can steal it
     Local $iStyle = _WinAPI_GetWindowLong($gui, $GWL_EXSTYLE)
     If BitAND($iStyle, $WS_EX_TOPMOST) = 0 Then
         _WinAPI_SetWindowLong($gui, $GWL_EXSTYLE, BitOR($iStyle, $WS_EX_TOPMOST))
-        Local $aPos2 = __CalcWidgetXY()
         DllCall("user32.dll", "bool", "SetWindowPos", _
             "hwnd", $gui, "hwnd", $HWND_TOPMOST, _
-            "int", $aPos2[0], "int", $aPos2[1], _
+            "int", $aPos[0], "int", $aPos[1], _
             "int", $__g_iWidgetW, "int", $__g_iWidgetH, _
             "uint", BitOR($SWP_NOACTIVATE, $SWP_SHOWWINDOW))
+        If _DL_IsVisible() Then _DL_Reposition($iTaskbarY)
     EndIf
 EndFunc
 
@@ -2347,7 +2362,9 @@ EndFunc
 Func _HK_SwapDesktops()
     _Log_Debug("Hotkey: swap desktops (current <-> previous)")
     If $iPrevDesktop > 0 And $iPrevDesktop <= _VD_GetCount() Then
+        If _Labels_IsSyncEnabled() Then _Labels_SyncFromOS()
         _VD_SwapDesktops($iDesktop, $iPrevDesktop)
+        _Labels_Swap($iDesktop, $iPrevDesktop, True)
         Sleep(50)
         _RefreshIndex()
     EndIf
