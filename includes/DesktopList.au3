@@ -555,6 +555,33 @@ Func _DL_Reposition($iTaskbarY)
     Return True
 EndFunc
 
+; Name:        _DL_Realign
+; Description: Keeps the desktop list aligned with the widget after movement or
+;              desktop geometry changes. When forced, rebuilds the popup to
+;              recover from display transitions that leave the old window
+;              stranded on stale coordinates.
+; Parameters:  $iTaskbarY - Y position of the taskbar
+;              $iCurrentDesktop - currently active desktop (1-based)
+;              $bForceRebuild - True to destroy/recreate instead of moving only
+; Return:      True if the list was moved or rebuilt, False otherwise
+Func _DL_Realign($iTaskbarY, $iCurrentDesktop, $bForceRebuild = False)
+    If Not $__g_DL_bVisible Then Return False
+
+    If Not $bForceRebuild Then
+        Return _DL_Reposition($iTaskbarY)
+    EndIf
+
+    Local $bWasTemp = $__g_DL_bTemp
+    Local $hTempTimer = $__g_DL_hTempTimer
+    _DL_Destroy()
+    _DL_Show($iTaskbarY, $iCurrentDesktop)
+    If $__g_DL_hGUI = 0 Then Return False
+
+    $__g_DL_bTemp = $bWasTemp
+    $__g_DL_hTempTimer = $hTempTimer
+    Return True
+EndFunc
+
 ; Name:        _DL_UpdateItemText
 ; Description: Updates the display text of a single list item (e.g., after rename)
 ; Parameters:  $iIndex - desktop index (1-based)

@@ -1701,13 +1701,16 @@ Func _ForceTopMost()
         $bWidgetMoved = True
     EndIf
 
+    Local $bListNeedsGeometryRefresh = (_DL_IsVisible() And ($bTaskbarMoved Or $bScreenChanged))
+    Local $bListNeedsReposition = False
+
     If $bWidgetMoved Then
         DllCall("user32.dll", "bool", "SetWindowPos", _
             "hwnd", $gui, "hwnd", $HWND_TOPMOST, _
             "int", $aPos[0], "int", $aPos[1], _
             "int", $__g_iWidgetW, "int", $__g_iWidgetH, _
             "uint", BitOR($SWP_NOACTIVATE, $SWP_SHOWWINDOW))
-        If _DL_IsVisible() Then _DL_Reposition($iTaskbarY)
+        $bListNeedsReposition = _DL_IsVisible()
     EndIf
 
     ; Always verify TOPMOST style bit - other windows can steal it
@@ -1719,7 +1722,13 @@ Func _ForceTopMost()
             "int", $aPos[0], "int", $aPos[1], _
             "int", $__g_iWidgetW, "int", $__g_iWidgetH, _
             "uint", BitOR($SWP_NOACTIVATE, $SWP_SHOWWINDOW))
-        If _DL_IsVisible() Then _DL_Reposition($iTaskbarY)
+        $bListNeedsReposition = _DL_IsVisible()
+    EndIf
+
+    If $bListNeedsGeometryRefresh Then
+        _DL_Realign($iTaskbarY, $iDesktop, True)
+    ElseIf $bListNeedsReposition Then
+        _DL_Realign($iTaskbarY, $iDesktop)
     EndIf
 EndFunc
 

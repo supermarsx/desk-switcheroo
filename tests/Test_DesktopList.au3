@@ -81,6 +81,12 @@ Func _RunTest_DesktopList()
     _DL_Reposition($iTestTaskbarY)
     Local $aListPos2 = WinGetPos(_DL_GetGUI())
     _Test_AssertEqual("Reposition: list follows widget X", $aListPos2[0], 240)
+
+    WinMove($gui, "", 300, 260)
+    _Test_AssertTrue("Realign(force): succeeds", _DL_Realign($iTestTaskbarY, $iCurrentDesktop, True))
+    Local $aListPos3 = WinGetPos(_DL_GetGUI())
+    _Test_AssertTrue("Realign(force): rebuilt list pos array", IsArray($aListPos3))
+    _Test_AssertEqual("Realign(force): list follows widget X", $aListPos3[0], 300)
     _DL_Destroy()
     GUIDelete($hTestWidget)
     $gui = 0
