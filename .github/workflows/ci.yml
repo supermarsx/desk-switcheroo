@@ -11,15 +11,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Install AutoIt
-        run: choco install autoit -y --no-progress
+        run: pwsh scripts/install-autoit.ps1
       - name: Lint
         run: |
-          $env:Path += ";C:\Program Files (x86)\AutoIt3"
           $errors = 0
-          & Au3Check.exe desktop_switcher.au3
+          & "$env:AUTOIT_PATH\Au3Check.exe" desktop_switcher.au3
           if ($LASTEXITCODE -ne 0) { $errors++ }
           Push-Location tests
-          & Au3Check.exe TestRunner.au3
+          & "$env:AUTOIT_PATH\Au3Check.exe" TestRunner.au3
           if ($LASTEXITCODE -ne 0) { $errors++ }
           Pop-Location
           if ($errors -gt 0) { exit 1 }
@@ -52,11 +51,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Install AutoIt
-        run: choco install autoit -y --no-progress
+        run: pwsh scripts/install-autoit.ps1
       - name: Run tests (x64 for DLL compatibility)
         run: |
-          $au3 = "C:\Program Files (x86)\AutoIt3\AutoIt3_x64.exe"
-          if (-not (Test-Path $au3)) { $au3 = "C:\Program Files (x86)\AutoIt3\AutoIt3.exe" }
+          $au3 = "$env:AUTOIT_PATH\AutoIt3_x64.exe"
+          if (-not (Test-Path $au3)) { $au3 = "$env:AUTOIT_PATH\AutoIt3.exe" }
           Write-Host "Using: $au3"
           & $au3 /ErrorStdOut tests\TestRunner.au3 2>&1 | Tee-Object -FilePath test_output.txt
           $code = $LASTEXITCODE
@@ -76,11 +75,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Install AutoIt
-        run: choco install autoit -y --no-progress
+        run: pwsh scripts/install-autoit.ps1
       - name: Generate icon
         run: |
-          $au3 = "C:\Program Files (x86)\AutoIt3\AutoIt3_x64.exe"
-          if (-not (Test-Path $au3)) { $au3 = "C:\Program Files (x86)\AutoIt3\AutoIt3.exe" }
+          $au3 = "$env:AUTOIT_PATH\AutoIt3_x64.exe"
+          if (-not (Test-Path $au3)) { $au3 = "$env:AUTOIT_PATH\AutoIt3.exe" }
           & $au3 tools\generate_icon.au3
         shell: pwsh
       - name: Build
