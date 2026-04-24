@@ -4500,7 +4500,7 @@ Func __CD_ShowHotkeyBuilder()
     GUICtrlSetBkColor($idCancel, $THEME_BG_HOVER)
     GUICtrlSetCursor($idCancel, 0)
 
-    GUISetState(@SW_SHOW, $hDlg)
+    _Theme_FadeIn($hDlg, $THEME_ALPHA_DIALOG, "dialog")
 
     ; Checkbox states
     Local $bCtrl = False, $bAlt = False, $bShift = False, $bWin = False
@@ -4618,7 +4618,7 @@ Func __CD_ShowHotkeyBuilder()
         Sleep(10)
     WEnd
 
-    GUIDelete($hDlg)
+    _Theme_FadeOut($hDlg, "dialog")
     Return $sResult
 EndFunc
 

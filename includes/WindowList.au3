@@ -951,7 +951,7 @@ Func _WL_CtxShow($hTargetWnd)
         4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     GUICtrlSetColor($__g_WL_iCtxClose, 0xCC6666) ; muted red for danger
 
-    GUISetState(@SW_SHOW, $__g_WL_hCtxGUI)
+    _Theme_FadeIn($__g_WL_hCtxGUI, $THEME_ALPHA_MENU, "menu")
     $__g_WL_bCtxVisible = True
     $__g_WL_iCtxHovered = 0
     $__g_WL_hCtxGraceTimer = TimerInit()
@@ -962,7 +962,7 @@ EndFunc
 Func _WL_CtxDestroy()
     _WL_SendToDestroy()
     If $__g_WL_hCtxGUI <> 0 Then
-        GUIDelete($__g_WL_hCtxGUI)
+        _Theme_FadeOut($__g_WL_hCtxGUI, "menu")
         $__g_WL_hCtxGUI = 0
     EndIf
     $__g_WL_bCtxVisible = False
@@ -1231,7 +1231,7 @@ Func _WL_SendToShow()
         $iY += $THEME_MENU_ITEM_H
     Next
 
-    GUISetState(@SW_SHOW, $__g_WL_hSendGUI)
+    _Theme_FadeIn($__g_WL_hSendGUI, $THEME_ALPHA_MENU, "menu")
     $__g_WL_bSendVisible = True
     $__g_WL_iSendHovered = 0
 EndFunc
@@ -1240,7 +1240,7 @@ EndFunc
 ; Description: Destroys the send-to submenu popup
 Func _WL_SendToDestroy()
     If $__g_WL_hSendGUI <> 0 Then
-        GUIDelete($__g_WL_hSendGUI)
+        _Theme_FadeOut($__g_WL_hSendGUI, "menu")
         $__g_WL_hSendGUI = 0
     EndIf
     $__g_WL_bSendVisible = False

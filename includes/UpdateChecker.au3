@@ -157,7 +157,7 @@ Func __UC_FetchReleaseJson($sLabel)
     GUICtrlSetFont(-1, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
-    GUISetState(@SW_SHOW, $hDlg)
+    _Theme_FadeIn($hDlg, $THEME_ALPHA_DIALOG, "dialog")
     _Log_Debug("UC_Fetch: dialog shown, starting InetGet")
 
     Local $sUrl = "https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest"
@@ -170,7 +170,7 @@ Func __UC_FetchReleaseJson($sLabel)
             _Log_Warn("UC_Fetch: connection timeout after 10s")
             InetClose($hInet)
             FileDelete($sTmp)
-            GUIDelete($hDlg)
+            _Theme_FadeOut($hDlg, "dialog")
             _Theme_Toast(_i18n("Toasts.toast_connection_timeout", "Connection timed out"), 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
             Return ""
         EndIf
@@ -180,7 +180,7 @@ Func __UC_FetchReleaseJson($sLabel)
     Local $iBytesRead = InetGetInfo($hInet, 0)
     _Log_Debug("UC_Fetch: InetGet complete, success=" & $bSuccess & " bytes=" & $iBytesRead)
     InetClose($hInet)
-    GUIDelete($hDlg)
+    _Theme_FadeOut($hDlg, "dialog")
     Local $sJson = FileRead($sTmp)
     FileDelete($sTmp)
     _Log_Debug("UC_Fetch: JSON length=" & StringLen($sJson))
@@ -259,7 +259,7 @@ Func _UC_CheckNow()
     GUICtrlSetBkColor($idClose, $THEME_BG_HOVER)
     GUICtrlSetCursor($idClose, 0)
 
-    GUISetState(@SW_SHOW, $hDlg)
+    _Theme_FadeIn($hDlg, $THEME_ALPHA_DIALOG, "dialog")
 
     Local $iHovered = 0
     While 1
@@ -267,7 +267,7 @@ Func _UC_CheckNow()
         If $aMsg[1] = $hDlg Then
             If $aMsg[0] = $GUI_EVENT_CLOSE Or $aMsg[0] = $idClose Then ExitLoop
             If $idDownload <> 0 And $aMsg[0] = $idDownload Then
-                GUIDelete($hDlg)
+                _Theme_FadeOut($hDlg, "dialog")
                 _UC_DownloadPortable()
                 Return
             EndIf
@@ -290,7 +290,7 @@ Func _UC_CheckNow()
 
         Sleep(10)
     WEnd
-    GUIDelete($hDlg)
+    _Theme_FadeOut($hDlg, "dialog")
 EndFunc
 
 ; Name:        _UC_DownloadPortable
@@ -385,7 +385,7 @@ Func _UC_DownloadPortable()
     GUICtrlSetBkColor($idNo, $THEME_BG_HOVER)
     GUICtrlSetCursor($idNo, 0)
 
-    GUISetState(@SW_SHOW, $hDlg)
+    _Theme_FadeIn($hDlg, $THEME_ALPHA_DIALOG, "dialog")
 
     Local $bProceed = False
     Local $iHovered = 0
@@ -416,7 +416,7 @@ Func _UC_DownloadPortable()
 
         Sleep(10)
     WEnd
-    GUIDelete($hDlg)
+    _Theme_FadeOut($hDlg, "dialog")
 
     If Not $bProceed Then Return
 
@@ -442,7 +442,7 @@ Func _UC_DownloadPortable()
     GUICtrlSetColor($idProgPct, $THEME_FG_DIM)
     GUICtrlSetBkColor($idProgPct, $GUI_BKCOLOR_TRANSPARENT)
 
-    GUISetState(@SW_SHOW, $hDlg)
+    _Theme_FadeIn($hDlg, $THEME_ALPHA_DIALOG, "dialog")
 
     Local $hDownload = InetGet($sDownloadUrl, $sDestFile, 1, 1)
     Local $iBarW = $iDlgW - 28
@@ -454,7 +454,7 @@ Func _UC_DownloadPortable()
             _Log_Warn("UC_Download: download timed out after 120 seconds")
             InetClose($hDownload)
             FileDelete($sDestFile)
-            GUIDelete($hDlg)
+            _Theme_FadeOut($hDlg, "dialog")
             _Theme_Toast(_i18n("Toasts.toast_connection_timeout", "Connection timed out"), 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
             Return
         EndIf
@@ -481,7 +481,7 @@ Func _UC_DownloadPortable()
             FileDelete($sDestFile)
         EndIf
     EndIf
-    GUIDelete($hDlg)
+    _Theme_FadeOut($hDlg, "dialog")
 
     ; Result dialog
     $iDlgH = 110
@@ -520,7 +520,7 @@ Func _UC_DownloadPortable()
     GUICtrlSetBkColor($idClose, $THEME_BG_HOVER)
     GUICtrlSetCursor($idClose, 0)
 
-    GUISetState(@SW_SHOW, $hDlg)
+    _Theme_FadeIn($hDlg, $THEME_ALPHA_DIALOG, "dialog")
     Local $iHovered = 0
     While 1
         Local $aMsg2 = GUIGetMsg(1)
@@ -544,5 +544,5 @@ Func _UC_DownloadPortable()
 
         Sleep(10)
     WEnd
-    GUIDelete($hDlg)
+    _Theme_FadeOut($hDlg, "dialog")
 EndFunc

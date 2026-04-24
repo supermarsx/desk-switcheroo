@@ -1027,7 +1027,7 @@ Func _DL_CtxShow($iTarget)
     $__g_DL_iCtxDelete = _Theme_CreateMenuItem("  " & _i18n("DesktopList.dl_delete", "Delete"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     GUICtrlSetColor($__g_DL_iCtxDelete, 0xCC6666) ; muted red for danger
 
-    GUISetState(@SW_SHOW, $__g_DL_hCtxGUI)
+    _Theme_FadeIn($__g_DL_hCtxGUI, $THEME_ALPHA_MENU, "menu")
     $__g_DL_bCtxVisible = True
     $__g_DL_iCtxHovered = 0
     $__g_DL_hCtxGraceTimer = TimerInit()
@@ -1039,7 +1039,7 @@ Func _DL_CtxDestroy()
     _DL_ColorPickerDestroy()
     _DL_MoveMenuDestroy()
     If $__g_DL_hCtxGUI <> 0 Then
-        GUIDelete($__g_DL_hCtxGUI)
+        _Theme_FadeOut($__g_DL_hCtxGUI, "menu")
         $__g_DL_hCtxGUI = 0
     EndIf
     $__g_DL_bCtxVisible = False
@@ -1251,7 +1251,7 @@ Func _DL_MoveMenuShow($iTarget)
     $iY += $THEME_MENU_ITEM_H
     $__g_DL_iMoveAllCurrentID = _Theme_CreateMenuItem("  " & _i18n("DesktopList.dl_move_all_current", "All Current Desktop Windows"), 4, $iY, $iSubW - 8, $THEME_MENU_ITEM_H)
 
-    GUISetState(@SW_SHOW, $__g_DL_hMoveGUI)
+    _Theme_FadeIn($__g_DL_hMoveGUI, $THEME_ALPHA_MENU, "menu")
     $__g_DL_bMoveVisible = True
     $__g_DL_iMoveHovered = 0
 EndFunc
@@ -1260,7 +1260,7 @@ EndFunc
 ; Description: Destroys the move submenu popup
 Func _DL_MoveMenuDestroy()
     If $__g_DL_hMoveGUI <> 0 Then
-        GUIDelete($__g_DL_hMoveGUI)
+        _Theme_FadeOut($__g_DL_hMoveGUI, "menu")
         $__g_DL_hMoveGUI = 0
     EndIf
     $__g_DL_bMoveVisible = False
@@ -1405,7 +1405,7 @@ Func _DL_ColorPickerShow($iTarget, $hAnchorGUI = 0, $idAnchorCtrl = 0)
     GUICtrlSetBkColor($__g_DL_iColorCustomID, $GUI_BKCOLOR_TRANSPARENT)
     GUICtrlSetCursor($__g_DL_iColorCustomID, 0)
 
-    GUISetState(@SW_SHOW, $__g_DL_hColorGUI)
+    _Theme_FadeIn($__g_DL_hColorGUI, $THEME_ALPHA_MENU, "menu")
     $__g_DL_bColorVisible = True
 EndFunc
 
@@ -1413,7 +1413,7 @@ EndFunc
 ; Description: Destroys the color picker popup
 Func _DL_ColorPickerDestroy()
     If $__g_DL_hColorGUI <> 0 Then
-        GUIDelete($__g_DL_hColorGUI)
+        _Theme_FadeOut($__g_DL_hColorGUI, "menu")
         $__g_DL_hColorGUI = 0
     EndIf
     $__g_DL_bColorVisible = False
@@ -1558,7 +1558,7 @@ Func _DL_ColorPickerCustomDialog()
     GUICtrlSetBkColor($idCancel, $THEME_BG_HOVER)
     GUICtrlSetCursor($idCancel, 0)
 
-    GUISetState(@SW_SHOW, $hDlg)
+    _Theme_FadeIn($hDlg, $THEME_ALPHA_DIALOG, "dialog")
 
     ; Blocking message loop
     Local $iResult = -1
@@ -1604,7 +1604,7 @@ Func _DL_ColorPickerCustomDialog()
         Sleep(10)
     WEnd
 
-    GUIDelete($hDlg)
+    _Theme_FadeOut($hDlg, "dialog")
     ; Remember successful custom color for next time
     If $iResult >= 0 Then $__g_DL_sLastCustomColor = StringRight("000000" & Hex($iResult, 6), 6)
     Return $iResult
