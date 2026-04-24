@@ -1070,7 +1070,8 @@ Func _WL_CtxCheckHover()
     If $iFound = $__g_WL_iCtxSendToParent And $__g_WL_iCtxSendToParent <> 0 And Not $__g_WL_bSendVisible Then
         _WL_SendToShow()
     ElseIf $iFound <> $__g_WL_iCtxSendToParent And $__g_WL_bSendVisible Then
-        If Not _Theme_IsCursorOverWindow($__g_WL_hSendGUI) Then
+        If Not _Theme_IsCursorOverWindow($__g_WL_hSendGUI) And _
+           Not _Theme_IsCursorInWindowBridge($__g_WL_hCtxGUI, $__g_WL_hSendGUI) Then
             _WL_SendToDestroy()
         EndIf
     EndIf
@@ -1090,6 +1091,7 @@ Func _WL_CtxCheckAutoHide()
     If _Theme_IsCursorOverWindow($__g_WL_hCtxGUI) Then $bOver = True
     If Not $bOver And $__g_WL_bSendVisible And _Theme_IsCursorOverWindow($__g_WL_hSendGUI) Then $bOver = True
     If Not $bOver And _Theme_IsCursorOverWindow($__g_WL_hGUI) Then $bOver = True
+    If Not $bOver And $__g_WL_bSendVisible And _Theme_IsCursorInWindowBridge($__g_WL_hCtxGUI, $__g_WL_hSendGUI) Then $bOver = True
 
     If $bOver Then
         ; Cursor is back — reset away timer
@@ -1123,10 +1125,12 @@ Func __WL_GetCtxSubmenuPos($idParentCtrl, $iSubW, $iSubH, ByRef $iSubX, ByRef $i
         Local $aCtxPos = WinGetPos($__g_WL_hCtxGUI)
         If Not @error And IsArray($aCtxPos) Then
             $iSubX = $aCtxPos[0] + $aCtxPos[2]
-            $iSubY = $aCtxPos[1]
+            $iSubY = $aCtxPos[1] + 4 ; parent item is the first row in the menu
             If $idParentCtrl <> 0 Then
                 Local $aParentPos = ControlGetPos($__g_WL_hCtxGUI, "", $idParentCtrl)
-                If IsArray($aParentPos) Then $iSubY = $aCtxPos[1] + $aParentPos[1]
+                If IsArray($aParentPos) And $aParentPos[1] >= 0 And $aParentPos[1] <= $THEME_MENU_ITEM_H Then
+                    $iSubY = $aCtxPos[1] + $aParentPos[1]
+                EndIf
             EndIf
         EndIf
     EndIf

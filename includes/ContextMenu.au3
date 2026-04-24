@@ -2,6 +2,9 @@
 #include "Theme.au3"
 #include "Config.au3"
 
+; Extern globals from main script (declared here to suppress Au3Check warnings)
+Global $iDesktop
+
 ; #INDEX# =======================================================
 ; Title .........: ContextMenu
 ; Description ....: Dark-themed right-click context menu for the desktop switcher widget
@@ -122,6 +125,9 @@ EndFunc
 ; Name:        _CM_Destroy
 ; Description: Destroys the context menu GUI and resets state
 Func _CM_Destroy()
+    If $__g_CM_hGUI <> 0 And _DL_ColorPickerIsVisible() Then
+        _DL_ColorPickerDestroy()
+    EndIf
     If $__g_CM_hGUI <> 0 Then
         _Theme_FadeOut($__g_CM_hGUI, "menu")
         $__g_CM_hGUI = 0
@@ -146,7 +152,8 @@ EndFunc
 
 ; Name:        _CM_CheckHover
 ; Description: Updates hover highlighting on menu items. Call from main loop.
-Func _CM_CheckHover()
+; Parameters:  $iTargetDesktop - current desktop index for Set Color submenu
+Func _CM_CheckHover($iTargetDesktop = 0)
     If Not $__g_CM_bVisible Or $__g_CM_hGUI = 0 Then Return
     Local $aCursor = GUIGetCursorInfo($__g_CM_hGUI)
     If @error Then
@@ -184,6 +191,15 @@ Func _CM_CheckHover()
     $__g_CM_iHovered = $iFound
     If $__g_CM_iHovered <> 0 Then
         _Theme_ApplyHover($__g_CM_iHovered, $THEME_FG_WHITE, $THEME_BG_HOVER)
+    EndIf
+
+    ; Auto-show color picker on hover over "Set Color"
+    If $iFound = $__g_CM_iSetColorID And $__g_CM_iSetColorID <> 0 And $iTargetDesktop > 0 And Not _DL_ColorPickerIsVisible() Then
+        _DL_ColorPickerShow($iTargetDesktop, $__g_CM_hGUI, $__g_CM_iSetColorID)
+    ElseIf $iFound <> $__g_CM_iSetColorID And _DL_ColorPickerIsVisible() Then
+        If Not _Theme_IsCursorOverWindow(_DL_ColorPickerGetGUI()) Then
+            _DL_ColorPickerDestroy()
+        EndIf
     EndIf
 EndFunc
 
@@ -236,6 +252,13 @@ Func _CM_GetAddID()
     Return $__g_CM_iAddID
 EndFunc
 
+; Name:        _CM_GetSetColorID
+; Description: Returns the Set Color menu item control ID (for testing)
+; Return:      Control ID or 0
+Func _CM_GetSetColorID()
+    Return $__g_CM_iSetColorID
+EndFunc
+
 ; Name:        _CM_GetGatherID
 ; Description: Returns the Gather Windows menu item control ID (for testing)
 ; Return:      Control ID or 0
@@ -277,7 +300,9 @@ EndFunc
 ; Return:      True if the menu was dismissed, False otherwise
 Func _CM_CheckAutoHide($hMainGUI)
     If Not $__g_CM_bVisible Or $__g_CM_hGUI = 0 Then Return False
-    If _Theme_IsCursorOverWindow($__g_CM_hGUI) Or _Theme_IsCursorOverWindow($hMainGUI) Then
+    If _Theme_IsCursorOverWindow($__g_CM_hGUI) Or _Theme_IsCursorOverWindow($hMainGUI) Or _
+       (_DL_ColorPickerIsVisible() And (_Theme_IsCursorOverWindow(_DL_ColorPickerGetGUI()) Or _
+        _Theme_IsCursorInWindowBridge($__g_CM_hGUI, _DL_ColorPickerGetGUI()))) Then
         $__g_CM_bHideArmed = False
         Return False
     EndIf

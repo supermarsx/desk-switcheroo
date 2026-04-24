@@ -484,7 +484,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 $iRenameTarget = $iDesktop
                 _RD_Show($iDesktop, $iTaskbarY)
             Case "set_color"
-                _DL_ColorPickerShow($iDesktop)
+                _DL_ColorPickerShow($iDesktop, _CM_GetGUI(), _CM_GetSetColorID())
             Case "toggle_list"
                 _CM_Destroy()
                 _DL_SetPinned(Not _DL_IsPinned(), $iTaskbarY, $iDesktop)
@@ -611,6 +611,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
             EndIf
             _DL_ColorPickerDestroy()
             _DL_CtxDestroy()
+            _CM_Destroy()
             ; Full rebuild to show updated color indicators
             _DL_Destroy()
             _DL_Show($iTaskbarY, $iDesktop)
@@ -1091,7 +1092,7 @@ Func _ProcessHoverAndVisuals()
     If $bCursorActive And $bStateChanged Then
         If $bOverWidget Then _CheckHover()
         If _DL_IsVisible() Then _DL_CheckHover($iDesktop) ; always call — clears hover via @error when cursor not over list
-        If $bOverCM Then _CM_CheckHover()
+        If $bOverCM Then _CM_CheckHover($iDesktop)
         If $bOverCtx Then _DL_CtxCheckHover()
         If $bOverCP Then _DL_ColorPickerCheckHover()
         If $bOverMove Then _DL_MoveMenuCheckHover()

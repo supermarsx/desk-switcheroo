@@ -113,6 +113,7 @@ Func _RunTest_Theme()
 
     ; -- IsCursorOverWindow returns False for null handle --
     _Test_AssertFalse("Null handle = not over", _Theme_IsCursorOverWindow(0))
+    _Test_AssertFalse("Null bridge handles = not between", _Theme_IsCursorInWindowBridge(0, 0))
 
     ; -- Theme scheme application --
     _Test_AssertNotEqual("Dark scheme has BG", $__g_Theme_aSchemeDark[0], 0)

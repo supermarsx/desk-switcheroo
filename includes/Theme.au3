@@ -449,6 +449,37 @@ Func _Theme_IsCursorOverWindow($hWnd)
     Return False
 EndFunc
 
+; Name:        _Theme_IsCursorInWindowBridge
+; Description: Checks whether the cursor is inside the padded bounding area shared
+;              by two related popup windows. This is used to keep parent/submenu
+;              stacks alive while the cursor crosses the small gap between them.
+; Parameters:  $hWndA - first window handle
+;              $hWndB - second window handle
+;              $iPad - extra padding around the combined bounds (default: 12)
+; Return:      True if cursor is within the shared padded area, False otherwise
+Func _Theme_IsCursorInWindowBridge($hWndA, $hWndB, $iPad = 12)
+    If $hWndA = 0 Or $hWndB = 0 Then Return False
+
+    Local $aA = WinGetPos($hWndA)
+    If @error Or Not IsArray($aA) Then Return False
+    Local $aB = WinGetPos($hWndB)
+    If @error Or Not IsArray($aB) Then Return False
+
+    Local $iLeft = $aA[0]
+    If $aB[0] < $iLeft Then $iLeft = $aB[0]
+    Local $iTop = $aA[1]
+    If $aB[1] < $iTop Then $iTop = $aB[1]
+
+    Local $iRight = $aA[0] + $aA[2]
+    If $aB[0] + $aB[2] > $iRight Then $iRight = $aB[0] + $aB[2]
+    Local $iBottom = $aA[1] + $aA[3]
+    If $aB[1] + $aB[3] > $iBottom Then $iBottom = $aB[1] + $aB[3]
+
+    If $__g_Theme_iCachedCursorX >= $iLeft - $iPad And $__g_Theme_iCachedCursorX < $iRight + $iPad And _
+       $__g_Theme_iCachedCursorY >= $iTop - $iPad And $__g_Theme_iCachedCursorY < $iBottom + $iPad Then Return True
+    Return False
+EndFunc
+
 ; =============================================
 ; TOAST NOTIFICATION
 ; =============================================

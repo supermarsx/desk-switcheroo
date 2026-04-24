@@ -152,7 +152,11 @@ Func _RunTest_DesktopList()
     _Test_AssertTrue("ColorPicker: parent item pos array", IsArray($aSetColorPos))
     _Test_AssertTrue("ColorPicker: picker pos array", IsArray($aColorPickerPos))
     If IsArray($aColorCtxPos) And IsArray($aSetColorPos) And IsArray($aColorPickerPos) Then
-        _Test_AssertEqual("ColorPicker: aligned to SetColor item", $aColorPickerPos[1], $aColorCtxPos[1] + $aSetColorPos[1])
+        Local $iExpectedColorY = $aColorCtxPos[1] + $aSetColorPos[1]
+        If $iExpectedColorY < 0 Then $iExpectedColorY = 0
+        If $iExpectedColorY + $aColorPickerPos[3] > @DesktopHeight Then $iExpectedColorY = @DesktopHeight - $aColorPickerPos[3]
+        If $iExpectedColorY < 0 Then $iExpectedColorY = 0
+        _Test_AssertEqual("ColorPicker: aligned to SetColor item", $aColorPickerPos[1], $iExpectedColorY)
     Else
         _Test_Skip("ColorPicker: aligned to SetColor item")
     EndIf
@@ -193,7 +197,11 @@ Func _RunTest_DesktopList()
     _Test_AssertTrue("MoveMenu: parent item pos array", IsArray($aMoveParentPos))
     _Test_AssertTrue("MoveMenu: menu pos array", IsArray($aMoveMenuPos))
     If IsArray($aMoveCtxPos) And IsArray($aMoveParentPos) And IsArray($aMoveMenuPos) Then
-        _Test_AssertEqual("MoveMenu: aligned to Move item", $aMoveMenuPos[1], $aMoveCtxPos[1] + $aMoveParentPos[1])
+        Local $iExpectedMoveY = $aMoveCtxPos[1] + $aMoveParentPos[1]
+        If $iExpectedMoveY < 0 Then $iExpectedMoveY = 0
+        If $iExpectedMoveY + $aMoveMenuPos[3] > @DesktopHeight Then $iExpectedMoveY = @DesktopHeight - $aMoveMenuPos[3]
+        If $iExpectedMoveY < 0 Then $iExpectedMoveY = 0
+        _Test_AssertEqual("MoveMenu: aligned to Move item", $aMoveMenuPos[1], $iExpectedMoveY)
     Else
         _Test_Skip("MoveMenu: aligned to Move item")
     EndIf

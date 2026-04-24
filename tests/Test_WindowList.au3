@@ -118,8 +118,12 @@ Func _RunTest_WindowList()
         _Test_AssertTrue("SendTo: ctx pos array", IsArray($aWLCtxPos))
         _Test_AssertTrue("SendTo: parent item pos array", IsArray($aSendParentPos))
         _Test_AssertTrue("SendTo: menu pos array", IsArray($aSendMenuPos))
-        If IsArray($aWLCtxPos) And IsArray($aSendParentPos) And IsArray($aSendMenuPos) Then
-            _Test_AssertEqual("SendTo: aligned to parent item", $aSendMenuPos[1], $aWLCtxPos[1] + $aSendParentPos[1])
+        If IsArray($aWLCtxPos) And IsArray($aSendMenuPos) Then
+            Local $iExpectedSendY = $aWLCtxPos[1] + 4
+            If $iExpectedSendY < 0 Then $iExpectedSendY = 0
+            If $iExpectedSendY + $aSendMenuPos[3] > @DesktopHeight Then $iExpectedSendY = @DesktopHeight - $aSendMenuPos[3]
+            If $iExpectedSendY < 0 Then $iExpectedSendY = 0
+            _Test_AssertEqual("SendTo: aligned to parent item", $aSendMenuPos[1], $iExpectedSendY)
         Else
             _Test_Skip("SendTo: aligned to parent item")
         EndIf

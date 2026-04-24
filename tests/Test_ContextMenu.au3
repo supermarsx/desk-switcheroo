@@ -72,7 +72,26 @@ Func _RunTest_ContextMenu()
     _CM_Show($iTestTaskbarY, False)
     _Test_AssertNotEqual("SetColor shown when enabled", $__g_CM_iSetColorID, 0)
     _Test_AssertEqual("HandleClick(set_color)", _CM_HandleClick($__g_CM_iSetColorID), "set_color")
+    _DL_ColorPickerDestroy()
+    _DL_ColorPickerShow(1, _CM_GetGUI(), _CM_GetSetColorID())
+    _Test_AssertTrue("CM SetColor: picker visible", _DL_ColorPickerIsVisible())
+    Local $aCtxPos = WinGetPos(_CM_GetGUI())
+    Local $aSetColorPos = ControlGetPos(_CM_GetGUI(), "", _CM_GetSetColorID())
+    Local $aPickerPos = WinGetPos(_DL_ColorPickerGetGUI())
+    _Test_AssertTrue("CM SetColor: ctx pos array", IsArray($aCtxPos))
+    _Test_AssertTrue("CM SetColor: parent item pos array", IsArray($aSetColorPos))
+    _Test_AssertTrue("CM SetColor: picker pos array", IsArray($aPickerPos))
+    If IsArray($aCtxPos) And IsArray($aSetColorPos) And IsArray($aPickerPos) Then
+        Local $iExpectedPickerY = $aCtxPos[1] + $aSetColorPos[1]
+        If $iExpectedPickerY < 0 Then $iExpectedPickerY = 0
+        If $iExpectedPickerY + $aPickerPos[3] > @DesktopHeight Then $iExpectedPickerY = @DesktopHeight - $aPickerPos[3]
+        If $iExpectedPickerY < 0 Then $iExpectedPickerY = 0
+        _Test_AssertEqual("CM SetColor: aligned to SetColor item", $aPickerPos[1], $iExpectedPickerY)
+    Else
+        _Test_Skip("CM SetColor: aligned to SetColor item")
+    EndIf
     _CM_Destroy()
+    _Test_AssertFalse("CM SetColor: picker hidden after menu destroy", _DL_ColorPickerIsVisible())
 
     ; Restore original state
     _Cfg_SetDesktopColorsEnabled($bColorsWas)

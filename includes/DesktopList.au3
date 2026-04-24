@@ -1118,7 +1118,8 @@ Func _DL_CtxCheckHover()
     If $iFound = $__g_DL_iCtxSetColor And $__g_DL_iCtxSetColor <> 0 And Not _DL_ColorPickerIsVisible() Then
         _DL_ColorPickerShow($__g_DL_iCtxTarget)
     ElseIf $iFound <> $__g_DL_iCtxSetColor And _DL_ColorPickerIsVisible() Then
-        If Not _Theme_IsCursorOverWindow(_DL_ColorPickerGetGUI()) Then
+        If Not _Theme_IsCursorOverWindow(_DL_ColorPickerGetGUI()) And _
+           Not _Theme_IsCursorInWindowBridge($__g_DL_hCtxGUI, _DL_ColorPickerGetGUI()) Then
             _DL_ColorPickerDestroy()
         EndIf
     EndIf
@@ -1127,7 +1128,8 @@ Func _DL_CtxCheckHover()
     If $iFound = $__g_DL_iCtxMoveWin And $__g_DL_iCtxMoveWin <> 0 And Not _DL_MoveMenuIsVisible() Then
         _DL_MoveMenuShow($__g_DL_iCtxTarget)
     ElseIf $iFound <> $__g_DL_iCtxMoveWin And _DL_MoveMenuIsVisible() Then
-        If Not _Theme_IsCursorOverWindow(_DL_MoveMenuGetGUI()) Then
+        If Not _Theme_IsCursorOverWindow(_DL_MoveMenuGetGUI()) And _
+           Not _Theme_IsCursorInWindowBridge($__g_DL_hCtxGUI, _DL_MoveMenuGetGUI()) Then
             _DL_MoveMenuDestroy()
         EndIf
     EndIf
@@ -1146,6 +1148,8 @@ Func _DL_CtxCheckAutoHide()
     If Not $bOver And _Theme_IsCursorOverWindow($__g_DL_hGUI) Then $bOver = True
     If Not $bOver And $__g_DL_bColorVisible And _Theme_IsCursorOverWindow($__g_DL_hColorGUI) Then $bOver = True
     If Not $bOver And $__g_DL_bMoveVisible And _Theme_IsCursorOverWindow($__g_DL_hMoveGUI) Then $bOver = True
+    If Not $bOver And $__g_DL_bColorVisible And _Theme_IsCursorInWindowBridge($__g_DL_hCtxGUI, $__g_DL_hColorGUI) Then $bOver = True
+    If Not $bOver And $__g_DL_bMoveVisible And _Theme_IsCursorInWindowBridge($__g_DL_hCtxGUI, $__g_DL_hMoveGUI) Then $bOver = True
 
     If $bOver Then
         $__g_DL_hCtxAwayTimer = 0
@@ -1184,24 +1188,25 @@ Func _DL_CtxGetTarget()
     Return $__g_DL_iCtxTarget
 EndFunc
 
-; Name:        __DL_GetCtxSubmenuPos
-; Description: Calculates submenu position aligned to a parent context-menu item
-; Parameters:  $idParentCtrl - parent item control ID in the context menu
+; Name:        __DL_GetSubmenuPos
+; Description: Calculates submenu position aligned to a parent menu item
+; Parameters:  $hAnchorGUI - anchor menu GUI handle
+;              $idParentCtrl - parent item control ID in the anchor menu
 ;              $iSubW - submenu width
 ;              $iSubH - submenu height
 ;              ByRef $iSubX - receives submenu X
 ;              ByRef $iSubY - receives submenu Y
-Func __DL_GetCtxSubmenuPos($idParentCtrl, $iSubW, $iSubH, ByRef $iSubX, ByRef $iSubY)
+Func __DL_GetSubmenuPos($hAnchorGUI, $idParentCtrl, $iSubW, $iSubH, ByRef $iSubX, ByRef $iSubY)
     $iSubX = 0
     $iSubY = 0
 
-    If $__g_DL_hCtxGUI <> 0 Then
-        Local $aCtxPos = WinGetPos($__g_DL_hCtxGUI)
+    If $hAnchorGUI <> 0 Then
+        Local $aCtxPos = WinGetPos($hAnchorGUI)
         If Not @error And IsArray($aCtxPos) Then
             $iSubX = $aCtxPos[0] + $aCtxPos[2]
             $iSubY = $aCtxPos[1]
             If $idParentCtrl <> 0 Then
-                Local $aParentPos = ControlGetPos($__g_DL_hCtxGUI, "", $idParentCtrl)
+                Local $aParentPos = ControlGetPos($hAnchorGUI, "", $idParentCtrl)
                 If IsArray($aParentPos) Then $iSubY = $aCtxPos[1] + $aParentPos[1]
             EndIf
         EndIf
@@ -1236,7 +1241,7 @@ Func _DL_MoveMenuShow($iTarget)
 
     ; Position: align the submenu with the parent "Move Here" item
     Local $iSubX = 0, $iSubY = 0
-    __DL_GetCtxSubmenuPos($__g_DL_iCtxMoveWin, $iSubW, $iSubH, $iSubX, $iSubY)
+    __DL_GetSubmenuPos($__g_DL_hCtxGUI, $__g_DL_iCtxMoveWin, $iSubW, $iSubH, $iSubX, $iSubY)
 
     $__g_DL_hMoveGUI = _Theme_CreatePopup("MoveMenu", $iSubW, $iSubH, $iSubX, $iSubY, $THEME_BG_POPUP, $THEME_ALPHA_MENU)
     If $__g_DL_hMoveGUI = 0 Then Return
@@ -1333,7 +1338,9 @@ EndFunc
 ; Name:        _DL_ColorPickerShow
 ; Description: Creates a color picker popup to the right of the context menu
 ; Parameters:  $iTarget - desktop index (1-based) to set color for
-Func _DL_ColorPickerShow($iTarget)
+;              $hAnchorGUI - optional anchor menu GUI handle
+;              $idAnchorCtrl - optional anchor item control ID
+Func _DL_ColorPickerShow($iTarget, $hAnchorGUI = 0, $idAnchorCtrl = 0)
     If $__g_DL_bColorVisible Then _DL_ColorPickerDestroy()
     If $__g_DL_bMoveVisible Then _DL_MoveMenuDestroy()
     $__g_DL_iColorTarget = $iTarget
@@ -1341,9 +1348,13 @@ Func _DL_ColorPickerShow($iTarget)
     Local $iPickerW = 130
     Local $iPickerH = 280
 
-    ; Position: align the picker with the parent "Set Color" item
+    ; Position: align the picker with the parent "Set Color" item when possible
     Local $iPickerX = 0, $iPickerY = 0
-    __DL_GetCtxSubmenuPos($__g_DL_iCtxSetColor, $iPickerW, $iPickerH, $iPickerX, $iPickerY)
+    If $hAnchorGUI <> 0 Then
+        __DL_GetSubmenuPos($hAnchorGUI, $idAnchorCtrl, $iPickerW, $iPickerH, $iPickerX, $iPickerY)
+    Else
+        __DL_GetSubmenuPos($__g_DL_hCtxGUI, $__g_DL_iCtxSetColor, $iPickerW, $iPickerH, $iPickerX, $iPickerY)
+    EndIf
 
     $__g_DL_hColorGUI = _Theme_CreatePopup("ColorPicker", $iPickerW, $iPickerH, $iPickerX, $iPickerY, $THEME_BG_POPUP, $THEME_ALPHA_MENU)
 
