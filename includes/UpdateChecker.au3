@@ -13,10 +13,26 @@
 Global $APP_VERSION, $iTaskbarY, $iTaskbarH
 Global $__g_hInetDownload, $__g_sInetTempFile
 
+; Name:        __UC_RecordCheckAttempt
+; Description: Persists the latest update-check attempt date and refreshes the
+;              Settings > Updates status labels if that dialog is available.
+; Return:      Stamp string in YYYYMMDD form, or "" if config is unavailable
+Func __UC_RecordCheckAttempt()
+    Local $sCfgPath = _Cfg_GetPath()
+    If $sCfgPath = "" Then Return ""
+
+    Local $sStamp = @YEAR & @MON & @MDAY
+    IniWrite($sCfgPath, "Updates", "_last_check_date", $sStamp)
+    Call("_CD_RefreshUpdateStatusLabels")
+    _Log_Debug("Update check: recorded attempt date " & $sStamp)
+    Return $sStamp
+EndFunc
+
 ; Name:        _UC_AdlibCheck
 ; Description: Starts a non-blocking download of the GitHub releases API
 Func _UC_AdlibCheck()
     If $__g_hInetDownload <> 0 Then Return
+    __UC_RecordCheckAttempt()
     $__g_sInetTempFile = @TempDir & "\desk_switcheroo_update_check.tmp"
     $__g_hInetDownload = InetGet("https://api.github.com/repos/supermarsx/desk-switcheroo/releases/latest", _
         $__g_sInetTempFile, 1, 1)
@@ -179,6 +195,7 @@ EndFunc
 ; Description: Manually triggers an update check with themed multi-phase dialog
 Func _UC_CheckNow()
     _Log_Info("Manual update check triggered")
+    __UC_RecordCheckAttempt()
 
     Local $sJson = __UC_FetchReleaseJson(_i18n("Updates.upd_checking", "Checking for updates"))
     _Log_Debug("UC_CheckNow: fetch returned, JSON empty=" & ($sJson = ""))
@@ -280,6 +297,7 @@ EndFunc
 ; Description: Fetches release info, shows confirm with details, downloads with progress bar
 Func _UC_DownloadPortable()
     _Log_Info("Download latest portable triggered")
+    __UC_RecordCheckAttempt()
 
     Local $sJson = __UC_FetchReleaseJson(_i18n("Updates.upd_fetching", "Fetching release info"))
     _Log_Debug("UC_Download: fetch returned, JSON empty=" & ($sJson = ""))

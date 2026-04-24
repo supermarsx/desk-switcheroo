@@ -1108,6 +1108,45 @@ Func _WL_CtxCheckAutoHide()
     Return True
 EndFunc
 
+; Name:        __WL_GetCtxSubmenuPos
+; Description: Calculates submenu position aligned to a parent window-list context-menu item
+; Parameters:  $idParentCtrl - parent item control ID in the context menu
+;              $iSubW - submenu width
+;              $iSubH - submenu height
+;              ByRef $iSubX - receives submenu X
+;              ByRef $iSubY - receives submenu Y
+Func __WL_GetCtxSubmenuPos($idParentCtrl, $iSubW, $iSubH, ByRef $iSubX, ByRef $iSubY)
+    $iSubX = 0
+    $iSubY = 0
+
+    If $__g_WL_hCtxGUI <> 0 Then
+        Local $aCtxPos = WinGetPos($__g_WL_hCtxGUI)
+        If Not @error And IsArray($aCtxPos) Then
+            $iSubX = $aCtxPos[0] + $aCtxPos[2]
+            $iSubY = $aCtxPos[1]
+            If $idParentCtrl <> 0 Then
+                Local $aParentPos = ControlGetPos($__g_WL_hCtxGUI, "", $idParentCtrl)
+                If IsArray($aParentPos) Then $iSubY = $aCtxPos[1] + $aParentPos[1]
+            EndIf
+        EndIf
+    EndIf
+
+    If $iSubX = 0 Then
+        $iSubX = $__g_Theme_iCachedCursorX + 8
+        $iSubY = $__g_Theme_iCachedCursorY - $iSubH
+    EndIf
+
+    If $iSubX + $iSubW > @DesktopWidth Then
+        If $__g_WL_hCtxGUI <> 0 Then
+            Local $aCtxPos2 = WinGetPos($__g_WL_hCtxGUI)
+            If Not @error And IsArray($aCtxPos2) Then $iSubX = $aCtxPos2[0] - $iSubW
+        EndIf
+    EndIf
+    If $iSubX < 0 Then $iSubX = 0
+    If $iSubY + $iSubH > @DesktopHeight Then $iSubY = @DesktopHeight - $iSubH
+    If $iSubY < 0 Then $iSubY = 0
+EndFunc
+
 ; =============================================
 ; WINDOW LIST — SEND TO DESKTOP SUBMENU
 ; =============================================
@@ -1136,26 +1175,9 @@ Func _WL_SendToShow()
     Local $iSepCount = 1
     Local $iSubH = $iItemCount * $THEME_MENU_ITEM_H + $iSepCount * ($iSepH + 4) + 12
 
-    ; Position: to the right of the context menu
+    ; Position: align the submenu with the parent "Send to Desktop" item
     Local $iSubX = 0, $iSubY = 0
-    If $__g_WL_hCtxGUI <> 0 Then
-        Local $aCtxPos = WinGetPos($__g_WL_hCtxGUI)
-        If Not @error Then
-            $iSubX = $aCtxPos[0] + $aCtxPos[2]
-            $iSubY = $aCtxPos[1]
-        EndIf
-    EndIf
-    ; Keep on screen
-    If $iSubX + $iSubW > @DesktopWidth Then
-        ; Open to the left instead
-        If $__g_WL_hCtxGUI <> 0 Then
-            Local $aCtxPos2 = WinGetPos($__g_WL_hCtxGUI)
-            If Not @error Then $iSubX = $aCtxPos2[0] - $iSubW
-        EndIf
-    EndIf
-    If $iSubX < 0 Then $iSubX = 0
-    If $iSubY + $iSubH > @DesktopHeight Then $iSubY = @DesktopHeight - $iSubH
-    If $iSubY < 0 Then $iSubY = 0
+    __WL_GetCtxSubmenuPos($__g_WL_iCtxSendToParent, $iSubW, $iSubH, $iSubX, $iSubY)
 
     $__g_WL_hSendGUI = _Theme_CreatePopup("WLSendTo", $iSubW, $iSubH, $iSubX, $iSubY, $THEME_BG_POPUP, $THEME_ALPHA_MENU)
     If $__g_WL_hSendGUI = 0 Then Return

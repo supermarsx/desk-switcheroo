@@ -160,8 +160,17 @@ Func _RunTest_Config()
     _Test_AssertEqual("Valid log_level info accepted", _Cfg_GetLogLevel(), "info")
 
     ; -- Startup registry round-trip --
+    Local $sStartupRegKey = "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+    Local $sExpectedStartupCmd = _Cfg_GetLaunchCommand("-autostart")
     _Cfg_EnableStartup()
+    Local $sStartupVal = RegRead($sStartupRegKey, "DeskSwitcheroo")
+    _Test_AssertEqual("Startup registry command matches expected", $sStartupVal, $sExpectedStartupCmd)
+    If Not @Compiled Then
+        _Test_AssertTrue("Source launch command uses AutoIt3ExecuteScript", StringInStr($sStartupVal, "/AutoIt3ExecuteScript") > 0)
+    EndIf
     _Test_AssertTrue("Startup enabled in registry", _Cfg_IsStartupEnabled())
+    RegWrite($sStartupRegKey, "DeskSwitcheroo", "REG_SZ", '"C:\invalid\AutoIt3.exe" "C:\invalid\desktop_switcher.au3" -autostart')
+    _Test_AssertFalse("Startup invalid when registry value is stale", _Cfg_IsStartupEnabled())
     _Cfg_DisableStartup()
     _Test_AssertFalse("Startup disabled in registry", _Cfg_IsStartupEnabled())
 

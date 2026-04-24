@@ -214,6 +214,7 @@ Func _E2E_StartupRegistryToggle()
     _Cfg_EnableStartup()
     Local $sVal = RegRead($sRegKey, "DeskSwitcheroo")
     _E2E_AssertTrue("Registry key created after EnableStartup", $sVal <> "")
+    _E2E_AssertEqual("Registry key matches expected startup command", $sVal, _Cfg_GetLaunchCommand("-autostart"))
     _E2E_AssertTrue("IsStartupEnabled returns True", _Cfg_IsStartupEnabled())
 
     ; Disable startup

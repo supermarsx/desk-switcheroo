@@ -106,4 +106,31 @@ Func _RunTest_ConfigDialog()
     ; -- Dialog visibility (before show) --
     _Test_AssertFalse("CD not visible initially", _CD_IsVisible())
     _Test_AssertEqual("CD GUI handle is 0", _CD_GetGUI(), 0)
+
+    ; -- Updates status labels refresh from persisted check state --
+    Local $sTempIni = @TempDir & "\desk_switcheroo_cd_update_labels.ini"
+    If FileExists($sTempIni) Then FileDelete($sTempIni)
+    _Cfg_Init($sTempIni)
+    _Cfg_SetUpdateCheckDays(5)
+
+    Local $hGui = GUICreate("CD Update Labels Test", 240, 80)
+    $__g_CD_hGUI = $hGui
+    $__g_CD_idLblLastChecked = GUICtrlCreateLabel("", 10, 10, 220, 18)
+    $__g_CD_idLblNextCheck = GUICtrlCreateLabel("", 10, 34, 220, 18)
+
+    IniWrite($sTempIni, "Updates", "_last_check_date", "20260424")
+    _CD_RefreshUpdateStatusLabels()
+    _Test_AssertEqual("Refresh labels: last checked text", GUICtrlRead($__g_CD_idLblLastChecked), "Last checked: 20260424")
+    _Test_AssertEqual("Refresh labels: next check text", GUICtrlRead($__g_CD_idLblNextCheck), "Next check: ~20260424 + 5d")
+
+    IniWrite($sTempIni, "Updates", "_last_check_date", "0")
+    _CD_RefreshUpdateStatusLabels()
+    _Test_AssertEqual("Refresh labels: zero stamp shows Never", GUICtrlRead($__g_CD_idLblLastChecked), "Last checked: Never")
+    _Test_AssertEqual("Refresh labels: zero stamp shows N/A", GUICtrlRead($__g_CD_idLblNextCheck), "Next check: N/A")
+
+    GUIDelete($hGui)
+    $__g_CD_hGUI = 0
+    $__g_CD_idLblLastChecked = 0
+    $__g_CD_idLblNextCheck = 0
+    FileDelete($sTempIni)
 EndFunc

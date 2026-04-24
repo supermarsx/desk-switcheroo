@@ -168,4 +168,14 @@ Func _RunTest_UpdateChecker()
     _Test_AssertFalse("Evil URL rejected", StringRegExp("https://evil.com/malware.zip", '(?i)^https://github\.com/'))
     _Test_AssertFalse("HTTP rejected", StringRegExp("http://github.com/user/repo/file.zip", '(?i)^https://github\.com/'))
     _Test_AssertFalse("Subdomain rejected", StringRegExp("https://fake-github.com/file.zip", '(?i)^https://github\.com/'))
+
+    ; -- Recording a check attempt updates the config timestamp --
+    Local $sTempIni = @TempDir & "\desk_switcheroo_update_test.ini"
+    If FileExists($sTempIni) Then FileDelete($sTempIni)
+    _Cfg_Init($sTempIni)
+    IniWrite($sTempIni, "Updates", "_last_check_date", "0")
+    Local $sStamp = __UC_RecordCheckAttempt()
+    _Test_AssertEqual("Record check attempt returns today stamp", $sStamp, @YEAR & @MON & @MDAY)
+    _Test_AssertEqual("Record check attempt writes INI", IniRead($sTempIni, "Updates", "_last_check_date", ""), $sStamp)
+    FileDelete($sTempIni)
 EndFunc

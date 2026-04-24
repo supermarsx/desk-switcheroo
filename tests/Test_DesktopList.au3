@@ -145,6 +145,17 @@ Func _RunTest_DesktopList()
     _DL_ColorPickerShow(1)
     _Test_AssertTrue("ColorPicker: visible after show", _DL_ColorPickerIsVisible())
     _Test_AssertNotEqual("ColorPicker: GUI <> 0", _DL_ColorPickerGetGUI(), 0)
+    Local $aColorCtxPos = WinGetPos(_DL_CtxGetGUI())
+    Local $aSetColorPos = ControlGetPos(_DL_CtxGetGUI(), "", $__g_DL_iCtxSetColor)
+    Local $aColorPickerPos = WinGetPos(_DL_ColorPickerGetGUI())
+    _Test_AssertTrue("ColorPicker: ctx pos array", IsArray($aColorCtxPos))
+    _Test_AssertTrue("ColorPicker: parent item pos array", IsArray($aSetColorPos))
+    _Test_AssertTrue("ColorPicker: picker pos array", IsArray($aColorPickerPos))
+    If IsArray($aColorCtxPos) And IsArray($aSetColorPos) And IsArray($aColorPickerPos) Then
+        _Test_AssertEqual("ColorPicker: aligned to SetColor item", $aColorPickerPos[1], $aColorCtxPos[1] + $aSetColorPos[1])
+    Else
+        _Test_Skip("ColorPicker: aligned to SetColor item")
+    EndIf
     _DL_ColorPickerDestroy()
     _Test_AssertFalse("ColorPicker: hidden after destroy", _DL_ColorPickerIsVisible())
     _DL_CtxDestroy()
@@ -155,6 +166,50 @@ Func _RunTest_DesktopList()
     _DL_ColorPickerDestroy()
 
     _Cfg_SetDesktopColorsEnabled($bColorsWas2)
+    _DL_Destroy()
+
+    ; -- Move submenu item in context menu conditional on move enabled --
+    _DL_Show($iTestTaskbarY, $iCurrentDesktop)
+    Local $bMoveWas = _Cfg_GetMoveWindowEnabled()
+
+    _Cfg_SetMoveWindowEnabled(False)
+    _DL_CtxShow(1)
+    _Test_AssertEqual("DL Ctx: Move hidden when disabled", $__g_DL_iCtxMoveWin, 0)
+    _DL_CtxDestroy()
+
+    _Cfg_SetMoveWindowEnabled(True)
+    _DL_CtxShow(1)
+    _Test_AssertNotEqual("DL Ctx: Move shown when enabled", $__g_DL_iCtxMoveWin, 0)
+    _Test_AssertEqual("DL Ctx: HandleClick(move parent) = 'move_menu'", _DL_CtxHandleClick($__g_DL_iCtxMoveWin), "move_menu")
+    _Test_AssertFalse("MoveMenu: initially hidden", _DL_MoveMenuIsVisible())
+    _DL_MoveMenuShow(1)
+    _Test_AssertTrue("MoveMenu: visible after show", _DL_MoveMenuIsVisible())
+    _Test_AssertNotEqual("MoveMenu: GUI <> 0", _DL_MoveMenuGetGUI(), 0)
+    _Test_AssertEqual("MoveMenu: target = 1", _DL_MoveMenuGetTarget(), 1)
+    Local $aMoveCtxPos = WinGetPos(_DL_CtxGetGUI())
+    Local $aMoveParentPos = ControlGetPos(_DL_CtxGetGUI(), "", $__g_DL_iCtxMoveWin)
+    Local $aMoveMenuPos = WinGetPos(_DL_MoveMenuGetGUI())
+    _Test_AssertTrue("MoveMenu: ctx pos array", IsArray($aMoveCtxPos))
+    _Test_AssertTrue("MoveMenu: parent item pos array", IsArray($aMoveParentPos))
+    _Test_AssertTrue("MoveMenu: menu pos array", IsArray($aMoveMenuPos))
+    If IsArray($aMoveCtxPos) And IsArray($aMoveParentPos) And IsArray($aMoveMenuPos) Then
+        _Test_AssertEqual("MoveMenu: aligned to Move item", $aMoveMenuPos[1], $aMoveCtxPos[1] + $aMoveParentPos[1])
+    Else
+        _Test_Skip("MoveMenu: aligned to Move item")
+    EndIf
+    _Test_AssertNotEqual("MoveMenu: current item exists", $__g_DL_iMoveCurrentID, 0)
+    _Test_AssertNotEqual("MoveMenu: all-current item exists", $__g_DL_iMoveAllCurrentID, 0)
+    _Test_AssertEqual("MoveMenu: HandleClick(current)", _DL_MoveMenuHandleClick($__g_DL_iMoveCurrentID), "move_window")
+    _Test_AssertEqual("MoveMenu: HandleClick(all current)", _DL_MoveMenuHandleClick($__g_DL_iMoveAllCurrentID), "move_all_current")
+    _DL_MoveMenuDestroy()
+    _Test_AssertFalse("MoveMenu: hidden after destroy", _DL_MoveMenuIsVisible())
+
+    _DL_MoveMenuShow(1)
+    _Test_AssertTrue("MoveMenu: visible before CtxDestroy", _DL_MoveMenuIsVisible())
+    _DL_CtxDestroy()
+    _Test_AssertFalse("MoveMenu: gone after CtxDestroy", _DL_MoveMenuIsVisible())
+
+    _Cfg_SetMoveWindowEnabled($bMoveWas)
     _DL_Destroy()
 
     ; -- Pin item in context menu conditional on pinning enabled --

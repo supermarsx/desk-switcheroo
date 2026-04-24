@@ -61,6 +61,14 @@ Global $__g_DL_iColorTarget = 0
 Global $__g_DL_iColorHovered = 0
 Global $__g_DL_sLastCustomColor = "FF0000"
 
+; -- Move submenu state --
+Global $__g_DL_hMoveGUI = 0
+Global $__g_DL_bMoveVisible = False
+Global $__g_DL_iMoveTarget = 0
+Global $__g_DL_iMoveHovered = 0
+Global $__g_DL_iMoveCurrentID = 0
+Global $__g_DL_iMoveAllCurrentID = 0
+
 ; -- Scroll offset for large desktop lists --
 Global $__g_DL_iScrollOffset = 0
 Global $__g_DL_iMaxVisible = 10 ; max items visible at once (updated from config)
@@ -999,7 +1007,7 @@ Func _DL_CtxShow($iTarget)
     EndIf
 
     If _Cfg_GetMoveWindowEnabled() Then
-        $__g_DL_iCtxMoveWin = _Theme_CreateMenuItem("  " & _i18n("DesktopList.dl_move_window", "Move Window Here"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+        $__g_DL_iCtxMoveWin = _Theme_CreateMenuItem("  " & _i18n("DesktopList.dl_move_menu", "Move Here") & "  " & ChrW(0x25B6), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
         $iY += $THEME_MENU_ITEM_H
     EndIf
 
@@ -1029,6 +1037,7 @@ EndFunc
 ; Description: Destroys the desktop list context menu and resets state
 Func _DL_CtxDestroy()
     _DL_ColorPickerDestroy()
+    _DL_MoveMenuDestroy()
     If $__g_DL_hCtxGUI <> 0 Then
         GUIDelete($__g_DL_hCtxGUI)
         $__g_DL_hCtxGUI = 0
@@ -1057,7 +1066,7 @@ Func _DL_CtxHandleClick($msg)
     If $msg = $__g_DL_iCtxRename Then Return "rename"
     If $msg = $__g_DL_iCtxPeek Then Return "peek"
     If $__g_DL_iCtxSetColor <> 0 And $msg = $__g_DL_iCtxSetColor Then Return "set_color"
-    If $__g_DL_iCtxMoveWin <> 0 And $msg = $__g_DL_iCtxMoveWin Then Return "move_window"
+    If $__g_DL_iCtxMoveWin <> 0 And $msg = $__g_DL_iCtxMoveWin Then Return "move_menu"
     If $__g_DL_iCtxPin <> 0 And $msg = $__g_DL_iCtxPin Then Return "pin"
     If $msg = $__g_DL_iCtxAdd Then Return "add"
     If $msg = $__g_DL_iCtxDelete Then Return "delete"
@@ -1070,7 +1079,10 @@ Func _DL_CtxCheckHover()
     If Not $__g_DL_bCtxVisible Or $__g_DL_hCtxGUI = 0 Then Return
     Local $aCursor = GUIGetCursorInfo($__g_DL_hCtxGUI)
     If @error Then
-        If $__g_DL_iCtxHovered <> 0 Then
+        Local $bKeepParentHover = False
+        If $__g_DL_bColorVisible And $__g_DL_iCtxHovered = $__g_DL_iCtxSetColor Then $bKeepParentHover = True
+        If $__g_DL_bMoveVisible And $__g_DL_iCtxHovered = $__g_DL_iCtxMoveWin Then $bKeepParentHover = True
+        If $__g_DL_iCtxHovered <> 0 And Not $bKeepParentHover Then
             Local $iFg = $THEME_FG_MENU
             If $__g_DL_iCtxHovered = $__g_DL_iCtxDelete Then $iFg = 0xCC6666
             _Theme_RemoveHover($__g_DL_iCtxHovered, $iFg)
@@ -1110,6 +1122,15 @@ Func _DL_CtxCheckHover()
             _DL_ColorPickerDestroy()
         EndIf
     EndIf
+
+    ; Auto-show move submenu on hover over "Move Here"
+    If $iFound = $__g_DL_iCtxMoveWin And $__g_DL_iCtxMoveWin <> 0 And Not _DL_MoveMenuIsVisible() Then
+        _DL_MoveMenuShow($__g_DL_iCtxTarget)
+    ElseIf $iFound <> $__g_DL_iCtxMoveWin And _DL_MoveMenuIsVisible() Then
+        If Not _Theme_IsCursorOverWindow(_DL_MoveMenuGetGUI()) Then
+            _DL_MoveMenuDestroy()
+        EndIf
+    EndIf
 EndFunc
 
 ; Name:        _DL_CtxCheckAutoHide
@@ -1124,6 +1145,7 @@ Func _DL_CtxCheckAutoHide()
     If _Theme_IsCursorOverWindow($__g_DL_hCtxGUI) Then $bOver = True
     If Not $bOver And _Theme_IsCursorOverWindow($__g_DL_hGUI) Then $bOver = True
     If Not $bOver And $__g_DL_bColorVisible And _Theme_IsCursorOverWindow($__g_DL_hColorGUI) Then $bOver = True
+    If Not $bOver And $__g_DL_bMoveVisible And _Theme_IsCursorOverWindow($__g_DL_hMoveGUI) Then $bOver = True
 
     If $bOver Then
         $__g_DL_hCtxAwayTimer = 0
@@ -1162,6 +1184,148 @@ Func _DL_CtxGetTarget()
     Return $__g_DL_iCtxTarget
 EndFunc
 
+; Name:        __DL_GetCtxSubmenuPos
+; Description: Calculates submenu position aligned to a parent context-menu item
+; Parameters:  $idParentCtrl - parent item control ID in the context menu
+;              $iSubW - submenu width
+;              $iSubH - submenu height
+;              ByRef $iSubX - receives submenu X
+;              ByRef $iSubY - receives submenu Y
+Func __DL_GetCtxSubmenuPos($idParentCtrl, $iSubW, $iSubH, ByRef $iSubX, ByRef $iSubY)
+    $iSubX = 0
+    $iSubY = 0
+
+    If $__g_DL_hCtxGUI <> 0 Then
+        Local $aCtxPos = WinGetPos($__g_DL_hCtxGUI)
+        If Not @error And IsArray($aCtxPos) Then
+            $iSubX = $aCtxPos[0] + $aCtxPos[2]
+            $iSubY = $aCtxPos[1]
+            If $idParentCtrl <> 0 Then
+                Local $aParentPos = ControlGetPos($__g_DL_hCtxGUI, "", $idParentCtrl)
+                If IsArray($aParentPos) Then $iSubY = $aCtxPos[1] + $aParentPos[1]
+            EndIf
+        EndIf
+    EndIf
+
+    If $iSubX = 0 Then
+        $iSubX = $__g_Theme_iCachedCursorX + 8
+        $iSubY = $__g_Theme_iCachedCursorY - $iSubH
+    EndIf
+
+    If $iSubX + $iSubW > @DesktopWidth Then $iSubX = @DesktopWidth - $iSubW - 4
+    If $iSubX < 0 Then $iSubX = 0
+    If $iSubY + $iSubH > @DesktopHeight Then $iSubY = @DesktopHeight - $iSubH
+    If $iSubY < 0 Then $iSubY = 0
+EndFunc
+
+; =============================================
+; DESKTOP LIST — MOVE SUBMENU
+; =============================================
+
+; Name:        _DL_MoveMenuShow
+; Description: Creates a move submenu popup to the right of the context menu
+; Parameters:  $iTarget - desktop index (1-based) to move windows to
+Func _DL_MoveMenuShow($iTarget)
+    If $__g_DL_bMoveVisible Then _DL_MoveMenuDestroy()
+    If $__g_DL_bColorVisible Then _DL_ColorPickerDestroy()
+    $__g_DL_iMoveTarget = $iTarget
+
+    Local $iSubW = 240
+    Local $iItemCount = 2
+    Local $iSubH = $iItemCount * $THEME_MENU_ITEM_H + 12
+
+    ; Position: align the submenu with the parent "Move Here" item
+    Local $iSubX = 0, $iSubY = 0
+    __DL_GetCtxSubmenuPos($__g_DL_iCtxMoveWin, $iSubW, $iSubH, $iSubX, $iSubY)
+
+    $__g_DL_hMoveGUI = _Theme_CreatePopup("MoveMenu", $iSubW, $iSubH, $iSubX, $iSubY, $THEME_BG_POPUP, $THEME_ALPHA_MENU)
+    If $__g_DL_hMoveGUI = 0 Then Return
+
+    Local $iY = 4
+    $__g_DL_iMoveCurrentID = _Theme_CreateMenuItem("  " & _i18n("DesktopList.dl_move_window", "Move Window Here"), 4, $iY, $iSubW - 8, $THEME_MENU_ITEM_H)
+    $iY += $THEME_MENU_ITEM_H
+    $__g_DL_iMoveAllCurrentID = _Theme_CreateMenuItem("  " & _i18n("DesktopList.dl_move_all_current", "All Current Desktop Windows"), 4, $iY, $iSubW - 8, $THEME_MENU_ITEM_H)
+
+    GUISetState(@SW_SHOW, $__g_DL_hMoveGUI)
+    $__g_DL_bMoveVisible = True
+    $__g_DL_iMoveHovered = 0
+EndFunc
+
+; Name:        _DL_MoveMenuDestroy
+; Description: Destroys the move submenu popup
+Func _DL_MoveMenuDestroy()
+    If $__g_DL_hMoveGUI <> 0 Then
+        GUIDelete($__g_DL_hMoveGUI)
+        $__g_DL_hMoveGUI = 0
+    EndIf
+    $__g_DL_bMoveVisible = False
+    $__g_DL_iMoveTarget = 0
+    $__g_DL_iMoveHovered = 0
+    $__g_DL_iMoveCurrentID = 0
+    $__g_DL_iMoveAllCurrentID = 0
+EndFunc
+
+; Name:        _DL_MoveMenuHandleClick
+; Description: Processes a click in the move submenu popup
+; Parameters:  $msg - GUI message from GUIGetMsg
+; Return:      "move_window", "move_all_current", or "" if no match
+Func _DL_MoveMenuHandleClick($msg)
+    If $msg <= 0 Then Return ""
+    If $msg = $__g_DL_iMoveCurrentID Then Return "move_window"
+    If $msg = $__g_DL_iMoveAllCurrentID Then Return "move_all_current"
+    Return ""
+EndFunc
+
+; Name:        _DL_MoveMenuIsVisible
+; Description: Returns whether the move submenu is currently visible
+; Return:      True/False
+Func _DL_MoveMenuIsVisible()
+    Return $__g_DL_bMoveVisible
+EndFunc
+
+; Name:        _DL_MoveMenuGetGUI
+; Description: Returns the move submenu GUI handle
+; Return:      GUI handle or 0
+Func _DL_MoveMenuGetGUI()
+    Return $__g_DL_hMoveGUI
+EndFunc
+
+; Name:        _DL_MoveMenuGetTarget
+; Description: Returns the desktop index targeted by the move submenu
+; Return:      Desktop index (1-based)
+Func _DL_MoveMenuGetTarget()
+    Return $__g_DL_iMoveTarget
+EndFunc
+
+; Name:        _DL_MoveMenuCheckHover
+; Description: Updates hover highlighting on the move submenu popup. Call from main loop.
+Func _DL_MoveMenuCheckHover()
+    If Not $__g_DL_bMoveVisible Or $__g_DL_hMoveGUI = 0 Then Return
+    Local $aCursor = GUIGetCursorInfo($__g_DL_hMoveGUI)
+    If @error Then
+        If $__g_DL_iMoveHovered <> 0 Then
+            _Theme_RemoveHover($__g_DL_iMoveHovered, $THEME_FG_MENU)
+            $__g_DL_iMoveHovered = 0
+        EndIf
+        Return
+    EndIf
+
+    Local $iFound = 0
+    If $aCursor[4] = $__g_DL_iMoveCurrentID Then $iFound = $__g_DL_iMoveCurrentID
+    If $aCursor[4] = $__g_DL_iMoveAllCurrentID Then $iFound = $__g_DL_iMoveAllCurrentID
+
+    If $iFound = $__g_DL_iMoveHovered Then Return
+
+    If $__g_DL_iMoveHovered <> 0 Then
+        _Theme_RemoveHover($__g_DL_iMoveHovered, $THEME_FG_MENU)
+    EndIf
+
+    $__g_DL_iMoveHovered = $iFound
+    If $__g_DL_iMoveHovered <> 0 Then
+        _Theme_ApplyHover($__g_DL_iMoveHovered, $THEME_FG_WHITE, $THEME_BG_HOVER)
+    EndIf
+EndFunc
+
 ; =============================================
 ; DESKTOP LIST — COLOR PICKER SUBMENU
 ; =============================================
@@ -1171,30 +1335,15 @@ EndFunc
 ; Parameters:  $iTarget - desktop index (1-based) to set color for
 Func _DL_ColorPickerShow($iTarget)
     If $__g_DL_bColorVisible Then _DL_ColorPickerDestroy()
+    If $__g_DL_bMoveVisible Then _DL_MoveMenuDestroy()
     $__g_DL_iColorTarget = $iTarget
 
     Local $iPickerW = 130
     Local $iPickerH = 280
 
-    ; Position: to the right of DL context menu if open, else near cursor
+    ; Position: align the picker with the parent "Set Color" item
     Local $iPickerX = 0, $iPickerY = 0
-    If $__g_DL_hCtxGUI <> 0 Then
-        Local $aCtxPos = WinGetPos($__g_DL_hCtxGUI)
-        If Not @error Then
-            $iPickerX = $aCtxPos[0] + $aCtxPos[2]
-            $iPickerY = $aCtxPos[1]
-        EndIf
-    EndIf
-    If $iPickerX = 0 Then
-        ; Fallback: position near cursor (called from main context menu)
-        $iPickerX = $__g_Theme_iCachedCursorX + 8
-        $iPickerY = $__g_Theme_iCachedCursorY - $iPickerH
-    EndIf
-    ; Keep on screen
-    If $iPickerX + $iPickerW > @DesktopWidth Then $iPickerX = @DesktopWidth - $iPickerW - 4
-    If $iPickerX < 0 Then $iPickerX = 0
-    If $iPickerY + $iPickerH > @DesktopHeight Then $iPickerY = @DesktopHeight - $iPickerH
-    If $iPickerY < 0 Then $iPickerY = 0
+    __DL_GetCtxSubmenuPos($__g_DL_iCtxSetColor, $iPickerW, $iPickerH, $iPickerX, $iPickerY)
 
     $__g_DL_hColorGUI = _Theme_CreatePopup("ColorPicker", $iPickerW, $iPickerH, $iPickerX, $iPickerY, $THEME_BG_POPUP, $THEME_ALPHA_MENU)
 

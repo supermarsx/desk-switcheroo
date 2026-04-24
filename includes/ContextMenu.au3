@@ -14,6 +14,7 @@ Global $__g_CM_bVisible   = False
 Global $__g_CM_iEditID    = 0
 Global $__g_CM_iSetColorID = 0
 Global $__g_CM_iToggleID  = 0
+Global $__g_CM_iGatherID  = 0
 Global $__g_CM_iAddID     = 0
 Global $__g_CM_iDeleteID  = 0
 Global $__g_CM_iAboutID   = 0
@@ -36,7 +37,7 @@ Global $__g_CM_bHideArmed = False
 Func _CM_Show($iTaskbarY, $bListVisible)
     Local $iMenuW = 170
     Local $iSepH = 1
-    Local $iItemCount = 7
+    Local $iItemCount = 8
     If _Cfg_GetDesktopColorsEnabled() Then $iItemCount += 1
     If _Cfg_GetPinningEnabled() Then $iItemCount += 1
     If _Cfg_GetWindowListEnabled() Then $iItemCount += 1
@@ -61,6 +62,9 @@ Func _CM_Show($iTaskbarY, $bListVisible)
     Local $sToggle = "  " & _i18n("ContextMenu.cm_pin_list", "Pin Desktop List")
     If _DL_IsPinned() Then $sToggle = "  " & _i18n("ContextMenu.cm_unpin_list", "Unpin Desktop List")
     $__g_CM_iToggleID = _Theme_CreateMenuItem($sToggle, 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $iY += $THEME_MENU_ITEM_H
+
+    $__g_CM_iGatherID = _Theme_CreateMenuItem("  " & _i18n("ContextMenu.cm_gather_windows", "Pull All Windows Here"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 
     If _Cfg_GetPinningEnabled() Then
@@ -126,6 +130,7 @@ Func _CM_Destroy()
     $__g_CM_iEditID = 0
     $__g_CM_iSetColorID = 0
     $__g_CM_iToggleID = 0
+    $__g_CM_iGatherID = 0
     $__g_CM_iAddID = 0
     $__g_CM_iDeleteID = 0
     $__g_CM_iAboutID = 0
@@ -156,6 +161,7 @@ Func _CM_CheckHover()
     If $aCursor[4] = $__g_CM_iEditID Then $iFound = $__g_CM_iEditID
     If $__g_CM_iSetColorID <> 0 And $aCursor[4] = $__g_CM_iSetColorID Then $iFound = $__g_CM_iSetColorID
     If $aCursor[4] = $__g_CM_iToggleID Then $iFound = $__g_CM_iToggleID
+    If $aCursor[4] = $__g_CM_iGatherID Then $iFound = $__g_CM_iGatherID
     If $__g_CM_iPinID <> 0 And $aCursor[4] = $__g_CM_iPinID Then $iFound = $__g_CM_iPinID
     If $__g_CM_iWinListID <> 0 And $aCursor[4] = $__g_CM_iWinListID Then $iFound = $__g_CM_iWinListID
     If $aCursor[4] = $__g_CM_iAddID Then $iFound = $__g_CM_iAddID
@@ -184,11 +190,12 @@ EndFunc
 ; Name:        _CM_HandleClick
 ; Description: Processes a GUI message and returns the action
 ; Parameters:  $msg - GUI message from GUIGetMsg
-; Return:      "edit", "toggle_list", "add", "delete", "about", "settings", "quit", or ""
+; Return:      "edit", "toggle_list", "gather", "add", "delete", "about", "settings", "quit", or ""
 Func _CM_HandleClick($msg)
     If $msg = $__g_CM_iEditID Then Return "edit"
     If $__g_CM_iSetColorID <> 0 And $msg = $__g_CM_iSetColorID Then Return "set_color"
     If $msg = $__g_CM_iToggleID Then Return "toggle_list"
+    If $msg = $__g_CM_iGatherID Then Return "gather"
     If $__g_CM_iPinID <> 0 And $msg = $__g_CM_iPinID Then Return "pin_window"
     If $__g_CM_iWinListID <> 0 And $msg = $__g_CM_iWinListID Then Return "window_list"
     If $msg = $__g_CM_iAddID Then Return "add"
@@ -227,6 +234,13 @@ EndFunc
 ; Return:      Control ID or 0
 Func _CM_GetAddID()
     Return $__g_CM_iAddID
+EndFunc
+
+; Name:        _CM_GetGatherID
+; Description: Returns the Gather Windows menu item control ID (for testing)
+; Return:      Control ID or 0
+Func _CM_GetGatherID()
+    Return $__g_CM_iGatherID
 EndFunc
 
 ; Name:        _CM_GetDeleteID

@@ -112,6 +112,17 @@ Func _RunTest_WindowList()
         _WL_SendToShow()
         _Test_AssertTrue("SendTo: visible after show", _WL_SendToIsVisible())
         _Test_AssertNotEqual("SendTo: GUI <> 0", _WL_SendToGetGUI(), 0)
+        Local $aWLCtxPos = WinGetPos(_WL_CtxGetGUI())
+        Local $aSendParentPos = ControlGetPos(_WL_CtxGetGUI(), "", $__g_WL_iCtxSendToParent)
+        Local $aSendMenuPos = WinGetPos(_WL_SendToGetGUI())
+        _Test_AssertTrue("SendTo: ctx pos array", IsArray($aWLCtxPos))
+        _Test_AssertTrue("SendTo: parent item pos array", IsArray($aSendParentPos))
+        _Test_AssertTrue("SendTo: menu pos array", IsArray($aSendMenuPos))
+        If IsArray($aWLCtxPos) And IsArray($aSendParentPos) And IsArray($aSendMenuPos) Then
+            _Test_AssertEqual("SendTo: aligned to parent item", $aSendMenuPos[1], $aWLCtxPos[1] + $aSendParentPos[1])
+        Else
+            _Test_Skip("SendTo: aligned to parent item")
+        EndIf
 
         ; -- Send-to submenu items exist --
         _Test_AssertNotEqual("SendTo: Next item exists", $__g_WL_iSendNext, 0)

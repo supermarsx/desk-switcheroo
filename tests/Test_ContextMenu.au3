@@ -29,6 +29,9 @@ Func _RunTest_ContextMenu()
     ; -- HandleClick with toggle control returns 'toggle_list' --
     _Test_AssertEqual("HandleClick(toggle) = 'toggle_list'", _CM_HandleClick(_CM_GetToggleID()), "toggle_list")
 
+    ; -- HandleClick with gather control returns 'gather' --
+    _Test_AssertEqual("HandleClick(gather) = 'gather'", _CM_HandleClick(_CM_GetGatherID()), "gather")
+
     ; -- HandleClick with add control returns 'add' --
     _Test_AssertEqual("HandleClick(add) = 'add'", _CM_HandleClick(_CM_GetAddID()), "add")
 
@@ -87,6 +90,7 @@ Func _RunTest_ContextMenu()
     _CM_Destroy()
     _Test_AssertEqual("After destroy: edit=0", _CM_GetEditID(), 0)
     _Test_AssertEqual("After destroy: toggle=0", _CM_GetToggleID(), 0)
+    _Test_AssertEqual("After destroy: gather=0", _CM_GetGatherID(), 0)
     _Test_AssertEqual("After destroy: add=0", _CM_GetAddID(), 0)
     _Test_AssertEqual("After destroy: delete=0", _CM_GetDeleteID(), 0)
     _Test_AssertEqual("After destroy: about=0", _CM_GetAboutID(), 0)

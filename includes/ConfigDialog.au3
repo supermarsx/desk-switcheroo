@@ -422,6 +422,8 @@ Func _CD_Destroy()
     EndIf
     If $__g_CD_hGUI <> 0 Then _Theme_FadeOut($__g_CD_hGUI, "dialog")
     $__g_CD_hGUI = 0
+    $__g_CD_idLblLastChecked = 0
+    $__g_CD_idLblNextCheck = 0
     $__g_CD_bVisible = False
 EndFunc
 
@@ -2488,25 +2490,35 @@ Func __CD_BuildTabUpdates()
     $iY += 38
 
     ; Last checked / Next check display labels
-    Local $sLastCheck = IniRead(_Cfg_GetPath(), "Updates", "_last_check_date", "Never")
-    $__g_CD_idLblLastChecked = GUICtrlCreateLabel(_i18n("Settings.Updates.lbl_last_checked", "Last checked:") & " " & $sLastCheck, $iX, $iY, 380, 16)
+    $__g_CD_idLblLastChecked = GUICtrlCreateLabel("", $iX, $iY, 380, 16)
     GUICtrlSetFont($__g_CD_idLblLastChecked, 7, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idLblLastChecked, $THEME_FG_DIM)
     GUICtrlSetBkColor($__g_CD_idLblLastChecked, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $__g_CD_idLblLastChecked)
     $iY += 20
 
-    ; Calculate next check date
-    Local $sNextCheck = "N/A"
-    If $sLastCheck <> "Never" And $sLastCheck <> "" Then
-        Local $iCheckDays = _Cfg_GetUpdateCheckDays()
-        $sNextCheck = "~" & $sLastCheck & " + " & $iCheckDays & "d"
-    EndIf
-    $__g_CD_idLblNextCheck = GUICtrlCreateLabel(_i18n("Settings.Updates.lbl_next_check", "Next check:") & " " & $sNextCheck, $iX, $iY, 380, 16)
+    $__g_CD_idLblNextCheck = GUICtrlCreateLabel("", $iX, $iY, 380, 16)
     GUICtrlSetFont($__g_CD_idLblNextCheck, 7, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idLblNextCheck, $THEME_FG_DIM)
     GUICtrlSetBkColor($__g_CD_idLblNextCheck, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $__g_CD_idLblNextCheck)
+    _CD_RefreshUpdateStatusLabels()
+EndFunc
+
+Func _CD_RefreshUpdateStatusLabels()
+    If $__g_CD_hGUI = 0 Or $__g_CD_idLblLastChecked = 0 Or $__g_CD_idLblNextCheck = 0 Then Return
+
+    Local $sLastCheck = IniRead(_Cfg_GetPath(), "Updates", "_last_check_date", "")
+    If $sLastCheck = "" Or $sLastCheck = "0" Then $sLastCheck = "Never"
+
+    GUICtrlSetData($__g_CD_idLblLastChecked, _i18n("Settings.Updates.lbl_last_checked", "Last checked:") & " " & $sLastCheck)
+
+    Local $sNextCheck = "N/A"
+    If $sLastCheck <> "Never" Then
+        Local $iCheckDays = _Cfg_GetUpdateCheckDays()
+        $sNextCheck = "~" & $sLastCheck & " + " & $iCheckDays & "d"
+    EndIf
+    GUICtrlSetData($__g_CD_idLblNextCheck, _i18n("Settings.Updates.lbl_next_check", "Next check:") & " " & $sNextCheck)
 EndFunc
 
 Func __CD_BuildTabDesktops()
@@ -3490,6 +3502,7 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpUpdateInterval, _Cfg_GetAutoUpdateIntervalHours())
     __CD_SetCheckState($__g_CD_idChkUpdateOnStartup, _Cfg_GetUpdateCheckOnStartup())
     GUICtrlSetData($__g_CD_idInpUpdateCheckDays, _Cfg_GetUpdateCheckDays())
+    _CD_RefreshUpdateStatusLabels()
 
     ; Desktops
     For $i = 1 To $__g_CD_iDeskCount
@@ -3663,12 +3676,14 @@ Func __CD_MessageLoop()
                     _UC_CheckNow()
                     GUISetState(@SW_SHOW, $__g_CD_hGUI)
                     GUISwitch($__g_CD_hGUI)
+                    _CD_RefreshUpdateStatusLabels()
                 Case $__g_CD_idBtnDownloadLatest
                     ; Hide Settings to avoid nested dialog loop conflicts
                     GUISetState(@SW_HIDE, $__g_CD_hGUI)
                     _UC_DownloadPortable()
                     GUISetState(@SW_SHOW, $__g_CD_hGUI)
                     GUISwitch($__g_CD_hGUI)
+                    _CD_RefreshUpdateStatusLabels()
                 Case $__g_CD_idBtnLogBrowse
                     Local $sFolder = FileSelectFolder("Select log folder", "", 7, GUICtrlRead($__g_CD_idInpLogPath), $__g_CD_hGUI)
                     If $sFolder <> "" Then GUICtrlSetData($__g_CD_idInpLogPath, $sFolder)
@@ -4221,6 +4236,8 @@ Func __CD_ApplyChanges()
         $iToastIcon = $TOAST_WARNING
     EndIf
 
+    _CD_RefreshUpdateStatusLabels()
+
     ; Toast notification
     Local $aPos = WinGetPos($__g_CD_hGUI)
     If Not @error Then
@@ -4770,13 +4787,7 @@ Func __CD_RestartApp()
         EndIf
     EndIf
     _CD_Destroy()
-    Local $sCmd
-    If @Compiled Then
-        $sCmd = '"' & @ScriptFullPath & '"'
-    Else
-        $sCmd = '"' & @AutoItExe & '" "' & @ScriptFullPath & '"'
-    EndIf
-    Run($sCmd)
+    Run(_Cfg_GetLaunchCommand())
     _Shutdown()
 EndFunc
 

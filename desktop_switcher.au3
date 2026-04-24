@@ -404,7 +404,6 @@ If _Cfg_GetUpdateCheckOnStartup() Then
     Local $iToday = Int(@YEAR & @MON & @MDAY)
     Local $iLast = Int($sLastCheck)
     If $iToday - $iLast >= _Cfg_GetUpdateCheckDays() Then
-        IniWrite(_Cfg_GetPath(), "Updates", "_last_check_date", String($iToday))
         _UC_AdlibCheck()
         _Log_Info("Startup update check triggered")
     EndIf
@@ -502,6 +501,9 @@ Func _ProcessGUIEvents($msg, $hFrom)
             Case "window_list"
                 _CM_Destroy()
                 _WL_Toggle($iDesktop)
+            Case "gather"
+                _CM_Destroy()
+                _GatherWindowsToCurrentDesktop()
             Case "settings"
                 _CM_Destroy()
                 _CD_Show()
@@ -558,18 +560,30 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 _Peek_Start($iCtxTarget)
             Case "set_color"
                 _DL_ColorPickerShow($iCtxTarget)
-            Case "move_window"
-                _DL_CtxDestroy()
-                If $hMoveWindowTarget <> 0 Then
-                    _VD_MoveWindowToDesktop($hMoveWindowTarget, $iCtxTarget)
-                    $hMoveWindowTarget = 0
-                EndIf
+            Case "move_menu"
+                _DL_MoveMenuShow($iCtxTarget)
             Case "add"
                 _DL_CtxDestroy()
                 _DoCreateDesktop()
             Case "delete"
                 _DL_CtxDestroy()
                 _DoDeleteDesktop($iCtxTarget)
+        EndSwitch
+    EndIf
+
+    ; Move submenu events
+    If _DL_MoveMenuIsVisible() And $hFrom = _DL_MoveMenuGetGUI() Then
+        Local $sMoveAction = _DL_MoveMenuHandleClick($msg)
+        Local $iMoveTarget = _DL_CtxGetTarget()
+        If $iMoveTarget = 0 Then $iMoveTarget = _DL_MoveMenuGetTarget()
+        If $sMoveAction <> "" Then _Log_Debug("List move submenu: " & $sMoveAction & " (target=" & $iMoveTarget & ")")
+        Switch $sMoveAction
+            Case "move_window"
+                _DL_CtxDestroy()
+                _MoveTrackedWindowToDesktop($iMoveTarget)
+            Case "move_all_current"
+                _DL_CtxDestroy()
+                _MoveCurrentDesktopWindowsToDesktop($iMoveTarget)
         EndSwitch
     EndIf
 
@@ -1065,12 +1079,13 @@ Func _ProcessHoverAndVisuals()
     Local $bOverCM = (_CM_IsVisible() And _Theme_IsCursorOverWindow(_CM_GetGUI()))
     Local $bOverCtx = (_DL_CtxIsVisible() And _Theme_IsCursorOverWindow(_DL_CtxGetGUI()))
     Local $bOverCP = (_DL_ColorPickerIsVisible() And _Theme_IsCursorOverWindow(_DL_ColorPickerGetGUI()))
+    Local $bOverMove = (_DL_MoveMenuIsVisible() And _Theme_IsCursorOverWindow(_DL_MoveMenuGetGUI()))
     Local $bOverRD = (_RD_IsVisible() And _Theme_IsCursorOverWindow(_RD_GetGUI()))
     Local $bOverThumb = (_DL_ThumbIsVisible() And _Theme_IsCursorOverWindow(_DL_ThumbGetGUI()))
     Local $bOverWL = (_WL_IsVisible() And _Theme_IsCursorOverWindow(_WL_GetGUI()))
     Local $bOverWLCtx = (_WL_CtxIsVisible() And _Theme_IsCursorOverWindow(_WL_CtxGetGUI()))
     Local $bOverWLSend = (_WL_SendToIsVisible() And _Theme_IsCursorOverWindow(_WL_SendToGetGUI()))
-    Local $bCursorActive = ($bOverWidget Or $bOverDL Or $bOverCM Or $bOverCtx Or $bOverCP Or $bOverRD Or $bOverThumb Or $bOverWL Or $bOverWLCtx Or $bOverWLSend)
+    Local $bCursorActive = ($bOverWidget Or $bOverDL Or $bOverCM Or $bOverCtx Or $bOverCP Or $bOverMove Or $bOverRD Or $bOverThumb Or $bOverWL Or $bOverWLCtx Or $bOverWLSend)
 
     ; Hover effects — reuse hit-test results (no redundant WinGetPos calls)
     If $bCursorActive And $bStateChanged Then
@@ -1079,6 +1094,7 @@ Func _ProcessHoverAndVisuals()
         If $bOverCM Then _CM_CheckHover()
         If $bOverCtx Then _DL_CtxCheckHover()
         If $bOverCP Then _DL_ColorPickerCheckHover()
+        If $bOverMove Then _DL_MoveMenuCheckHover()
         If $bOverRD Then _RD_CheckHover()
         If $bOverWL Then _WL_CheckHover()
         If $bOverWLCtx Then _WL_CtxCheckHover()
@@ -1155,7 +1171,7 @@ Func _ProcessTimersAndSleep($bCursorActive)
     ; 3 tiers: active hover (5ms), popups visible (15ms), fully idle (100ms)
     If $bCursorActive Then
         Sleep(5)
-    ElseIf _DL_IsVisible() Or _CM_IsVisible() Or _DL_CtxIsVisible() Or _DL_ColorPickerIsVisible() Or _WL_CtxIsVisible() Or _WL_SendToIsVisible() Then
+    ElseIf _DL_IsVisible() Or _CM_IsVisible() Or _DL_CtxIsVisible() Or _DL_ColorPickerIsVisible() Or _DL_MoveMenuIsVisible() Or _WL_CtxIsVisible() Or _WL_SendToIsVisible() Then
         Sleep(15)
     Else
         Sleep(100)
@@ -2379,8 +2395,60 @@ Func _HK_SwapDesktops()
     EndIf
 EndFunc
 
-Func _HK_GatherWindows()
-    _Log_Debug("Hotkey: gather all windows to current desktop")
+Func __IsInternalDeskSwitcherooWindow($hWnd)
+    If $hWnd = 0 Then Return False
+    If $gui <> 0 And $hWnd = $gui Then Return True
+    If _CM_IsVisible() And $hWnd = _CM_GetGUI() Then Return True
+    If _DL_IsVisible() And $hWnd = _DL_GetGUI() Then Return True
+    If _DL_CtxIsVisible() And $hWnd = _DL_CtxGetGUI() Then Return True
+    If _DL_ColorPickerIsVisible() And $hWnd = _DL_ColorPickerGetGUI() Then Return True
+    If _DL_MoveMenuIsVisible() And $hWnd = _DL_MoveMenuGetGUI() Then Return True
+    If _DL_ThumbIsVisible() And $hWnd = _DL_ThumbGetGUI() Then Return True
+    If _WL_IsVisible() And $hWnd = _WL_GetGUI() Then Return True
+    If _WL_CtxIsVisible() And $hWnd = _WL_CtxGetGUI() Then Return True
+    If _WL_SendToIsVisible() And $hWnd = _WL_SendToGetGUI() Then Return True
+    If _RD_IsVisible() And $hWnd = _RD_GetGUI() Then Return True
+    If _CD_IsVisible() And $hWnd = _CD_GetGUI() Then Return True
+    Return False
+EndFunc
+
+Func _MoveTrackedWindowToDesktop($iTargetDesktop)
+    If $iTargetDesktop < 1 Then Return False
+    If $hMoveWindowTarget = 0 Then Return False
+
+    Local $hTarget = $hMoveWindowTarget
+    $hMoveWindowTarget = 0
+
+    If __IsInternalDeskSwitcherooWindow($hTarget) Then Return False
+
+    _Log_Debug("Move tracked window -> desktop " & $iTargetDesktop & " (hwnd=" & $hTarget & ")")
+    Return _VD_MoveWindowToDesktop($hTarget, $iTargetDesktop)
+EndFunc
+
+Func _MoveCurrentDesktopWindowsToDesktop($iTargetDesktop)
+    If $iTargetDesktop < 1 Then Return 0
+
+    Local $iSourceDesktop = _VD_GetCurrent()
+    If $iSourceDesktop < 1 Or $iSourceDesktop = $iTargetDesktop Then Return 0
+
+    Local $aWins = _VD_EnumWindowsOnDesktop($iSourceDesktop)
+    If Not IsArray($aWins) Or $aWins[0] < 1 Then Return 0
+
+    Local $iMoved = 0
+    Local $w
+    For $w = 1 To $aWins[0]
+        Local $hWnd = $aWins[$w]
+        If $hWnd = 0 Or __IsInternalDeskSwitcherooWindow($hWnd) Then ContinueLoop
+        If _VD_MoveWindowToDesktop($hWnd, $iTargetDesktop) Then $iMoved += 1
+    Next
+
+    _Log_Info("Move current desktop windows: moved=" & $iMoved & " from " & $iSourceDesktop & " to " & $iTargetDesktop)
+    If _WL_IsVisible() Then _WL_Refresh($iDesktop)
+    Return $iMoved
+EndFunc
+
+Func _GatherWindowsToCurrentDesktop()
+    _Log_Debug("Gather: all windows to current desktop")
     Local $iCur = _VD_GetCurrent()
     Local $iCount = _VD_GetCount()
     Local $d
@@ -2396,6 +2464,11 @@ Func _HK_GatherWindows()
     Next
     _Theme_Toast("All windows gathered", 0, 0, 1500, $TOAST_SUCCESS)
     If _WL_IsVisible() Then _WL_Refresh($iCur)
+EndFunc
+
+Func _HK_GatherWindows()
+    _Log_Debug("Hotkey: gather all windows to current desktop")
+    _GatherWindowsToCurrentDesktop()
 EndFunc
 
 Func _HK_ToggleSession()
@@ -3115,11 +3188,7 @@ Func __ShowCrashDialog($sReason, $sDetails, $sCrashFile)
                     ExitLoop
                 Case $idRestart
                     GUIDelete($hDlg)
-                    If @Compiled Then
-                        Run('"' & @ScriptFullPath & '"')
-                    Else
-                        Run('"' & @AutoItExe & '" "' & @ScriptFullPath & '"')
-                    EndIf
+                    Run(_Cfg_GetLaunchCommand())
                     Return
                 Case $idCopy
                     If FileExists($sCrashFile) Then

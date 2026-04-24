@@ -2582,28 +2582,44 @@ EndFunc
 ; STARTUP WITH WINDOWS
 ; =============================================
 
-Func _Cfg_EnableStartup()
-    Local $sKey = "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+; Name:        _Cfg_GetLaunchCommand
+; Description: Builds the canonical command line to launch this app.
+;              In source mode, use the explicit AutoIt script-execution switch
+;              so startup/restart behavior does not depend on implicit parsing.
+; Parameters:  $sExtraArgs - optional raw argument suffix (e.g. "-autostart")
+; Return:      Fully quoted command string
+Func _Cfg_GetLaunchCommand($sExtraArgs = "")
     Local $sCmd
     If @Compiled Then
-        $sCmd = '"' & @ScriptFullPath & '" -autostart'
+        $sCmd = '"' & @ScriptFullPath & '"'
     Else
-        $sCmd = '"' & @AutoItExe & '" "' & @ScriptFullPath & '" -autostart'
+        $sCmd = '"' & @AutoItExe & '" /AutoIt3ExecuteScript "' & @ScriptFullPath & '"'
     EndIf
+
+    $sExtraArgs = StringStripWS($sExtraArgs, 3)
+    If $sExtraArgs <> "" Then $sCmd &= " " & $sExtraArgs
+    Return $sCmd
+EndFunc
+
+Func _Cfg_EnableStartup()
+    Local $sKey = "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+    Local $sCmd = _Cfg_GetLaunchCommand("-autostart")
     RegWrite($sKey, "DeskSwitcheroo", "REG_SZ", $sCmd)
-    ; Verify it was written
-    Return (_Cfg_IsStartupEnabled())
+    Local $sWritten = RegRead($sKey, "DeskSwitcheroo")
+    Return (Not @error And $sWritten = $sCmd)
 EndFunc
 
 Func _Cfg_DisableStartup()
-    RegDelete("HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run", "DeskSwitcheroo")
-    ; Verify it was removed
-    Return (Not _Cfg_IsStartupEnabled())
+    Local $sKey = "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+    RegDelete($sKey, "DeskSwitcheroo")
+    Local $sVal = RegRead($sKey, "DeskSwitcheroo")
+    Return (@error Or $sVal = "")
 EndFunc
 
 Func _Cfg_IsStartupEnabled()
     Local $sVal = RegRead("HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run", "DeskSwitcheroo")
-    Return ($sVal <> "")
+    If @error Or Not IsString($sVal) Or $sVal = "" Then Return False
+    Return ($sVal = _Cfg_GetLaunchCommand("-autostart"))
 EndFunc
 
 ; =============================================
