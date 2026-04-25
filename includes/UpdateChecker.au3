@@ -28,6 +28,21 @@ Func __UC_RecordCheckAttempt()
     Return $sStamp
 EndFunc
 
+Func __UC_FormatSizeValue($sKey, $sDefault, $fValue, $iDecimals)
+    Return _i18n_Format($sKey, $sDefault, StringFormat("%." & $iDecimals & "f", $fValue))
+EndFunc
+
+Func __UC_FormatSizeBytes($iSizeBytes)
+    If $iSizeBytes > 1048576 Then Return __UC_FormatSizeValue("Extra.file_size_mb", "{1} MB", $iSizeBytes / 1048576, 1)
+    If $iSizeBytes > 1024 Then Return __UC_FormatSizeValue("Extra.file_size_kb", "{1} KB", $iSizeBytes / 1024, 0)
+    Return _i18n_Format("Extra.file_size_bytes", "{1} bytes", $iSizeBytes)
+EndFunc
+
+Func __UC_FormatProgress($iPct, $iBytesRead, $sSizeStr)
+    Local $sReadStr = __UC_FormatSizeValue("Extra.file_size_mb", "{1} MB", $iBytesRead / 1048576, 1)
+    Return _i18n_Format("Extra.download_progress", "{1}% ({2} / {3})", $iPct, $sReadStr, $sSizeStr)
+EndFunc
+
 ; Name:        _UC_AdlibCheck
 ; Description: Starts a non-blocking download of the GitHub releases API
 Func _UC_AdlibCheck()
@@ -205,14 +220,18 @@ Func _UC_CheckNow()
     EndIf
 
     Local $aVer = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
-    Local $sLatest = "unknown"
-    If Not @error And UBound($aVer) >= 1 Then $sLatest = $aVer[0]
+    Local $sLatest = _i18n("Extra.value_unknown", "unknown")
+    Local $bMissingLatest = True
+    If Not @error And UBound($aVer) >= 1 Then
+        $sLatest = $aVer[0]
+        $bMissingLatest = False
+    EndIf
 
     Local $aDate = StringRegExp($sJson, '"published_at"\s*:\s*"([^T"]+)', 1)
-    Local $sDate = "unknown"
+    Local $sDate = _i18n("Extra.value_unknown", "unknown")
     If Not @error And UBound($aDate) >= 1 Then $sDate = $aDate[0]
 
-    If $sLatest = "unknown" Then
+    If $bMissingLatest Then
         _Theme_Toast(_i18n("Toasts.toast_parse_error", "Could not parse release info"), 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_WARNING)
         Return
     EndIf
@@ -307,14 +326,18 @@ Func _UC_DownloadPortable()
     EndIf
 
     Local $aVer = StringRegExp($sJson, '"tag_name"\s*:\s*"v?([^"]+)"', 1)
-    Local $sVersion = "unknown"
+    Local $sVersion = ""
     If Not @error And UBound($aVer) >= 1 Then $sVersion = $aVer[0]
-    _Log_Debug("UC_Download: version=" & $sVersion)
+    Local $sVersionDisplay = $sVersion
+    If $sVersionDisplay = "" Then $sVersionDisplay = _i18n("Extra.value_unknown", "unknown")
+    _Log_Debug("UC_Download: version=" & $sVersionDisplay)
 
     Local $aDate = StringRegExp($sJson, '"published_at"\s*:\s*"([^T"]+)', 1)
-    Local $sDate = "unknown"
+    Local $sDate = ""
     If Not @error And UBound($aDate) >= 1 Then $sDate = $aDate[0]
-    _Log_Debug("UC_Download: date=" & $sDate)
+    Local $sDateDisplay = $sDate
+    If $sDateDisplay = "" Then $sDateDisplay = _i18n("Extra.value_unknown", "unknown")
+    _Log_Debug("UC_Download: date=" & $sDateDisplay)
 
     ; Find the portable asset block and extract URL + size from the same block
     Local $sAssetBlock = __UC_FindAssetBlock($sJson, "Portable")
@@ -332,23 +355,17 @@ Func _UC_DownloadPortable()
     ; Validate URL domain for security
     If Not StringRegExp($sDownloadUrl, '(?i)^https://github\.com/') Then
         _Log_Warn("UC_Download: rejected non-GitHub download URL: " & $sDownloadUrl)
-        _Theme_Toast("Invalid download URL", 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
+        _Theme_Toast(_i18n("Extra.toast_invalid_download_url", "Invalid download URL"), 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
         Return
     EndIf
 
     Local $sSizeRaw = __UC_ExtractField($sAssetBlock, "size", True)
     _Log_Debug("UC_Download: size=" & $sSizeRaw)
     Local $iSizeBytes = 0
-    Local $sSizeStr = "unknown"
+    Local $sSizeStr = _i18n("Extra.value_unknown", "unknown")
     If $sSizeRaw <> "" Then
         $iSizeBytes = Int($sSizeRaw)
-        If $iSizeBytes > 1048576 Then
-            $sSizeStr = StringFormat("%.1f MB", $iSizeBytes / 1048576)
-        ElseIf $iSizeBytes > 1024 Then
-            $sSizeStr = StringFormat("%.0f KB", $iSizeBytes / 1024)
-        Else
-            $sSizeStr = $iSizeBytes & " bytes"
-        EndIf
+        $sSizeStr = __UC_FormatSizeBytes($iSizeBytes)
     EndIf
 
     ; Confirm dialog
@@ -358,12 +375,12 @@ Func _UC_DownloadPortable()
         (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
     _Log_Debug("UC_Download: confirm dialog handle=" & $hDlg)
 
-    GUICtrlCreateLabel(_i18n_Format("Updates.upd_download_title", "Download Portable v{1}?", $sVersion), 14, 10, $iDlgW - 28, 20)
+    GUICtrlCreateLabel(_i18n_Format("Updates.upd_download_title", "Download Portable v{1}?", $sVersionDisplay), 14, 10, $iDlgW - 28, 20)
     GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
-    GUICtrlCreateLabel(_i18n_Format("Updates.upd_size_released", "Size: {1}  |  Released: {2}", $sSizeStr, $sDate), 14, 34, $iDlgW - 28, 16)
+    GUICtrlCreateLabel(_i18n_Format("Updates.upd_size_released", "Size: {1}  |  Released: {2}", $sSizeStr, $sDateDisplay), 14, 34, $iDlgW - 28, 16)
     GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_DIM)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
@@ -421,13 +438,15 @@ Func _UC_DownloadPortable()
     If Not $bProceed Then Return
 
     ; Download with progress bar
-    Local $sDestFile = @UserProfileDir & "\Downloads\DeskSwitcheroo_Portable_v" & $sVersion & ".zip"
+    Local $sDestVersion = $sVersion
+    If $sDestVersion = "" Then $sDestVersion = "unknown"
+    Local $sDestFile = @UserProfileDir & "\Downloads\DeskSwitcheroo_Portable_v" & $sDestVersion & ".zip"
     $iDlgH = 90
     $hDlg = _Theme_CreatePopup("Downloading", $iDlgW, $iDlgH, _
         (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
     GUISwitch($hDlg)
 
-    GUICtrlCreateLabel(_i18n_Format("Updates.upd_downloading", "Downloading v{1}...", $sVersion), 14, 10, $iDlgW - 28, 18)
+    GUICtrlCreateLabel(_i18n_Format("Updates.upd_downloading", "Downloading v{1}...", $sVersionDisplay), 14, 10, $iDlgW - 28, 18)
     GUICtrlSetFont(-1, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
@@ -463,9 +482,9 @@ Func _UC_DownloadPortable()
             Local $iPct = Int($iBytesRead / $iSizeBytes * 100)
             If $iPct > 100 Then $iPct = 100
             GUICtrlSetPos($idProgBar, 14, 38, Int($iBarW * $iPct / 100), 16)
-            GUICtrlSetData($idProgPct, $iPct & "% (" & StringFormat("%.1f", $iBytesRead / 1048576) & " / " & $sSizeStr & ")")
+            GUICtrlSetData($idProgPct, __UC_FormatProgress($iPct, $iBytesRead, $sSizeStr))
         Else
-            GUICtrlSetData($idProgPct, StringFormat("%.1f MB downloaded", $iBytesRead / 1048576))
+            GUICtrlSetData($idProgPct, _i18n_Format("Extra.downloaded_mb", "{1} MB downloaded", StringFormat("%.1f", $iBytesRead / 1048576)))
         EndIf
         Sleep(100)
     WEnd
@@ -491,14 +510,14 @@ Func _UC_DownloadPortable()
 
     If $bSuccess Then
         Local $iFinalSize = FileGetSize($sDestFile)
-        Local $sFinalSize = StringFormat("%.1f MB", $iFinalSize / 1048576)
+        Local $sFinalSize = __UC_FormatSizeBytes($iFinalSize)
 
         GUICtrlCreateLabel(ChrW(0x2713) & " " & _i18n("Updates.upd_complete", "Download complete!"), 14, 10, $iDlgW - 28, 20)
         GUICtrlSetFont(-1, 10, 700, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor(-1, $TOAST_SUCCESS)
         GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
-        GUICtrlCreateLabel(_i18n_Format("Updates.upd_version_size", "Version: v{1}  |  Size: {2}", $sVersion, $sFinalSize), 14, 34, $iDlgW - 28, 16)
+        GUICtrlCreateLabel(_i18n_Format("Updates.upd_version_size", "Version: v{1}  |  Size: {2}", $sVersionDisplay, $sFinalSize), 14, 34, $iDlgW - 28, 16)
         GUICtrlSetFont(-1, 8, 400, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor(-1, $THEME_FG_NORMAL)
         GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)

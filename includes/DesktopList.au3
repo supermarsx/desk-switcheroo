@@ -1377,7 +1377,14 @@ Func _DL_ColorPickerShow($iTarget, $hAnchorGUI = 0, $idAnchorCtrl = 0)
     $iY += 5
 
     ; 7 preset colors with names (highlight currently selected)
-    Local $aColorNames[8] = [7, "Blue", "Green", "Orange", "Yellow", "Purple", "Pink", "Teal"]
+    Local $aColorNames[8] = [7, _
+        _i18n("Extra.cp_color_blue", "Blue"), _
+        _i18n("Extra.cp_color_green", "Green"), _
+        _i18n("Extra.cp_color_orange", "Orange"), _
+        _i18n("Extra.cp_color_yellow", "Yellow"), _
+        _i18n("Extra.cp_color_purple", "Purple"), _
+        _i18n("Extra.cp_color_pink", "Pink"), _
+        _i18n("Extra.cp_color_teal", "Teal")]
     Local $iCurrentColor = _Cfg_GetDesktopColor($iTarget)
     $__g_DL_aColorPresetIDs[0] = 7
     Local $i
@@ -1681,12 +1688,12 @@ EndFunc
 ;              $iH - thumbnail height
 Func __DL_ThumbShowText($iDesktop, $iW, $iH)
     Local $sName = _Labels_Load($iDesktop)
-    Local $sInfo = "Desktop " & $iDesktop
+    Local $sInfo = _i18n_Format("Extra.desktop_name", "Desktop {1}", $iDesktop)
     If $sName <> "" Then $sInfo &= @CRLF & $sName
 
     ; Count windows on this desktop
     Local $aWins = _VD_EnumWindowsOnDesktop($iDesktop)
-    $sInfo &= @CRLF & @CRLF & $aWins[0] & " window(s)"
+    $sInfo &= @CRLF & @CRLF & _i18n_Format("Extra.thumb_window_count", "{1} window(s)", $aWins[0])
 
     ; List first few window titles
     Local $iMax = 5
@@ -1697,7 +1704,7 @@ Func __DL_ThumbShowText($iDesktop, $iW, $iH)
         If StringLen($sTitle) > 25 Then $sTitle = StringLeft($sTitle, 22) & "..."
         If $sTitle <> "" Then $sInfo &= @CRLF & "  " & $sTitle
     Next
-    If $aWins[0] > 5 Then $sInfo &= @CRLF & "  +" & ($aWins[0] - 5) & " more"
+    If $aWins[0] > 5 Then $sInfo &= @CRLF & "  " & _i18n_Format("Extra.thumb_more", "+{1} more", $aWins[0] - 5)
 
     GUICtrlCreateLabel($sInfo, 4, 4, $iW - 4, $iH - 4)
     GUICtrlSetFont(-1, 7, 400, 0, $THEME_FONT_MAIN)

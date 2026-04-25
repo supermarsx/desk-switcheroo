@@ -27,7 +27,7 @@ Func _ShowAbout()
         $iTitleX = 54
     EndIf
 
-    GUICtrlCreateLabel("Desk Switcheroo v" & $APP_VERSION, $iTitleX, 10, $iDlgW - $iTitleX - 14, 22)
+    GUICtrlCreateLabel(_i18n_Format("Extra.about_title", "Desk Switcheroo v{1}", $APP_VERSION), $iTitleX, 10, $iDlgW - $iTitleX - 14, 22)
     GUICtrlSetFont(-1, 11, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)

@@ -1222,9 +1222,9 @@ Func _WL_SendToShow()
         $__g_WL_aiSendToDest[$__g_WL_iSendToCount] = $d
         Local $sName = _VD_GetName($d)
         If $sName <> "" Then
-            $sName = "Desktop " & $d & " (" & $sName & ")"
+            $sName = _i18n_Format("Extra.desktop_name_with_label", "Desktop {1} ({2})", $d, $sName)
         Else
-            $sName = _i18n_Format("WindowList.wl_send_to_desktop", "Desktop {1}", $d)
+            $sName = _i18n_Format("Extra.desktop_name", "Desktop {1}", $d)
         EndIf
         $__g_WL_aSendTo[$__g_WL_iSendToCount] = _Theme_CreateMenuItem( _
             "  " & $sName, 4, $iY, $iSubW - 8, $THEME_MENU_ITEM_H)

@@ -126,7 +126,7 @@ _Log_Init()
 ; ---- Notify user if config was reset to defaults ----
 If _Cfg_DidLoadDefaults() Then
     _Log_Warn("Config was reset to defaults — user notification pending")
-    TrayTip("Desk Switcheroo", "Config file was unreadable. Using default settings.", 10, 2)
+    TrayTip(__AppName(), _i18n("Extra.warn_config_defaults", "Config file was unreadable. Using default settings."), 10, 2)
 EndIf
 
 ; ---- Start explorer crash monitor ----
@@ -177,15 +177,17 @@ EndIf
 ; ---- Initialize modules ----
 If Not _VD_Init() Then
     Local $sDllPath = @ScriptDir & "\VirtualDesktopAccessor.dll"
-    Local $sDllExists = FileExists($sDllPath) ? "Yes" : "No"
-    Local $sDllSize = FileExists($sDllPath) ? String(FileGetSize($sDllPath)) & " bytes" : "N/A"
-    Local $sErrDetail = "Failed to load VirtualDesktopAccessor.dll." & @CRLF & @CRLF & _
-        "Path: " & $sDllPath & @CRLF & _
-        "File exists: " & $sDllExists & @CRLF & _
-        "File size: " & $sDllSize & @CRLF & @CRLF & _
-        "Make sure the DLL is in the same folder as this script."
+    Local $sDllExists = FileExists($sDllPath) ? _i18n("General.btn_yes", "Yes") : _i18n("General.btn_no", "No")
+    Local $sDllSize = FileExists($sDllPath) ? _i18n_Format("Extra.file_size_bytes", "{1} bytes", String(FileGetSize($sDllPath))) : _i18n("Extra.value_na", "N/A")
+    Local $sErrDetail = _i18n_Format("Errors.err_dll_msg", _
+        "Failed to load VirtualDesktopAccessor.dll." & @CRLF & @CRLF & _
+        "Path: {1}" & @CRLF & _
+        "File exists: {2}" & @CRLF & _
+        "File size: {3}" & @CRLF & @CRLF & _
+        "Make sure the DLL is in the same folder as this script.", _
+        $sDllPath, $sDllExists, $sDllSize)
     _Log_Error("VirtualDesktopAccessor.dll init failed - path=" & $sDllPath & " exists=" & $sDllExists & " size=" & $sDllSize)
-    MsgBox(16, "Desk Switcheroo", $sErrDetail)
+    MsgBox(16, __AppName(), $sErrDetail)
     Exit 1
 EndIf
 _Labels_Init()
@@ -1223,10 +1225,8 @@ Func _ApplyDesktopChange()
         _UpdateTrayTooltip()
         ; Balloon notification on desktop switch
         If _Cfg_GetTrayNotifySwitch() Then
-            Local $sBalloon = "Desktop " & $iDesktop
-            Local $sBalloonLabel = _Labels_Load($iDesktop)
-            If $sBalloonLabel <> "" Then $sBalloon &= " " & ChrW(0x2014) & " " & $sBalloonLabel
-            TrayTip("Desk Switcheroo", $sBalloon, Int(_Cfg_GetTrayBalloonDuration() / 1000), 1)
+            Local $sBalloon = __FormatDesktopNameDash($iDesktop, _Labels_Load($iDesktop))
+            TrayTip(__AppName(), $sBalloon, Int(_Cfg_GetTrayBalloonDuration() / 1000), 1)
         EndIf
         ; Refresh dynamic submenus
         If _Cfg_GetTrayMenuShowDesktopSub() Then _UpdateTrayDesktopSubmenu()
@@ -1391,8 +1391,7 @@ Func _DoDeleteDesktop($iTarget)
         Return False
     EndIf
     Local $sDelName = _Labels_Load($iTarget)
-    Local $sDelLabel = "Desktop " & $iTarget
-    If $sDelName <> "" Then $sDelLabel &= ' ("' & $sDelName & '")'
+    Local $sDelLabel = __FormatDesktopNameQuoted($iTarget, $sDelName)
     If _Cfg_GetConfirmDelete() And Not _Theme_Confirm(_i18n_Format("Dialogs.confirm_delete_title", "Delete {1}?", $sDelLabel), _
             _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then Return False
     Local $iOldCount = _VD_GetCount()
@@ -2158,6 +2157,40 @@ Func _HK_ToggleLast()
     EndIf
 EndFunc
 
+Func __AppName()
+    Return _i18n("Extra.app_name", "Desk Switcheroo")
+EndFunc
+
+Func __FormatDesktopName($iDesktop)
+    Return _i18n_Format("Extra.desktop_name", "Desktop {1}", $iDesktop)
+EndFunc
+
+Func __FormatDesktopNameWithLabel($iDesktop, $sLabel)
+    If $sLabel = "" Then Return __FormatDesktopName($iDesktop)
+    Return _i18n_Format("Extra.desktop_name_with_label", "Desktop {1} ({2})", $iDesktop, $sLabel)
+EndFunc
+
+Func __FormatDesktopNameQuoted($iDesktop, $sLabel)
+    If $sLabel = "" Then Return __FormatDesktopName($iDesktop)
+    Return _i18n_Format("Extra.desktop_name_quoted", 'Desktop {1} ("{2}")', $iDesktop, $sLabel)
+EndFunc
+
+Func __FormatDesktopNameDash($iDesktop, $sLabel)
+    If $sLabel = "" Then Return __FormatDesktopName($iDesktop)
+    Return _i18n_Format("Extra.desktop_name_dash", "Desktop {1} — {2}", $iDesktop, $sLabel)
+EndFunc
+
+Func __GetWindowToastTitle($hWnd)
+    Local $sTitle = WinGetTitle($hWnd)
+    If $sTitle = "" Then $sTitle = _i18n("Extra.window_fallback", "Window")
+    Return $sTitle
+EndFunc
+
+Func __ShowMovedWindowToast($hWnd, $iTargetDesktop)
+    _Theme_Toast(_i18n_Format("Extra.window_move_toast", "{1} -> Desktop {2}", __GetWindowToastTitle($hWnd), $iTargetDesktop), _
+        0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+EndFunc
+
 ; Name:        _HK_MoveFollowNext
 ; Description: Hotkey callback to move the active window to the next desktop and follow it
 Func _HK_MoveFollowNext()
@@ -2178,9 +2211,7 @@ Func _HK_MoveFollowNext()
     Sleep(50)
     _RefreshIndex()
     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
-        Local $sTitle = WinGetTitle($hWnd)
-        If $sTitle = "" Then $sTitle = "Window"
-        _Theme_Toast($sTitle & " -> Desktop " & $iTarget, 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+        __ShowMovedWindowToast($hWnd, $iTarget)
     EndIf
 EndFunc
 
@@ -2204,9 +2235,7 @@ Func _HK_MoveFollowPrev()
     Sleep(50)
     _RefreshIndex()
     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
-        Local $sTitle = WinGetTitle($hWnd)
-        If $sTitle = "" Then $sTitle = "Window"
-        _Theme_Toast($sTitle & " -> Desktop " & $iTarget, 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+        __ShowMovedWindowToast($hWnd, $iTarget)
     EndIf
 EndFunc
 
@@ -2227,9 +2256,7 @@ Func _HK_MoveNext()
     _Log_Debug("Hotkey: move next -> window " & $hWnd & " to desktop " & $iTarget)
     _VD_MoveWindowToDesktop($hWnd, $iTarget)
     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
-        Local $sTitle = WinGetTitle($hWnd)
-        If $sTitle = "" Then $sTitle = "Window"
-        _Theme_Toast($sTitle & " -> Desktop " & $iTarget, 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+        __ShowMovedWindowToast($hWnd, $iTarget)
     EndIf
 EndFunc
 
@@ -2250,9 +2277,7 @@ Func _HK_MovePrev()
     _Log_Debug("Hotkey: move prev -> window " & $hWnd & " to desktop " & $iTarget)
     _VD_MoveWindowToDesktop($hWnd, $iTarget)
     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
-        Local $sTitle = WinGetTitle($hWnd)
-        If $sTitle = "" Then $sTitle = "Window"
-        _Theme_Toast($sTitle & " -> Desktop " & $iTarget, 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+        __ShowMovedWindowToast($hWnd, $iTarget)
     EndIf
 EndFunc
 
@@ -2275,9 +2300,7 @@ Func _HK_SendNewDesktop()
     _VD_MoveWindowToDesktop($hWnd, $iNewDesk)
     _RefreshIndex()
     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
-        Local $sTitle = WinGetTitle($hWnd)
-        If $sTitle = "" Then $sTitle = "Window"
-        _Theme_Toast($sTitle & " -> Desktop " & $iNewDesk, 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+        __ShowMovedWindowToast($hWnd, $iNewDesk)
     EndIf
 EndFunc
 
@@ -2316,10 +2339,10 @@ Func _HK_ToggleRules()
     _Cfg_SetRulesEnabled(Not _Cfg_GetRulesEnabled())
     If _Cfg_GetRulesEnabled() Then
         _WR_Start()
-        _Theme_Toast("Rules engine enabled", 0, 0, 1500, $TOAST_SUCCESS)
+        _Theme_Toast(_i18n("Extra.toast_rules_enabled", "Rules engine enabled"), 0, 0, 1500, $TOAST_SUCCESS)
     Else
         _WR_Stop()
-        _Theme_Toast("Rules engine disabled", 0, 0, 1500, $TOAST_INFO)
+        _Theme_Toast(_i18n("Extra.toast_rules_disabled", "Rules engine disabled"), 0, 0, 1500, $TOAST_INFO)
     EndIf
     _Cfg_Save()
 EndFunc
@@ -2335,7 +2358,7 @@ Func _HK_LoadNextProfile()
     $s_iProfileIdx += 1
     If $s_iProfileIdx > $aProfiles[0] Then $s_iProfileIdx = 1
     _Prof_LoadProfile($aProfiles[$s_iProfileIdx])
-    _Theme_Toast("Profile: " & $aProfiles[$s_iProfileIdx], 0, 0, 1500, $TOAST_INFO)
+    _Theme_Toast(_i18n_Format("Extra.toast_profile_loaded", "Profile: {1}", $aProfiles[$s_iProfileIdx]), 0, 0, 1500, $TOAST_INFO)
     _RefreshIndex()
 EndFunc
 
@@ -2348,7 +2371,7 @@ Func _HK_LoadPrevProfile()
     $s_iProfileIdx2 -= 1
     If $s_iProfileIdx2 < 1 Then $s_iProfileIdx2 = $aProfiles[0]
     _Prof_LoadProfile($aProfiles[$s_iProfileIdx2])
-    _Theme_Toast("Profile: " & $aProfiles[$s_iProfileIdx2], 0, 0, 1500, $TOAST_INFO)
+    _Theme_Toast(_i18n_Format("Extra.toast_profile_loaded", "Profile: {1}", $aProfiles[$s_iProfileIdx2]), 0, 0, 1500, $TOAST_INFO)
     _RefreshIndex()
 EndFunc
 
@@ -2356,9 +2379,9 @@ Func _HK_ToggleOsd()
     _Log_Debug("Hotkey: toggle OSD")
     _Cfg_SetOsdEnabled(Not _Cfg_GetOsdEnabled())
     If _Cfg_GetOsdEnabled() Then
-        _Theme_Toast("OSD enabled", 0, 0, 1500, $TOAST_SUCCESS)
+        _Theme_Toast(_i18n("Extra.toast_osd_enabled", "OSD enabled"), 0, 0, 1500, $TOAST_SUCCESS)
     Else
-        _Theme_Toast("OSD disabled", 0, 0, 1500, $TOAST_INFO)
+        _Theme_Toast(_i18n("Extra.toast_osd_disabled", "OSD disabled"), 0, 0, 1500, $TOAST_INFO)
     EndIf
     _Cfg_Save()
 EndFunc
@@ -2463,7 +2486,7 @@ Func _GatherWindowsToCurrentDesktop()
             Next
         EndIf
     Next
-    _Theme_Toast("All windows gathered", 0, 0, 1500, $TOAST_SUCCESS)
+    _Theme_Toast(_i18n("Extra.toast_windows_gathered", "All windows gathered"), 0, 0, 1500, $TOAST_SUCCESS)
     If _WL_IsVisible() Then _WL_Refresh($iCur)
 EndFunc
 
@@ -2476,9 +2499,9 @@ Func _HK_ToggleSession()
     _Log_Debug("Hotkey: toggle session restore")
     _Cfg_SetSessionRestoreEnabled(Not _Cfg_GetSessionRestoreEnabled())
     If _Cfg_GetSessionRestoreEnabled() Then
-        _Theme_Toast("Session restore enabled", 0, 0, 1500, $TOAST_SUCCESS)
+        _Theme_Toast(_i18n("Extra.toast_session_enabled", "Session restore enabled"), 0, 0, 1500, $TOAST_SUCCESS)
     Else
-        _Theme_Toast("Session restore disabled", 0, 0, 1500, $TOAST_INFO)
+        _Theme_Toast(_i18n("Extra.toast_session_disabled", "Session restore disabled"), 0, 0, 1500, $TOAST_INFO)
     EndIf
     _Cfg_Save()
 EndFunc
@@ -2548,8 +2571,7 @@ Func _HK_DeleteDesktop()
         Return
     EndIf
     Local $sDelCurName = _Labels_Load($iDesktop)
-    Local $sDelCurLabel = "Desktop " & $iDesktop
-    If $sDelCurName <> "" Then $sDelCurLabel &= ' ("' & $sDelCurName & '")'
+    Local $sDelCurLabel = __FormatDesktopNameQuoted($iDesktop, $sDelCurName)
     If _Cfg_GetConfirmDelete() And Not _Theme_Confirm(_i18n_Format("Dialogs.confirm_delete_title", "Delete {1}?", $sDelCurLabel), _
             _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then Return
     _Log_Debug("Hotkey: delete desktop " & $iDesktop)
@@ -2721,8 +2743,7 @@ Func _UpdateTrayDesktopSubmenu()
     $__g_iTrayDesktopSubCount = $iCount
     For $i = 1 To $iCount
         Local $sLabel = _Labels_Load($i)
-        Local $sText = "Desktop " & $i
-        If $sLabel <> "" Then $sText &= " " & ChrW(0x2014) & " " & $sLabel
+        Local $sText = __FormatDesktopNameDash($i, $sLabel)
         $__g_aTrayDesktopItems[$i] = TrayCreateItem($sText, $__g_hTrayDesktopMenu)
         If $i = $iDesktop Then TrayItemSetState($__g_aTrayDesktopItems[$i], $TRAY_CHECKED)
     Next
@@ -2741,8 +2762,7 @@ Func _UpdateTrayMoveSubmenu()
     $__g_iTrayMoveSubCount = $iCount
     For $i = 1 To $iCount
         Local $sLabel = _Labels_Load($i)
-        Local $sText = "Desktop " & $i
-        If $sLabel <> "" Then $sText &= " " & ChrW(0x2014) & " " & $sLabel
+        Local $sText = __FormatDesktopNameDash($i, $sLabel)
         $__g_aTrayMoveItems[$i] = TrayCreateItem($sText, $__g_hTrayMoveMenu)
     Next
 EndFunc
@@ -2878,7 +2898,8 @@ Func _CheckTrayMessages()
         Case $__g_iTrayDelDesktop
             If $__g_iTrayDelDesktop <> 0 Then
                 If _VD_GetCount() > 1 Then
-                    If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm("Delete Desktop " & $iDesktop & "?", _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
+                    If Not _Cfg_GetConfirmDelete() Or _Theme_Confirm(_i18n_Format("Dialogs.confirm_delete_title", "Delete {1}?", __FormatDesktopName($iDesktop)), _
+                            _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
                         Local $iOldCountTray = _VD_GetCount()
                         Local $iRemovedTray = $iDesktop
                         _VD_RemoveDesktop($iDesktop)
@@ -2950,7 +2971,7 @@ EndFunc
 ;              which fires _OnAutoItError and shows the crash dialog
 Func __TriggerTestCrash()
     Local $iW = 300, $iH = 230
-    Local $hDlg = GUICreate("Trigger Crash", $iW, $iH, _
+    Local $hDlg = GUICreate(_i18n("Extra.err_trigger_crash_title", "Trigger Crash"), $iW, $iH, _
         (@DesktopWidth - $iW) / 2, (@DesktopHeight - $iH) / 2, $WS_POPUP, _
         BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW))
     GUISetBkColor(0x1E1E1E)
@@ -3119,7 +3140,7 @@ EndFunc
 ; Parameters:  $sReason - crash reason, $sDetails - details, $sCrashFile - log path
 Func __ShowCrashDialog($sReason, $sDetails, $sCrashFile)
     Local $iW = 420, $iH = 280
-    Local $hDlg = GUICreate("Desk Switcheroo — Error", $iW, $iH, _
+    Local $hDlg = GUICreate(_i18n("Extra.err_crash_window_title", "Desk Switcheroo — Error"), $iW, $iH, _
         (@DesktopWidth - $iW) / 2, (@DesktopHeight - $iH) / 2, $WS_POPUP, _
         BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW))
     GUISetBkColor(0x1E1E1E)
@@ -3164,7 +3185,7 @@ Func __ShowCrashDialog($sReason, $sDetails, $sCrashFile)
     GUICtrlSetBkColor($idOpen, 0x333333)
     GUICtrlSetCursor($idOpen, 0)
 
-    Local $idRestart = GUICtrlCreateLabel(ChrW(0x21BB) & " Restart", 234, $iBtnY, 80, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idRestart = GUICtrlCreateLabel(ChrW(0x21BB) & " " & _i18n("General.btn_restart", "Restart"), 234, $iBtnY, 80, 28, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idRestart, 9, 400, 0, "Segoe UI")
     GUICtrlSetColor($idRestart, 0x6699CC)
     GUICtrlSetBkColor($idRestart, 0x333333)
@@ -3199,11 +3220,11 @@ Func __ShowCrashDialog($sReason, $sDetails, $sCrashFile)
                             GUICtrlSetData($idCopy, _i18n("Errors.err_copied", "Copied!"))
                             GUICtrlSetColor($idCopy, 0x4AFF7E)
                         Else
-                            GUICtrlSetData($idCopy, "Log empty")
+                            GUICtrlSetData($idCopy, _i18n("Extra.err_log_empty", "Log empty"))
                             GUICtrlSetColor($idCopy, 0xFF6666)
                         EndIf
                     Else
-                        GUICtrlSetData($idCopy, "Log missing")
+                        GUICtrlSetData($idCopy, _i18n("Extra.err_log_missing", "Log missing"))
                         GUICtrlSetColor($idCopy, 0xFF6666)
                     EndIf
                 Case $idOpen
@@ -3366,8 +3387,8 @@ Func _RunStartupChecks()
     Local $hTaskbarChk = WinGetHandle("[CLASS:Shell_TrayWnd]")
     If $hTaskbarChk = 0 Then
         _Log_Error("Startup check failed: taskbar not found (Shell_TrayWnd)")
-        MsgBox(16, "Desk Switcheroo", "Cannot find the Windows taskbar." & @CRLF & _
-            "Desk Switcheroo requires the taskbar to be running.")
+        MsgBox(16, __AppName(), _i18n("Extra.err_no_taskbar_full", "Cannot find the Windows taskbar." & @CRLF & _
+            "Desk Switcheroo requires the taskbar to be running."))
         Exit 1
     EndIf
     _Log_Debug("Startup check: taskbar found")
@@ -3377,8 +3398,8 @@ Func _RunStartupChecks()
     If Not @error And IsArray($aChkPos) Then
         If $aChkPos[3] <= 10 Then
             _Log_Error("Startup check failed: taskbar height too small (" & $aChkPos[3] & "px)")
-            MsgBox(16, "Desk Switcheroo", "Taskbar height is invalid (" & $aChkPos[3] & "px)." & @CRLF & _
-                "Desk Switcheroo requires a visible taskbar.")
+            MsgBox(16, __AppName(), _i18n_Format("Extra.err_taskbar_size_full", "Taskbar height is invalid ({1}px)." & @CRLF & _
+                "Desk Switcheroo requires a visible taskbar.", $aChkPos[3]))
             Exit 1
         EndIf
         _Log_Debug("Startup check: taskbar dimensions valid (" & $aChkPos[2] & "x" & $aChkPos[3] & ")")
@@ -3391,8 +3412,8 @@ Func _RunStartupChecks()
     IniDelete(_Cfg_GetPath(), "General", $sTestKey)
     If $sReadBack <> "1" Then
         _Log_Error("Startup check failed: config file not writable at " & _Cfg_GetPath())
-        MsgBox(16, "Desk Switcheroo", "Cannot write to config file:" & @CRLF & _Cfg_GetPath() & @CRLF & _
-            "Check file permissions.")
+        MsgBox(16, __AppName(), _i18n_Format("Extra.err_config_write_full", "Cannot write to config file:" & @CRLF & "{1}" & @CRLF & _
+            "Check file permissions.", _Cfg_GetPath()))
         Exit 1
     EndIf
     _Log_Debug("Startup check: config file writable")
@@ -3400,8 +3421,8 @@ Func _RunStartupChecks()
     ; Check not running as SYSTEM user
     If @UserName = "SYSTEM" Then
         _Log_Error("Startup check failed: running as SYSTEM user")
-        MsgBox(16, "Desk Switcheroo", "Desk Switcheroo should not run as the SYSTEM user." & @CRLF & _
-            "Please run it as a normal user account.")
+        MsgBox(16, __AppName(), _i18n("Extra.err_system_user_full", "Desk Switcheroo should not run as the SYSTEM user." & @CRLF & _
+            "Please run it as a normal user account."))
         Exit 1
     EndIf
     _Log_Debug("Startup check: running as user " & @UserName)

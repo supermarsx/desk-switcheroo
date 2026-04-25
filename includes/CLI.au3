@@ -38,6 +38,18 @@ Global Const $__g_CLI_IPC_TITLE = "DeskSwitcheroo_IPC"
 
 ; #FUNCTIONS# ===================================================
 
+Func __CLI_PrintError($sKey, $sDefault, $v1 = Default, $v2 = Default)
+    Local $sText = ""
+    If $v1 = Default Then
+        $sText = _i18n($sKey, $sDefault)
+    ElseIf $v2 = Default Then
+        $sText = _i18n_Format($sKey, $sDefault, $v1)
+    Else
+        $sText = _i18n_Format($sKey, $sDefault, $v1, $v2)
+    EndIf
+    ConsoleWrite($sText & @CRLF)
+EndFunc
+
 ; Name:        _CLI_ParseArgs
 ; Description: Parses $CmdLine array into command name and argument.
 ;              Strips leading --, -, / from command name.
@@ -158,12 +170,12 @@ Func _CLI_ExecuteLocal()
             __CLI_PrintStatus()
         Case "goto"
             If $__g_CLI_sArg = "" Or Not StringIsInt($__g_CLI_sArg) Then
-                ConsoleWrite("Error: --goto requires a desktop number" & @CRLF)
+                __CLI_PrintError("CLI.err_goto_requires_number", "Error: --goto requires a desktop number")
                 Return False
             EndIf
             Local $iTarget = Int($__g_CLI_sArg)
             If $iTarget < 1 Or $iTarget > _VD_GetCount() Then
-                ConsoleWrite("Error: desktop number out of range (1-" & _VD_GetCount() & ")" & @CRLF)
+                __CLI_PrintError("CLI.err_desktop_out_of_range", "Error: desktop number out of range (1-{1})", _VD_GetCount())
                 Return False
             EndIf
             _VD_GoTo($iTarget)
@@ -198,12 +210,12 @@ Func _CLI_ExecuteLocal()
             _Log_Info("CLI: created new desktop")
         Case "remove-desktop"
             If $__g_CLI_sArg = "" Or Not StringIsInt($__g_CLI_sArg) Then
-                ConsoleWrite("Error: --remove-desktop requires a desktop number" & @CRLF)
+                __CLI_PrintError("CLI.err_remove_requires_number", "Error: --remove-desktop requires a desktop number")
                 Return False
             EndIf
             Local $iRemove = Int($__g_CLI_sArg)
             If $iRemove < 1 Or $iRemove > _VD_GetCount() Then
-                ConsoleWrite("Error: desktop number out of range (1-" & _VD_GetCount() & ")" & @CRLF)
+                __CLI_PrintError("CLI.err_desktop_out_of_range", "Error: desktop number out of range (1-{1})", _VD_GetCount())
                 Return False
             EndIf
             Local $iCliOldCount = _VD_GetCount()
@@ -212,11 +224,11 @@ Func _CLI_ExecuteLocal()
             _Log_Info("CLI: removed desktop " & $iRemove)
         Case "rename"
             If $__g_CLI_sArg = "" Or Not StringIsInt($__g_CLI_sArg) Then
-                ConsoleWrite("Error: --rename requires a desktop number and label" & @CRLF)
+                __CLI_PrintError("CLI.err_rename_requires_number_label", "Error: --rename requires a desktop number and label")
                 Return False
             EndIf
             If $__g_CLI_sArg2 = "" Then
-                ConsoleWrite("Error: --rename requires a label as second argument" & @CRLF)
+                __CLI_PrintError("CLI.err_rename_requires_label", "Error: --rename requires a label as second argument")
                 Return False
             EndIf
             Local $iRenIdx = Int($__g_CLI_sArg)
@@ -224,23 +236,23 @@ Func _CLI_ExecuteLocal()
             _Log_Info("CLI: renamed desktop " & $iRenIdx & " to '" & $__g_CLI_sArg2 & "'")
         Case "move-window"
             If $__g_CLI_sArg = "" Or Not StringIsInt($__g_CLI_sArg) Then
-                ConsoleWrite("Error: --move-window requires a desktop number" & @CRLF)
+                __CLI_PrintError("CLI.err_move_requires_number", "Error: --move-window requires a desktop number")
                 Return False
             EndIf
             Local $iMoveDest = Int($__g_CLI_sArg)
             Local $hActive = WinGetHandle("[ACTIVE]")
             If $hActive = 0 Then
-                ConsoleWrite("Error: no active window found" & @CRLF)
+                __CLI_PrintError("CLI.err_no_active_window", "Error: no active window found")
                 Return False
             EndIf
             _VD_MoveWindowToDesktop($hActive, $iMoveDest)
             _Log_Info("CLI: moved active window to desktop " & $iMoveDest)
         Case "toggle-list", "toggle-carousel", "load-profile", "save-profile"
             ; These require a running GUI instance — cannot execute locally
-            ConsoleWrite("Error: --" & $__g_CLI_sCommand & " requires a running instance" & @CRLF)
+            __CLI_PrintError("CLI.err_requires_running_instance", "Error: --{1} requires a running instance", $__g_CLI_sCommand)
             Return False
         Case Else
-            ConsoleWrite("Error: unknown command '--" & $__g_CLI_sCommand & "'" & @CRLF)
+            __CLI_PrintError("CLI.err_unknown_command", "Error: unknown command '--{1}'", $__g_CLI_sCommand)
             __CLI_PrintHelp()
             Return False
     EndSwitch
@@ -443,38 +455,32 @@ EndFunc
 ; Name:        __CLI_PrintHelp
 ; Description: Prints usage information to stdout
 Func __CLI_PrintHelp()
-    ConsoleWrite("Desk Switcheroo — Command-line interface" & @CRLF)
-    ConsoleWrite("" & @CRLF)
-    ConsoleWrite("Usage: desk_switcheroo [options]" & @CRLF)
-    ConsoleWrite("" & @CRLF)
-    ConsoleWrite("Navigation:" & @CRLF)
-    ConsoleWrite("  --goto N              Switch to desktop N (1-based)" & @CRLF)
-    ConsoleWrite("  --next                Switch to next desktop" & @CRLF)
-    ConsoleWrite("  --prev                Switch to previous desktop" & @CRLF)
-    ConsoleWrite("" & @CRLF)
-    ConsoleWrite("Desktop management:" & @CRLF)
-    ConsoleWrite("  --add-desktop         Create a new virtual desktop" & @CRLF)
-    ConsoleWrite("  --remove-desktop N    Remove desktop N" & @CRLF)
-    ConsoleWrite('  --rename N "label"    Rename desktop N' & @CRLF)
-    ConsoleWrite("  --move-window N       Move active window to desktop N" & @CRLF)
-    ConsoleWrite("" & @CRLF)
-    ConsoleWrite("Query:" & @CRLF)
-    ConsoleWrite("  --list-desktops       List all desktops (number and name)" & @CRLF)
-    ConsoleWrite("  --get-current         Print current desktop number" & @CRLF)
-    ConsoleWrite("  --status              Print JSON status" & @CRLF)
-    ConsoleWrite("" & @CRLF)
-    ConsoleWrite("GUI control:" & @CRLF)
-    ConsoleWrite("  --toggle-list         Toggle the desktop list panel" & @CRLF)
-    ConsoleWrite("  --toggle-carousel     Toggle carousel mode" & @CRLF)
-    ConsoleWrite('  --load-profile "name" Load a named profile' & @CRLF)
-    ConsoleWrite('  --save-profile "name" Save current state as named profile' & @CRLF)
-    ConsoleWrite("" & @CRLF)
-    ConsoleWrite("Information:" & @CRLF)
-    ConsoleWrite("  --help                Print this usage information" & @CRLF)
-    ConsoleWrite("  --version             Print version number" & @CRLF)
-    ConsoleWrite("" & @CRLF)
-    ConsoleWrite("Prefix styles: --command, -command, /command are all accepted." & @CRLF)
-    ConsoleWrite("If a running instance exists, commands are sent via IPC." & @CRLF)
+    ConsoleWrite(_i18n("CLI.help_text", _
+        "Desk Switcheroo — Command-line interface" & @CRLF & @CRLF & _
+        "Usage: desk_switcheroo [options]" & @CRLF & @CRLF & _
+        "Navigation:" & @CRLF & _
+        "  --goto N              Switch to desktop N (1-based)" & @CRLF & _
+        "  --next                Switch to next desktop" & @CRLF & _
+        "  --prev                Switch to previous desktop" & @CRLF & @CRLF & _
+        "Desktop management:" & @CRLF & _
+        "  --add-desktop         Create a new virtual desktop" & @CRLF & _
+        "  --remove-desktop N    Remove desktop N" & @CRLF & _
+        '  --rename N "label"    Rename desktop N' & @CRLF & _
+        "  --move-window N       Move active window to desktop N" & @CRLF & @CRLF & _
+        "Query:" & @CRLF & _
+        "  --list-desktops       List all desktops (number and name)" & @CRLF & _
+        "  --get-current         Print current desktop number" & @CRLF & _
+        "  --status              Print JSON status" & @CRLF & @CRLF & _
+        "GUI control:" & @CRLF & _
+        "  --toggle-list         Toggle the desktop list panel" & @CRLF & _
+        "  --toggle-carousel     Toggle carousel mode" & @CRLF & _
+        '  --load-profile "name" Load a named profile' & @CRLF & _
+        '  --save-profile "name" Save current state as named profile' & @CRLF & @CRLF & _
+        "Information:" & @CRLF & _
+        "  --help                Print this usage information" & @CRLF & _
+        "  --version             Print version number" & @CRLF & @CRLF & _
+        "Prefix styles: --command, -command, /command are all accepted." & @CRLF & _
+        "If a running instance exists, commands are sent via IPC.") & @CRLF)
 EndFunc
 
 ; Name:        __CLI_PrintVersion
@@ -496,7 +502,7 @@ Func __CLI_PrintDesktops()
     Local $i
     For $i = 1 To $iCount
         Local $sLabel = _Labels_Load($i)
-        If $sLabel = "" Then $sLabel = "Desktop " & $i
+        If $sLabel = "" Then $sLabel = _i18n_Format("Extra.desktop_name", "Desktop {1}", $i)
         ConsoleWrite($i & ": " & $sLabel & @CRLF)
     Next
 EndFunc
@@ -513,7 +519,7 @@ Func __CLI_PrintStatus()
     For $i = 1 To $iCount
         If $i > 1 Then $sJSON &= ","
         Local $sLabel = _Labels_Load($i)
-        If $sLabel = "" Then $sLabel = "Desktop " & $i
+        If $sLabel = "" Then $sLabel = _i18n_Format("Extra.desktop_name", "Desktop {1}", $i)
         ; Escape special JSON characters in label
         $sLabel = StringReplace($sLabel, '\', '\\')
         $sLabel = StringReplace($sLabel, '"', '\"')
