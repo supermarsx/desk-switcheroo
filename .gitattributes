@@ -1,4 +1,4 @@
-# Auto detect text files and perform LF normalization
+# Auto detect text files and normalize line endings.
 * text=auto
 .gitattributes text eol=lf
-*.au3 text eol=lf
+*.au3 text eol=crlf
