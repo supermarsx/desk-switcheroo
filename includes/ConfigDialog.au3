@@ -22,7 +22,7 @@ Global $__g_CD_iActiveTab = 0
 
 ; -- Tab button IDs --
 Global $__g_CD_aidTabBtn[16] ; index 1-14
-Global Const $__g_CD_aTabNames = "General,Display,Hotkeys,Behavior,Logging,Updates,Desktops,Animations,OSD,Window List,Explorer,Notifications,Taskbar,Tray"
+Global Const $__g_CD_iTabCount = 14
 
 ; -- Controls per tab (arrays of IDs to show/hide + scroll) --
 Global Const $__g_CD_MAX_CTRLS = 200
@@ -137,6 +137,20 @@ Global $__g_CD_idChkTrayCloseToTray
 
 ; -- Tab 6: Updates (info labels) --
 Global $__g_CD_idLblLastChecked, $__g_CD_idLblNextCheck
+
+Global Const $CD_OPT_WIDGET_POS = "bottom-left|bottom-center|bottom-right|middle-left|middle-right|top-left|top-center|top-right"
+Global Const $CD_OPT_SCROLL_DIR = "normal|inverted"
+Global Const $CD_OPT_LIST_ACTION = "switch|scroll"
+Global Const $CD_OPT_LOG_LEVEL = "error|warn|info|debug"
+Global Const $CD_OPT_LOG_DATE = "iso|us|eu"
+Global Const $CD_OPT_THEME = "dark|darker|midnight|midday|sunset"
+Global Const $CD_OPT_PANEL_POS = "top-left|top-center|top-right|middle-left|middle-center|middle-right|bottom-left|bottom-center|bottom-right"
+Global Const $CD_OPT_WINDOW_SCOPE = "current|all"
+Global Const $CD_OPT_OSD_POS = $CD_OPT_PANEL_POS & "|widget"
+Global Const $CD_OPT_TOAST_POS = "top-left|top-right|bottom-left|bottom-right|widget"
+Global Const $CD_OPT_TRAY_LEFT = "menu|toggle_list|next_desktop|nothing"
+Global Const $CD_OPT_TRAY_DOUBLE = "settings|toggle_list|menu|nothing"
+Global Const $CD_OPT_TRAY_MIDDLE = "toggle_list|add_desktop|toggle_carousel|nothing"
 
 ; -- Tab 1 extras: General --
 Global $__g_CD_idChkSingleton, $__g_CD_idChkTaskbarFocus, $__g_CD_idChkAutoFocus
@@ -284,16 +298,15 @@ Func _CD_Show()
     Next
 
     ; Create custom tab bar (3 rows: 5 + 5 + 4 tabs)
-    Local $aNames = StringSplit($__g_CD_aTabNames, ",")
     Local $iTabW = 102, $iTabH = 22, $iTabX = 10, $iTabY = 8
     Local $iTabsPerRow = 5
-    For $t = 1 To $aNames[0]
+    For $t = 1 To $__g_CD_iTabCount
         If $t = $iTabsPerRow + 1 Or $t = $iTabsPerRow * 2 + 1 Then
             ; Start next row
             $iTabX = 10
             $iTabY += $iTabH + 2
         EndIf
-        $__g_CD_aidTabBtn[$t] = GUICtrlCreateLabel($aNames[$t], $iTabX, $iTabY, $iTabW, $iTabH, _
+        $__g_CD_aidTabBtn[$t] = GUICtrlCreateLabel(__CD_GetMainTabLabel($t), $iTabX, $iTabY, $iTabW, $iTabH, _
             BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
         GUICtrlSetFont($__g_CD_aidTabBtn[$t], 7, 400, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor($__g_CD_aidTabBtn[$t], $THEME_FG_DIM)
@@ -625,6 +638,93 @@ Func __CD_CycleValue($id, $sOptions)
     GUICtrlSetData($id, $aOpts[1])
 EndFunc
 
+Func __CD_GetOptionKey($sValue)
+    Local $sKey = StringLower($sValue)
+    $sKey = StringReplace($sKey, "-", "_")
+    $sKey = StringReplace($sKey, " ", "_")
+    Return $sKey
+EndFunc
+
+Func __CD_LocalizeOptionValue($sKeyBase, $sValue)
+    Return _i18n($sKeyBase & "_" & __CD_GetOptionKey($sValue), $sValue)
+EndFunc
+
+Func __CD_LocalizeOptionList($sKeyBase, $sOptions)
+    Local $aOpts = StringSplit($sOptions, "|")
+    Local $sLocalized = ""
+    Local $i
+    For $i = 1 To $aOpts[0]
+        If $sLocalized <> "" Then $sLocalized &= "|"
+        $sLocalized &= __CD_LocalizeOptionValue($sKeyBase, $aOpts[$i])
+    Next
+    Return $sLocalized
+EndFunc
+
+Func __CD_DelocalizeOptionValue($sKeyBase, $sOptions, $sDisplay)
+    Local $aOpts = StringSplit($sOptions, "|")
+    Local $i
+    For $i = 1 To $aOpts[0]
+        If __CD_LocalizeOptionValue($sKeyBase, $aOpts[$i]) = $sDisplay Then Return $aOpts[$i]
+    Next
+    Return $sDisplay
+EndFunc
+
+Func __CD_SetLocalizedOptions($id, $sKeyBase, $sOptions, $sSelectedValue)
+    GUICtrlSetData($id, __CD_LocalizeOptionList($sKeyBase, $sOptions), __CD_LocalizeOptionValue($sKeyBase, $sSelectedValue))
+EndFunc
+
+Func __CD_CycleLocalizedValue($id, $sKeyBase, $sOptions)
+    Local $sCurrent = __CD_DelocalizeOptionValue($sKeyBase, $sOptions, GUICtrlRead($id))
+    Local $aOpts = StringSplit($sOptions, "|")
+    Local $i
+    For $i = 1 To $aOpts[0]
+        If $aOpts[$i] = $sCurrent Then
+            Local $iNext = Mod($i, $aOpts[0]) + 1
+            GUICtrlSetData($id, __CD_LocalizeOptionValue($sKeyBase, $aOpts[$iNext]))
+            Return
+        EndIf
+    Next
+    GUICtrlSetData($id, __CD_LocalizeOptionValue($sKeyBase, $aOpts[1]))
+EndFunc
+
+Func __CD_GetHotkeyModifierLabel($sKey, $sDefault, $bChecked)
+    Return "  [" & ($bChecked ? "x" : " ") & "]  " & _i18n($sKey, $sDefault)
+EndFunc
+
+Func __CD_GetMainTabLabel($iTab)
+    Switch $iTab
+        Case 1
+            Return _i18n("Tabs.tab_general", "General")
+        Case 2
+            Return _i18n("Tabs.tab_display", "Display")
+        Case 3
+            Return _i18n("Tabs.tab_hotkeys", "Hotkeys")
+        Case 4
+            Return _i18n("Tabs.tab_behavior", "Behavior")
+        Case 5
+            Return _i18n("Tabs.tab_logging", "Logging")
+        Case 6
+            Return _i18n("Tabs.tab_updates", "Updates")
+        Case 7
+            Return _i18n("Tabs.tab_desktops", "Desktops")
+        Case 8
+            Return _i18n("Tabs.tab_animations", "Animations")
+        Case 9
+            Return _i18n("Extra.tab_osd", "OSD")
+        Case 10
+            Return _i18n("Tabs.tab_window_list", "Window List")
+        Case 11
+            Return _i18n("Tabs.tab_explorer", "Explorer")
+        Case 12
+            Return _i18n("Tabs.tab_notifications", "Notifications")
+        Case 13
+            Return _i18n("Extra.tab_taskbar", "Taskbar")
+        Case 14
+            Return _i18n("Tabs.tab_tray", "Tray")
+    EndSwitch
+    Return ""
+EndFunc
+
 ; =============================================
 ; TAB BUILDERS
 ; =============================================
@@ -645,28 +745,28 @@ Func __CD_BuildTabGeneral()
     Local $iSubBtnW = 80
     Local $iSubGap = 4
 
-    $__g_CD_idGenSubWidget = GUICtrlCreateLabel("Widget", $iX, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    $__g_CD_idGenSubWidget = GUICtrlCreateLabel(_i18n("Options.sub_general_widget", "Widget"), $iX, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idGenSubWidget, 7, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idGenSubWidget, $THEME_FG_WHITE)
     GUICtrlSetBkColor($__g_CD_idGenSubWidget, $THEME_BG_ACTIVE)
     GUICtrlSetCursor($__g_CD_idGenSubWidget, 0)
     __CD_RegCtrl($t, $__g_CD_idGenSubWidget)
 
-    $__g_CD_idGenSubDesktop = GUICtrlCreateLabel("Desktop", $iX + $iSubBtnW + $iSubGap, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    $__g_CD_idGenSubDesktop = GUICtrlCreateLabel(_i18n("Options.sub_general_desktop", "Desktop"), $iX + $iSubBtnW + $iSubGap, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idGenSubDesktop, 7, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idGenSubDesktop, $THEME_FG_DIM)
     GUICtrlSetBkColor($__g_CD_idGenSubDesktop, $THEME_BG_MAIN)
     GUICtrlSetCursor($__g_CD_idGenSubDesktop, 0)
     __CD_RegCtrl($t, $__g_CD_idGenSubDesktop)
 
-    $__g_CD_idGenSubSystem = GUICtrlCreateLabel("System", $iX + ($iSubBtnW + $iSubGap) * 2, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    $__g_CD_idGenSubSystem = GUICtrlCreateLabel(_i18n("Options.sub_general_system", "System"), $iX + ($iSubBtnW + $iSubGap) * 2, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idGenSubSystem, 7, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idGenSubSystem, $THEME_FG_DIM)
     GUICtrlSetBkColor($__g_CD_idGenSubSystem, $THEME_BG_MAIN)
     GUICtrlSetCursor($__g_CD_idGenSubSystem, 0)
     __CD_RegCtrl($t, $__g_CD_idGenSubSystem)
 
-    $__g_CD_idGenSubScroll = GUICtrlCreateLabel("Scroll", $iX + ($iSubBtnW + $iSubGap) * 3, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    $__g_CD_idGenSubScroll = GUICtrlCreateLabel(_i18n("Options.sub_general_scroll", "Scroll"), $iX + ($iSubBtnW + $iSubGap) * 3, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idGenSubScroll, 7, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idGenSubScroll, $THEME_FG_DIM)
     GUICtrlSetBkColor($__g_CD_idGenSubScroll, $THEME_BG_MAIN)
@@ -893,14 +993,14 @@ Func __CD_BuildTabDisplay()
     Local $iSubBtnW = 90
     Local $iSubGap = 4
 
-    $__g_CD_idDispSubAppearance = GUICtrlCreateLabel("Appearance", $iX, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    $__g_CD_idDispSubAppearance = GUICtrlCreateLabel(_i18n("Options.sub_display_appearance", "Appearance"), $iX, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idDispSubAppearance, 7, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idDispSubAppearance, $THEME_FG_WHITE)
     GUICtrlSetBkColor($__g_CD_idDispSubAppearance, $THEME_BG_ACTIVE)
     GUICtrlSetCursor($__g_CD_idDispSubAppearance, 0)
     __CD_RegCtrl($t, $__g_CD_idDispSubAppearance)
 
-    $__g_CD_idDispSubThumbnails = GUICtrlCreateLabel("Thumbnails", $iX + $iSubBtnW + $iSubGap, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    $__g_CD_idDispSubThumbnails = GUICtrlCreateLabel(_i18n("Options.sub_display_thumbnails", "Thumbnails"), $iX + $iSubBtnW + $iSubGap, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idDispSubThumbnails, 7, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idDispSubThumbnails, $THEME_FG_DIM)
     GUICtrlSetBkColor($__g_CD_idDispSubThumbnails, $THEME_BG_MAIN)
@@ -1147,21 +1247,21 @@ Func __CD_BuildTabHotkeys()
     Local $iSubBtnW = 90
     Local $iSubGap = 4
 
-    $__g_CD_idHkSubNav = GUICtrlCreateLabel("Navigation", $iX, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    $__g_CD_idHkSubNav = GUICtrlCreateLabel(_i18n("Options.sub_hotkeys_navigation", "Navigation"), $iX, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idHkSubNav, 7, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idHkSubNav, $THEME_FG_WHITE)
     GUICtrlSetBkColor($__g_CD_idHkSubNav, $THEME_BG_ACTIVE)
     GUICtrlSetCursor($__g_CD_idHkSubNav, 0)
     __CD_RegCtrl($t, $__g_CD_idHkSubNav)
 
-    $__g_CD_idHkSubWin = GUICtrlCreateLabel("Windows", $iX + $iSubBtnW + $iSubGap, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    $__g_CD_idHkSubWin = GUICtrlCreateLabel(_i18n("Options.sub_hotkeys_windows", "Windows"), $iX + $iSubBtnW + $iSubGap, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idHkSubWin, 7, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idHkSubWin, $THEME_FG_DIM)
     GUICtrlSetBkColor($__g_CD_idHkSubWin, $THEME_BG_MAIN)
     GUICtrlSetCursor($__g_CD_idHkSubWin, 0)
     __CD_RegCtrl($t, $__g_CD_idHkSubWin)
 
-    $__g_CD_idHkSubDesk = GUICtrlCreateLabel("Desktops", $iX + ($iSubBtnW + $iSubGap) * 2, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    $__g_CD_idHkSubDesk = GUICtrlCreateLabel(_i18n("Options.sub_hotkeys_desktops", "Desktops"), $iX + ($iSubBtnW + $iSubGap) * 2, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idHkSubDesk, 7, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idHkSubDesk, $THEME_FG_DIM)
     GUICtrlSetBkColor($__g_CD_idHkSubDesk, $THEME_BG_MAIN)
@@ -2509,14 +2609,16 @@ Func _CD_RefreshUpdateStatusLabels()
     If $__g_CD_hGUI = 0 Or $__g_CD_idLblLastChecked = 0 Or $__g_CD_idLblNextCheck = 0 Then Return
 
     Local $sLastCheck = IniRead(_Cfg_GetPath(), "Updates", "_last_check_date", "")
-    If $sLastCheck = "" Or $sLastCheck = "0" Then $sLastCheck = "Never"
+    Local $bNeverChecked = ($sLastCheck = "" Or $sLastCheck = "0")
+    Local $sLastCheckDisplay = $sLastCheck
+    If $bNeverChecked Then $sLastCheckDisplay = _i18n("Extra.value_never", "Never")
 
-    GUICtrlSetData($__g_CD_idLblLastChecked, _i18n("Settings.Updates.lbl_last_checked", "Last checked:") & " " & $sLastCheck)
+    GUICtrlSetData($__g_CD_idLblLastChecked, _i18n("Settings.Updates.lbl_last_checked", "Last checked:") & " " & $sLastCheckDisplay)
 
-    Local $sNextCheck = "N/A"
-    If $sLastCheck <> "Never" Then
+    Local $sNextCheck = _i18n("Extra.value_na", "N/A")
+    If Not $bNeverChecked Then
         Local $iCheckDays = _Cfg_GetUpdateCheckDays()
-        $sNextCheck = "~" & $sLastCheck & " + " & $iCheckDays & "d"
+        $sNextCheck = _i18n_Format("Extra.update_next_estimate", "~{1} + {2}d", $sLastCheck, $iCheckDays)
     EndIf
     GUICtrlSetData($__g_CD_idLblNextCheck, _i18n("Settings.Updates.lbl_next_check", "Next check:") & " " & $sNextCheck)
 EndFunc
@@ -3378,7 +3480,7 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkWrapNav, _Cfg_GetWrapNavigation())
     __CD_SetCheckState($__g_CD_idChkAutoCreate, _Cfg_GetAutoCreateDesktop())
     GUICtrlSetData($__g_CD_idInpPadding, _Cfg_GetNumberPadding())
-    GUICtrlSetData($__g_CD_idLblPosition, _Cfg_GetWidgetPosition())
+    GUICtrlSetData($__g_CD_idLblPosition, __CD_LocalizeOptionValue("Options.widget_position", _Cfg_GetWidgetPosition()))
     ; Populate language dropdown with all available locales
     Local $sLangCode = _Cfg_GetLanguage()
     Local $sAllDisplay = _i18n_GetAvailableDisplay()
@@ -3405,7 +3507,7 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkShowCount, _Cfg_GetShowCount())
     GUICtrlSetData($__g_CD_idInpCountFont, _Cfg_GetCountFontSize())
     GUICtrlSetData($__g_CD_idInpOpacity, _Cfg_GetThemeAlphaMain())
-    GUICtrlSetData($__g_CD_idLblTheme, _Theme_GetAvailableSchemes(), _Cfg_GetTheme())
+    __CD_SetLocalizedOptions($__g_CD_idLblTheme, "Options.theme", $CD_OPT_THEME, _Cfg_GetTheme())
     __CD_SetCheckState($__g_CD_idChkThumbnails, _Cfg_GetThumbnailsEnabled())
     GUICtrlSetData($__g_CD_idInpThumbW, _Cfg_GetThumbnailWidth())
     GUICtrlSetData($__g_CD_idInpThumbH, _Cfg_GetThumbnailHeight())
@@ -3421,10 +3523,10 @@ Func __CD_PopulateControls()
 
     ; Scroll
     __CD_SetCheckState($__g_CD_idChkScroll, _Cfg_GetScrollEnabled())
-    GUICtrlSetData($__g_CD_idLblScrollDir, _Cfg_GetScrollDirection())
+    GUICtrlSetData($__g_CD_idLblScrollDir, __CD_LocalizeOptionValue("Options.scroll_direction", _Cfg_GetScrollDirection()))
     __CD_SetCheckState($__g_CD_idChkScrollWrap, _Cfg_GetScrollWrap())
     __CD_SetCheckState($__g_CD_idChkListScroll, _Cfg_GetListScrollEnabled())
-    GUICtrlSetData($__g_CD_idLblListAction, "switch|scroll", _Cfg_GetListScrollAction())
+    __CD_SetLocalizedOptions($__g_CD_idLblListAction, "Options.list_action", $CD_OPT_LIST_ACTION, _Cfg_GetListScrollAction())
 
     ; Hotkeys
     __CD_SetCheckState($__g_CD_idChkHotkeysEnabled, _Cfg_GetHotkeysEnabled())
@@ -3489,12 +3591,12 @@ Func __CD_PopulateControls()
     ; Logging
     __CD_SetCheckState($__g_CD_idChkLogging, _Cfg_GetLoggingEnabled())
     GUICtrlSetData($__g_CD_idInpLogPath, _Cfg_GetLogFolder())
-    GUICtrlSetData($__g_CD_idLblLogLevel, "error|warn|info|debug", _Cfg_GetLogLevel())
+    __CD_SetLocalizedOptions($__g_CD_idLblLogLevel, "Options.log_level", $CD_OPT_LOG_LEVEL, _Cfg_GetLogLevel())
     GUICtrlSetData($__g_CD_idInpLogMaxSize, _Cfg_GetLogMaxSizeMB())
     GUICtrlSetData($__g_CD_idInpLogRotateCount, _Cfg_GetLogRotateCount())
     __CD_SetCheckState($__g_CD_idChkLogCompress, _Cfg_GetLogCompressOld())
     __CD_SetCheckState($__g_CD_idChkLogPID, _Cfg_GetLogIncludePID())
-    GUICtrlSetData($__g_CD_idLblLogDateFormat, "iso|us|eu", _Cfg_GetLogDateFormat())
+    __CD_SetLocalizedOptions($__g_CD_idLblLogDateFormat, "Options.log_date_format", $CD_OPT_LOG_DATE, _Cfg_GetLogDateFormat())
     __CD_SetCheckState($__g_CD_idChkLogFlush, _Cfg_GetLogFlushImmediate())
 
     ; Updates
@@ -3565,7 +3667,7 @@ Func __CD_PopulateControls()
 
     ; Window List
     __CD_SetCheckState($__g_CD_idChkWLEnabled, _Cfg_GetWindowListEnabled())
-    GUICtrlSetData($__g_CD_idLblWLPosition, "top-left|top-center|top-right|middle-left|middle-center|middle-right|bottom-left|bottom-center|bottom-right", _Cfg_GetWindowListPosition())
+    __CD_SetLocalizedOptions($__g_CD_idLblWLPosition, "Options.panel_position", $CD_OPT_PANEL_POS, _Cfg_GetWindowListPosition())
     GUICtrlSetData($__g_CD_idInpWLWidth, _Cfg_GetWindowListWidth())
     GUICtrlSetData($__g_CD_idInpWLMaxVisible, _Cfg_GetWindowListMaxVisible())
     __CD_SetCheckState($__g_CD_idChkWLIcons, _Cfg_GetWindowListShowIcons())
@@ -3593,7 +3695,7 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkNotifyPinned, _Cfg_GetNotifyWindowPinned())
     __CD_SetCheckState($__g_CD_idChkNotifyUnpinned, _Cfg_GetNotifyWindowUnpinned())
     __CD_SetCheckState($__g_CD_idChkNotifyExplorerRecov, _Cfg_GetNotifyExplorerRecovery())
-    GUICtrlSetData($__g_CD_idLblWLScope, "current|all", _Cfg_GetWindowListScope())
+    __CD_SetLocalizedOptions($__g_CD_idLblWLScope, "Options.window_scope", $CD_OPT_WINDOW_SCOPE, _Cfg_GetWindowListScope())
 
     ; Notifications extras
     __CD_SetCheckState($__g_CD_idChkNotifyExplorerCrash, _Cfg_GetNotifyExplorerCrash())
@@ -3603,7 +3705,7 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkOsdShowName, _Cfg_GetOsdShowName())
     __CD_SetCheckState($__g_CD_idChkOsdShowNumber, _Cfg_GetOsdShowNumber())
     GUICtrlSetData($__g_CD_idInpOsdDuration, _Cfg_GetOsdDuration())
-    GUICtrlSetData($__g_CD_idCycOsdPosition, "top-left|top-center|top-right|middle-left|middle-center|middle-right|bottom-left|bottom-center|bottom-right|widget", _Cfg_GetOsdPosition())
+    __CD_SetLocalizedOptions($__g_CD_idCycOsdPosition, "Options.osd_position", $CD_OPT_OSD_POS, _Cfg_GetOsdPosition())
     GUICtrlSetData($__g_CD_idInpOsdFontSize, _Cfg_GetOsdFontSize())
     GUICtrlSetData($__g_CD_idInpOsdOpacity, _Cfg_GetOsdOpacity())
     GUICtrlSetData($__g_CD_idInpOsdFormat, _Cfg_GetOsdFormat())
@@ -3611,7 +3713,7 @@ Func __CD_PopulateControls()
 
     ; Animations extras
     GUICtrlSetData($__g_CD_idInpHoverSpeed, _Cfg_GetAnimHoverSpeed())
-    GUICtrlSetData($__g_CD_idLblToastPosition, "top-left|top-right|bottom-left|bottom-right|widget", _Cfg_GetToastPosition())
+    __CD_SetLocalizedOptions($__g_CD_idLblToastPosition, "Options.toast_position", $CD_OPT_TOAST_POS, _Cfg_GetToastPosition())
     __CD_SetCheckState($__g_CD_idChkAutoHideFade, _Cfg_GetAutoHideUseFade())
     GUICtrlSetData($__g_CD_idInpAutoHideFadeDur, _Cfg_GetAutoHideFadeDuration())
 
@@ -3627,9 +3729,9 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkAutoHideSkipDialog, _Cfg_GetAutoHideSkipIfDialog())
 
     ; Tray
-    GUICtrlSetData($__g_CD_idLblTrayLeftClick, _Cfg_GetTrayLeftClick())
-    GUICtrlSetData($__g_CD_idLblTrayDoubleClick, _Cfg_GetTrayDoubleClick())
-    GUICtrlSetData($__g_CD_idLblTrayMiddleClick, _Cfg_GetTrayMiddleClick())
+    GUICtrlSetData($__g_CD_idLblTrayLeftClick, __CD_LocalizeOptionValue("Options.tray_left_click", _Cfg_GetTrayLeftClick()))
+    GUICtrlSetData($__g_CD_idLblTrayDoubleClick, __CD_LocalizeOptionValue("Options.tray_double_click", _Cfg_GetTrayDoubleClick()))
+    GUICtrlSetData($__g_CD_idLblTrayMiddleClick, __CD_LocalizeOptionValue("Options.tray_middle_click", _Cfg_GetTrayMiddleClick()))
     __CD_SetCheckState($__g_CD_idChkTrayTooltipLabel, _Cfg_GetTrayTooltipShowLabel())
     __CD_SetCheckState($__g_CD_idChkTrayTooltipCount, _Cfg_GetTrayTooltipShowCount())
     __CD_SetCheckState($__g_CD_idChkTrayMenuList, _Cfg_GetTrayMenuShowList())
@@ -3740,11 +3842,11 @@ Func __CD_MessageLoop()
             __CD_HandleHotkeyBuildClick($id)
 
             ; Cycle label clicks
-            If $id = $__g_CD_idLblPosition Then __CD_CycleValue($id, "bottom-left|bottom-center|bottom-right|middle-left|middle-right|top-left|top-center|top-right")
-            If $id = $__g_CD_idLblScrollDir Then __CD_CycleValue($id, "normal|inverted")
-            If $id = $__g_CD_idLblTrayLeftClick Then __CD_CycleValue($id, "menu|toggle_list|next_desktop|nothing")
-            If $id = $__g_CD_idLblTrayDoubleClick Then __CD_CycleValue($id, "settings|toggle_list|menu|nothing")
-            If $id = $__g_CD_idLblTrayMiddleClick Then __CD_CycleValue($id, "toggle_list|add_desktop|toggle_carousel|nothing")
+            If $id = $__g_CD_idLblPosition Then __CD_CycleLocalizedValue($id, "Options.widget_position", $CD_OPT_WIDGET_POS)
+            If $id = $__g_CD_idLblScrollDir Then __CD_CycleLocalizedValue($id, "Options.scroll_direction", $CD_OPT_SCROLL_DIR)
+            If $id = $__g_CD_idLblTrayLeftClick Then __CD_CycleLocalizedValue($id, "Options.tray_left_click", $CD_OPT_TRAY_LEFT)
+            If $id = $__g_CD_idLblTrayDoubleClick Then __CD_CycleLocalizedValue($id, "Options.tray_double_click", $CD_OPT_TRAY_DOUBLE)
+            If $id = $__g_CD_idLblTrayMiddleClick Then __CD_CycleLocalizedValue($id, "Options.tray_middle_click", $CD_OPT_TRAY_MIDDLE)
             ; Rule type cycle labels (Process <-> Class)
             For $r = 1 To $__g_CD_iRuleRowCount
                 If $id = $__g_CD_aidRuleType[$r] Then
@@ -3907,7 +4009,7 @@ Func __CD_ApplyChanges()
     _Cfg_SetAutoCreateDesktop(__CD_GetCheckState($__g_CD_idChkAutoCreate))
     Local $s = GUICtrlRead($__g_CD_idInpPadding)
     If StringIsInt($s) Then _Cfg_SetNumberPadding(Int($s))
-    _Cfg_SetWidgetPosition(GUICtrlRead($__g_CD_idLblPosition))
+    _Cfg_SetWidgetPosition(__CD_DelocalizeOptionValue("Options.widget_position", $CD_OPT_WIDGET_POS, GUICtrlRead($__g_CD_idLblPosition)))
     Local $sOldLang = _Cfg_GetLanguage()
     _Cfg_SetLanguage(_i18n_DisplayToCode(GUICtrlRead($__g_CD_idLblLanguage)))
     $s = GUICtrlRead($__g_CD_idInpOffsetX)
@@ -3934,7 +4036,7 @@ Func __CD_ApplyChanges()
     $s = GUICtrlRead($__g_CD_idInpOpacity)
     If StringIsInt($s) Then _Cfg_SetThemeAlphaMain(Int($s))
     Local $sOldTheme = _Cfg_GetTheme()
-    _Cfg_SetTheme(GUICtrlRead($__g_CD_idLblTheme))
+    _Cfg_SetTheme(__CD_DelocalizeOptionValue("Options.theme", $CD_OPT_THEME, GUICtrlRead($__g_CD_idLblTheme)))
     _Cfg_SetThumbnailsEnabled(__CD_GetCheckState($__g_CD_idChkThumbnails))
     $s = GUICtrlRead($__g_CD_idInpThumbW)
     If StringIsInt($s) Then _Cfg_SetThumbnailWidth(Int($s))
@@ -3957,10 +4059,10 @@ Func __CD_ApplyChanges()
 
     ; Scroll
     _Cfg_SetScrollEnabled(__CD_GetCheckState($__g_CD_idChkScroll))
-    _Cfg_SetScrollDirection(GUICtrlRead($__g_CD_idLblScrollDir))
+    _Cfg_SetScrollDirection(__CD_DelocalizeOptionValue("Options.scroll_direction", $CD_OPT_SCROLL_DIR, GUICtrlRead($__g_CD_idLblScrollDir)))
     _Cfg_SetScrollWrap(__CD_GetCheckState($__g_CD_idChkScrollWrap))
     _Cfg_SetListScrollEnabled(__CD_GetCheckState($__g_CD_idChkListScroll))
-    _Cfg_SetListScrollAction(GUICtrlRead($__g_CD_idLblListAction))
+    _Cfg_SetListScrollAction(__CD_DelocalizeOptionValue("Options.list_action", $CD_OPT_LIST_ACTION, GUICtrlRead($__g_CD_idLblListAction)))
 
     ; Hotkeys
     _Cfg_SetHotkeysEnabled(__CD_GetCheckState($__g_CD_idChkHotkeysEnabled))
@@ -4041,14 +4143,14 @@ Func __CD_ApplyChanges()
     ; Logging
     _Cfg_SetLoggingEnabled(__CD_GetCheckState($__g_CD_idChkLogging))
     _Cfg_SetLogFolder(GUICtrlRead($__g_CD_idInpLogPath))
-    _Cfg_SetLogLevel(GUICtrlRead($__g_CD_idLblLogLevel))
+    _Cfg_SetLogLevel(__CD_DelocalizeOptionValue("Options.log_level", $CD_OPT_LOG_LEVEL, GUICtrlRead($__g_CD_idLblLogLevel)))
     $s = GUICtrlRead($__g_CD_idInpLogMaxSize)
     If StringIsInt($s) Then _Cfg_SetLogMaxSizeMB(Int($s))
     $s = GUICtrlRead($__g_CD_idInpLogRotateCount)
     If StringIsInt($s) Then _Cfg_SetLogRotateCount(Int($s))
     _Cfg_SetLogCompressOld(__CD_GetCheckState($__g_CD_idChkLogCompress))
     _Cfg_SetLogIncludePID(__CD_GetCheckState($__g_CD_idChkLogPID))
-    _Cfg_SetLogDateFormat(GUICtrlRead($__g_CD_idLblLogDateFormat))
+    _Cfg_SetLogDateFormat(__CD_DelocalizeOptionValue("Options.log_date_format", $CD_OPT_LOG_DATE, GUICtrlRead($__g_CD_idLblLogDateFormat)))
     _Cfg_SetLogFlushImmediate(__CD_GetCheckState($__g_CD_idChkLogFlush))
 
     ; Updates
@@ -4098,7 +4200,7 @@ Func __CD_ApplyChanges()
     _Cfg_SetToastFadeOutDuration(Int(GUICtrlRead($__g_CD_idInpToastFadeOut)))
     $s = GUICtrlRead($__g_CD_idInpHoverSpeed)
     If StringIsInt($s) Then _Cfg_SetAnimHoverSpeed(Int($s))
-    _Cfg_SetToastPosition(GUICtrlRead($__g_CD_idLblToastPosition))
+    _Cfg_SetToastPosition(__CD_DelocalizeOptionValue("Options.toast_position", $CD_OPT_TOAST_POS, GUICtrlRead($__g_CD_idLblToastPosition)))
     _Cfg_SetAutoHideUseFade(__CD_GetCheckState($__g_CD_idChkAutoHideFade))
     _Cfg_SetAutoHideFadeDuration(Int(GUICtrlRead($__g_CD_idInpAutoHideFadeDur)))
 
@@ -4112,7 +4214,7 @@ Func __CD_ApplyChanges()
 
     ; Window List
     _Cfg_SetWindowListEnabled(__CD_GetCheckState($__g_CD_idChkWLEnabled))
-    _Cfg_SetWindowListPosition(GUICtrlRead($__g_CD_idLblWLPosition))
+    _Cfg_SetWindowListPosition(__CD_DelocalizeOptionValue("Options.panel_position", $CD_OPT_PANEL_POS, GUICtrlRead($__g_CD_idLblWLPosition)))
     $s = GUICtrlRead($__g_CD_idInpWLWidth)
     If StringIsInt($s) Then _Cfg_SetWindowListWidth(Int($s))
     $s = GUICtrlRead($__g_CD_idInpWLMaxVisible)
@@ -4149,7 +4251,7 @@ Func __CD_ApplyChanges()
     _Cfg_SetNotifyWindowUnpinned(__CD_GetCheckState($__g_CD_idChkNotifyUnpinned))
     _Cfg_SetNotifyExplorerRecovery(__CD_GetCheckState($__g_CD_idChkNotifyExplorerRecov))
     _Cfg_SetNotifyExplorerCrash(__CD_GetCheckState($__g_CD_idChkNotifyExplorerCrash))
-    _Cfg_SetWindowListScope(GUICtrlRead($__g_CD_idLblWLScope))
+    _Cfg_SetWindowListScope(__CD_DelocalizeOptionValue("Options.window_scope", $CD_OPT_WINDOW_SCOPE, GUICtrlRead($__g_CD_idLblWLScope)))
 
     ; OSD Toast
     _Cfg_SetOsdEnabled(__CD_GetCheckState($__g_CD_idChkOsdEnabled))
@@ -4157,7 +4259,7 @@ Func __CD_ApplyChanges()
     _Cfg_SetOsdShowNumber(__CD_GetCheckState($__g_CD_idChkOsdShowNumber))
     $s = GUICtrlRead($__g_CD_idInpOsdDuration)
     If StringIsInt($s) Then _Cfg_SetOsdDuration(Int($s))
-    _Cfg_SetOsdPosition(GUICtrlRead($__g_CD_idCycOsdPosition))
+    _Cfg_SetOsdPosition(__CD_DelocalizeOptionValue("Options.osd_position", $CD_OPT_OSD_POS, GUICtrlRead($__g_CD_idCycOsdPosition)))
     $s = GUICtrlRead($__g_CD_idInpOsdFontSize)
     If StringIsInt($s) Then _Cfg_SetOsdFontSize(Int($s))
     $s = GUICtrlRead($__g_CD_idInpOsdOpacity)
@@ -4178,9 +4280,9 @@ Func __CD_ApplyChanges()
     _Cfg_SetAutoHideSkipIfDialog(__CD_GetCheckState($__g_CD_idChkAutoHideSkipDialog))
 
     ; Tray
-    _Cfg_SetTrayLeftClick(GUICtrlRead($__g_CD_idLblTrayLeftClick))
-    _Cfg_SetTrayDoubleClick(GUICtrlRead($__g_CD_idLblTrayDoubleClick))
-    _Cfg_SetTrayMiddleClick(GUICtrlRead($__g_CD_idLblTrayMiddleClick))
+    _Cfg_SetTrayLeftClick(__CD_DelocalizeOptionValue("Options.tray_left_click", $CD_OPT_TRAY_LEFT, GUICtrlRead($__g_CD_idLblTrayLeftClick)))
+    _Cfg_SetTrayDoubleClick(__CD_DelocalizeOptionValue("Options.tray_double_click", $CD_OPT_TRAY_DOUBLE, GUICtrlRead($__g_CD_idLblTrayDoubleClick)))
+    _Cfg_SetTrayMiddleClick(__CD_DelocalizeOptionValue("Options.tray_middle_click", $CD_OPT_TRAY_MIDDLE, GUICtrlRead($__g_CD_idLblTrayMiddleClick)))
     _Cfg_SetTrayTooltipShowLabel(__CD_GetCheckState($__g_CD_idChkTrayTooltipLabel))
     _Cfg_SetTrayTooltipShowCount(__CD_GetCheckState($__g_CD_idChkTrayTooltipCount))
     _Cfg_SetTrayMenuShowList(__CD_GetCheckState($__g_CD_idChkTrayMenuList))
@@ -4418,26 +4520,26 @@ Func __CD_ShowHotkeyBuilder()
 
     ; Modifier checkboxes (label-based toggle)
     Local $iChkY = 34
-    Local $idChkCtrl = GUICtrlCreateLabel("  [ ]  Ctrl", 16, $iChkY, 110, 22, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idChkCtrl = GUICtrlCreateLabel(__CD_GetHotkeyModifierLabel("Extra.hkb_mod_ctrl", "Ctrl", False), 16, $iChkY, 110, 22, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idChkCtrl, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idChkCtrl, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor($idChkCtrl, $GUI_BKCOLOR_TRANSPARENT)
     GUICtrlSetCursor($idChkCtrl, 0)
 
-    Local $idChkAlt = GUICtrlCreateLabel("  [ ]  Alt", 146, $iChkY, 110, 22, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idChkAlt = GUICtrlCreateLabel(__CD_GetHotkeyModifierLabel("Extra.hkb_mod_alt", "Alt", False), 146, $iChkY, 110, 22, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idChkAlt, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idChkAlt, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor($idChkAlt, $GUI_BKCOLOR_TRANSPARENT)
     GUICtrlSetCursor($idChkAlt, 0)
 
     $iChkY += 26
-    Local $idChkShift = GUICtrlCreateLabel("  [ ]  Shift", 16, $iChkY, 110, 22, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idChkShift = GUICtrlCreateLabel(__CD_GetHotkeyModifierLabel("Extra.hkb_mod_shift", "Shift", False), 16, $iChkY, 110, 22, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idChkShift, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idChkShift, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor($idChkShift, $GUI_BKCOLOR_TRANSPARENT)
     GUICtrlSetCursor($idChkShift, 0)
 
-    Local $idChkWin = GUICtrlCreateLabel("  [ ]  Win", 146, $iChkY, 110, 22, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idChkWin = GUICtrlCreateLabel(__CD_GetHotkeyModifierLabel("Extra.hkb_mod_win", "Win", False), 146, $iChkY, 110, 22, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idChkWin, 9, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idChkWin, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor($idChkWin, $GUI_BKCOLOR_TRANSPARENT)
@@ -4458,7 +4560,7 @@ Func __CD_ShowHotkeyBuilder()
 
     ; Capture button
     Local $iX = 16
-    Local $idCapture = GUICtrlCreateLabel(ChrW(0x23CE) & " Capture", $iX + 165, $iKeyY, 80, 22, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    Local $idCapture = GUICtrlCreateLabel(ChrW(0x23CE) & " " & _i18n("HotkeyBuilder.hkb_capture", "Capture"), $iX + 165, $iKeyY, 80, 22, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($idCapture, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idCapture, $THEME_FG_MENU)
     GUICtrlSetBkColor($idCapture, $THEME_BG_HOVER)
@@ -4466,7 +4568,7 @@ Func __CD_ShowHotkeyBuilder()
     _Theme_SetTooltip($idCapture, _i18n("HotkeyBuilder.hkb_tip_capture", "Press to capture a key (waits 5 seconds)"))
 
     ; Hint
-    Local $idHint = GUICtrlCreateLabel("e.g.: LEFT, RIGHT, F1-F12, 1-9, A-Z", 16, $iKeyY + 26, 250, 14)
+    Local $idHint = GUICtrlCreateLabel(_i18n("HotkeyBuilder.hkb_hint", "e.g.: LEFT, RIGHT, F1-F12, 1-9, A-Z"), 16, $iKeyY + 26, 250, 14)
     GUICtrlSetFont($idHint, 7, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idHint, $THEME_FG_LABEL)
     GUICtrlSetBkColor($idHint, $GUI_BKCOLOR_TRANSPARENT)
@@ -4521,19 +4623,19 @@ Func __CD_ShowHotkeyBuilder()
                     ExitLoop
                 Case $idChkCtrl
                     $bCtrl = Not $bCtrl
-                    GUICtrlSetData($idChkCtrl, $bCtrl ? "  [x]  Ctrl" : "  [ ]  Ctrl")
+                    GUICtrlSetData($idChkCtrl, __CD_GetHotkeyModifierLabel("Extra.hkb_mod_ctrl", "Ctrl", $bCtrl))
                     GUICtrlSetColor($idChkCtrl, $bCtrl ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
                 Case $idChkAlt
                     $bAlt = Not $bAlt
-                    GUICtrlSetData($idChkAlt, $bAlt ? "  [x]  Alt" : "  [ ]  Alt")
+                    GUICtrlSetData($idChkAlt, __CD_GetHotkeyModifierLabel("Extra.hkb_mod_alt", "Alt", $bAlt))
                     GUICtrlSetColor($idChkAlt, $bAlt ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
                 Case $idChkShift
                     $bShift = Not $bShift
-                    GUICtrlSetData($idChkShift, $bShift ? "  [x]  Shift" : "  [ ]  Shift")
+                    GUICtrlSetData($idChkShift, __CD_GetHotkeyModifierLabel("Extra.hkb_mod_shift", "Shift", $bShift))
                     GUICtrlSetColor($idChkShift, $bShift ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
                 Case $idChkWin
                     $bWin = Not $bWin
-                    GUICtrlSetData($idChkWin, $bWin ? "  [x]  Win" : "  [ ]  Win")
+                    GUICtrlSetData($idChkWin, __CD_GetHotkeyModifierLabel("Extra.hkb_mod_win", "Win", $bWin))
                     GUICtrlSetColor($idChkWin, $bWin ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
                 Case $idCapture
                     ; Set input to "Press a key..." and capture
@@ -4545,25 +4647,25 @@ Func __CD_ShowHotkeyBuilder()
                         Local $retModCtrl = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x11)
                         If Not @error And IsArray($retModCtrl) And BitAND($retModCtrl[0], 0x8000) <> 0 Then
                             $bCtrl = True
-                            GUICtrlSetData($idChkCtrl, "  [x]  Ctrl")
+                            GUICtrlSetData($idChkCtrl, __CD_GetHotkeyModifierLabel("Extra.hkb_mod_ctrl", "Ctrl", True))
                             GUICtrlSetColor($idChkCtrl, $THEME_FG_WHITE)
                         EndIf
                         Local $retModAlt = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x12)
                         If Not @error And IsArray($retModAlt) And BitAND($retModAlt[0], 0x8000) <> 0 Then
                             $bAlt = True
-                            GUICtrlSetData($idChkAlt, "  [x]  Alt")
+                            GUICtrlSetData($idChkAlt, __CD_GetHotkeyModifierLabel("Extra.hkb_mod_alt", "Alt", True))
                             GUICtrlSetColor($idChkAlt, $THEME_FG_WHITE)
                         EndIf
                         Local $retModShift = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x10)
                         If Not @error And IsArray($retModShift) And BitAND($retModShift[0], 0x8000) <> 0 Then
                             $bShift = True
-                            GUICtrlSetData($idChkShift, "  [x]  Shift")
+                            GUICtrlSetData($idChkShift, __CD_GetHotkeyModifierLabel("Extra.hkb_mod_shift", "Shift", True))
                             GUICtrlSetColor($idChkShift, $THEME_FG_WHITE)
                         EndIf
                         Local $retModWin = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x5B)
                         If Not @error And IsArray($retModWin) And BitAND($retModWin[0], 0x8000) <> 0 Then
                             $bWin = True
-                            GUICtrlSetData($idChkWin, "  [x]  Win")
+                            GUICtrlSetData($idChkWin, __CD_GetHotkeyModifierLabel("Extra.hkb_mod_win", "Win", True))
                             GUICtrlSetColor($idChkWin, $THEME_FG_WHITE)
                         EndIf
                     Else
