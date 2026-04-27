@@ -72,6 +72,18 @@ Func _RunTest_Labels()
     ; -- SyncFromOS returns false when disabled --
     _Test_AssertFalse("SyncFromOS false when disabled", _Labels_SyncFromOS())
 
+    ; -- Deferred sync cooldown helper --
+    _Labels_DeferSync(2)
+    _Test_AssertEqual("Deferred sync polls set", _Labels_GetDeferredSyncPolls(), 2)
+    _Test_AssertTrue("Deferred sync consume #1", __Labels_ConsumeSyncCooldown())
+    _Test_AssertEqual("Deferred sync polls decremented", _Labels_GetDeferredSyncPolls(), 1)
+    _Labels_DeferSync(3)
+    _Test_AssertEqual("Deferred sync keeps larger cooldown", _Labels_GetDeferredSyncPolls(), 3)
+    _Test_AssertTrue("Deferred sync consume #2", __Labels_ConsumeSyncCooldown())
+    _Test_AssertTrue("Deferred sync consume #3", __Labels_ConsumeSyncCooldown())
+    _Test_AssertTrue("Deferred sync consume #4", __Labels_ConsumeSyncCooldown())
+    _Test_AssertFalse("Deferred sync exhausted", __Labels_ConsumeSyncCooldown())
+
     ; -- Cache tests --
     _Labels_Save(1, "CachedLabel")
     _Test_AssertEqual("Label cached after save", _Labels_Load(1), "CachedLabel")
@@ -89,6 +101,7 @@ Func _RunTest_Labels()
     _Test_AssertEqual("Swap: pos 2 = old Alpha", _Labels_Load(2), "Alpha")
     _Test_AssertEqual("Swap: INI pos 1", IniRead($sTempIni, "Labels", "desktop_1", ""), "Beta")
     _Test_AssertEqual("Swap: INI pos 2", IniRead($sTempIni, "Labels", "desktop_2", ""), "Alpha")
+    _Test_AssertEqual("Swap: no cooldown when sync disabled", _Labels_GetDeferredSyncPolls(), 0)
 
     ; -- RemoveAndShift: middle removal shifts higher labels down --
     FileDelete($sTempIni)

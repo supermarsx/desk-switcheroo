@@ -15,6 +15,7 @@ Global $__g_Labels_iLastCount = 0
 Global $__g_Labels_sLastHash = ""
 Global $__g_Labels_aCache[21]  ; in-memory cache, index 1-20
 Global $__g_Labels_bCacheDirty = True
+Global $__g_Labels_iSyncCooldownPolls = 0
 
 ; #FUNCTIONS# ===================================================
 
@@ -28,6 +29,7 @@ Func _Labels_Init($sPath = Default, $bSyncOS = True)
     If $sPath = Default Then $sPath = @ScriptDir & "\desktop_labels.ini"
     $__g_Labels_IniPath = $sPath
     $__g_Labels_bSyncOS = ($bSyncOS And _VD_HasNameSupport())
+    $__g_Labels_iSyncCooldownPolls = 0
 
     If $__g_Labels_bSyncOS Then _Labels_InitialSync()
 EndFunc
@@ -74,6 +76,32 @@ Func _Labels_InvalidateCache()
     $__g_Labels_bCacheDirty = True
 EndFunc
 
+; Name:        _Labels_DeferSync
+; Description: Temporarily pauses pull-from-OS sync for a number of polling cycles.
+;              Used after desktop swaps/reorders so transient Windows name states
+;              do not get written back into the INI too early.
+; Parameters:  $iPolls - number of upcoming sync polls to skip
+Func _Labels_DeferSync($iPolls = 1)
+    If $iPolls < 1 Then Return
+    If $iPolls > $__g_Labels_iSyncCooldownPolls Then $__g_Labels_iSyncCooldownPolls = $iPolls
+    $__g_Labels_sLastHash = ""
+EndFunc
+
+; Name:        _Labels_GetDeferredSyncPolls
+; Description: Returns remaining skipped sync polls (test/debug helper)
+Func _Labels_GetDeferredSyncPolls()
+    Return $__g_Labels_iSyncCooldownPolls
+EndFunc
+
+; Name:        __Labels_ConsumeSyncCooldown
+; Description: Consumes one deferred sync poll if active
+; Return:      True when the caller should skip syncing this cycle
+Func __Labels_ConsumeSyncCooldown()
+    If $__g_Labels_iSyncCooldownPolls <= 0 Then Return False
+    $__g_Labels_iSyncCooldownPolls -= 1
+    Return True
+EndFunc
+
 ; Name:        _Labels_Save
 ; Description: Saves a desktop label. Writes to both OS and INI when sync is
 ;              enabled, INI-only otherwise.
@@ -108,6 +136,11 @@ Func _Labels_Swap($iA, $iB, $bOsAlreadySwapped = False)
     IniWrite($__g_Labels_IniPath, "Labels", "desktop_" & $iA, $sLabelB)
     IniWrite($__g_Labels_IniPath, "Labels", "desktop_" & $iB, $sLabelA)
 
+    ; Windows can report intermediate desktop names for a short period after a
+    ; swap/reorder. Skip a few pull cycles so only the settled final mapping is
+    ; eligible to flow back into the INI.
+    If $__g_Labels_bSyncOS Then _Labels_DeferSync(3)
+
     ; Force fresh reads so the next UI refresh uses the swapped labels immediately.
     _Labels_InvalidateCache()
     $__g_Labels_sLastHash = ""
@@ -121,6 +154,7 @@ EndFunc
 ; Return:      True if any name changed, False otherwise
 Func _Labels_SyncFromOS()
     If Not $__g_Labels_bSyncOS Then Return False
+    If __Labels_ConsumeSyncCooldown() Then Return False
     Local $bChanged = False
     Local $iCount = _VD_GetCount()
 
