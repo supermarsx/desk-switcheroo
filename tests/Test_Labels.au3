@@ -148,6 +148,36 @@ Func _RunTest_Labels()
     _Test_AssertEqual("First-shift: pos 2 = old C", _Labels_Load(2), "C")
     _Test_AssertEqual("First-shift: pos 3 purged", IniRead($sTempIni, "Labels", "desktop_3", "MISSING"), "MISSING")
 
+    ; -- RemoveAndShift: pre-remove snapshot prevents double-shift when the OS
+    ;    (or post-remove state) has already reindexed labels.
+    ;    Regression test for the Win11 bug where deleting a middle desktop
+    ;    caused the last label to duplicate and two names to be suppressed.
+    ;    We simulate the post-remove "already shifted" state by writing the INI
+    ;    AFTER snapshotting but BEFORE _Labels_RemoveAndShift runs — mirroring
+    ;    what Windows 11 does internally during _VD_RemoveDesktop.
+    FileDelete($sTempIni)
+    _Labels_InvalidateCache()
+    _Labels_Save(1, "A")
+    _Labels_Save(2, "B")
+    _Labels_Save(3, "C")
+    _Labels_Save(4, "D")
+    _Labels_Save(5, "E")
+    Local $aPreSnap = _Labels_SnapshotLabels(5)
+    ; Simulate Windows reindexing: positions 3..4 are now D,E and slot 5 still
+    ; holds the old E. If the implementation re-reads state here, it will
+    ; double-shift (slot 3 ends up E, slot 4 ends up E, D vanishes).
+    IniWrite($sTempIni, "Labels", "desktop_3", "D")
+    IniWrite($sTempIni, "Labels", "desktop_4", "E")
+    IniWrite($sTempIni, "Labels", "desktop_5", "E")
+    _Labels_InvalidateCache()
+    _Labels_RemoveAndShift(3, 5, $aPreSnap)
+    _Labels_InvalidateCache()
+    _Test_AssertEqual("Double-shift guard: pos 1 = A", _Labels_Load(1), "A")
+    _Test_AssertEqual("Double-shift guard: pos 2 = B", _Labels_Load(2), "B")
+    _Test_AssertEqual("Double-shift guard: pos 3 = D (not E)", _Labels_Load(3), "D")
+    _Test_AssertEqual("Double-shift guard: pos 4 = E (not duplicate)", _Labels_Load(4), "E")
+    _Test_AssertEqual("Double-shift guard: pos 5 purged", IniRead($sTempIni, "Labels", "desktop_5", "MISSING"), "MISSING")
+
     ; -- Cleanup --
     FileDelete($sTempIni)
 EndFunc
