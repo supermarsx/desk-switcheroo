@@ -195,32 +195,51 @@ Func _Labels_SyncFromOS()
     Return $bChanged
 EndFunc
 
+; Name:        _Labels_SnapshotLabels
+; Description: Captures the current label for desktops 1..$iCount. Prefers the OS
+;              name when sync is enabled, falls back to INI. Call BEFORE
+;              _VD_RemoveDesktop — Windows may reindex OS names during the
+;              remove, and the snapshot must reflect pre-remove state for
+;              _Labels_RemoveAndShift to shift correctly.
+; Parameters:  $iCount - number of desktops to snapshot (1-based)
+; Return:      Array of size $iCount + 1, indices 1..$iCount populated
+Func _Labels_SnapshotLabels($iCount)
+    If $iCount < 1 Then
+        Local $aEmpty[1]
+        Return $aEmpty
+    EndIf
+    Local $aLabels[$iCount + 1]
+    Local $i
+    For $i = 1 To $iCount
+        Local $s = ""
+        If $__g_Labels_bSyncOS Then $s = _VD_GetName($i)
+        If $s = "" And $__g_Labels_IniPath <> "" Then _
+                $s = IniRead($__g_Labels_IniPath, "Labels", "desktop_" & $i, "")
+        $aLabels[$i] = $s
+    Next
+    Return $aLabels
+EndFunc
+
 ; Name:        _Labels_RemoveAndShift
 ; Description: Shifts labels down after a desktop is removed at $iRemovedIndex,
 ;              and purges the orphan slot at the old last position. Called AFTER
-;              _VD_RemoveDesktop. Labels become authoritative regardless of whether
-;              Windows preserved OS names across the remove.
+;              _VD_RemoveDesktop, with a pre-remove snapshot from
+;              _Labels_SnapshotLabels. The pre-remove snapshot is mandatory:
+;              reading OS names here is unsafe because Windows may have already
+;              reindexed them, which would double-shift the labels.
 ; Parameters:  $iRemovedIndex - index of the removed desktop (1-based)
 ;              $iOldCount - desktop count BEFORE the removal
-Func _Labels_RemoveAndShift($iRemovedIndex, $iOldCount)
+;              $aSnapshot - pre-remove labels (from _Labels_SnapshotLabels)
+Func _Labels_RemoveAndShift($iRemovedIndex, $iOldCount, $aSnapshot)
     If $iRemovedIndex < 1 Or $iOldCount < 1 Or $iRemovedIndex > $iOldCount Then Return
     If $__g_Labels_IniPath = "" Then Return
-
-    ; Collect → shift → write: snapshot all old labels first so writes don't
-    ; pollute later reads. Prefer OS name when sync is on, fall back to INI.
-    Local $aLabels[$iOldCount + 1]
-    Local $i
-    For $i = 1 To $iOldCount
-        Local $s = ""
-        If $__g_Labels_bSyncOS Then $s = _VD_GetName($i)
-        If $s = "" Then $s = IniRead($__g_Labels_IniPath, "Labels", "desktop_" & $i, "")
-        $aLabels[$i] = $s
-    Next
+    If Not IsArray($aSnapshot) Or UBound($aSnapshot) < $iOldCount + 1 Then Return
 
     ; Shift positions iRemovedIndex+1..iOldCount down by 1 (no-op when removing
     ; the last desktop). _Labels_Save handles OS + INI + cache.
+    Local $i
     For $i = $iRemovedIndex To $iOldCount - 1
-        _Labels_Save($i, $aLabels[$i + 1])
+        _Labels_Save($i, $aSnapshot[$i + 1])
     Next
 
     ; Purge orphan at old last position

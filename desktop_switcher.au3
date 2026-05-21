@@ -1395,9 +1395,10 @@ Func _DoDeleteDesktop($iTarget)
     If _Cfg_GetConfirmDelete() And Not _Theme_Confirm(_i18n_Format("Dialogs.confirm_delete_title", "Delete {1}?", $sDelLabel), _
             _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then Return False
     Local $iOldCount = _VD_GetCount()
+    Local $aSnap = _Labels_SnapshotLabels($iOldCount)
     _VD_RemoveDesktop($iTarget)
     Sleep(100)
-    _Labels_RemoveAndShift($iTarget, $iOldCount)
+    _Labels_RemoveAndShift($iTarget, $iOldCount, $aSnap)
     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopDeleted() Then
         _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
     EndIf
@@ -2577,9 +2578,10 @@ Func _HK_DeleteDesktop()
     _Log_Debug("Hotkey: delete desktop " & $iDesktop)
     Local $iOldCount = _VD_GetCount()
     Local $iRemoved = $iDesktop
+    Local $aSnap = _Labels_SnapshotLabels($iOldCount)
     _VD_RemoveDesktop($iDesktop)
     Sleep(100)
-    _Labels_RemoveAndShift($iRemoved, $iOldCount)
+    _Labels_RemoveAndShift($iRemoved, $iOldCount, $aSnap)
     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopDeleted() Then
         _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
     EndIf
@@ -2902,9 +2904,10 @@ Func _CheckTrayMessages()
                             _i18n("Dialogs.confirm_delete_msg", "Windows will be moved to an adjacent desktop.")) Then
                         Local $iOldCountTray = _VD_GetCount()
                         Local $iRemovedTray = $iDesktop
+                        Local $aSnapTray = _Labels_SnapshotLabels($iOldCountTray)
                         _VD_RemoveDesktop($iDesktop)
                         Sleep(100)
-                        _Labels_RemoveAndShift($iRemovedTray, $iOldCountTray)
+                        _Labels_RemoveAndShift($iRemovedTray, $iOldCountTray, $aSnapTray)
                         If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopDeleted() Then
                             _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
                         EndIf

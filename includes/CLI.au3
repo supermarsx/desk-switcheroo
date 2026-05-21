@@ -219,8 +219,9 @@ Func _CLI_ExecuteLocal()
                 Return False
             EndIf
             Local $iCliOldCount = _VD_GetCount()
+            Local $aCliSnap = _Labels_SnapshotLabels($iCliOldCount)
             _VD_RemoveDesktop($iRemove)
-            _Labels_RemoveAndShift($iRemove, $iCliOldCount)
+            _Labels_RemoveAndShift($iRemove, $iCliOldCount, $aCliSnap)
             _Log_Info("CLI: removed desktop " & $iRemove)
         Case "rename"
             If $__g_CLI_sArg = "" Or Not StringIsInt($__g_CLI_sArg) Then
