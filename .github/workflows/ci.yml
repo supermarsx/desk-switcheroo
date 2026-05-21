@@ -7,7 +7,7 @@ on:
 
 jobs:
   lint:
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     steps:
       - uses: actions/checkout@v6
       - name: Install AutoIt
@@ -25,7 +25,7 @@ jobs:
         shell: pwsh
 
   format:
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     steps:
       - uses: actions/checkout@v6
       - name: Check formatting
@@ -47,7 +47,7 @@ jobs:
         shell: pwsh
 
   test:
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     steps:
       - uses: actions/checkout@v6
       - name: Install AutoIt
@@ -70,7 +70,7 @@ jobs:
           path: test_output.txt
 
   build:
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     needs: [lint, format, test]
     steps:
       - uses: actions/checkout@v6
@@ -96,7 +96,7 @@ jobs:
 
   release:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     needs: build
     permissions:
       contents: write
