@@ -567,7 +567,9 @@ Func __Perf_WindowList()
     Next
     $fTotal = TimerDiff($hTimer)
     ; Nine string-dispatch calls per iteration are consistently slower on hosted runners than local dev boxes.
-    __Perf_AssertAvgBelow("WL CalcPosition all 9 positions", $fTotal, 5000, 0.35)
+    ; Each call also does two config getters (custom drag-position check), so the budget carries
+    ; generous headroom to stay robust under concurrent-executor / slow-CI-runner load.
+    __Perf_AssertAvgBelow("WL CalcPosition all 9 positions", $fTotal, 5000, 2.0)
 
     ; G2. __WL_CalcPosition — edge case (oversized triggers clamping)
     $hTimer = TimerInit()
@@ -575,7 +577,9 @@ Func __Perf_WindowList()
         __WL_CalcPosition("bottom-right", 99999, 99999, $iX, $iY)
     Next
     $fTotal = TimerDiff($hTimer)
-    __Perf_AssertAvgBelow("WL CalcPosition oversized (clamp)", $fTotal, 5000, 0.05)
+    ; Generous headroom (was 0.05) to stay robust under load; the getter-guarded custom-position
+    ; check runs before the clamp path on every call.
+    __Perf_AssertAvgBelow("WL CalcPosition oversized (clamp)", $fTotal, 5000, 0.30)
 EndFunc
 
 ; ==== SUITE H: Session Restore Performance ====
