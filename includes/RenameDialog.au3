@@ -2,6 +2,7 @@
 #include <EditConstants.au3>
 #include "Theme.au3"
 #include "Labels.au3"
+#include "ContextMenu.au3" ; reuse _CM_GetWorkArea / _CM_ClampToWorkArea placement helpers
 
 ; #INDEX# =======================================================
 ; Title .........: RenameDialog
@@ -41,8 +42,21 @@ Func _RD_Show($iDesktop, $iTaskbarY)
     Local $sOld = _Labels_Load($iDesktop)
 
     Local $iDlgW = 280, $iDlgH = 110
-    Local $iDlgX = 20
-    Local $iDlgY = $iTaskbarY - $iDlgH - 10
+
+    ; Anchor at the cursor (where the user clicked), clamped to the cursor's
+    ; monitor; fall back to bottom-left above the taskbar when unavailable.
+    Local $iCurX = 0, $iCurY = $iTaskbarY
+    Local $aMouse = MouseGetPos()
+    If Not @error And IsArray($aMouse) Then
+        $iCurX = $aMouse[0]
+        $iCurY = $aMouse[1]
+    EndIf
+
+    Local $iWaLeft, $iWaTop, $iWaRight, $iWaBottom
+    _CM_GetWorkArea($iCurX, $iCurY, $iWaLeft, $iWaTop, $iWaRight, $iWaBottom, $iTaskbarY)
+
+    Local $iDlgX, $iDlgY
+    _CM_ClampToWorkArea($iCurX, $iCurY, $iDlgW, $iDlgH, $iWaLeft, $iWaTop, $iWaRight, $iWaBottom, $iDlgX, $iDlgY)
 
     $__g_RD_hGUI = _Theme_CreatePopup("Rename", $iDlgW, $iDlgH, $iDlgX, $iDlgY, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
 

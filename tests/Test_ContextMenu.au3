@@ -10,6 +10,52 @@ Func _RunTest_ContextMenu()
 
     Local $iTestTaskbarY = @DesktopHeight - 48
 
+    ; -- Clamp helper truth table (pure geometry; work rect 0,0..1920x1040) --
+    Local $ox = 0, $oy = 0
+    ; Down-right, fully in bounds — no flip, no clamp
+    _CM_ClampToWorkArea(100, 100, 170, 300, 0, 0, 1920, 1040, $ox, $oy)
+    _Test_AssertEqual("Clamp: in-bounds X", $ox, 100)
+    _Test_AssertEqual("Clamp: in-bounds Y", $oy, 100)
+    ; Near right edge — flips left (right edge of menu at cursor)
+    _CM_ClampToWorkArea(1900, 100, 170, 300, 0, 0, 1920, 1040, $ox, $oy)
+    _Test_AssertEqual("Clamp: right edge flips X", $ox, 1730)
+    _Test_AssertEqual("Clamp: right edge keeps Y", $oy, 100)
+    ; Near bottom edge — flips up
+    _CM_ClampToWorkArea(100, 1000, 170, 300, 0, 0, 1920, 1040, $ox, $oy)
+    _Test_AssertEqual("Clamp: bottom edge keeps X", $ox, 100)
+    _Test_AssertEqual("Clamp: bottom edge flips Y", $oy, 700)
+    ; Bottom-right corner — flips both
+    _CM_ClampToWorkArea(1900, 1000, 170, 300, 0, 0, 1920, 1040, $ox, $oy)
+    _Test_AssertEqual("Clamp: corner flips X", $ox, 1730)
+    _Test_AssertEqual("Clamp: corner flips Y", $oy, 700)
+    ; Menu wider than the work area — clamp to left edge
+    _CM_ClampToWorkArea(100, 100, 3000, 300, 0, 0, 1920, 1040, $ox, $oy)
+    _Test_AssertEqual("Clamp: over-wide menu pinned to left", $ox, 0)
+    ; Menu taller than the work area — clamp to top edge
+    _CM_ClampToWorkArea(100, 100, 170, 2000, 0, 0, 1920, 1040, $ox, $oy)
+    _Test_AssertEqual("Clamp: over-tall menu pinned to top", $oy, 0)
+    ; Negative-coordinate monitor (left of primary): work rect -1920,0..0x1040
+    _CM_ClampToWorkArea(-100, 500, 170, 300, -1920, 0, 0, 1040, $ox, $oy)
+    _Test_AssertEqual("Clamp: negative monitor flips X", $ox, -270)
+    _Test_AssertEqual("Clamp: negative monitor keeps Y", $oy, 500)
+    ; Negative-coordinate monitor, near its left edge — clamp to left
+    _CM_ClampToWorkArea(-1900, 500, 170, 300, -1920, 0, 0, 1040, $ox, $oy)
+    _Test_AssertEqual("Clamp: negative monitor left edge X", $ox, -1900)
+    _Test_AssertEqual("Clamp: negative monitor left edge Y", $oy, 500)
+
+    ; -- Work-area helper returns a sane rect --
+    Local $wl = 0, $wt = 0, $wr = 0, $wb = 0
+    _CM_GetWorkArea(10, 10, $wl, $wt, $wr, $wb, $iTestTaskbarY)
+    _Test_AssertTrue("WorkArea: right > left", $wr > $wl)
+    _Test_AssertTrue("WorkArea: bottom > top", $wb > $wt)
+
+    ; -- Fallback literal updated to 'Rename Desktop' (guards the source change) --
+    Local $sCMSrc = FileRead(@ScriptDir & "\..\includes\ContextMenu.au3")
+    _Test_AssertTrue("Edit item fallback = 'Rename Desktop'", _
+        StringInStr($sCMSrc, '"ContextMenu.cm_edit_label", "Rename Desktop"') > 0)
+    _Test_AssertEqual("Old 'Edit Label' fallback removed", _
+        StringInStr($sCMSrc, '"ContextMenu.cm_edit_label", "Edit Label"'), 0)
+
     ; -- Initially not visible --
     _Test_AssertFalse("Initially not visible", _CM_IsVisible())
     _Test_AssertEqual("Initially GUI = 0", _CM_GetGUI(), 0)
@@ -18,6 +64,19 @@ Func _RunTest_ContextMenu()
     _CM_Show($iTestTaskbarY, False)
     _Test_AssertTrue("Show: is visible", _CM_IsVisible())
     _Test_AssertNotEqual("Show: GUI <> 0", _CM_GetGUI(), 0)
+
+    ; -- Shown menu stays within the cursor monitor's work area --
+    Local $aMenuPos = WinGetPos(_CM_GetGUI())
+    If IsArray($aMenuPos) Then
+        Local $mwl = 0, $mwt = 0, $mwr = 0, $mwb = 0
+        _CM_GetWorkArea($aMenuPos[0], $aMenuPos[1], $mwl, $mwt, $mwr, $mwb, $iTestTaskbarY)
+        _Test_AssertTrue("Show: menu left in bounds", $aMenuPos[0] >= $mwl - 1)
+        _Test_AssertTrue("Show: menu top in bounds", $aMenuPos[1] >= $mwt - 1)
+        _Test_AssertTrue("Show: menu right in bounds", $aMenuPos[0] + $aMenuPos[2] <= $mwr + 1)
+        _Test_AssertTrue("Show: menu bottom in bounds", $aMenuPos[1] + $aMenuPos[3] <= $mwb + 1)
+    Else
+        _Test_Skip("Show: menu placement in bounds")
+    EndIf
 
     ; -- HandleClick with no match returns empty --
     _Test_AssertEqual("HandleClick(0) = empty", _CM_HandleClick(0), "")

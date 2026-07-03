@@ -28,6 +28,19 @@ Func _RunTest_RenameDialog()
     _Test_AssertTrue("Show: is visible", _RD_IsVisible())
     _Test_AssertNotEqual("Show: GUI <> 0", _RD_GetGUI(), 0)
 
+    ; -- Shown dialog stays within the cursor monitor's work area (clamped) --
+    Local $aRDPos = WinGetPos(_RD_GetGUI())
+    If IsArray($aRDPos) Then
+        Local $rwl = 0, $rwt = 0, $rwr = 0, $rwb = 0
+        _CM_GetWorkArea($aRDPos[0], $aRDPos[1], $rwl, $rwt, $rwr, $rwb, $iTestTaskbarY)
+        _Test_AssertTrue("Show: dialog left in bounds", $aRDPos[0] >= $rwl - 1)
+        _Test_AssertTrue("Show: dialog top in bounds", $aRDPos[1] >= $rwt - 1)
+        _Test_AssertTrue("Show: dialog right in bounds", $aRDPos[0] + $aRDPos[2] <= $rwr + 1)
+        _Test_AssertTrue("Show: dialog bottom in bounds", $aRDPos[1] + $aRDPos[3] <= $rwb + 1)
+    Else
+        _Test_Skip("Show: dialog placement in bounds")
+    EndIf
+
     ; -- Destroy removes dialog --
     _RD_Destroy()
     _Test_AssertFalse("Destroy: not visible", _RD_IsVisible())

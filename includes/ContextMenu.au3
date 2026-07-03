@@ -33,9 +33,80 @@ Global $__g_CM_bHideArmed = False
 
 ; #FUNCTIONS# ===================================================
 
+; Name:        _CM_ClampToWorkArea
+; Description: Pure geometry helper (side-effect free, headless-testable). Given a
+;              cursor anchor, a popup size, and a monitor work rect, computes the
+;              popup's top-left so it opens down-right of the cursor, flips up/left
+;              when it would overflow, and always ends up fully inside the work
+;              rect. Also handles a popup larger than the work area and monitors
+;              with negative origins (multi-monitor).
+; Parameters:  $iCurX, $iCurY - anchor point (cursor), screen coords
+;              $iW, $iH - popup width and height
+;              $iLeft, $iTop, $iRight, $iBottom - monitor work rect (exclusive R/B)
+;              ByRef $iOutX, $iOutY - resolved top-left
+Func _CM_ClampToWorkArea($iCurX, $iCurY, $iW, $iH, $iLeft, $iTop, $iRight, $iBottom, ByRef $iOutX, ByRef $iOutY)
+    ; Preferred placement: down-right of the cursor.
+    Local $iX = $iCurX
+    Local $iY = $iCurY
+    ; Flip to the other side of the cursor when the preferred side overflows.
+    If $iX + $iW > $iRight Then $iX = $iCurX - $iW
+    If $iY + $iH > $iBottom Then $iY = $iCurY - $iH
+    ; Final clamp: covers post-flip overflow and popups larger than the work area.
+    If $iX + $iW > $iRight Then $iX = $iRight - $iW
+    If $iX < $iLeft Then $iX = $iLeft
+    If $iY + $iH > $iBottom Then $iY = $iBottom - $iH
+    If $iY < $iTop Then $iY = $iTop
+    $iOutX = $iX
+    $iOutY = $iY
+EndFunc
+
+; Name:        _CM_GetWorkArea
+; Description: Resolves the work area (screen minus taskbar) of the monitor that
+;              contains a screen point, via MonitorFromPoint + GetMonitorInfo.
+;              Handles multi-monitor layouts including negative coordinates. Falls
+;              back to the primary desktop above the taskbar when the monitor query
+;              is unavailable.
+; Parameters:  $iX, $iY - screen point (may be negative on multi-monitor)
+;              ByRef $iLeft, $iTop, $iRight, $iBottom - resolved work rect
+;              $iTaskbarY - fallback bottom bound, used only when the query fails
+Func _CM_GetWorkArea($iX, $iY, ByRef $iLeft, ByRef $iTop, ByRef $iRight, ByRef $iBottom, $iTaskbarY = 0)
+    ; Fallback: primary monitor, above the taskbar when a sane taskbar Y is given.
+    $iLeft = 0
+    $iTop = 0
+    $iRight = @DesktopWidth
+    $iBottom = @DesktopHeight
+    If $iTaskbarY > 0 And $iTaskbarY < @DesktopHeight Then $iBottom = $iTaskbarY
+
+    ; Pack the POINT (two 32-bit LONGs) into a single INT64 for the by-value
+    ; MonitorFromPoint argument (x64 passes an 8-byte POINT in one register).
+    Local $tPt = DllStructCreate("int x;int y")
+    If @error Then Return
+    DllStructSetData($tPt, "x", $iX)
+    DllStructSetData($tPt, "y", $iY)
+    Local $tI64 = DllStructCreate("int64 v", DllStructGetPtr($tPt))
+    If @error Then Return
+    Local Const $MONITOR_DEFAULTTONEAREST = 2
+    Local $aMon = DllCall("user32.dll", "handle", "MonitorFromPoint", _
+        "int64", DllStructGetData($tI64, "v"), "dword", $MONITOR_DEFAULTTONEAREST)
+    If @error Or Not IsArray($aMon) Or $aMon[0] = 0 Then Return
+
+    Local $tMI = DllStructCreate("dword cbSize;int mL;int mT;int mR;int mB;int wL;int wT;int wR;int wB;dword dwFlags")
+    If @error Then Return
+    DllStructSetData($tMI, "cbSize", DllStructGetSize($tMI))
+    Local $aInfo = DllCall("user32.dll", "bool", "GetMonitorInfoW", "handle", $aMon[0], "struct*", $tMI)
+    If @error Or Not IsArray($aInfo) Or $aInfo[0] = 0 Then Return
+
+    $iLeft = DllStructGetData($tMI, "wL")
+    $iTop = DllStructGetData($tMI, "wT")
+    $iRight = DllStructGetData($tMI, "wR")
+    $iBottom = DllStructGetData($tMI, "wB")
+EndFunc
+
 ; Name:        _CM_Show
-; Description: Creates and shows the themed context menu above the taskbar
-; Parameters:  $iTaskbarY - Y position of the taskbar
+; Description: Creates and shows the themed context menu at the cursor, clamped to
+;              the monitor containing the cursor
+; Parameters:  $iTaskbarY - Y position of the taskbar (fallback anchor when the
+;                            cursor position is unavailable)
 ;              $bListVisible - whether the desktop list is currently showing
 Func _CM_Show($iTaskbarY, $bListVisible)
     Local $iMenuW = 170
@@ -47,14 +118,27 @@ Func _CM_Show($iTaskbarY, $bListVisible)
     If _Cfg_GetDebugMode() Then $iItemCount += 1
     If _Cfg_GetCarouselEnabled() And _Cfg_GetCarouselShowInMenu() Then $iItemCount += 1
     Local $iMenuH = $iItemCount * $THEME_MENU_ITEM_H + 2 * $iSepH + 20
-    Local $iMenuX = 0
-    Local $iMenuY = $iTaskbarY - $iMenuH
+
+    ; Anchor at the cursor; fall back to bottom-left above the taskbar when the
+    ; cursor position is unavailable.
+    Local $iCurX = 0, $iCurY = $iTaskbarY
+    Local $aMouse = MouseGetPos()
+    If Not @error And IsArray($aMouse) Then
+        $iCurX = $aMouse[0]
+        $iCurY = $aMouse[1]
+    EndIf
+
+    Local $iWaLeft, $iWaTop, $iWaRight, $iWaBottom
+    _CM_GetWorkArea($iCurX, $iCurY, $iWaLeft, $iWaTop, $iWaRight, $iWaBottom, $iTaskbarY)
+
+    Local $iMenuX, $iMenuY
+    _CM_ClampToWorkArea($iCurX, $iCurY, $iMenuW, $iMenuH, $iWaLeft, $iWaTop, $iWaRight, $iWaBottom, $iMenuX, $iMenuY)
 
     $__g_CM_hGUI = _Theme_CreatePopup("Menu", $iMenuW, $iMenuH, $iMenuX, $iMenuY, $THEME_BG_POPUP, $THEME_ALPHA_MENU)
 
     Local $iY = 4
 
-    $__g_CM_iEditID = _Theme_CreateMenuItem("  " & _i18n("ContextMenu.cm_edit_label", "Edit Label"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $__g_CM_iEditID = _Theme_CreateMenuItem("  " & _i18n("ContextMenu.cm_edit_label", "Rename Desktop"), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     $iY += $THEME_MENU_ITEM_H
 
     If _Cfg_GetDesktopColorsEnabled() Then
