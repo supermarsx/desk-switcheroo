@@ -103,6 +103,85 @@ Func _RunTest_ConfigDialog()
     _Test_AssertEqual("Shift+-", __CD_BuildHotkeyString(False, False, True, False, "-"), "+-")
     _Test_AssertEqual("Win+[", __CD_BuildHotkeyString(False, False, False, True, "["), "#[")
 
+    ; -- Sub-tab hover hit-test (pure) --
+    Local $aSubBtns[4] = [101, 102, 103, 104]
+    _Test_AssertEqual("SubHover: cursor over non-active returns that btn", __CD_SubTabHoverHit($aSubBtns, 4, 0, 103), 103)
+    _Test_AssertEqual("SubHover: cursor over active is excluded", __CD_SubTabHoverHit($aSubBtns, 4, 2, 103), 0)
+    _Test_AssertEqual("SubHover: cursor over first non-active", __CD_SubTabHoverHit($aSubBtns, 4, 3, 101), 101)
+    _Test_AssertEqual("SubHover: cursor over nothing returns 0", __CD_SubTabHoverHit($aSubBtns, 4, 0, 999), 0)
+    _Test_AssertEqual("SubHover: count limits scan", __CD_SubTabHoverHit($aSubBtns, 2, 0, 103), 0)
+
+    ; -- Nesting-safe lock depth counter (hGUI=0 skips the real LockWindowUpdate) --
+    $__g_CD_hGUI = 0
+    $__g_CD_iLockDepth = 0
+    __CD_LockBegin()
+    _Test_AssertEqual("Lock: depth 1 after first begin", $__g_CD_iLockDepth, 1)
+    __CD_LockBegin()
+    _Test_AssertEqual("Lock: depth 2 after nested begin", $__g_CD_iLockDepth, 2)
+    __CD_LockEnd()
+    _Test_AssertEqual("Lock: depth 1 after inner end", $__g_CD_iLockDepth, 1)
+    __CD_LockEnd()
+    _Test_AssertEqual("Lock: depth 0 after outer end", $__g_CD_iLockDepth, 0)
+    __CD_LockEnd()
+    _Test_AssertEqual("Lock: depth clamps at 0 (no underflow)", $__g_CD_iLockDepth, 0)
+
+    ; -- Settings search: registry, matcher, navigation mapping (t1-e11, pure) --
+    __CD_SearchReset()
+    _Test_AssertEqual("Search: empty registry count 0", $__g_CD_iSearchCount, 0)
+    _Test_AssertEqual("Search: empty query yields 0 results", __CD_SearchMatch("widget"), 0)
+
+    ; Synthetic registry spanning several tabs / sub-tabs (label + tooltip)
+    __CD_SearchAdd(201, 1, 1, "General > Widget > Enable widget drag", "Enable widget drag", "Hold and drag the widget", $GUI_BKCOLOR_TRANSPARENT)
+    __CD_SearchAdd(202, 1, 2, "General > Desktop > Wrap navigation", "Wrap navigation at ends", "Left arrow on first desktop goes to last", $GUI_BKCOLOR_TRANSPARENT)
+    __CD_SearchAdd(203, 2, 1, "Display > Appearance > Opacity", "Widget opacity", "Widget transparency 50-255", $THEME_BG_INPUT)
+    __CD_SearchAdd(204, 4, 1, "Behavior > Interaction > Disable native OSD", "Disable native OSD", "Suppress the Windows switch animation", $GUI_BKCOLOR_TRANSPARENT)
+    __CD_SearchAdd(205, 10, 0, "Window List > Draggable window list", "Draggable window list", "Drag the window list to reposition", $GUI_BKCOLOR_TRANSPARENT)
+    _Test_AssertEqual("Search: registry count after 5 adds", $__g_CD_iSearchCount, 5)
+
+    ; Coverage helper: contributing vs non-contributing tabs
+    _Test_AssertTrue("Search: tab 1 contributes", __CD_SearchTabContributes(1))
+    _Test_AssertTrue("Search: tab 10 contributes", __CD_SearchTabContributes(10))
+    _Test_AssertFalse("Search: tab 5 has no entries", __CD_SearchTabContributes(5))
+
+    ; Matcher: case-insensitive substring over label AND tooltip
+    _Test_AssertEqual("Search: 'widget' matches (label+tooltip)", __CD_SearchMatch("widget"), 2)
+    _Test_AssertEqual("Search: 'WIDGET' is case-insensitive", __CD_SearchMatch("WIDGET"), 2)
+    _Test_AssertEqual("Search: 'navigation' matches label", __CD_SearchMatch("navigation"), 1)
+    _Test_AssertEqual("Search: 'animation' matches tooltip only", __CD_SearchMatch("animation"), 1)
+    _Test_AssertEqual("Search: 'window list' multi-word substring", __CD_SearchMatch("window list"), 1)
+    _Test_AssertEqual("Search: no-match query yields 0", __CD_SearchMatch("zzznomatch"), 0)
+    _Test_AssertEqual("Search: empty query yields 0", __CD_SearchMatch(""), 0)
+    _Test_AssertEqual("Search: whitespace query yields 0", __CD_SearchMatch("   "), 0)
+
+    ; Result indices point at the matched registry entries
+    __CD_SearchMatch("osd")
+    _Test_AssertEqual("Search: 'osd' single match count", $__g_CD_iSearchResultCount, 1)
+    _Test_AssertEqual("Search: 'osd' result index -> entry 3", $__g_CD_aSearchResultIdx[0], 3)
+
+    ; Navigation mapping: sets the right sub-tab/page global for the entry's tab
+    $__g_CD_iGenActiveSub = 99
+    __CD_SetActiveSubForTab(1, 2)
+    _Test_AssertEqual("Nav: tab1 sub2 -> GenActiveSub", $__g_CD_iGenActiveSub, 2)
+    $__g_CD_iDispActiveSub = 99
+    __CD_SetActiveSubForTab(2, 1)
+    _Test_AssertEqual("Nav: tab2 sub1 -> DispActiveSub", $__g_CD_iDispActiveSub, 1)
+    $__g_CD_iHkActiveSub = 99
+    __CD_SetActiveSubForTab(3, 3)
+    _Test_AssertEqual("Nav: tab3 sub3 -> HkActiveSub", $__g_CD_iHkActiveSub, 3)
+    $__g_CD_iBhvActiveSub = 99
+    __CD_SetActiveSubForTab(4, 4)
+    _Test_AssertEqual("Nav: tab4 sub4 -> BhvActiveSub", $__g_CD_iBhvActiveSub, 4)
+    $__g_CD_iDeskPage = 99
+    __CD_SetActiveSubForTab(7, 3)
+    _Test_AssertEqual("Nav: tab7 page3 -> DeskPage", $__g_CD_iDeskPage, 3)
+    ; sub 0 (tab with no sub-tabs) is a no-op — no global clobbered
+    $__g_CD_iGenActiveSub = 5
+    __CD_SetActiveSubForTab(10, 0)
+    _Test_AssertEqual("Nav: sub 0 is a no-op", $__g_CD_iGenActiveSub, 5)
+
+    ; Restore registry so later assertions / suites start clean
+    __CD_SearchReset()
+
     ; -- Dialog visibility (before show) --
     _Test_AssertFalse("CD not visible initially", _CD_IsVisible())
     _Test_AssertEqual("CD GUI handle is 0", _CD_GetGUI(), 0)
