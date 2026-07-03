@@ -83,6 +83,39 @@ Global $__g_WL_hRefreshTimer = 0
 ; Auto-hide
 Global $__g_WL_hAutoHideTimer = 0
 
+; Title bar / drag
+Global $__g_WL_idTitle = 0          ; title label control ID (drag handle)
+Global $__g_WL_iTitleBottom = 0     ; window-relative Y of the title-bar bottom edge
+Global $__g_WL_bDragging = False
+Global $__g_WL_bDragPending = False
+Global $__g_WL_iDragOffsetX = 0     ; cursor-to-window offset captured on press
+Global $__g_WL_iDragOffsetY = 0
+Global $__g_WL_iDragStartX = 0      ; press position, for the move threshold
+Global $__g_WL_iDragStartY = 0
+Global $__g_WL_bDragLeftWasDown = False
+
+; Titlebar context menu
+Global $__g_WL_hTitleCtxGUI = 0
+Global $__g_WL_bTitleCtxVisible = False
+Global $__g_WL_iTitleCtxHovered = 0
+Global $__g_WL_hTitleCtxGraceTimer = 0
+Global $__g_WL_hTitleCtxAwayTimer = 0
+Global $__g_WL_iTitlePin = 0
+Global $__g_WL_iTitleRefresh = 0
+Global $__g_WL_iTitleSendAllParent = 0
+Global $__g_WL_iTitleClose = 0
+
+; Send All to Desktop submenu (title menu)
+Global $__g_WL_hSendAllGUI = 0
+Global $__g_WL_bSendAllVisible = False
+Global $__g_WL_iSendAllHovered = 0
+Global $__g_WL_iSendAllNext = 0
+Global $__g_WL_iSendAllPrev = 0
+Global $__g_WL_iSendAllNew = 0
+Global $__g_WL_aSendAllTo[101]        ; control IDs for Send-All items
+Global $__g_WL_aiSendAllToDest[101]   ; target desktop number for each item
+Global $__g_WL_iSendAllToCount = 0
+
 ; #INTERNAL HELPERS# ============================================
 
 ; Name:        __WL_TruncateTitle
@@ -205,6 +238,23 @@ EndFunc
 ;              ByRef $iX - receives X position
 ;              ByRef $iY - receives Y position
 Func __WL_CalcPosition($sPosition, $iW, $iH, ByRef $iX, ByRef $iY)
+    ; Persisted drag position takes precedence over the anchor. -1 = unset.
+    Local $iCustomX = _Cfg_GetWindowListCustomX()
+    Local $iCustomY = _Cfg_GetWindowListCustomY()
+    If $iCustomX <> -1 And $iCustomY <> -1 Then
+        ; Clamp to the work area of the monitor under the saved point so the panel
+        ; stays reachable if the display layout changed since it was dragged.
+        Local $iL, $iT, $iR, $iB
+        _CM_GetWorkArea($iCustomX, $iCustomY, $iL, $iT, $iR, $iB)
+        $iX = $iCustomX
+        $iY = $iCustomY
+        If $iX + $iW > $iR Then $iX = $iR - $iW
+        If $iX < $iL Then $iX = $iL
+        If $iY + $iH > $iB Then $iY = $iB - $iH
+        If $iY < $iT Then $iY = $iT
+        Return
+    EndIf
+
     Local $iCenterX = Int((@DesktopWidth - $iW) / 2)
     Local $iCenterY = Int((@DesktopHeight - $iH) / 2)
     Switch $sPosition
@@ -331,11 +381,14 @@ Func _WL_Show($iDesktop)
 
     ; Title label
     Local $sTitleText = _i18n_Format("WindowList.wl_title", "Windows on Desktop {1}", $iDesktop)
-    Local $idTitle = GUICtrlCreateLabel(" " & $sTitleText, 4, $iContentY, $iListW - 8, $iTitleH, _
+    $__g_WL_idTitle = GUICtrlCreateLabel(" " & $sTitleText, 4, $iContentY, $iListW - 8, $iTitleH, _
         BitOR($SS_CENTERIMAGE, $SS_LEFT))
-    GUICtrlSetFont($idTitle, 9, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($idTitle, $THEME_FG_PRIMARY)
-    GUICtrlSetBkColor($idTitle, $GUI_BKCOLOR_TRANSPARENT)
+    GUICtrlSetFont($__g_WL_idTitle, 9, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_WL_idTitle, $THEME_FG_PRIMARY)
+    GUICtrlSetBkColor($__g_WL_idTitle, $GUI_BKCOLOR_TRANSPARENT)
+    ; Title bar doubles as the drag handle when dragging is enabled.
+    If _Cfg_GetWindowListDraggable() Then GUICtrlSetCursor($__g_WL_idTitle, 9) ; size-all
+    $__g_WL_iTitleBottom = $iContentY + $iTitleH
     $iContentY += $iTitleH
 
     ; Search input
@@ -420,20 +473,12 @@ Func _WL_Show($iDesktop)
         GUICtrlSetCursor($__g_WL_idScrollDown, 0)
     EndIf
 
-    ; Show without stealing focus (SW_SHOWNOACTIVATE), then animate
+    ; Show without stealing focus (SW_SHOWNOACTIVATE) at full opacity.
+    ; R7 (responsiveness): the old blocking For..Sleep fade-in stalled the entire
+    ; single-threaded UI for ~64 ms (up to 2450 ms with a slow fade config) on every
+    ; open. The panel is data-heavy, so we drop the fade and rely on SW_SHOWNOACTIVATE.
     GUISetState(@SW_SHOWNOACTIVATE, $__g_WL_hGUI)
-    If __Theme_ShouldAnimate("list") Then
-        _WinAPI_SetLayeredWindowAttributes($__g_WL_hGUI, 0, 0, $LWA_ALPHA)
-        Local $__iFadeStep = _Cfg_GetFadeStep()
-        Local $__iFadeSleep = _Cfg_GetFadeSleepMs()
-        Local $__iFadeTarget = $THEME_ALPHA_POPUP
-        Local $__iA
-        For $__iA = 0 To $__iFadeTarget Step $__iFadeStep
-            _WinAPI_SetLayeredWindowAttributes($__g_WL_hGUI, 0, $__iA, $LWA_ALPHA)
-            Sleep($__iFadeSleep)
-        Next
-        _WinAPI_SetLayeredWindowAttributes($__g_WL_hGUI, 0, $__iFadeTarget, $LWA_ALPHA)
-    EndIf
+    _WinAPI_SetLayeredWindowAttributes($__g_WL_hGUI, 0, $THEME_ALPHA_POPUP, $LWA_ALPHA)
     $__g_WL_bVisible = True
 
     ; Start auto-refresh timer if enabled
@@ -449,6 +494,7 @@ EndFunc
 ; Description: Destroys the window list GUI and resets all state
 Func _WL_Destroy()
     _WL_CtxDestroy()
+    _WL_TitleCtxDestroy()
     If $__g_WL_hGUI <> 0 Then
         _Theme_FadeOut($__g_WL_hGUI, "list")
         $__g_WL_hGUI = 0
@@ -464,6 +510,11 @@ Func _WL_Destroy()
     $__g_WL_sLastSearch = ""
     $__g_WL_hRefreshTimer = 0
     $__g_WL_hAutoHideTimer = 0
+    $__g_WL_idTitle = 0
+    $__g_WL_iTitleBottom = 0
+    $__g_WL_bDragging = False
+    $__g_WL_bDragPending = False
+    $__g_WL_bDragLeftWasDown = False
 EndFunc
 
 ; Name:        _WL_Toggle
@@ -550,8 +601,8 @@ Func _WL_CheckAutoRefresh($iDesktop)
     If $__g_WL_hRefreshTimer = 0 Then Return
     If TimerDiff($__g_WL_hRefreshTimer) < _Cfg_GetWindowListRefreshInterval() Then Return
 
-    ; Don't refresh while context menu is open
-    If $__g_WL_bCtxVisible Then
+    ; Don't refresh while a context menu is open
+    If $__g_WL_bCtxVisible Or $__g_WL_bTitleCtxVisible Then
         $__g_WL_hRefreshTimer = TimerInit()
         Return
     EndIf
@@ -597,8 +648,8 @@ EndFunc
 Func _WL_CheckHover()
     If Not $__g_WL_bVisible Or $__g_WL_hGUI = 0 Then Return
     If $__g_WL_iItemCount < 1 Then Return
-    ; Keep hover locked on the right-clicked item while context menu is open
-    If $__g_WL_bCtxVisible Then Return
+    ; Keep hover locked on the right-clicked item while a context menu is open
+    If $__g_WL_bCtxVisible Or $__g_WL_bTitleCtxVisible Then Return
 
     Local $iMaxVisible = _Cfg_GetWindowListMaxVisible()
     Local $iVisibleCount = $__g_WL_iItemCount
@@ -661,7 +712,8 @@ EndFunc
 ; Return:      True if the list was auto-hidden, False otherwise
 Func _WL_CheckAutoHide($hMainGUI)
     If Not $__g_WL_bVisible Then Return False
-    If $__g_WL_bCtxVisible Then Return False ; don't auto-hide while context menu is open
+    If _Cfg_GetWindowListPinned() Then Return False ; pinned lists ignore auto-hide
+    If $__g_WL_bCtxVisible Or $__g_WL_bTitleCtxVisible Then Return False ; don't auto-hide while a context menu is open
     If $__g_WL_hAutoHideTimer = 0 Then Return False
     If TimerDiff($__g_WL_hAutoHideTimer) <= _Cfg_GetAutoHideTimeout() Then Return False
     If _Theme_IsCursorOverWindow($__g_WL_hGUI) Then Return False
@@ -809,6 +861,7 @@ EndFunc
 ; Parameters:  $hTargetWnd - window handle of the targeted window
 Func _WL_CtxShow($hTargetWnd)
     If $__g_WL_bCtxVisible Then _WL_CtxDestroy()
+    If $__g_WL_bTitleCtxVisible Then _WL_TitleCtxDestroy() ; row menu and title menu are mutually exclusive
     $__g_WL_hCtxTarget = $hTargetWnd
 
     ; Determine available actions based on window state
@@ -1343,4 +1396,525 @@ Func _WL_GetItemAtPos()
     Next
 
     Return 0
+EndFunc
+
+; =============================================
+; WINDOW LIST — TITLE BAR DRAG
+; =============================================
+
+; Name:        __WL_IsPointInTitleBar
+; Description: Pure hit-test: is a window-relative point inside the title-bar strip?
+;              Factored out so the geometry is unit-testable without a live GUI.
+; Parameters:  $iRelX, $iRelY - point relative to the window's top-left
+;              $iW - window width
+;              $iTitleBottom - window-relative Y of the title-bar bottom edge
+; Return:      True if the point lies within the title strip
+Func __WL_IsPointInTitleBar($iRelX, $iRelY, $iW, $iTitleBottom)
+    If $iTitleBottom <= 0 Then Return False
+    If $iRelX < 0 Or $iRelX > $iW Then Return False
+    If $iRelY < 0 Or $iRelY > $iTitleBottom Then Return False
+    Return True
+EndFunc
+
+; Name:        _WL_IsOverTitleBar
+; Description: Whether the cursor is currently over the window-list title bar.
+;              Used by the main loop to route right-clicks (title vs. rows) and to
+;              gate drag start.
+; Return:      True/False
+Func _WL_IsOverTitleBar()
+    If Not $__g_WL_bVisible Or $__g_WL_hGUI = 0 Then Return False
+    Local $aWin = WinGetPos($__g_WL_hGUI)
+    If @error Or Not IsArray($aWin) Then Return False
+    Local $iRelX = $__g_Theme_iCachedCursorX - $aWin[0]
+    Local $iRelY = $__g_Theme_iCachedCursorY - $aWin[1]
+    Return __WL_IsPointInTitleBar($iRelX, $iRelY, $aWin[2], $__g_WL_iTitleBottom)
+EndFunc
+
+; Name:        _WL_ProcessDrag
+; Description: Poll-style title-bar drag (mirrors the widget drag in the main
+;              script). Call every main-loop pass. Moves the panel while the left
+;              button is held over the title bar; on release persists the pixel
+;              position to config. No-op unless window_list_draggable is enabled.
+Func _WL_ProcessDrag()
+    ; Reset state and bail when the panel is gone or dragging is disabled.
+    If Not $__g_WL_bVisible Or $__g_WL_hGUI = 0 Or Not _Cfg_GetWindowListDraggable() Then
+        $__g_WL_bDragging = False
+        $__g_WL_bDragPending = False
+        $__g_WL_bDragLeftWasDown = False
+        Return
+    EndIf
+
+    Local $lBtn = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_LBUTTON)
+    If @error Or Not IsArray($lBtn) Then Return
+    Local $bLeftDown = (BitAND($lBtn[0], 0x8000) <> 0)
+
+    ; Press: begin pending drag if the cursor is over the title bar.
+    If $bLeftDown And Not $__g_WL_bDragLeftWasDown Then
+        If _WL_IsOverTitleBar() And Not $__g_WL_bTitleCtxVisible Then
+            Local $aWP = WinGetPos($__g_WL_hGUI)
+            If Not @error And IsArray($aWP) Then
+                $__g_WL_iDragOffsetX = $__g_Theme_iCachedCursorX - $aWP[0]
+                $__g_WL_iDragOffsetY = $__g_Theme_iCachedCursorY - $aWP[1]
+                $__g_WL_iDragStartX = $__g_Theme_iCachedCursorX
+                $__g_WL_iDragStartY = $__g_Theme_iCachedCursorY
+                $__g_WL_bDragPending = True
+                $__g_WL_bDragging = False
+            EndIf
+        EndIf
+    EndIf
+
+    ; Cross the movement threshold before committing to a drag (5 px, like the widget).
+    If $bLeftDown And $__g_WL_bDragPending And Not $__g_WL_bDragging Then
+        If Abs($__g_Theme_iCachedCursorX - $__g_WL_iDragStartX) >= 5 _
+           Or Abs($__g_Theme_iCachedCursorY - $__g_WL_iDragStartY) >= 5 Then
+            $__g_WL_bDragging = True
+        EndIf
+    EndIf
+
+    ; Follow the cursor while dragging.
+    If $bLeftDown And $__g_WL_bDragging Then
+        Local $iNewX = $__g_Theme_iCachedCursorX - $__g_WL_iDragOffsetX
+        Local $iNewY = $__g_Theme_iCachedCursorY - $__g_WL_iDragOffsetY
+        WinMove($__g_WL_hGUI, "", $iNewX, $iNewY)
+        $__g_WL_hAutoHideTimer = TimerInit() ; don't auto-hide mid-drag
+    EndIf
+
+    ; Release: persist the final position.
+    If Not $bLeftDown And $__g_WL_bDragLeftWasDown Then
+        If $__g_WL_bDragging Then
+            Local $aFinal = WinGetPos($__g_WL_hGUI)
+            If Not @error And IsArray($aFinal) Then
+                _Cfg_SetWindowListCustomX($aFinal[0])
+                _Cfg_SetWindowListCustomY($aFinal[1])
+                _Cfg_Save() ; 500 ms debounced; in-memory values are live immediately
+            EndIf
+        EndIf
+        $__g_WL_bDragging = False
+        $__g_WL_bDragPending = False
+    EndIf
+
+    $__g_WL_bDragLeftWasDown = $bLeftDown
+EndFunc
+
+; Name:        _WL_SendAllToDesktop
+; Description: Moves every window currently listed on the panel's desktop to a
+;              target desktop. No inter-move Sleep (responsiveness finding R14).
+; Parameters:  $iTarget - destination desktop index (1-based)
+; Return:      Number of windows moved
+Func _WL_SendAllToDesktop($iTarget)
+    If $iTarget < 1 Then Return 0
+    Local $iDesk = $__g_WL_iDesktop
+    If $iDesk < 1 Then $iDesk = $iDesktop
+    If $iDesk < 1 Then Return 0
+
+    Local $iCount = __WL_EnumFilteredWindows($iDesk)
+    If $iCount < 1 Then Return 0
+
+    ; Snapshot handles first — the enumeration writes shared display globals.
+    Local $aWins[$iCount + 1]
+    Local $i
+    For $i = 1 To $iCount
+        $aWins[$i] = $__g_WL_aHWNDs[$i]
+    Next
+
+    Local $iMoved = 0
+    For $i = 1 To $iCount
+        If $aWins[$i] = 0 Then ContinueLoop
+        If _VD_MoveWindowToDesktop($aWins[$i], $iTarget) Then $iMoved += 1
+    Next
+    Return $iMoved
+EndFunc
+
+; =============================================
+; WINDOW LIST — TITLE BAR CONTEXT MENU
+; =============================================
+
+; Name:        _WL_TitleCtxShow
+; Description: Shows the title-bar context menu (Pin/Unpin, Refresh,
+;              Send All to Desktop, Close) at the cursor, clamped to the monitor.
+Func _WL_TitleCtxShow()
+    If $__g_WL_bTitleCtxVisible Then _WL_TitleCtxDestroy()
+    If $__g_WL_bCtxVisible Then _WL_CtxDestroy() ; row menu and title menu are mutually exclusive
+
+    Local $iMenuW = 200
+    Local $iSepH = 1
+    Local $iItemCount = 4 ; pin, refresh, send-all parent, close
+    Local $iSepCount = 1
+    Local $iMenuH = $iItemCount * $THEME_MENU_ITEM_H + $iSepCount * ($iSepH + 4) + 12
+
+    ; Cursor-anchored, clamped to the monitor under the cursor.
+    Local $iL, $iT, $iR, $iB
+    _CM_GetWorkArea($__g_Theme_iCachedCursorX, $__g_Theme_iCachedCursorY, $iL, $iT, $iR, $iB, $iTaskbarY)
+    Local $iMenuX = 0, $iMenuY = 0
+    _CM_ClampToWorkArea($__g_Theme_iCachedCursorX, $__g_Theme_iCachedCursorY, $iMenuW, $iMenuH, _
+        $iL, $iT, $iR, $iB, $iMenuX, $iMenuY)
+
+    $__g_WL_hTitleCtxGUI = _Theme_CreatePopup("WLTitleCtx", $iMenuW, $iMenuH, $iMenuX, $iMenuY, $THEME_BG_POPUP, $THEME_ALPHA_MENU)
+    If $__g_WL_hTitleCtxGUI = 0 Then
+        _Log_Error("WL_TitleCtxShow: Failed to create title context menu GUI")
+        Return
+    EndIf
+
+    $__g_WL_iTitlePin = 0
+    $__g_WL_iTitleRefresh = 0
+    $__g_WL_iTitleSendAllParent = 0
+    $__g_WL_iTitleClose = 0
+
+    Local $iY = 4
+
+    ; Pin / Unpin (toggles window_list_pinned)
+    Local $sPinText
+    If _Cfg_GetWindowListPinned() Then
+        $sPinText = "  " & _i18n("WindowList.wl_title_unpin", "Unpin")
+    Else
+        $sPinText = "  " & _i18n("WindowList.wl_title_pin", "Pin")
+    EndIf
+    $__g_WL_iTitlePin = _Theme_CreateMenuItem($sPinText, 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $iY += $THEME_MENU_ITEM_H
+
+    ; Refresh
+    $__g_WL_iTitleRefresh = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_title_refresh", "Refresh"), _
+        4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $iY += $THEME_MENU_ITEM_H
+
+    ; Send All to Desktop ▶ (opens submenu on hover)
+    $__g_WL_iTitleSendAllParent = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_title_send_all", "Send All to Desktop") & "  " & ChrW(0x25B6), _
+        4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $iY += $THEME_MENU_ITEM_H
+
+    ; Separator
+    GUICtrlCreateLabel("", 8, $iY + 2, $iMenuW - 16, $iSepH)
+    GUICtrlSetBkColor(-1, $THEME_BG_SEPARATOR)
+    $iY += $iSepH + 4
+
+    ; Close
+    $__g_WL_iTitleClose = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_title_close", "Close"), _
+        4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    GUICtrlSetColor($__g_WL_iTitleClose, 0xCC6666) ; muted red for danger
+
+    _Theme_FadeIn($__g_WL_hTitleCtxGUI, $THEME_ALPHA_MENU, "menu")
+    $__g_WL_bTitleCtxVisible = True
+    $__g_WL_iTitleCtxHovered = 0
+    $__g_WL_hTitleCtxGraceTimer = TimerInit()
+    $__g_WL_hTitleCtxAwayTimer = 0
+EndFunc
+
+; Name:        _WL_TitleCtxDestroy
+; Description: Destroys the title-bar context menu (and its Send-All submenu)
+Func _WL_TitleCtxDestroy()
+    _WL_SendAllDestroy()
+    If $__g_WL_hTitleCtxGUI <> 0 Then
+        _Theme_FadeOut($__g_WL_hTitleCtxGUI, "menu")
+        $__g_WL_hTitleCtxGUI = 0
+    EndIf
+    $__g_WL_bTitleCtxVisible = False
+    $__g_WL_iTitleCtxHovered = 0
+    $__g_WL_hTitleCtxGraceTimer = 0
+    $__g_WL_hTitleCtxAwayTimer = 0
+    ; Reset WL auto-hide so the list doesn't vanish the instant the menu closes.
+    $__g_WL_hAutoHideTimer = TimerInit()
+    $__g_WL_iTitlePin = 0
+    $__g_WL_iTitleRefresh = 0
+    $__g_WL_iTitleSendAllParent = 0
+    $__g_WL_iTitleClose = 0
+EndFunc
+
+; Name:        _WL_TitleCtxIsVisible
+; Return:      True/False
+Func _WL_TitleCtxIsVisible()
+    Return $__g_WL_bTitleCtxVisible
+EndFunc
+
+; Name:        _WL_TitleCtxGetGUI
+; Return:      GUI handle or 0
+Func _WL_TitleCtxGetGUI()
+    Return $__g_WL_hTitleCtxGUI
+EndFunc
+
+; Name:        _WL_TitleCtxHandleClick
+; Description: Processes a click on a title-bar context-menu item.
+; Parameters:  $msg - GUI message from GUIGetMsg
+; Return:      Action string: "pin", "unpin", "refresh", "close", or "" (parent /
+;              no match). Submenu actions come from _WL_SendAllHandleClick.
+Func _WL_TitleCtxHandleClick($msg)
+    If $msg <= 0 Then Return ""
+    If $__g_WL_iTitlePin <> 0 And $msg = $__g_WL_iTitlePin Then
+        If _Cfg_GetWindowListPinned() Then Return "unpin"
+        Return "pin"
+    EndIf
+    If $__g_WL_iTitleRefresh <> 0 And $msg = $__g_WL_iTitleRefresh Then Return "refresh"
+    If $__g_WL_iTitleClose <> 0 And $msg = $__g_WL_iTitleClose Then Return "close"
+    Return ""
+EndFunc
+
+; Name:        _WL_TitleCtxCheckHover
+; Description: Hover highlighting for the title menu; auto-opens/closes the
+;              Send-All submenu on the parent item. Call from main loop.
+Func _WL_TitleCtxCheckHover()
+    If Not $__g_WL_bTitleCtxVisible Or $__g_WL_hTitleCtxGUI = 0 Then Return
+    Local $aCursor = GUIGetCursorInfo($__g_WL_hTitleCtxGUI)
+    If @error Then
+        ; Keep the parent highlighted while its submenu is open.
+        If $__g_WL_iTitleCtxHovered <> 0 And Not ($__g_WL_bSendAllVisible And $__g_WL_iTitleCtxHovered = $__g_WL_iTitleSendAllParent) Then
+            Local $iFg = $THEME_FG_MENU
+            If $__g_WL_iTitleCtxHovered = $__g_WL_iTitleClose Then $iFg = 0xCC6666
+            _Theme_RemoveHover($__g_WL_iTitleCtxHovered, $iFg)
+            $__g_WL_iTitleCtxHovered = 0
+        EndIf
+        Return
+    EndIf
+
+    Local $iFound = 0
+    If $__g_WL_iTitlePin <> 0 And $aCursor[4] = $__g_WL_iTitlePin Then $iFound = $__g_WL_iTitlePin
+    If $__g_WL_iTitleRefresh <> 0 And $aCursor[4] = $__g_WL_iTitleRefresh Then $iFound = $__g_WL_iTitleRefresh
+    If $__g_WL_iTitleSendAllParent <> 0 And $aCursor[4] = $__g_WL_iTitleSendAllParent Then $iFound = $__g_WL_iTitleSendAllParent
+    If $__g_WL_iTitleClose <> 0 And $aCursor[4] = $__g_WL_iTitleClose Then $iFound = $__g_WL_iTitleClose
+
+    If $iFound <> $__g_WL_iTitleCtxHovered Then
+        If $__g_WL_iTitleCtxHovered <> 0 Then
+            Local $iFgOld = $THEME_FG_MENU
+            If $__g_WL_iTitleCtxHovered = $__g_WL_iTitleClose Then $iFgOld = 0xCC6666
+            _Theme_RemoveHover($__g_WL_iTitleCtxHovered, $iFgOld)
+        EndIf
+        $__g_WL_iTitleCtxHovered = $iFound
+        If $__g_WL_iTitleCtxHovered <> 0 Then
+            _Theme_ApplyHover($__g_WL_iTitleCtxHovered, $THEME_FG_WHITE, $THEME_BG_HOVER)
+        EndIf
+    EndIf
+
+    ; Auto-show/hide the Send-All submenu on the parent item.
+    If $iFound = $__g_WL_iTitleSendAllParent And $__g_WL_iTitleSendAllParent <> 0 And Not $__g_WL_bSendAllVisible Then
+        _WL_SendAllShow()
+    ElseIf $iFound <> $__g_WL_iTitleSendAllParent And $__g_WL_bSendAllVisible Then
+        If Not _Theme_IsCursorOverWindow($__g_WL_hSendAllGUI) And _
+           Not _Theme_IsCursorInWindowBridge($__g_WL_hTitleCtxGUI, $__g_WL_hSendAllGUI) Then
+            _WL_SendAllDestroy()
+        EndIf
+    EndIf
+EndFunc
+
+; Name:        _WL_TitleCtxCheckAutoHide
+; Description: Auto-dismisses the title menu when the cursor moves away from it,
+;              its submenu, and the window list. Call from main loop.
+; Return:      True if dismissed, False otherwise
+Func _WL_TitleCtxCheckAutoHide()
+    If Not $__g_WL_bTitleCtxVisible Or $__g_WL_hTitleCtxGUI = 0 Then Return False
+    If $__g_WL_hTitleCtxGraceTimer <> 0 And TimerDiff($__g_WL_hTitleCtxGraceTimer) < 300 Then Return False
+
+    Local $bOver = False
+    If _Theme_IsCursorOverWindow($__g_WL_hTitleCtxGUI) Then $bOver = True
+    If Not $bOver And $__g_WL_bSendAllVisible And _Theme_IsCursorOverWindow($__g_WL_hSendAllGUI) Then $bOver = True
+    If Not $bOver And _Theme_IsCursorOverWindow($__g_WL_hGUI) Then $bOver = True
+    If Not $bOver And $__g_WL_bSendAllVisible And _Theme_IsCursorInWindowBridge($__g_WL_hTitleCtxGUI, $__g_WL_hSendAllGUI) Then $bOver = True
+
+    If $bOver Then
+        $__g_WL_hTitleCtxAwayTimer = 0
+        Return False
+    EndIf
+
+    If $__g_WL_hTitleCtxAwayTimer = 0 Then
+        $__g_WL_hTitleCtxAwayTimer = TimerInit()
+        Return False
+    EndIf
+    If TimerDiff($__g_WL_hTitleCtxAwayTimer) < _Cfg_GetCtxAutoHideDelay() Then Return False
+
+    _WL_TitleCtxDestroy()
+    Return True
+EndFunc
+
+; =============================================
+; WINDOW LIST — SEND ALL TO DESKTOP SUBMENU
+; =============================================
+
+; Name:        __WL_GetTitleCtxSubmenuPos
+; Description: Positions the Send-All submenu aligned to its parent item in the
+;              title context menu (mirrors __WL_GetCtxSubmenuPos).
+Func __WL_GetTitleCtxSubmenuPos($idParentCtrl, $iSubW, $iSubH, ByRef $iSubX, ByRef $iSubY)
+    $iSubX = 0
+    $iSubY = 0
+
+    If $__g_WL_hTitleCtxGUI <> 0 Then
+        Local $aCtxPos = WinGetPos($__g_WL_hTitleCtxGUI)
+        If Not @error And IsArray($aCtxPos) Then
+            $iSubX = $aCtxPos[0] + $aCtxPos[2]
+            $iSubY = $aCtxPos[1] + 4
+            If $idParentCtrl <> 0 Then
+                Local $aParentPos = ControlGetPos($__g_WL_hTitleCtxGUI, "", $idParentCtrl)
+                If IsArray($aParentPos) And $aParentPos[1] >= 0 Then
+                    $iSubY = $aCtxPos[1] + $aParentPos[1]
+                EndIf
+            EndIf
+        EndIf
+    EndIf
+
+    If $iSubX = 0 Then
+        $iSubX = $__g_Theme_iCachedCursorX + 8
+        $iSubY = $__g_Theme_iCachedCursorY - $iSubH
+    EndIf
+
+    If $iSubX + $iSubW > @DesktopWidth Then
+        If $__g_WL_hTitleCtxGUI <> 0 Then
+            Local $aCtxPos2 = WinGetPos($__g_WL_hTitleCtxGUI)
+            If Not @error And IsArray($aCtxPos2) Then $iSubX = $aCtxPos2[0] - $iSubW
+        EndIf
+    EndIf
+    If $iSubX < 0 Then $iSubX = 0
+    If $iSubY + $iSubH > @DesktopHeight Then $iSubY = @DesktopHeight - $iSubH
+    If $iSubY < 0 Then $iSubY = 0
+EndFunc
+
+; Name:        _WL_SendAllShow
+; Description: Creates the "Send All to Desktop" submenu (Next / Prev / New +
+;              one entry per desktop, skipping the panel's current desktop).
+Func _WL_SendAllShow()
+    If $__g_WL_bSendAllVisible Then _WL_SendAllDestroy()
+
+    Local $iCurDesk = $__g_WL_iDesktop
+    Local $iDeskCount = _VD_GetCount()
+
+    ; Count destination desktop entries (skip the current one).
+    Local $iDestCount = 0
+    Local $d
+    For $d = 1 To $iDeskCount
+        If $d = $iCurDesk Then ContinueLoop
+        If $iDestCount >= 100 Then ExitLoop
+        $iDestCount += 1
+    Next
+
+    Local $iSubW = 200
+    Local $iSepH = 1
+    Local $iItemCount = 3 + $iDestCount ; next, prev, new + desktop items
+    Local $iSepCount = 1
+    Local $iSubH = $iItemCount * $THEME_MENU_ITEM_H + $iSepCount * ($iSepH + 4) + 12
+
+    Local $iSubX = 0, $iSubY = 0
+    __WL_GetTitleCtxSubmenuPos($__g_WL_iTitleSendAllParent, $iSubW, $iSubH, $iSubX, $iSubY)
+
+    $__g_WL_hSendAllGUI = _Theme_CreatePopup("WLSendAll", $iSubW, $iSubH, $iSubX, $iSubY, $THEME_BG_POPUP, $THEME_ALPHA_MENU)
+    If $__g_WL_hSendAllGUI = 0 Then Return
+
+    $__g_WL_iSendAllNext = 0
+    $__g_WL_iSendAllPrev = 0
+    $__g_WL_iSendAllNew = 0
+    $__g_WL_iSendAllToCount = 0
+
+    Local $iY = 4
+
+    $__g_WL_iSendAllNext = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_send_to_next", "Send to Next Desktop"), _
+        4, $iY, $iSubW - 8, $THEME_MENU_ITEM_H)
+    $iY += $THEME_MENU_ITEM_H
+
+    $__g_WL_iSendAllPrev = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_send_to_prev", "Send to Previous Desktop"), _
+        4, $iY, $iSubW - 8, $THEME_MENU_ITEM_H)
+    $iY += $THEME_MENU_ITEM_H
+
+    $__g_WL_iSendAllNew = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_send_to_new", "Send to New Desktop"), _
+        4, $iY, $iSubW - 8, $THEME_MENU_ITEM_H)
+    $iY += $THEME_MENU_ITEM_H
+
+    ; Separator
+    GUICtrlCreateLabel("", 8, $iY + 2, $iSubW - 16, $iSepH)
+    GUICtrlSetBkColor(-1, $THEME_BG_SEPARATOR)
+    $iY += $iSepH + 4
+
+    ; Desktop N items (skip the panel's current desktop).
+    For $d = 1 To $iDeskCount
+        If $d = $iCurDesk Then ContinueLoop
+        If $__g_WL_iSendAllToCount >= 100 Then ExitLoop
+        $__g_WL_iSendAllToCount += 1
+        $__g_WL_aiSendAllToDest[$__g_WL_iSendAllToCount] = $d
+        Local $sName = _VD_GetName($d)
+        If $sName <> "" Then
+            $sName = _i18n_Format("Extra.desktop_name_with_label", "Desktop {1} ({2})", $d, $sName)
+        Else
+            $sName = _i18n_Format("Extra.desktop_name", "Desktop {1}", $d)
+        EndIf
+        $__g_WL_aSendAllTo[$__g_WL_iSendAllToCount] = _Theme_CreateMenuItem( _
+            "  " & $sName, 4, $iY, $iSubW - 8, $THEME_MENU_ITEM_H)
+        $iY += $THEME_MENU_ITEM_H
+    Next
+
+    _Theme_FadeIn($__g_WL_hSendAllGUI, $THEME_ALPHA_MENU, "menu")
+    $__g_WL_bSendAllVisible = True
+    $__g_WL_iSendAllHovered = 0
+EndFunc
+
+; Name:        _WL_SendAllDestroy
+; Description: Destroys the Send-All submenu popup
+Func _WL_SendAllDestroy()
+    If $__g_WL_hSendAllGUI <> 0 Then
+        _Theme_FadeOut($__g_WL_hSendAllGUI, "menu")
+        $__g_WL_hSendAllGUI = 0
+    EndIf
+    $__g_WL_bSendAllVisible = False
+    $__g_WL_iSendAllHovered = 0
+    $__g_WL_iSendAllNext = 0
+    $__g_WL_iSendAllPrev = 0
+    $__g_WL_iSendAllNew = 0
+    $__g_WL_iSendAllToCount = 0
+EndFunc
+
+; Name:        _WL_SendAllIsVisible
+; Return:      True/False
+Func _WL_SendAllIsVisible()
+    Return $__g_WL_bSendAllVisible
+EndFunc
+
+; Name:        _WL_SendAllGetGUI
+; Return:      GUI handle or 0
+Func _WL_SendAllGetGUI()
+    Return $__g_WL_hSendAllGUI
+EndFunc
+
+; Name:        _WL_SendAllHandleClick
+; Description: Processes a click on a Send-All submenu item.
+; Parameters:  $msg - GUI message from GUIGetMsg
+; Return:      Action string: "send_all_next", "send_all_prev", "send_all_new",
+;              "send_all_to:N", or "" if no match. The caller resolves
+;              next/prev/new to a target and calls _WL_SendAllToDesktop.
+Func _WL_SendAllHandleClick($msg)
+    If $msg <= 0 Then Return ""
+    If $__g_WL_iSendAllNext <> 0 And $msg = $__g_WL_iSendAllNext Then Return "send_all_next"
+    If $__g_WL_iSendAllPrev <> 0 And $msg = $__g_WL_iSendAllPrev Then Return "send_all_prev"
+    If $__g_WL_iSendAllNew <> 0 And $msg = $__g_WL_iSendAllNew Then Return "send_all_new"
+    Local $d
+    For $d = 1 To $__g_WL_iSendAllToCount
+        If $__g_WL_aSendAllTo[$d] <> 0 And $msg = $__g_WL_aSendAllTo[$d] Then
+            Return "send_all_to:" & $__g_WL_aiSendAllToDest[$d]
+        EndIf
+    Next
+    Return ""
+EndFunc
+
+; Name:        _WL_SendAllCheckHover
+; Description: Hover highlighting for the Send-All submenu. Call from main loop.
+Func _WL_SendAllCheckHover()
+    If Not $__g_WL_bSendAllVisible Or $__g_WL_hSendAllGUI = 0 Then Return
+    Local $aCursor = GUIGetCursorInfo($__g_WL_hSendAllGUI)
+    If @error Then
+        If $__g_WL_iSendAllHovered <> 0 Then
+            _Theme_RemoveHover($__g_WL_iSendAllHovered, $THEME_FG_MENU)
+            $__g_WL_iSendAllHovered = 0
+        EndIf
+        Return
+    EndIf
+
+    Local $iFound = 0
+    If $__g_WL_iSendAllNext <> 0 And $aCursor[4] = $__g_WL_iSendAllNext Then $iFound = $__g_WL_iSendAllNext
+    If $__g_WL_iSendAllPrev <> 0 And $aCursor[4] = $__g_WL_iSendAllPrev Then $iFound = $__g_WL_iSendAllPrev
+    If $__g_WL_iSendAllNew <> 0 And $aCursor[4] = $__g_WL_iSendAllNew Then $iFound = $__g_WL_iSendAllNew
+    Local $d
+    For $d = 1 To $__g_WL_iSendAllToCount
+        If $__g_WL_aSendAllTo[$d] <> 0 And $aCursor[4] = $__g_WL_aSendAllTo[$d] Then $iFound = $__g_WL_aSendAllTo[$d]
+    Next
+
+    If $iFound = $__g_WL_iSendAllHovered Then Return
+
+    If $__g_WL_iSendAllHovered <> 0 Then
+        _Theme_RemoveHover($__g_WL_iSendAllHovered, $THEME_FG_MENU)
+    EndIf
+    $__g_WL_iSendAllHovered = $iFound
+    If $__g_WL_iSendAllHovered <> 0 Then
+        _Theme_ApplyHover($__g_WL_iSendAllHovered, $THEME_FG_WHITE, $THEME_BG_HOVER)
+    EndIf
 EndFunc

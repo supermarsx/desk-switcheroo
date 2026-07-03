@@ -89,6 +89,69 @@ Func _RunTest_WindowList()
     ; -- CtxCheckAutoHide returns False when not visible --
     _Test_AssertFalse("WL Ctx: auto-hide returns false when hidden", _WL_CtxCheckAutoHide())
 
+    ; ---- Title-bar hit-test math (pure function) ----
+    _Test_AssertTrue("TitleBar: point inside", __WL_IsPointInTitleBar(50, 10, 200, 27))
+    _Test_AssertTrue("TitleBar: top edge included", __WL_IsPointInTitleBar(50, 0, 200, 27))
+    _Test_AssertTrue("TitleBar: bottom edge included", __WL_IsPointInTitleBar(50, 27, 200, 27))
+    _Test_AssertFalse("TitleBar: below title", __WL_IsPointInTitleBar(50, 40, 200, 27))
+    _Test_AssertFalse("TitleBar: left of window", __WL_IsPointInTitleBar(-5, 10, 200, 27))
+    _Test_AssertFalse("TitleBar: right of window", __WL_IsPointInTitleBar(250, 10, 200, 27))
+    _Test_AssertFalse("TitleBar: no title (bottom=0)", __WL_IsPointInTitleBar(50, 0, 200, 0))
+
+    ; -- IsOverTitleBar false when not visible --
+    _Test_AssertFalse("TitleBar: not over when hidden", _WL_IsOverTitleBar())
+
+    ; ---- Custom-position calc (drag persistence) ----
+    Local $iCustXBefore = _Cfg_GetWindowListCustomX()
+    Local $iCustYBefore = _Cfg_GetWindowListCustomY()
+    Local $iCalcX = 0, $iCalcY = 0
+
+    ; Unset (-1) → falls back to the anchor (top-left = 10,10).
+    _Cfg_SetWindowListCustomX(-1)
+    _Cfg_SetWindowListCustomY(-1)
+    __WL_CalcPosition("top-left", 200, 300, $iCalcX, $iCalcY)
+    _Test_AssertEqual("CalcPos: unset falls back to anchor X", $iCalcX, 10)
+    _Test_AssertEqual("CalcPos: unset falls back to anchor Y", $iCalcY, 10)
+
+    ; Custom position that fits on screen → used verbatim.
+    _Cfg_SetWindowListCustomX(120)
+    _Cfg_SetWindowListCustomY(150)
+    __WL_CalcPosition("top-left", 200, 300, $iCalcX, $iCalcY)
+    _Test_AssertEqual("CalcPos: custom X used", $iCalcX, 120)
+    _Test_AssertEqual("CalcPos: custom Y used", $iCalcY, 150)
+
+    ; Off-screen custom position → clamped back into the monitor work area.
+    Local $iWaL = 0, $iWaT = 0, $iWaR = 0, $iWaB = 0
+    _CM_GetWorkArea(100000, 100000, $iWaL, $iWaT, $iWaR, $iWaB)
+    _Cfg_SetWindowListCustomX(100000)
+    _Cfg_SetWindowListCustomY(100000)
+    __WL_CalcPosition("top-left", 200, 300, $iCalcX, $iCalcY)
+    _Test_AssertEqual("CalcPos: off-screen X clamped", $iCalcX, $iWaR - 200)
+    _Test_AssertEqual("CalcPos: off-screen Y clamped", $iCalcY, $iWaB - 300)
+    _Test_AssertTrue("CalcPos: clamped X on screen", $iCalcX >= $iWaL)
+    _Test_AssertTrue("CalcPos: clamped Y on screen", $iCalcY >= $iWaT)
+
+    _Cfg_SetWindowListCustomX($iCustXBefore)
+    _Cfg_SetWindowListCustomY($iCustYBefore)
+
+    ; ---- Send-all execution: invalid targets move nothing ----
+    _Test_AssertEqual("SendAll: target 0 moves 0", _WL_SendAllToDesktop(0), 0)
+    _Test_AssertEqual("SendAll: target -1 moves 0", _WL_SendAllToDesktop(-1), 0)
+
+    ; ---- Title menu / send-all handlers with no menu ----
+    _Test_AssertFalse("TitleCtx: not visible initially", _WL_TitleCtxIsVisible())
+    _Test_AssertEqual("TitleCtx: GUI is 0 initially", _WL_TitleCtxGetGUI(), 0)
+    _Test_AssertEqual("TitleCtx: HandleClick(0) = empty", _WL_TitleCtxHandleClick(0), "")
+    _Test_AssertEqual("TitleCtx: HandleClick(99999) = empty", _WL_TitleCtxHandleClick(99999), "")
+    _Test_AssertFalse("SendAll: not visible initially", _WL_SendAllIsVisible())
+    _Test_AssertEqual("SendAll: GUI is 0 initially", _WL_SendAllGetGUI(), 0)
+    _Test_AssertEqual("SendAll: HandleClick(0) = empty", _WL_SendAllHandleClick(0), "")
+    _Test_AssertFalse("TitleCtx: auto-hide false when hidden", _WL_TitleCtxCheckAutoHide())
+
+    ; -- ProcessDrag is a no-op (no crash) when not visible --
+    _WL_ProcessDrag()
+    _Test_AssertTrue("Drag: no crash when hidden", True)
+
     ; ---- Context menu show/destroy with parent item ----
     _Cfg_SetWindowListEnabled(True)
     _WL_Show(1)
@@ -150,6 +213,62 @@ Func _RunTest_WindowList()
         _Test_AssertFalse("WL Ctx: hidden after destroy", _WL_CtxIsVisible())
         _Test_AssertFalse("SendTo: gone after CtxDestroy", _WL_SendToIsVisible())
 
+        ; ---- Title-bar context menu ----
+        _WL_TitleCtxShow()
+        _Test_AssertTrue("TitleCtx: visible after show", _WL_TitleCtxIsVisible())
+        _Test_AssertNotEqual("TitleCtx: GUI <> 0", _WL_TitleCtxGetGUI(), 0)
+        _Test_AssertNotEqual("TitleCtx: Pin item exists", $__g_WL_iTitlePin, 0)
+        _Test_AssertNotEqual("TitleCtx: Refresh item exists", $__g_WL_iTitleRefresh, 0)
+        _Test_AssertNotEqual("TitleCtx: SendAll parent exists", $__g_WL_iTitleSendAllParent, 0)
+        _Test_AssertNotEqual("TitleCtx: Close item exists", $__g_WL_iTitleClose, 0)
+
+        ; -- Action mapping (unpinned by default → Pin returns "pin") --
+        _Test_AssertEqual("TitleCtx: HandleClick(pin) = 'pin'", _WL_TitleCtxHandleClick($__g_WL_iTitlePin), "pin")
+        _Test_AssertEqual("TitleCtx: HandleClick(refresh) = 'refresh'", _WL_TitleCtxHandleClick($__g_WL_iTitleRefresh), "refresh")
+        _Test_AssertEqual("TitleCtx: HandleClick(close) = 'close'", _WL_TitleCtxHandleClick($__g_WL_iTitleClose), "close")
+        ; -- Parent item only opens the submenu, no action --
+        _Test_AssertEqual("TitleCtx: HandleClick(parent) = empty", _WL_TitleCtxHandleClick($__g_WL_iTitleSendAllParent), "")
+
+        ; ---- Send-All submenu ----
+        _WL_SendAllShow()
+        _Test_AssertTrue("SendAll: visible after show", _WL_SendAllIsVisible())
+        _Test_AssertNotEqual("SendAll: GUI <> 0", _WL_SendAllGetGUI(), 0)
+        _Test_AssertNotEqual("SendAll: Next item exists", $__g_WL_iSendAllNext, 0)
+        _Test_AssertNotEqual("SendAll: Prev item exists", $__g_WL_iSendAllPrev, 0)
+        _Test_AssertNotEqual("SendAll: New item exists", $__g_WL_iSendAllNew, 0)
+        _Test_AssertEqual("SendAll: HandleClick(next)", _WL_SendAllHandleClick($__g_WL_iSendAllNext), "send_all_next")
+        _Test_AssertEqual("SendAll: HandleClick(prev)", _WL_SendAllHandleClick($__g_WL_iSendAllPrev), "send_all_prev")
+        _Test_AssertEqual("SendAll: HandleClick(new)", _WL_SendAllHandleClick($__g_WL_iSendAllNew), "send_all_new")
+        ; -- Per-desktop item maps to send_all_to:N --
+        If $__g_WL_iSendAllToCount > 0 Then
+            Local $iExpectDest = $__g_WL_aiSendAllToDest[1]
+            _Test_AssertEqual("SendAll: HandleClick(desktop) = send_all_to:N", _
+                _WL_SendAllHandleClick($__g_WL_aSendAllTo[1]), "send_all_to:" & $iExpectDest)
+        Else
+            _Test_Skip("SendAll: HandleClick(desktop) = send_all_to:N")
+        EndIf
+
+        ; -- SendAllDestroy cleans up --
+        _WL_SendAllDestroy()
+        _Test_AssertFalse("SendAll: hidden after destroy", _WL_SendAllIsVisible())
+        _Test_AssertEqual("SendAll: GUI = 0 after destroy", _WL_SendAllGetGUI(), 0)
+
+        ; -- Pinned state flips the Pin action to "unpin" --
+        Local $bPinBefore = _Cfg_GetWindowListPinned()
+        _Cfg_SetWindowListPinned(True)
+        _WL_TitleCtxShow()
+        _Test_AssertEqual("TitleCtx: HandleClick(pin) = 'unpin' when pinned", _WL_TitleCtxHandleClick($__g_WL_iTitlePin), "unpin")
+        ; -- Pinned list ignores auto-hide --
+        _Test_AssertFalse("TitleCtx: pinned WL skips auto-hide", _WL_CheckAutoHide(0))
+        _Cfg_SetWindowListPinned($bPinBefore)
+
+        ; -- TitleCtxDestroy cascades to submenu --
+        _WL_SendAllShow()
+        _Test_AssertTrue("SendAll: visible before TitleCtxDestroy", _WL_SendAllIsVisible())
+        _WL_TitleCtxDestroy()
+        _Test_AssertFalse("TitleCtx: hidden after destroy", _WL_TitleCtxIsVisible())
+        _Test_AssertFalse("SendAll: gone after TitleCtxDestroy", _WL_SendAllIsVisible())
+
         ; -- WL_Destroy cascades to ctx and submenu --
         _WL_Show(1)
         _WL_CtxShow(0)
@@ -159,6 +278,13 @@ Func _RunTest_WindowList()
         _Test_AssertFalse("WL: hidden after destroy", _WL_IsVisible())
         _Test_AssertFalse("WL Ctx: gone after WL_Destroy", _WL_CtxIsVisible())
         _Test_AssertFalse("SendTo: gone after WL_Destroy", _WL_SendToIsVisible())
+
+        ; -- WL_Destroy also cascades to the title menu --
+        _WL_Show(1)
+        _WL_TitleCtxShow()
+        _Test_AssertTrue("TitleCtx: visible before WL_Destroy", _WL_TitleCtxIsVisible())
+        _WL_Destroy()
+        _Test_AssertFalse("TitleCtx: gone after WL_Destroy", _WL_TitleCtxIsVisible())
     Else
         _Test_AssertTrue("WL skipped (could not show)", True)
     EndIf
