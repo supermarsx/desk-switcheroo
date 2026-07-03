@@ -190,6 +190,21 @@ Func _RunTest_SessionRestore()
     Local $iMatch7 = __SR_MatchWindow("", "SomeClass", $aMockWin, $aMockMatched3)
     _Test_AssertEqual("MatchWindow empty process returns 0", $iMatch7, 0)
 
+    ; ---- __SR_MatchWindow: uses pre-lowercased column [4] on width-5 arrays ----
+    ; The production enum stores a lowercased process in [N][4]; matching prefers it.
+    Local $aMockWin5[2][5]
+    $aMockWin5[0][0] = 1
+    $aMockWin5[1][0] = 0x2001
+    $aMockWin5[1][1] = "Chrome.EXE" ; original-case process
+    $aMockWin5[1][2] = "Chrome_WidgetWin_1"
+    $aMockWin5[1][3] = 3
+    $aMockWin5[1][4] = "chrome.exe" ; pre-lowercased process
+    Local $aMatched5[2]
+    $aMatched5[0] = False
+    $aMatched5[1] = False
+    Local $iMatch8 = __SR_MatchWindow("chrome.exe", "Chrome_WidgetWin_1", $aMockWin5, $aMatched5)
+    _Test_AssertEqual("MatchWindow uses pre-lowercased column [4]", $iMatch8, 1)
+
     ; ---- SaveSession/RestoreSession: disabled by default ----
     ; These should return 0 when session_restore_enabled is not "true"
     Local $iSaved = _SR_SaveSession()

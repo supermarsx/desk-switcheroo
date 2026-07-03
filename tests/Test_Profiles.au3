@@ -13,25 +13,22 @@ Func _RunTest_Profiles()
     If FileExists($sTempBase) Then DirRemove($sTempBase, 1)
     DirCreate($sTempBase)
 
-    ; Create a mock config INI with profiles enabled
-    Local $sTempIni = $sTempBase & "\desk_switcheroo.ini"
-    IniWrite($sTempIni, "Profiles", "profiles_enabled", "true")
-    IniWrite($sTempIni, "DesktopColors", "desktop_1_color", "0x4A9EFF")
-    IniWrite($sTempIni, "DesktopColors", "desktop_2_color", "0xFF5555")
-    IniWrite($sTempIni, "Wallpaper", "desktop_1_wallpaper", "C:\Wallpapers\code.jpg")
-    IniWrite($sTempIni, "Wallpaper", "desktop_2_wallpaper", "")
+    ; _Prof_Init reads the enabled flag from the typed config accessor
+    ; (_Cfg_GetProfilesEnabled), so drive it via the setter rather than an INI write.
+    Local $bOrigProfEnabled = _Cfg_GetProfilesEnabled()
 
     ; -- Init with profiles enabled --
+    _Cfg_SetProfilesEnabled(True)
     _Prof_Init($sTempBase)
     _Test_AssertTrue("Prof_Init enables feature", _Prof_IsEnabled())
 
     ; -- Init with profiles disabled --
-    IniWrite($sTempIni, "Profiles", "profiles_enabled", "false")
+    _Cfg_SetProfilesEnabled(False)
     _Prof_Init($sTempBase)
     _Test_AssertFalse("Prof_Init respects disabled", _Prof_IsEnabled())
 
     ; Re-enable for remaining tests
-    IniWrite($sTempIni, "Profiles", "profiles_enabled", "true")
+    _Cfg_SetProfilesEnabled(True)
     _Prof_Init($sTempBase)
 
     ; ============================
@@ -182,15 +179,77 @@ Func _RunTest_Profiles()
     _Test_AssertEqual("Meta: missing file returns empty", UBound($aEmpty), 0)
 
     ; ============================
+    ; R21 — desktop-count wait helper (replaces fixed Sleep during apply)
+    ; ============================
+    ; Immediate match returns True promptly (no fixed sleep).
+    Local $iNowCount = _VD_GetCount()
+    Local $hWaitTimer = TimerInit()
+    Local $bWaitHit = __Prof_WaitForCount($iNowCount, 200)
+    Local $iWaitElapsed = TimerDiff($hWaitTimer)
+    _Test_AssertTrue("WaitForCount: matches current count", $bWaitHit)
+    _Test_AssertLessEqual("WaitForCount: returns promptly on match", $iWaitElapsed, 100)
+
+    ; Unreachable count times out and returns False, bounded by the timeout.
+    $hWaitTimer = TimerInit()
+    Local $bWaitMiss = __Prof_WaitForCount($iNowCount + 9999, 50)
+    _Test_AssertFalse("WaitForCount: times out on unreachable count", $bWaitMiss)
+    _Test_AssertGreaterEqual("WaitForCount: waited at least the timeout", TimerDiff($hWaitTimer), 40)
+
+    ; ============================
+    ; P1 — on_profile_load hook fires on load
+    ; ============================
+    Local $sHookOrigPath = _Cfg_GetPath()
+    Local $sHookIni = $sTempBase & "\desk_switcheroo.ini"
+    Local $sSentinel = $sTempBase & "\profile_load_hook.flag"
+    If FileExists($sSentinel) Then FileDelete($sSentinel)
+    ; Snapshot whether _Prof_LoadProfile's @ScriptDir config write target pre-exists,
+    ; so a file it creates as a side effect can be cleaned up (C1: hardcoded path).
+    Local $sStrayIni = @ScriptDir & "\desk_switcheroo.ini"
+    Local $bStrayExisted = FileExists($sStrayIni)
+
+    ; Point config + hooks at a temp INI with an on_profile_load hook that writes a flag.
+    _Cfg_Init($sHookIni)
+    IniWrite($sHookIni, "Hooks", "hooks_enabled", "true")
+    IniWrite($sHookIni, "Hooks", "on_profile_load", 'cmd /c echo {profile} > "' & $sSentinel & '"')
+    _Hooks_Init()
+    _Cfg_SetProfilesEnabled(True)
+    _Prof_Init($sTempBase)
+
+    ; A profile whose desktop_count equals the current count so load performs no
+    ; create/remove (keeps this independent of the DLL desktop plumbing).
+    Local $iHookCount = _VD_GetCount()
+    Local $sHookProfile = _Prof_GetProfilePath("hooktest")
+    __Prof_EnsureDir()
+    If FileExists($sHookProfile) Then FileDelete($sHookProfile)
+    IniWrite($sHookProfile, "Meta", "name", "hooktest")
+    IniWrite($sHookProfile, "Meta", "desktop_count", $iHookCount)
+
+    _Test_AssertTrue("LoadProfile succeeds for hook test", _Prof_LoadProfile("hooktest"))
+
+    ; Hook runs async (Run) — poll briefly for the sentinel file to appear.
+    Local $hHookTimer = TimerInit()
+    While Not FileExists($sSentinel) And TimerDiff($hHookTimer) < 3000
+        Sleep(25)
+    WEnd
+    _Test_AssertTrue("on_profile_load hook fired on load", FileExists($sSentinel))
+
+    ; Cleanup hook state + artifacts, restore config path.
+    _Hooks_Shutdown()
+    If FileExists($sSentinel) Then FileDelete($sSentinel)
+    If Not $bStrayExisted And FileExists($sStrayIni) Then FileDelete($sStrayIni)
+    If $sHookOrigPath <> "" Then _Cfg_Init($sHookOrigPath)
+
+    ; ============================
     ; Disabled feature guard
     ; ============================
-    IniWrite($sTempIni, "Profiles", "profiles_enabled", "false")
+    _Cfg_SetProfilesEnabled(False)
     _Prof_Init($sTempBase)
 
     _Test_AssertFalse("Disabled: save rejected", _Prof_SaveProfile("blocked"))
     _Test_AssertFalse("Disabled: delete rejected", _Prof_DeleteProfile("blocked"))
     _Test_AssertFalse("Disabled: load rejected", _Prof_LoadProfile("blocked"))
 
-    ; -- Cleanup --
+    ; -- Cleanup: restore original config state so we don't leak into other suites --
+    _Cfg_SetProfilesEnabled($bOrigProfEnabled)
     DirRemove($sTempBase, 1)
 EndFunc

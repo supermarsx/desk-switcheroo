@@ -918,8 +918,9 @@ Func _DL_DragPerformReorder($iFrom, $iTo, $iCurrentDesktop)
     Local $iPos = $iFrom
     While $iPos <> $iTo
         Local $iNext = $iPos + $iStep
+        ; _VD_SwapDesktops already trails a Sleep(150) settle after its moves, so no
+        ; extra inter-step sleep is needed here (its 20 ms inter-move COM guards remain).
         _VD_SwapDesktops($iPos, $iNext)
-        Sleep(100) ; let Windows process the window moves between swaps
         _Labels_Swap($iPos, $iNext, True)
         $iPos = $iNext
     WEnd

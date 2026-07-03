@@ -229,13 +229,16 @@ EndFunc
 ; =============================================
 
 ; Name:        __SR_EnumAllWindows
-; Description: Enumerate visible top-level windows across all desktops.
-;              Returns a 2D array: [0]=count, [N][0]=hWnd, [N][1]=process, [N][2]=class, [N][3]=desktop
+; Description: Enumerate visible top-level windows across all desktops. The process
+;              name is also stored pre-lowercased ([N][4]) so the O(saved x running)
+;              matching loop does not re-lowercase each running window per saved entry.
+;              Returns a 2D array: [0]=count, [N][0]=hWnd, [N][1]=process, [N][2]=class,
+;              [N][3]=desktop, [N][4]=lowercased process.
 ; Return:      Array where [0] = count, [1..N] = window info arrays
 Func __SR_EnumAllWindows()
     Local $aList = WinList()
-    ; Pre-allocate result as 2D array: [count+1][4]
-    Local $aResult[$aList[0][0] + 1][4]
+    ; Pre-allocate result as 2D array: [count+1][5]
+    Local $aResult[$aList[0][0] + 1][5]
     $aResult[0][0] = 0
 
     Local $i
@@ -276,10 +279,11 @@ Func __SR_EnumAllWindows()
         $aResult[$idx][1] = $sProc
         $aResult[$idx][2] = $sClass
         $aResult[$idx][3] = $iDesk
+        $aResult[$idx][4] = StringLower($sProc)
     Next
 
     ; Trim array to actual size
-    ReDim $aResult[$aResult[0][0] + 1][4]
+    ReDim $aResult[$aResult[0][0] + 1][5]
     Return $aResult
 EndFunc
 
@@ -295,6 +299,9 @@ Func __SR_MatchWindow($sProc, $sClass, ByRef $aWindows, ByRef $aMatched)
     Local $iBestIdx = 0
     Local $bClassMatch = False
     Local $sProcLower = StringLower($sProc)
+    ; Use the pre-lowercased process column ([N][4]) when the enumeration provides it
+    ; (production path); fall back to lowercasing on the fly for width-4 mock arrays.
+    Local $bHasLower = (UBound($aWindows, 2) >= 5)
 
     Local $i
     For $i = 1 To $aWindows[0][0]
@@ -302,7 +309,8 @@ Func __SR_MatchWindow($sProc, $sClass, ByRef $aWindows, ByRef $aMatched)
         If $aMatched[$i] Then ContinueLoop
 
         ; Primary match: process name (case-insensitive)
-        If StringLower($aWindows[$i][1]) <> $sProcLower Then ContinueLoop
+        Local $sRunLower = $bHasLower ? $aWindows[$i][4] : StringLower($aWindows[$i][1])
+        If $sRunLower <> $sProcLower Then ContinueLoop
 
         ; This window matches by process name
         If $iBestIdx = 0 Then

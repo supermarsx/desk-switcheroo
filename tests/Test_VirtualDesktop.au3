@@ -84,6 +84,21 @@ Func _RunTest_VirtualDesktop()
     _Test_AssertTrue("EnumWindowsOnDesktop is array", IsArray($aEnum))
     _Test_AssertGreaterEqual("EnumWindowsOnDesktop count >= 0", $aEnum[0], 0)
 
+    ; -- EnumWindowsAllDesktops: single-pass 2D [count][2], desktops 1-based, and the
+    ;    per-desktop enum equals the all-desktops rows filtered to that desktop --
+    Local $aAllD = _VD_EnumWindowsAllDesktops()
+    _Test_AssertTrue("EnumWindowsAllDesktops is array", IsArray($aAllD))
+    _Test_AssertEqual("EnumWindowsAllDesktops width 2", UBound($aAllD, 2), 2)
+    _Test_AssertGreaterEqual("EnumWindowsAllDesktops count >= 0", $aAllD[0][0], 0)
+    Local $iAllOnCur = 0, $bDesksValid = True, $kk
+    For $kk = 1 To $aAllD[0][0]
+        If $aAllD[$kk][1] < 1 Then $bDesksValid = False
+        If $aAllD[$kk][1] = $iCurrent Then $iAllOnCur += 1
+    Next
+    _Test_AssertTrue("EnumWindowsAllDesktops desktops are 1-based", $bDesksValid)
+    Local $aOnCur = _VD_EnumWindowsOnDesktop($iCurrent)
+    _Test_AssertEqual("On-desktop enum matches all-desktops filter", $aOnCur[0], $iAllOnCur)
+
     ; -- GetWindowDesktopNumber for invalid handle returns 0 --
     _Test_AssertEqual("GetWindowDesktopNumber(0) = 0", _VD_GetWindowDesktopNumber(0), 0)
 
@@ -128,6 +143,98 @@ Func _RunTest_VirtualDesktop()
         ConsoleWrite("  SKIP: No AutoIt window found for pin/unpin real-handle tests" & @CRLF)
     EndIf
 
+    ; -- Native-OSD suppression policy: 2x2 truth table --
+    ; Suppress when disable_native_osd OR osd_enabled. Save & restore config.
+    Local $bOrigDisable = _Cfg_GetDisableNativeOsd()
+    Local $bOrigOsd = _Cfg_GetOsdEnabled()
+
+    _Cfg_SetDisableNativeOsd(False)
+    _Cfg_SetOsdEnabled(False)
+    _Test_AssertFalse("SuppressOsd: toggle off + osd off => False", __VD_ShouldSuppressNativeOsd())
+
+    _Cfg_SetDisableNativeOsd(True)
+    _Cfg_SetOsdEnabled(False)
+    _Test_AssertTrue("SuppressOsd: toggle on + osd off => True", __VD_ShouldSuppressNativeOsd())
+
+    _Cfg_SetDisableNativeOsd(False)
+    _Cfg_SetOsdEnabled(True)
+    _Test_AssertTrue("SuppressOsd: toggle off + osd on => True", __VD_ShouldSuppressNativeOsd())
+
+    _Cfg_SetDisableNativeOsd(True)
+    _Cfg_SetOsdEnabled(True)
+    _Test_AssertTrue("SuppressOsd: toggle on + osd on => True", __VD_ShouldSuppressNativeOsd())
+
+    ; Restore original config
+    _Cfg_SetDisableNativeOsd($bOrigDisable)
+    _Cfg_SetOsdEnabled($bOrigOsd)
+
+    ; -- Client-area animation get/set/restore round-trips (no persist, no broadcast) --
+    Local $iAnim = __VD_GetClientAreaAnimation()
+    _Test_AssertTrue("GetClientAreaAnimation returns 0/1/-1", ($iAnim = 0 Or $iAnim = 1 Or $iAnim = -1))
+    If $iAnim = 0 Or $iAnim = 1 Then
+        __VD_SetClientAreaAnimation($iAnim = 0) ; flip
+        _Test_AssertEqual("SetClientAreaAnimation flips value", __VD_GetClientAreaAnimation(), ($iAnim = 0) ? 1 : 0)
+        __VD_SetClientAreaAnimation($iAnim = 1) ; restore original
+        _Test_AssertEqual("Client-area animation restored", __VD_GetClientAreaAnimation(), $iAnim)
+    EndIf
+
+    ; -- _VD_GoTo switches and does not error; leaves system setting unchanged --
+    ; Force suppression on so the guard path is exercised, then confirm the animation
+    ; setting is the same before and after the switch (guard restores it).
+    ; Note: GoToDesktopNumber commits the switch asynchronously (COM), so poll for the
+    ; result with a settle rather than reading immediately (see _VD_SwapDesktops delays).
+    _Cfg_SetDisableNativeOsd(True)
+    Local $iAnimBefore = __VD_GetClientAreaAnimation()
+    Local $iCurBefore = _VD_GetCurrent()
+    If _VD_GetCount() >= 2 Then
+        Local $iOther = ($iCurBefore = 1) ? 2 : 1
+        _VD_GoTo($iOther)
+        _Test_AssertEqual("_VD_GoTo switched to target", __VD_TestWaitDesktop($iOther), $iOther)
+        _VD_GoTo($iCurBefore)
+        _Test_AssertEqual("_VD_GoTo returned to original", __VD_TestWaitDesktop($iCurBefore), $iCurBefore)
+    Else
+        ; Single desktop: switching to it is a no-op but must not error
+        _VD_GoTo($iCurBefore)
+        _Test_AssertEqual("_VD_GoTo no-op stays on desktop", _VD_GetCurrent(), $iCurBefore)
+    EndIf
+    ; The restore is deferred (one-shot Adlib); flush it so we can assert the system
+    ; setting is left exactly as before the switch — never permanently altered.
+    __VD_FlushAnimRestore()
+    _Test_AssertEqual("_VD_GoTo restored client-area animation", __VD_GetClientAreaAnimation(), $iAnimBefore)
+    _Cfg_SetDisableNativeOsd($bOrigDisable)
+
+    ; -- Deferred native-OSD-suppression restore: pending, re-arm, flush --
+    ; Force the guard's "animations ON" branch so the restore is actually deferred,
+    ; then verify the pending flag, that rapid re-switches re-arm (stay pending), and
+    ; that flush restores the flag and clears pending. Machine state is saved/restored.
+    Local $iAnimSaved = __VD_GetClientAreaAnimation()
+    If $iAnimSaved = 0 Or $iAnimSaved = 1 Then
+        __VD_FlushAnimRestore() ; clean slate
+        __VD_SetClientAreaAnimation(True) ; animations ON
+        _Cfg_SetDisableNativeOsd(True)    ; suppression ON
+        Local $iCurDR = _VD_GetCurrent()
+
+        _VD_GoTo($iCurDR)
+        _Test_AssertTrue("Deferred restore pending after suppressed switch", __VD_AnimRestorePending())
+        _Test_AssertEqual("Animation held OFF during deferral", __VD_GetClientAreaAnimation(), 0)
+
+        ; Rapid re-switch re-arms the one-shot timer; still pending, still held OFF.
+        _VD_GoTo($iCurDR)
+        _Test_AssertTrue("Deferred restore still pending after rapid re-switch", __VD_AnimRestorePending())
+        _Test_AssertEqual("Animation still held OFF after re-switch", __VD_GetClientAreaAnimation(), 0)
+
+        ; Flush restores the flag immediately and clears pending; second flush no-ops.
+        __VD_FlushAnimRestore()
+        _Test_AssertFalse("Pending cleared after flush", __VD_AnimRestorePending())
+        _Test_AssertEqual("Animation restored ON after flush", __VD_GetClientAreaAnimation(), 1)
+        __VD_FlushAnimRestore()
+        _Test_AssertFalse("Pending stays cleared on second flush", __VD_AnimRestorePending())
+
+        ; Restore original machine + config state.
+        __VD_SetClientAreaAnimation($iAnimSaved = 1)
+        _Cfg_SetDisableNativeOsd($bOrigDisable)
+    EndIf
+
     ; -- Shutdown cleans up --
     _VD_Shutdown()
     _Test_AssertFalse("IsReady after shutdown", _VD_IsReady())
@@ -140,4 +247,15 @@ Func _RunTest_VirtualDesktop()
 
     ; Re-init for other tests that may need it
     _VD_Init($sDllPath)
+EndFunc
+
+; Polls _VD_GetCurrent until it equals $iTarget or a timeout elapses. GoToDesktopNumber
+; commits asynchronously, so a fresh switch is not always visible on the very next read.
+Func __VD_TestWaitDesktop($iTarget, $iTimeoutMs = 1000)
+    Local $hTimer = TimerInit()
+    Do
+        If _VD_GetCurrent() = $iTarget Then Return $iTarget
+        Sleep(50)
+    Until TimerDiff($hTimer) > $iTimeoutMs
+    Return _VD_GetCurrent()
 EndFunc

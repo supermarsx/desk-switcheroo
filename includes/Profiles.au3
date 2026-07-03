@@ -4,6 +4,7 @@
 #include "Labels.au3"
 #include "VirtualDesktop.au3"
 #include "Logger.au3"
+#include "Hooks.au3"
 
 ; #INDEX# =======================================================
 ; Title .........: Profiles
@@ -36,8 +37,9 @@ Global $__g_Prof_sDir = ""
 Func _Prof_Init($sBaseDir = Default)
     If $sBaseDir = Default Then $sBaseDir = @ScriptDir
     $__g_Prof_sDir = $sBaseDir & "\profiles"
-    Local $sIni = $sBaseDir & "\desk_switcheroo.ini"
-    $__g_Prof_bEnabled = (IniRead($sIni, "Profiles", "profiles_enabled", "false") = "true")
+    ; Single source of truth: the typed config accessor (loaded from the INI by
+    ; _Cfg_Load) rather than a second direct IniRead against a hardcoded path.
+    $__g_Prof_bEnabled = _Cfg_GetProfilesEnabled()
     _Log_Debug("Profiles: init enabled=" & $__g_Prof_bEnabled & " dir=" & $__g_Prof_sDir)
 EndFunc
 
@@ -148,16 +150,17 @@ Func _Prof_LoadProfile($sName)
     Local $i
 
     If $iTarget > $iCurrent Then
-        ; Create additional desktops
+        ; Create additional desktops — poll the count instead of a fixed 100 ms wait
+        ; so the common case proceeds as soon as the create is reflected.
         For $i = 1 To ($iTarget - $iCurrent)
             _VD_CreateDesktop()
-            Sleep(100)
+            __Prof_WaitForCount($iCurrent + $i)
         Next
     ElseIf $iTarget < $iCurrent Then
-        ; Remove excess desktops from the end
+        ; Remove excess desktops from the end (poll the count, see above)
         For $i = $iCurrent To ($iTarget + 1) Step -1
             _VD_RemoveDesktop($i)
-            Sleep(100)
+            __Prof_WaitForCount($i - 1)
         Next
     EndIf
 
@@ -184,6 +187,10 @@ Func _Prof_LoadProfile($sName)
 
     ; Trigger config reload so in-memory state reflects the INI changes
     _Cfg_Load()
+
+    ; Fire the profile-load hook here (not at the hotkey call site) so hotkey AND CLI
+    ; loads both notify. Async fire (default) is correct — no blocking on the handler.
+    _Hooks_Fire("on_profile_load", "profile=" & __Prof_SanitizeName($sName) & "|desktop_count=" & $iTarget)
 
     _Log_Info("Profiles: loaded '" & __Prof_SanitizeName($sName) & "' with " & $iTarget & " desktops")
     Return True
@@ -235,6 +242,25 @@ EndFunc
 ; =============================================
 ; INTERNAL HELPERS
 ; =============================================
+
+; Name:        __Prof_WaitForCount
+; Description: Polls the virtual-desktop count until it reaches $iExpected or the
+;              timeout elapses, re-querying the DLL each poll. Replaces a fixed per-step
+;              Sleep during profile apply so the common case returns as soon as a
+;              create/remove is reflected instead of always blocking the full delay.
+; Parameters:  $iExpected  - the desktop count to wait for
+;              $iTimeoutMs - max time to wait, ms (default 200)
+;              $iPollMs    - poll interval, ms (default 10)
+; Return:      True if the count reached $iExpected, False on timeout
+Func __Prof_WaitForCount($iExpected, $iTimeoutMs = 200, $iPollMs = 10)
+    Local $hTimer = TimerInit()
+    Do
+        _VD_InvalidateCountCache()
+        If _VD_GetCount() = $iExpected Then Return True
+        Sleep($iPollMs)
+    Until TimerDiff($hTimer) > $iTimeoutMs
+    Return False
+EndFunc
 
 ; Name:        __Prof_SanitizeName
 ; Description: Sanitizes a profile name for filesystem safety.

@@ -19,6 +19,20 @@ Global Const $__g_VD_ENUM_MAX = 16384 ; hard cap on enumerated windows
 Global $__g_VD_hEnumCB = 0   ; persistent DllCallback handle (registered once, reused)
 Global $__g_VD_pEnumCB = 0   ; callback function pointer
 
+; SystemParametersInfo actions for the client-area animation flag. Windows 11's
+; native desktop-switch OSD (the "N: Name" pill) is gated by this setting — see the
+; native-OSD suppression note on _VD_GoTo below.
+Global Const $__g_VD_SPI_GETCLIENTAREAANIMATION = 0x1042
+Global Const $__g_VD_SPI_SETCLIENTAREAANIMATION = 0x1043
+
+; Deferred native-OSD-suppression restore (see _VD_GoTo). When suppression applies and
+; the client-area animation was ON before the switch, the flag is left OFF and restored
+; by a one-shot Adlib ~250 ms later — the shell reads the flag ASYNC after the switch,
+; so an immediate restore lets the native OSD slip through. Rapid switches re-arm the
+; timer so the flag is restored exactly once, after switching settles.
+Global Const $__g_VD_ANIM_RESTORE_DELAY = 250
+Global $__g_VD_bAnimRestorePending = False
+
 ; #INTERNAL HELPERS# ============================================
 
 ; Name:        __VD_Call
@@ -65,6 +79,38 @@ Func __VD_Call($sFunc, $sRetType, $aArgs = Default)
 
     _Log_Debug("VD_Call: " & $sFunc & " returned " & $aResult[0])
     Return $aResult
+EndFunc
+
+; Name:        __VD_ShouldSuppressNativeOsd
+; Description: Single source of truth for the native-OSD suppression policy. The
+;              native Windows desktop-switch OSD is suppressed when the user enabled
+;              the explicit toggle ([Behavior] disable_native_osd) OR whenever the
+;              app's own custom OSD ([Notifications] osd_enabled) is active — so the
+;              two never show at once. Pure/side-effect-free so it is unit-testable.
+; Return:      True if the native OSD should be suppressed, False otherwise
+Func __VD_ShouldSuppressNativeOsd()
+    Return (_Cfg_GetDisableNativeOsd() Or _Cfg_GetOsdEnabled())
+EndFunc
+
+; Name:        __VD_GetClientAreaAnimation
+; Description: Reads the Windows client-area animation flag via SystemParametersInfo.
+; Return:      1 if enabled, 0 if disabled, -1 on failure
+Func __VD_GetClientAreaAnimation()
+    Local $tB = DllStructCreate("int")
+    Local $a = DllCall("user32.dll", "bool", "SystemParametersInfoW", _
+        "uint", $__g_VD_SPI_GETCLIENTAREAANIMATION, "uint", 0, "ptr", DllStructGetPtr($tB), "uint", 0)
+    If @error Or Not IsArray($a) Or $a[0] = 0 Then Return -1
+    Return DllStructGetData($tB, 1)
+EndFunc
+
+; Name:        __VD_SetClientAreaAnimation
+; Description: Sets the client-area animation flag IN MEMORY ONLY (fWinIni = 0: no
+;              registry write, no WM_SETTINGCHANGE broadcast) so other apps are not
+;              disturbed. Always paired with a restore of the prior value.
+; Parameters:  $bOn - True to enable animations, False to disable
+Func __VD_SetClientAreaAnimation($bOn)
+    DllCall("user32.dll", "bool", "SystemParametersInfoW", _
+        "uint", $__g_VD_SPI_SETCLIENTAREAANIMATION, "uint", 0, "ptr", ($bOn ? 1 : 0), "uint", 0)
 EndFunc
 
 ; #FUNCTIONS# ===================================================
@@ -146,9 +192,31 @@ Func _VD_GetCurrent()
 EndFunc
 
 ; Name:        _VD_GoTo
-; Description: Switches to a virtual desktop by index (1-based)
+; Description: Switches to a virtual desktop by index (1-based).
+;              Native-OSD suppression: when __VD_ShouldSuppressNativeOsd() is True the
+;              switch is wrapped in a client-area-animation guard (disable -> switch ->
+;              restore the prior value on ALL exit paths, so the system setting is never
+;              left altered). Empirically (Windows 11 26200) the native desktop-switch
+;              OSD is gated by this setting: it appears only when animations are ON. On
+;              machines where animations are already OFF the native OSD never shows and
+;              this guard is a no-op — so suppression is satisfied by construction there.
+;              Non-blocking: no Sleep, no broadcast (fWinIni = 0).
 ; Parameters:  $iDesktop - target desktop index (1-based)
 Func _VD_GoTo($iDesktop)
+    ; Disable the client-area animation that gates the native OSD, remembering the
+    ; prior value so it can be restored below. When a deferred restore is already
+    ; pending the flag is currently held OFF but its "real" value is ON, so treat the
+    ; effective prior value as ON without re-reading it.
+    Local $iPrevAnim = -1
+    If __VD_ShouldSuppressNativeOsd() Then
+        If $__g_VD_bAnimRestorePending Then
+            $iPrevAnim = 1
+        Else
+            $iPrevAnim = __VD_GetClientAreaAnimation()
+        EndIf
+        If $iPrevAnim = 1 Then __VD_SetClientAreaAnimation(False)
+    EndIf
+
     ; Taskbar focus trick for reliable switching
     If _Cfg_GetTaskbarFocusTrick() Then
         Local $hTray = WinGetHandle("[CLASS:Shell_TrayWnd]")
@@ -156,6 +224,54 @@ Func _VD_GoTo($iDesktop)
     EndIf
     Local $aArgs[2] = ["int", $iDesktop - 1]
     __VD_Call("GoToDesktopNumber", "int", $aArgs)
+
+    ; The shell reads the client-area-animation flag ASYNC after the switch, so an
+    ; immediate restore can let the native OSD slip through when animations are ON.
+    ; Defer the restore via a one-shot Adlib, re-armed on every switch, so rapid
+    ; switching keeps the OSD suppressed and the flag is restored exactly once, after
+    ; switching settles. Nothing to defer when animations were already OFF.
+    If $iPrevAnim = 1 Then __VD_ScheduleAnimRestore()
+EndFunc
+
+; Name:        __VD_ScheduleAnimRestore
+; Description: Arms (or re-arms) the one-shot Adlib that restores the client-area
+;              animation flag after a suppressed switch settles. Re-arming resets the
+;              countdown so a burst of switches restores only once, at the end.
+Func __VD_ScheduleAnimRestore()
+    $__g_VD_bAnimRestorePending = True
+    AdlibRegister("__VD_AnimRestoreTick", $__g_VD_ANIM_RESTORE_DELAY)
+EndFunc
+
+; Name:        __VD_AnimRestoreTick
+; Description: One-shot Adlib handler — unregisters itself then restores the flag.
+;              Kept tiny (one unregister + one SPI call) per Adlib-reentrancy rules.
+Func __VD_AnimRestoreTick()
+    AdlibUnRegister("__VD_AnimRestoreTick")
+    __VD_RestorePendingAnim()
+EndFunc
+
+; Name:        __VD_RestorePendingAnim
+; Description: Restores the client-area animation flag to ON if a deferred restore is
+;              pending, clearing the pending flag. Idempotent.
+Func __VD_RestorePendingAnim()
+    If Not $__g_VD_bAnimRestorePending Then Return
+    $__g_VD_bAnimRestorePending = False
+    __VD_SetClientAreaAnimation(True)
+EndFunc
+
+; Name:        __VD_FlushAnimRestore
+; Description: Shutdown/error-safe flush — cancels the pending one-shot Adlib and
+;              performs any pending restore immediately, so the flag is never left OFF.
+Func __VD_FlushAnimRestore()
+    AdlibUnRegister("__VD_AnimRestoreTick")
+    __VD_RestorePendingAnim()
+EndFunc
+
+; Name:        __VD_AnimRestorePending
+; Description: Test/inspection accessor — True while a deferred restore is armed.
+; Return:      True/False
+Func __VD_AnimRestorePending()
+    Return $__g_VD_bAnimRestorePending
 EndFunc
 
 ; Name:        _VD_HasNameSupport
@@ -272,34 +388,47 @@ Func __VD_EnumAllWindows()
     Return $__g_VD_aEnumBuf
 EndFunc
 
+; Name:        _VD_EnumWindowsAllDesktops
+; Description: Single-enumeration variant for multi-desktop callers. Does ONE system
+;              EnumWindows + ONE desktop-number pass, tagging every top-level window
+;              with its desktop, so callers that need several desktops (swap, gather,
+;              all-desktops window list) enumerate once instead of once per desktop.
+; Return:      2D array: [0][0] = count N; [i][0] = hWnd, [i][1] = desktop (1-based)
+Func _VD_EnumWindowsAllDesktops()
+    Local $aAll = __VD_EnumAllWindows()
+    Local $aResult[$aAll[0] + 1][2]
+    $aResult[0][0] = 0
+    Local $i
+    For $i = 1 To $aAll[0]
+        Local $hWnd = $aAll[$i]
+        If $hWnd = 0 Then ContinueLoop
+        ; Pre-filter: skip child windows (have an owner/parent)
+        If _WinAPI_GetParent($hWnd) <> 0 Then ContinueLoop
+        ; Direct DllCall instead of wrapper to avoid function-call overhead in tight loop
+        Local $aDesk = DllCall($__g_VD_hDLL, "int", "GetWindowDesktopNumber", "hwnd", $hWnd)
+        If @error Or Not IsArray($aDesk) Or $aDesk[0] < 0 Then ContinueLoop
+        $aResult[0][0] += 1
+        Local $idx = $aResult[0][0]
+        $aResult[$idx][0] = $hWnd
+        $aResult[$idx][1] = $aDesk[0] + 1
+    Next
+    ReDim $aResult[$aResult[0][0] + 1][2]
+    Return $aResult
+EndFunc
+
 ; Name:        _VD_EnumWindowsOnDesktop
 ; Description: Returns an array of window handles on a given desktop
 ; Parameters:  $iDesktop - desktop index (1-based)
 ; Return:      Array where [0] = count, [1..N] = HWNDs
 Func _VD_EnumWindowsOnDesktop($iDesktop)
-    Local $aAll = __VD_EnumAllWindows()
-    Local $aResult[$aAll[0] + 1]
+    Local $aAll = _VD_EnumWindowsAllDesktops()
+    Local $aResult[$aAll[0][0] + 1]
     $aResult[0] = 0
-    Local $iTotal = 0, $iFiltered = 0, $iNoDesk = 0
     Local $i
-    For $i = 1 To $aAll[0]
-        Local $hWnd = $aAll[$i]
-        If $hWnd = 0 Then ContinueLoop
-        $iTotal += 1
-        ; Pre-filter: skip child windows (have an owner/parent)
-        If _WinAPI_GetParent($hWnd) <> 0 Then
-            $iFiltered += 1
-            ContinueLoop
-        EndIf
-        ; Direct DllCall instead of wrapper to avoid function-call overhead in tight loop
-        Local $aDesk = DllCall($__g_VD_hDLL, "int", "GetWindowDesktopNumber", "hwnd", $hWnd)
-        If @error Or $aDesk[0] < 0 Then
-            $iNoDesk += 1
-            ContinueLoop
-        EndIf
-        If $aDesk[0] + 1 = $iDesktop Then
+    For $i = 1 To $aAll[0][0]
+        If $aAll[$i][1] = $iDesktop Then
             $aResult[0] += 1
-            $aResult[$aResult[0]] = $hWnd
+            $aResult[$aResult[0]] = $aAll[$i][0]
         EndIf
     Next
     ReDim $aResult[$aResult[0] + 1]
@@ -313,44 +442,30 @@ EndFunc
 Func _VD_SwapDesktops($iA, $iB)
     _Log_Debug("SwapDesktops: swapping desktop " & $iA & " <-> " & $iB)
 
-    ; Use Win32 EnumWindows directly — AutoIt's WinList("") is virtual-desktop-
-    ; scoped on Win10/11 and only returns windows on the current desktop.
-    ; EnumWindows returns ALL top-level windows system-wide.
-    Local $aAll = __VD_EnumAllWindows()
-    Local $aWinA[$aAll[0] + 1], $aWinB[$aAll[0] + 1]
+    ; Enumerate every window once (tagged with its desktop) and bucket the two
+    ; desktops of interest — a swap does a single system enumeration, not one per
+    ; desktop. EnumWindows returns ALL top-level windows system-wide (AutoIt's
+    ; WinList("") is virtual-desktop-scoped on Win10/11).
+    Local $aAll = _VD_EnumWindowsAllDesktops()
+    Local $aWinA[$aAll[0][0] + 1], $aWinB[$aAll[0][0] + 1]
     $aWinA[0] = 0
     $aWinB[0] = 0
-    Local $iTotal = 0, $iFiltered = 0, $iNoDesk = 0
     Local $i
-    For $i = 1 To $aAll[0]
-        Local $hWnd = $aAll[$i]
-        If $hWnd = 0 Then ContinueLoop
-        $iTotal += 1
-        If _WinAPI_GetParent($hWnd) <> 0 Then
-            $iFiltered += 1
-            ContinueLoop
-        EndIf
-        Local $aDesk = DllCall($__g_VD_hDLL, "int", "GetWindowDesktopNumber", "hwnd", $hWnd)
-        If @error Or $aDesk[0] < 0 Then
-            $iNoDesk += 1
-            ContinueLoop
-        EndIf
-        Local $iDesk = $aDesk[0] + 1
+    For $i = 1 To $aAll[0][0]
+        Local $hWnd = $aAll[$i][0]
+        Local $iDesk = $aAll[$i][1]
         If $iDesk = $iA Then
             $aWinA[0] += 1
             $aWinA[$aWinA[0]] = $hWnd
-            _Log_Debug("SwapDesktops: A hwnd=" & $hWnd & " title=" & WinGetTitle($hWnd))
         ElseIf $iDesk = $iB Then
             $aWinB[0] += 1
             $aWinB[$aWinB[0]] = $hWnd
-            _Log_Debug("SwapDesktops: B hwnd=" & $hWnd & " title=" & WinGetTitle($hWnd))
         EndIf
     Next
     ReDim $aWinA[$aWinA[0] + 1]
     ReDim $aWinB[$aWinB[0] + 1]
 
-    _Log_Debug("SwapDesktops: EnumWindows total=" & $iTotal & " filtered=" & $iFiltered & " noDesk=" & $iNoDesk & _
-        " deskA=" & $aWinA[0] & " deskB=" & $aWinB[0])
+    _Log_Debug("SwapDesktops: enumerated deskA=" & $aWinA[0] & " deskB=" & $aWinB[0])
 
     ; Move A's windows to B (small delay between each to avoid COM threading issues)
     Local $iMoved = 0, $iFailed = 0
@@ -599,6 +714,9 @@ EndFunc
 ; Name:        _VD_Shutdown
 ; Description: Closes the DLL handle
 Func _VD_Shutdown()
+    ; Flush any pending deferred native-OSD-suppression restore so the client-area
+    ; animation flag is never left OFF when the app exits.
+    __VD_FlushAnimRestore()
     If $__g_VD_hEnumCB <> 0 Then
         DllCallbackFree($__g_VD_hEnumCB)
         $__g_VD_hEnumCB = 0
