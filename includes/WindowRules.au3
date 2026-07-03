@@ -1,4 +1,5 @@
 #include-once
+#include "Config.au3"
 #include "Logger.au3"
 #include "VirtualDesktop.au3"
 #include <WinAPISysWin.au3>
@@ -47,9 +48,10 @@ Global Const $__g_WR_CLEANUP_INTERVAL = 10 ; clean stale HWNDs every N polls
 ;              Does nothing if rules are disabled or no valid rules found.
 ; Return:      True if started, False otherwise
 Func _WR_Start()
-    Local $sIni = @ScriptDir & "\desk_switcheroo.ini"
-    Local $bEnabled = (IniRead($sIni, "Rules", "rules_enabled", "false") = "true")
-    If Not $bEnabled Then
+    ; Consult the in-memory config (single source of truth) rather than re-reading the INI,
+    ; so a live toggle/interval edit takes effect immediately after _Cfg_Save() persists the
+    ; rule_N rows that _WR_LoadRules still reads from disk.
+    If Not _Cfg_GetRulesEnabled() Then
         _Log_Debug("WindowRules: disabled in config")
         Return False
     EndIf
@@ -70,8 +72,8 @@ Func _WR_Start()
         EndIf
     EndIf
 
-    ; Read poll interval with clamping
-    Local $iInterval = Int(IniRead($sIni, "Rules", "rules_poll_interval", "2000"))
+    ; Poll interval from config (getter already clamps to the valid range)
+    Local $iInterval = _Cfg_GetRulesPollInterval()
     If $iInterval < 500 Then $iInterval = 500
     If $iInterval > 30000 Then $iInterval = 30000
 

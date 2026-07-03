@@ -242,6 +242,32 @@ Func _RunTest_Hooks()
     IniWrite($sTempIni, "Hooks", "hooks_enabled", "yes")
     _Test_AssertFalse("Disabled: 'yes' (not 'true')", _Hooks_Init())
 
+    ; == Fire returns matched count ==
+    If FileExists($sTempIni) Then FileDelete($sTempIni)
+    IniWrite($sTempIni, "Hooks", "hooks_enabled", "true")
+    IniWrite($sTempIni, "Hooks", "on_desktop_change", "cmd /c exit 0")
+    _Hooks_Init()
+    _Test_AssertEqual("Fire returns matched count (async)", _Hooks_Fire("on_desktop_change", ""), 1)
+    _Test_AssertEqual("Fire returns 0 for unmatched event", _Hooks_Fire("on_shutdown", ""), 0)
+    _Hooks_Shutdown()
+
+    ; == Fire while disabled returns 0 ==
+    _Hooks_Shutdown()
+    _Test_AssertEqual("Fire while disabled returns 0", _Hooks_Fire("on_startup", ""), 0)
+
+    ; == Synchronous fire (B2): shutdown hooks run to completion, not tracked as async PIDs ==
+    ; A fast command must complete during the bounded wait, so the async PID tracker stays empty
+    ; (the sync path reaps the process itself rather than deferring it to __Hooks_CheckTimeouts).
+    If FileExists($sTempIni) Then FileDelete($sTempIni)
+    IniWrite($sTempIni, "Hooks", "hooks_enabled", "true")
+    IniWrite($sTempIni, "Hooks", "hooks_timeout", "5000")
+    IniWrite($sTempIni, "Hooks", "on_shutdown", "cmd /c exit 0")
+    _Hooks_Init()
+    Local $iSyncMatched = _Hooks_Fire("on_shutdown", "", True)
+    _Test_AssertEqual("Sync fire matched 1 shutdown hook", $iSyncMatched, 1)
+    _Test_AssertEqual("Sync fire leaves no tracked async PIDs", $__g_Hooks_iPIDCount, 0)
+    _Hooks_Shutdown()
+
     ; == Cleanup temp file ==
     If FileExists($sTempIni) Then FileDelete($sTempIni)
 

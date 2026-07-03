@@ -162,6 +162,15 @@ Func _RunTest_WindowRules()
     $iCount = __Test_WR_ParseRulesFromIni($sTempIni)
     _Test_AssertEqual("Max 50 rules enforced", $iCount, 50)
 
+    ; ---- _WR_Start consults the config getter, not a raw INI read (B3) ----
+    ; With rules disabled in the in-memory config, _WR_Start must early-return False and never
+    ; register the poll — independent of whatever rules_enabled sits in the @ScriptDir INI on disk.
+    Local $bOrigRulesEnabled = _Cfg_GetRulesEnabled()
+    _Cfg_SetRulesEnabled(False)
+    _Test_AssertFalse("_WR_Start returns False when config getter disabled", _WR_Start())
+    _Test_AssertFalse("Not running after start with disabled getter", _WR_IsRunning())
+    _Cfg_SetRulesEnabled($bOrigRulesEnabled)
+
     ; ---- Cleanup ----
     If FileExists($sTempIni) Then FileDelete($sTempIni)
     ; Reset module state

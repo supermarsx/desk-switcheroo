@@ -110,6 +110,36 @@ Func _RunTest_Logger()
     _Test_AssertTrue("Log path traversal rejected", StringInStr(_Cfg_GetLogFilePath(), @ScriptDir) > 0)
     _Cfg_SetLogFolder("")
 
+    ; -- Deferred log compression cleanup (R19) --
+    Local $sZipBase = @TempDir & "\desk_switcheroo_ziptest.log"
+    FileDelete($sZipBase & ".1")
+    FileDelete($sZipBase & ".1.zip")
+    ; Start from a clean pending list
+    ReDim $__g_Log_aPendCompressSrc[0]
+    ReDim $__g_Log_aPendCompressTmr[0]
+
+    ; Case 1: source + its .zip both exist -> cleanup deletes the source, empties pending
+    FileWrite($sZipBase & ".1", "rotated log body")
+    FileWrite($sZipBase & ".1.zip", "PK-archive-stand-in")
+    __Log_EnqueuePendingCompress($sZipBase & ".1")
+    _Test_AssertEqual("Compress pending enqueued", UBound($__g_Log_aPendCompressSrc), 1)
+    __Log_ProcessPendingCompress()
+    _Test_AssertFalse("Compressed source deleted", FileExists($sZipBase & ".1"))
+    _Test_AssertEqual("Pending cleared after cleanup", UBound($__g_Log_aPendCompressSrc), 0)
+    FileDelete($sZipBase & ".1.zip")
+
+    ; Case 2: source exists but no .zip yet (compressor still running) -> retained for retry
+    FileWrite($sZipBase & ".1", "rotated log body")
+    __Log_EnqueuePendingCompress($sZipBase & ".1")
+    __Log_ProcessPendingCompress()
+    _Test_AssertTrue("Uncompressed source retained", FileExists($sZipBase & ".1"))
+    _Test_AssertEqual("Pending retained while compressing", UBound($__g_Log_aPendCompressSrc), 1)
+
+    ; Case 3: source vanished (rotated away) -> entry dropped, no crash
+    FileDelete($sZipBase & ".1")
+    __Log_ProcessPendingCompress()
+    _Test_AssertEqual("Pending drops missing source", UBound($__g_Log_aPendCompressSrc), 0)
+
     ; Cleanup
     FileDelete($sTempLog)
     If FileExists($sTempLog & ".bak") Then FileDelete($sTempLog & ".bak")

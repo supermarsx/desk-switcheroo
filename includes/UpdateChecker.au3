@@ -43,6 +43,58 @@ Func __UC_FormatProgress($iPct, $iBytesRead, $sSizeStr)
     Return _i18n_Format("Extra.download_progress", "{1}% ({2} / {3})", $iPct, $sReadStr, $sSizeStr)
 EndFunc
 
+; Name:        __UC_NormalizeVersion
+; Description: Strips a leading "v"/"V" and surrounding whitespace from a version string
+; Parameters:  $sVer - raw version string (e.g. "v26.3")
+; Return:      Normalized version string (e.g. "26.3")
+Func __UC_NormalizeVersion($sVer)
+    $sVer = StringStripWS($sVer, 3)
+    If StringLeft($sVer, 1) = "v" Or StringLeft($sVer, 1) = "V" Then $sVer = StringTrimLeft($sVer, 1)
+    Return $sVer
+EndFunc
+
+; Name:        __UC_VersionPart
+; Description: Extracts the leading integer of a single version component; non-numeric -> 0
+; Parameters:  $sPart - one dot-delimited component (e.g. "3", "3-beta", "x")
+; Return:      Integer value of the leading digits, or 0 when there are none
+Func __UC_VersionPart($sPart)
+    Local $aDigits = StringRegExp($sPart, "^(\d+)", 1)
+    If @error Or UBound($aDigits) < 1 Then Return 0
+    Return Number($aDigits[0])
+EndFunc
+
+; Name:        __UC_CompareVersions
+; Description: Numeric left-to-right comparison of two dotted version strings.
+;              Tolerates a "v" prefix, unequal component counts (missing = 0),
+;              and malformed components (non-numeric = 0).
+; Parameters:  $sA, $sB - version strings
+; Return:      -1 if $sA < $sB, 0 if equal, 1 if $sA > $sB
+Func __UC_CompareVersions($sA, $sB)
+    Local $aA = StringSplit(__UC_NormalizeVersion($sA), ".")
+    Local $aB = StringSplit(__UC_NormalizeVersion($sB), ".")
+    Local $iMax = $aA[0]
+    If $aB[0] > $iMax Then $iMax = $aB[0]
+    Local $i, $iPa, $iPb
+    For $i = 1 To $iMax
+        $iPa = 0
+        $iPb = 0
+        If $i <= $aA[0] Then $iPa = __UC_VersionPart($aA[$i])
+        If $i <= $aB[0] Then $iPb = __UC_VersionPart($aB[$i])
+        If $iPa < $iPb Then Return -1
+        If $iPa > $iPb Then Return 1
+    Next
+    Return 0
+EndFunc
+
+; Name:        __UC_IsNewer
+; Description: True only when the remote version is strictly greater than the local one
+; Parameters:  $sRemote - version reported by the release feed
+;              $sLocal  - the running app version
+; Return:      True if an update is genuinely available
+Func __UC_IsNewer($sRemote, $sLocal)
+    Return (__UC_CompareVersions($sRemote, $sLocal) > 0)
+EndFunc
+
 ; Name:        _UC_AdlibCheck
 ; Description: Starts a non-blocking download of the GitHub releases API
 Func _UC_AdlibCheck()
@@ -82,6 +134,10 @@ Func _UC_CheckResult()
 
     Local $sLatest = $aMatch[0]
     _Log_Info("Update check: latest release is v" & $sLatest)
+
+    ; Only surface a toast when the remote release is genuinely newer than the
+    ; running build (B1/P4): a matching or older tag is not an "update".
+    If Not __UC_IsNewer($sLatest, $APP_VERSION) Then Return
 
     Static $sLastShown = ""
     If $sLatest <> $sLastShown Then
@@ -189,7 +245,19 @@ Func __UC_FetchReleaseJson($sLabel)
             _Theme_Toast(_i18n("Toasts.toast_connection_timeout", "Connection timed out"), 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
             Return ""
         EndIf
-        Sleep(50)
+        ; Pump the popup so it repaints and stays cancellable (Esc / close) during
+        ; the network wait, rather than hard-freezing the whole app for up to 10s.
+        Local $aFetchMsg = GUIGetMsg(1)
+        Local $retFetchEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
+        If ($aFetchMsg[1] = $hDlg And $aFetchMsg[0] = $GUI_EVENT_CLOSE) Or _
+           (Not @error And IsArray($retFetchEsc) And BitAND($retFetchEsc[0], $VK_KEYDOWN) <> 0) Then
+            _Log_Info("UC_Fetch: cancelled by user")
+            InetClose($hInet)
+            FileDelete($sTmp)
+            _Theme_FadeOut($hDlg, "dialog")
+            Return ""
+        EndIf
+        Sleep(10)
     WEnd
     Local $bSuccess = InetGetInfo($hInet, 3)
     Local $iBytesRead = InetGetInfo($hInet, 0)
@@ -237,7 +305,7 @@ Func _UC_CheckNow()
     EndIf
 
     _Log_Info("Update check: latest release is v" & $sLatest)
-    Local $bUpdateAvailable = ($sLatest <> $APP_VERSION)
+    Local $bUpdateAvailable = __UC_IsNewer($sLatest, $APP_VERSION)
 
     Local $iDlgW = 320, $iDlgH = 140
     Local $hDlg = _Theme_CreatePopup("Update Check", $iDlgW, $iDlgH, _
@@ -441,7 +509,7 @@ Func _UC_DownloadPortable()
     Local $sDestVersion = $sVersion
     If $sDestVersion = "" Then $sDestVersion = "unknown"
     Local $sDestFile = @UserProfileDir & "\Downloads\DeskSwitcheroo_Portable_v" & $sDestVersion & ".zip"
-    $iDlgH = 90
+    $iDlgH = 118
     $hDlg = _Theme_CreatePopup("Downloading", $iDlgW, $iDlgH, _
         (@DesktopWidth - $iDlgW) / 2, (@DesktopHeight - $iDlgH) / 2, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
     GUISwitch($hDlg)
@@ -461,12 +529,19 @@ Func _UC_DownloadPortable()
     GUICtrlSetColor($idProgPct, $THEME_FG_DIM)
     GUICtrlSetBkColor($idProgPct, $GUI_BKCOLOR_TRANSPARENT)
 
+    Local $idDlCancel = GUICtrlCreateLabel(ChrW(0x2715) & " " & _i18n("General.btn_cancel", "Cancel"), ($iDlgW - 100) / 2, $iDlgH - 34, 100, 26, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idDlCancel, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idDlCancel, $THEME_FG_MENU)
+    GUICtrlSetBkColor($idDlCancel, $THEME_BG_HOVER)
+    GUICtrlSetCursor($idDlCancel, 0)
+
     _Theme_FadeIn($hDlg, $THEME_ALPHA_DIALOG, "dialog")
 
     Local $hDownload = InetGet($sDownloadUrl, $sDestFile, 1, 1)
     Local $iBarW = $iDlgW - 28
     Local $hDownTimer = TimerInit()
     Local $iDownTimeout = 120000 ; 2 minutes max for download
+    Local $iDlHovered = 0
 
     While Not InetGetInfo($hDownload, 2)
         If TimerDiff($hDownTimer) > $iDownTimeout Then
@@ -477,6 +552,32 @@ Func _UC_DownloadPortable()
             _Theme_Toast(_i18n("Toasts.toast_connection_timeout", "Connection timed out"), 0, $iTaskbarY + $iTaskbarH + 4, 2000, $TOAST_ERROR)
             Return
         EndIf
+
+        ; Pump the progress dialog so it repaints and can be cancelled (button /
+        ; Esc / close) during the download, instead of freezing for up to 2 minutes.
+        Local $aDlMsg = GUIGetMsg(1)
+        Local $retDlEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
+        If ($aDlMsg[1] = $hDlg And ($aDlMsg[0] = $GUI_EVENT_CLOSE Or $aDlMsg[0] = $idDlCancel)) Or _
+           (Not @error And IsArray($retDlEsc) And BitAND($retDlEsc[0], $VK_KEYDOWN) <> 0) Then
+            _Log_Info("UC_Download: cancelled by user")
+            InetClose($hDownload)
+            FileDelete($sDestFile)
+            _Theme_FadeOut($hDlg, "dialog")
+            Return
+        EndIf
+
+        ; Cancel-button hover feedback
+        Local $aDlCursor = GUIGetCursorInfo($hDlg)
+        If Not @error Then
+            Local $iDlFound = 0
+            If $aDlCursor[4] = $idDlCancel Then $iDlFound = $idDlCancel
+            If $iDlFound <> $iDlHovered Then
+                If $iDlHovered <> 0 Then _Theme_RemoveHover($iDlHovered, $THEME_FG_MENU, $THEME_BG_HOVER)
+                $iDlHovered = $iDlFound
+                If $iDlHovered <> 0 Then _Theme_ApplyHover($iDlHovered, $THEME_FG_WHITE, $THEME_BG_BTN_HOV)
+            EndIf
+        EndIf
+
         Local $iBytesRead = InetGetInfo($hDownload, 0)
         If $iSizeBytes > 0 Then
             Local $iPct = Int($iBytesRead / $iSizeBytes * 100)
@@ -486,7 +587,7 @@ Func _UC_DownloadPortable()
         Else
             GUICtrlSetData($idProgPct, _i18n_Format("Extra.downloaded_mb", "{1} MB downloaded", StringFormat("%.1f", $iBytesRead / 1048576)))
         EndIf
-        Sleep(100)
+        Sleep(30)
     WEnd
 
     Local $bSuccess = InetGetInfo($hDownload, 3)

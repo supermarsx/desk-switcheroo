@@ -81,6 +81,31 @@ Func _RunTest_UpdateChecker()
     _Test_AssertFalse("Same versions equal", "26.3" <> "26.3")
     _Test_AssertTrue("Dev vs release", "dev" <> "26.3")
 
+    ; -- Semantic version comparator (P4) --
+    ; Ordering
+    _Test_AssertEqual("Compare greater", __UC_CompareVersions("26.3", "26.2"), 1)
+    _Test_AssertEqual("Compare lesser", __UC_CompareVersions("26.2", "26.3"), -1)
+    _Test_AssertEqual("Compare equal", __UC_CompareVersions("26.3", "26.3"), 0)
+    _Test_AssertEqual("Compare major greater", __UC_CompareVersions("27.0", "26.99"), 1)
+    ; v-prefix tolerance (either side)
+    _Test_AssertEqual("v-prefix normalized", __UC_CompareVersions("v26.3", "26.3"), 0)
+    _Test_AssertEqual("v-prefix both sides", __UC_CompareVersions("v26.4", "v26.3"), 1)
+    ; Unequal component counts (missing components treated as 0)
+    _Test_AssertEqual("Longer is newer", __UC_CompareVersions("26.3.1", "26.3"), 1)
+    _Test_AssertEqual("Trailing zero equal", __UC_CompareVersions("26.3.0", "26.3"), 0)
+    _Test_AssertEqual("Shorter is older", __UC_CompareVersions("26.3", "26.3.1"), -1)
+    ; Malformed components degrade to 0, no crash
+    _Test_AssertEqual("Malformed treated as zero", __UC_CompareVersions("26.x", "26.0"), 0)
+    _Test_AssertEqual("Numeric beats non-numeric", __UC_CompareVersions("26.3", "dev"), 1)
+    _Test_AssertEqual("Empty string is zero", __UC_CompareVersions("", ""), 0)
+    _Test_AssertEqual("Suffix ignored after digits", __UC_CompareVersions("26.3-beta", "26.3"), 0)
+
+    ; -- __UC_IsNewer: only strictly-greater remote counts as an update (B1/P4) --
+    _Test_AssertTrue("Newer remote is an update", __UC_IsNewer("26.4", "26.3"))
+    _Test_AssertFalse("Equal remote is not an update", __UC_IsNewer("26.3", "26.3"))
+    _Test_AssertFalse("Older remote is not an update", __UC_IsNewer("26.2", "26.3"))
+    _Test_AssertTrue("v-prefixed newer remote is an update", __UC_IsNewer("v26.4", "26.3"))
+
     ; -- Tag without v prefix --
     Local $sJson2 = '{"tag_name": "26.1"}'
     Local $aVer2 = StringRegExp($sJson2, '"tag_name"\s*:\s*"v?([^"]+)"', 1)

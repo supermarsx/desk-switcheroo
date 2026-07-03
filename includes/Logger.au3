@@ -15,6 +15,13 @@ Global $__g_Log_iLevel    = 3        ; 1=error, 2=warn, 3=info, 4=debug
 Global $__g_Log_hFile     = -1       ; file handle (-1 = closed)
 Global $__g_Log_iMaxSize  = 5 * 1024 * 1024  ; default 5 MB, updated from config in _Log_Init
 
+; Deferred log-compression cleanup: rotation launches Compress-Archive detached
+; (non-blocking) and records the rotated source file here. A later opportunity
+; (next rotation check / shutdown) deletes the source once its .zip exists.
+Global $__g_Log_aPendCompressSrc[0]           ; rotated source paths awaiting cleanup
+Global $__g_Log_aPendCompressTmr[0]           ; matching TimerInit() handles (giveup timer)
+Global $__g_Log_iCompressTimeout = 30000      ; ms before abandoning a stuck compression
+
 ; #FUNCTIONS# ===================================================
 
 ; Name:        _Log_Init
@@ -55,6 +62,8 @@ Func _Log_Shutdown()
         FileClose($__g_Log_hFile)
         $__g_Log_hFile = -1
     EndIf
+    ; Final chance to clean up any completed detached compression.
+    __Log_ProcessPendingCompress()
 EndFunc
 
 ; Name:        _Log_Error
@@ -136,6 +145,10 @@ EndFunc
 ;              moving to .bak, and reopening.
 Func __Log_CheckRotation()
     If Not $__g_Log_bEnabled Or $__g_Log_hFile = -1 Then Return
+
+    ; Opportunistic cleanup of any prior detached compression (cheap no-op when idle)
+    __Log_ProcessPendingCompress()
+
     If FileGetSize($__g_Log_sFilePath) <= $__g_Log_iMaxSize Then Return
 
     ; Close current file
@@ -169,17 +182,65 @@ Func __Log_CheckRotation()
         Return
     EndIf
 
-    ; Compress .log.1 if enabled (use PowerShell)
+    ; Compress .log.1 if enabled — launch detached so a log write that trips
+    ; rotation never blocks 0.5-2s waiting for the archiver (R19). The rotated
+    ; source is deleted later, once its .zip exists (see __Log_ProcessPendingCompress).
     If $bCompress Then
         Local $sSafePath = StringReplace($__g_Log_sFilePath, "'", "''")
-        Local $iRet = RunWait('powershell.exe -NoProfile -Command "Compress-Archive -Path ''' & $sSafePath & '.1'' -DestinationPath ''' & $sSafePath & '.1.zip'' -Force"', "", @SW_HIDE)
-        If $iRet = 0 And FileExists($__g_Log_sFilePath & ".1.zip") Then
-            FileDelete($__g_Log_sFilePath & ".1")
-        EndIf
+        Run('powershell.exe -NoProfile -Command "Compress-Archive -Path ''' & $sSafePath & '.1'' -DestinationPath ''' & $sSafePath & '.1.zip'' -Force"', "", @SW_HIDE)
+        __Log_EnqueuePendingCompress($__g_Log_sFilePath & ".1")
     EndIf
 
     ; Reopen fresh log file
     $__g_Log_hFile = FileOpen($__g_Log_sFilePath, 1) ; 1 = append
+EndFunc
+
+; Name:        __Log_EnqueuePendingCompress
+; Description: Records a rotated source file whose detached compression is in flight,
+;              so a later pass can delete it once the .zip is produced.
+; Parameters:  $sSrc - path of the rotated log file being compressed (e.g. "...log.1")
+Func __Log_EnqueuePendingCompress($sSrc)
+    Local $n = UBound($__g_Log_aPendCompressSrc)
+    ReDim $__g_Log_aPendCompressSrc[$n + 1]
+    ReDim $__g_Log_aPendCompressTmr[$n + 1]
+    $__g_Log_aPendCompressSrc[$n] = $sSrc
+    $__g_Log_aPendCompressTmr[$n] = TimerInit()
+EndFunc
+
+; Name:        __Log_ProcessPendingCompress
+; Description: Deletes rotated source files whose .zip has been produced. Entries whose
+;              compressor is still running (source still locked, or .zip not yet created)
+;              are retried on the next call; entries stuck past the timeout are abandoned
+;              (the uncompressed source is simply left in place — no data loss).
+Func __Log_ProcessPendingCompress()
+    Local $n = UBound($__g_Log_aPendCompressSrc)
+    If $n = 0 Then Return
+
+    Local $aSrc[0], $aTmr[0], $k = 0
+    Local $i
+    For $i = 0 To $n - 1
+        Local $sSrc = $__g_Log_aPendCompressSrc[$i]
+        Local $bKeep = False
+        If Not FileExists($sSrc) Then
+            ; Source already gone (deleted or rotated away) — nothing left to do.
+        ElseIf FileExists($sSrc & ".zip") Then
+            ; Archive exists; FileDelete fails while the compressor still holds the
+            ; source's read lock, so a failure just means "retry next pass".
+            If Not FileDelete($sSrc) Then $bKeep = True
+        Else
+            ; No .zip yet: compressor still running, or it failed. Retry until timeout.
+            If TimerDiff($__g_Log_aPendCompressTmr[$i]) < $__g_Log_iCompressTimeout Then $bKeep = True
+        EndIf
+        If $bKeep Then
+            ReDim $aSrc[$k + 1]
+            ReDim $aTmr[$k + 1]
+            $aSrc[$k] = $sSrc
+            $aTmr[$k] = $__g_Log_aPendCompressTmr[$i]
+            $k += 1
+        EndIf
+    Next
+    $__g_Log_aPendCompressSrc = $aSrc
+    $__g_Log_aPendCompressTmr = $aTmr
 EndFunc
 
 ; Name:        __Log_LevelToInt

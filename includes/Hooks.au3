@@ -100,8 +100,13 @@ EndFunc
 ; Parameters:  $sEvent  - event name (e.g. "on_desktop_change")
 ;              $sParams - pipe-delimited key=value pairs for variable substitution
 ;                         e.g. "desktop=3|desktop_name=Work|prev_desktop=1"
-Func _Hooks_Fire($sEvent, $sParams = "")
-    If Not $__g_Hooks_bEnabled Then Return
+;              $bSync   - when True, run each matching hook to completion (bounded by the
+;                         configured hook timeout) before returning. Used for on_shutdown so
+;                         the hooks are not killed by _Hooks_Shutdown() while still running.
+;                         Blocking — only safe off the UI loop (i.e. during shutdown).
+; Return:      Number of hooks matched and fired.
+Func _Hooks_Fire($sEvent, $sParams = "", $bSync = False)
+    If Not $__g_Hooks_bEnabled Then Return 0
 
     ; Clean up finished/timed-out processes before launching new ones
     __Hooks_CheckTimeouts()
@@ -111,14 +116,21 @@ Func _Hooks_Fire($sEvent, $sParams = "")
     For $i = 0 To $__g_Hooks_iHookCount - 1
         If $__g_Hooks_aHooks[$i][0] = $sEvent Then
             Local $sCmd = __Hooks_SubstituteVars($__g_Hooks_aHooks[$i][1], $sParams)
-            __Hooks_Execute($sCmd, False)
+            If $bSync Then
+                __Hooks_ExecuteSyncCapped($sCmd)
+            Else
+                __Hooks_Execute($sCmd, False)
+            EndIf
             $iMatched += 1
         EndIf
     Next
 
     If $iMatched > 0 Then
-        _Log_Debug("Hooks: fired " & $sEvent & " (" & $iMatched & " hooks)")
+        Local $sMode = ""
+        If $bSync Then $sMode = ", sync"
+        _Log_Debug("Hooks: fired " & $sEvent & " (" & $iMatched & " hooks" & $sMode & ")")
     EndIf
+    Return $iMatched
 EndFunc
 
 ; Name:        _Hooks_LoadHooks
@@ -230,6 +242,39 @@ Func __Hooks_Execute($sCmd, $bSync = False)
 
         Return $iPID
     EndIf
+EndFunc
+
+; Name:        __Hooks_ExecuteSyncCapped
+; Description: Launches a hook command and blocks until it exits or the configured hook
+;              timeout elapses, whichever comes first. Unlike __Hooks_Execute(sync) this
+;              caps the wait so a hung hook cannot freeze shutdown indefinitely, and it
+;              does not add the PID to the async tracker (the wait already reaps it).
+; Parameters:  $sCmd - the fully substituted command string
+; Return:      0 on normal completion / kill, -1 on launch failure
+Func __Hooks_ExecuteSyncCapped($sCmd)
+    If StringStripWS($sCmd, 3) = "" Then
+        _Log_Warn("Hooks: empty command, skipping")
+        Return -1
+    EndIf
+
+    _Log_Info("Hooks: executing (sync): " & $sCmd)
+    Local $iPID = Run($sCmd, @ScriptDir, @SW_HIDE)
+    If $iPID = 0 Then
+        _Log_Warn("Hooks: failed to execute: " & $sCmd & " (error " & @error & ")")
+        Return -1
+    EndIf
+
+    ; Bounded wait: block until the hook process exits or the timeout cap elapses.
+    Local $hTimer = TimerInit()
+    While ProcessExists($iPID)
+        If TimerDiff($hTimer) > $__g_Hooks_iTimeout Then
+            _Log_Warn("Hooks: sync hook exceeded " & $__g_Hooks_iTimeout & "ms, killing PID " & $iPID)
+            ProcessClose($iPID)
+            ExitLoop
+        EndIf
+        Sleep(10)
+    WEnd
+    Return 0
 EndFunc
 
 ; Name:        __Hooks_SubstituteVars
