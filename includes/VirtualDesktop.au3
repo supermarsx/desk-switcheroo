@@ -191,6 +191,56 @@ Func _VD_GetCurrent()
     Return $aResult[0] + 1
 EndFunc
 
+; =============================================================
+; Relative-navigation target math — pure (no DLL, no globals).
+; Extracted from the nav handlers in desktop_switcher.au3 so the
+; optimistic-index navigation logic is unit-testable.
+; Regression 2026-07-03: rapid relative next/prev must not collapse.
+; The handlers advance an eagerly-updated index (the "optimistic" value)
+; through these functions so back-to-back inputs chain off a fresh index
+; instead of the stale one the deferred refresh only writes ~50ms later.
+; =============================================================
+
+; Name:        _Nav_NextTarget
+; Description: Target desktop for one "next" step. PURE.
+; Parameters:  $iCur        - current (or optimistic) 1-based index
+;              $iCount      - desktop count
+;              $bAutoCreate - True if a new desktop will be created at the end
+;              $bWrap       - True to wrap from last back to first
+; Return:      Target index, or $iCur when no move is possible.
+;              At the end with autocreate, returns $iCur+1 (the to-be-created
+;              desktop); the caller performs the actual creation and treats a
+;              creation failure as "no move".
+Func _Nav_NextTarget($iCur, $iCount, $bAutoCreate, $bWrap)
+    If $iCur < $iCount Then Return $iCur + 1
+    If $bAutoCreate Then Return $iCur + 1
+    If $bWrap Then Return 1
+    Return $iCur
+EndFunc
+
+; Name:        _Nav_PrevTarget
+; Description: Target desktop for one "prev" step. PURE.
+; Parameters:  $iCur   - current (or optimistic) 1-based index
+;              $iCount - desktop count
+;              $bWrap  - True to wrap from first back to last
+; Return:      Target index, or $iCur when no move is possible.
+Func _Nav_PrevTarget($iCur, $iCount, $bWrap)
+    If $iCur > 1 Then Return $iCur - 1
+    If $bWrap Then Return $iCount
+    Return $iCur
+EndFunc
+
+; Name:        _Nav_Reconcile
+; Description: Fold an OS ground-truth reading back onto the optimistic index.
+;              PURE. Ground truth always wins, so a denied/failed/external switch
+;              corrects the optimistic value and it can never permanently drift.
+; Parameters:  $iOptimistic  - the eagerly-advanced index (ignored)
+;              $iGroundTruth - the OS-confirmed current desktop
+; Return:      $iGroundTruth
+Func _Nav_Reconcile($iOptimistic, $iGroundTruth)
+    Return $iGroundTruth
+EndFunc
+
 ; Name:        _VD_GoTo
 ; Description: Switches to a virtual desktop by index (1-based).
 ;              Native-OSD suppression: when __VD_ShouldSuppressNativeOsd() is True the

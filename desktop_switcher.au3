@@ -212,6 +212,11 @@ EndIf
 
 ; ---- Globals ----
 Global $iDesktop = _VD_GetCurrent()
+; Last OS-confirmed desktop index. $iDesktop is advanced OPTIMISTICALLY on nav (so rapid
+; relative next/prev chains off a fresh index — see _NavigateTo), which would otherwise
+; defeat _RefreshIndex's change-detection; this baseline is written only by _RefreshIndex
+; from OS ground truth, so desktop-change side effects (OSD/hooks/prev-tracking) still fire.
+Global $__g_iConfirmedDesktop = $iDesktop
 Global $iPrevDesktop = 1
 Global $gui, $lblNum, $lblName, $lblLeft, $lblRight, $lblColorBar
 Global $iTaskbarH, $iTaskbarY
@@ -450,23 +455,20 @@ Func _ProcessGUIEvents($msg, $hFrom)
             Case $lblLeft
                 _Log_Debug("Click: left arrow (prev desktop)")
                 Local $iCount = _VD_GetCount()
-                If $iDesktop > 1 Then
-                    _VD_GoTo($iDesktop - 1)
-                ElseIf _Cfg_GetWrapNavigation() Then
-                    _VD_GoTo($iCount)
-                EndIf
-                _RequestDeferredRefresh()
+                Local $iTargetL = _Nav_PrevTarget($iDesktop, $iCount, _Cfg_GetWrapNavigation())
+                If $iTargetL <> $iDesktop Then _NavigateTo($iTargetL)
             Case $lblRight
                 _Log_Debug("Click: right arrow (next desktop)")
                 Local $iCount2 = _VD_GetCount()
-                If $iDesktop < $iCount2 Then
-                    _VD_GoTo($iDesktop + 1)
-                ElseIf _Cfg_GetAutoCreateDesktop() Then
-                    If _DoCreateDesktop() > 0 Then _VD_GoTo($iDesktop + 1)
-                ElseIf _Cfg_GetWrapNavigation() Then
-                    _VD_GoTo(1)
+                Local $bAutoCreateR = _Cfg_GetAutoCreateDesktop()
+                Local $iTargetR = _Nav_NextTarget($iDesktop, $iCount2, $bAutoCreateR, _Cfg_GetWrapNavigation())
+                If $iTargetR <> $iDesktop Then
+                    If $iDesktop >= $iCount2 And $bAutoCreateR Then
+                        If _DoCreateDesktop() > 0 Then _NavigateTo($iTargetR)
+                    Else
+                        _NavigateTo($iTargetR)
+                    EndIf
                 EndIf
-                _RequestDeferredRefresh()
             Case $lblNum, $lblName
                 If _Cfg_GetQuickAccessEnabled() And $msg = $lblNum And $__g_iClickCount >= 2 Then
                     _Log_Debug("Click: quick-access mode activated")
@@ -1439,6 +1441,12 @@ EndFunc
 ; Parameters:  $iNew - target desktop number
 Func _NavigateTo($iNew)
     _VD_GoTo($iNew)
+    ; Regression 2026-07-03: optimistically advance the tracked index to the target so
+    ; back-to-back relative nav chains off a fresh index instead of the stale value the
+    ; deferred refresh only writes ~$NAV_SETTLE_MS later. Reconciliation (deferred
+    ; _RefreshIndex / event-driven _WM_DESKTOPCHANGE) corrects $iDesktop to OS ground
+    ; truth, so a denied/failed/external switch can never leave it permanently drifted.
+    $iDesktop = $iNew
     _RequestDeferredRefresh()
 EndFunc
 
@@ -1455,8 +1463,12 @@ EndFunc
 ; Name:        _RefreshIndex
 ; Description: Gets current desktop from OS, tracks previous desktop, auto-focuses, and updates display
 Func _RefreshIndex()
-    Local $iOld = $iDesktop
-    $iDesktop = _VD_GetCurrent()
+    ; Change-detection compares against the last OS-confirmed index, NOT $iDesktop:
+    ; $iDesktop may hold an optimistic post-nav value (see _NavigateTo), so using it here
+    ; would mask the change and skip OSD/hooks/prev-tracking. Reconcile both to ground truth.
+    Local $iOld = $__g_iConfirmedDesktop
+    $iDesktop = _Nav_Reconcile($iDesktop, _VD_GetCurrent())
+    $__g_iConfirmedDesktop = $iDesktop
     If $iDesktop <> $iOld Then
         _Log_Debug("Desktop changed: " & $iOld & " -> " & $iDesktop)
         If $iOld > 0 Then $iPrevDesktop = $iOld
@@ -1809,6 +1821,15 @@ Func __CalcWidgetXY()
     Return $aXY
 EndFunc
 
+; Name:        __WidgetIsOccluded
+; Description: Live z-order probe for the widget — thin wrapper over _Theme_WindowIsOccluded (the
+;              shared, unit-tested walk+decision), passing @AutoItPID so our own list/menus/toasts,
+;              which stack above the widget on purpose, are not mistaken for occluders.
+; Return:      True if a visible topmost window owned by another process covers the widget rect.
+Func __WidgetIsOccluded()
+    Return _Theme_WindowIsOccluded($gui, @AutoItPID)
+EndFunc
+
 ; Name:        _ForceTopMost
 ; Description: Taskbar tracking and topmost enforcement for the widget
 Func _ForceTopMost()
@@ -1859,17 +1880,29 @@ Func _ForceTopMost()
         _WinAPI_SetWindowLong($gui, $GWL_EXSTYLE, BitOR($iStyle, $WS_EX_TOPMOST))
     EndIf
 
-    ; Idempotent: only touch z-order/geometry when something actually changed.
-    ; The old unconditional WinSetOnTop + double SWP_SHOWWINDOW SetWindowPos fired every
-    ; 300ms tick and on every _WM_ACTIVATE, causing the repaint storm / flicker.
-    ; SWP_SHOWWINDOW is dropped so this never fights the auto-hide fade paths.
-    If $bWidgetMoved Or $bTopmostLost Then
+    ; Idempotent: only touch z-order/geometry when something actually changed OR the widget is
+    ; genuinely buried under another topmost window. The old unconditional WinSetOnTop + double
+    ; SWP_SHOWWINDOW SetWindowPos fired every 300ms tick and on every _WM_ACTIVATE, causing the
+    ; repaint storm / flicker. But the pure style-bit + geometry gates alone miss the occlusion
+    ; case: when a peer topmost window is placed above us, our WS_EX_TOPMOST bit stays set and our
+    ; geometry is unchanged, so nothing re-asserts and the widget stays buried (the broken
+    ; "permanence"). Probe occlusion only when no cheaper gate already fired, so the walk is skipped
+    ; on the common no-op tick.
+    Local $bOccluded = False
+    If Not $bWidgetMoved And Not $bTopmostLost Then $bOccluded = __WidgetIsOccluded()
+
+    If $bWidgetMoved Or $bTopmostLost Or $bOccluded Then
+        ; When only re-asserting z-order (bit lost or buried, no geometry change) skip move/size so
+        ; this stays a pure top-insert — no SWP_SHOWWINDOW, no reposition — so it cannot strobe: a
+        ; re-assert that fires only when genuinely buried self-quiesces once we jump back on top.
+        Local $iFlags = $SWP_NOACTIVATE
+        If Not $bWidgetMoved Then $iFlags = BitOR($iFlags, $SWP_NOMOVE, $SWP_NOSIZE)
         DllCall("user32.dll", "bool", "SetWindowPos", _
             "hwnd", $gui, "hwnd", $HWND_TOPMOST, _
             "int", $aPos[0], "int", $aPos[1], _
             "int", $__g_iWidgetW, "int", $__g_iWidgetH, _
-            "uint", $SWP_NOACTIVATE)
-        $bListNeedsReposition = _DL_IsVisible()
+            "uint", $iFlags)
+        If $bWidgetMoved Then $bListNeedsReposition = _DL_IsVisible()
     EndIf
 
     If $bListNeedsGeometryRefresh Then
@@ -1895,13 +1928,12 @@ Func _CarouselTick()
     Local $iCount = _VD_GetCount()
     If $iCount <= 1 Then Return
 
-    Local $iNext = $iDesktop + 1
-    If $iNext > $iCount Then $iNext = 1
+    Local $iNext = _Nav_NextTarget($iDesktop, $iCount, False, True) ; carousel always wraps
 
     ; Adlib handler: request a switch + deferred refresh only. Never Sleep here — an Adlib
     ; cannot be preempted by another Adlib, so a blocking sleep froze _ForceTopMost/__TAH_Poll.
-    _VD_GoTo($iNext)
-    _RequestDeferredRefresh()
+    ; _NavigateTo optimistically advances $iDesktop so successive ticks chain off a fresh index.
+    _NavigateTo($iNext)
     ; Async fire (Run, non-blocking) — safe inside an Adlib. Keep the handler tiny; no Sleep/GUI.
     _Hooks_Fire("on_carousel_tick", "desktop=" & $iNext & "|desktop_count=" & $iCount)
 EndFunc
@@ -2203,26 +2235,24 @@ EndFunc
 ; Description: Hotkey callback to switch to next desktop (with wrap/auto-create)
 Func _HK_Next()
     Local $iCount = _VD_GetCount()
-    If $iDesktop < $iCount Then
-        _VD_GoTo($iDesktop + 1)
-    ElseIf _Cfg_GetAutoCreateDesktop() Then
-        If _DoCreateDesktop() > 0 Then _VD_GoTo($iDesktop + 1)
-    ElseIf _Cfg_GetWrapNavigation() Then
-        _VD_GoTo(1)
+    Local $bAutoCreate = _Cfg_GetAutoCreateDesktop()
+    ; Compute the target from the (optimistically-updated) index so rapid repeats chain.
+    Local $iTarget = _Nav_NextTarget($iDesktop, $iCount, $bAutoCreate, _Cfg_GetWrapNavigation())
+    If $iTarget = $iDesktop Then Return ; no move possible
+    ; End-of-list autocreate: create first; a refused creation is a no-move.
+    If $iDesktop >= $iCount And $bAutoCreate Then
+        If _DoCreateDesktop() <= 0 Then Return
     EndIf
-    _RequestDeferredRefresh()
+    _NavigateTo($iTarget)
 EndFunc
 
 ; Name:        _HK_Prev
 ; Description: Hotkey callback to switch to previous desktop (with wrap)
 Func _HK_Prev()
     Local $iCount = _VD_GetCount()
-    If $iDesktop > 1 Then
-        _VD_GoTo($iDesktop - 1)
-    ElseIf _Cfg_GetWrapNavigation() Then
-        _VD_GoTo($iCount)
-    EndIf
-    _RequestDeferredRefresh()
+    Local $iTarget = _Nav_PrevTarget($iDesktop, $iCount, _Cfg_GetWrapNavigation())
+    If $iTarget = $iDesktop Then Return ; no move possible
+    _NavigateTo($iTarget)
 EndFunc
 
 ; Name:        __HK_GotoDesktop
@@ -2910,12 +2940,8 @@ Func _DispatchTrayAction($sAction)
             _CD_Show()
         Case "next_desktop"
             Local $iCount = _VD_GetCount()
-            If $iDesktop < $iCount Then
-                _VD_GoTo($iDesktop + 1)
-            ElseIf _Cfg_GetWrapNavigation() Then
-                _VD_GoTo(1)
-            EndIf
-            _RequestDeferredRefresh()
+            Local $iTargetTray = _Nav_NextTarget($iDesktop, $iCount, False, _Cfg_GetWrapNavigation())
+            If $iTargetTray <> $iDesktop Then _NavigateTo($iTargetTray)
         Case "add_desktop"
             If _VD_GetCount() < _GetDesktopLimit() Then
                 _VD_CreateDesktop() ; count cache refreshed synchronously — no blocking settle (R10)

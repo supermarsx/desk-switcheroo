@@ -8,6 +8,67 @@
 Func _RunTest_VirtualDesktop()
     _Test_Suite("VirtualDesktop")
 
+    ; ===========================================================
+    ; Regression 2026-07-03: rapid relative nav must not collapse (stale index)
+    ; -----------------------------------------------------------
+    ; Bug: t1's deferred-refresh work made desktop bookkeeping asynchronous — the
+    ; module-global current index stayed stale ~50ms after a switch, so nav handlers
+    ; read the same stale index for back-to-back inputs and collapsed the whole burst
+    ; onto ONE target. The fix advances an optimistic index on every step via the pure
+    ; target math below; reconciliation folds OS ground truth back so it can never
+    ; permanently drift. These asserts drive that pure logic directly (the handlers in
+    ; desktop_switcher.au3 are not includable by this harness). Pure — no DLL needed.
+    ; ===========================================================
+
+    ; A burst of 10 next() with NO reconciliation between steps must chain 10 steps,
+    ; not collapse onto one. Feed each target back in as the optimistic index — this
+    ; models _NavigateTo's optimistic $iDesktop update.
+    Local $iOpt = 1, $iSteps = 0, $iBurst
+    For $iBurst = 1 To 10
+        Local $iT = _Nav_NextTarget($iOpt, 5, False, True)
+        If $iT <> $iOpt Then $iSteps += 1
+        $iOpt = $iT
+    Next
+    _Test_AssertEqual("Regression 2026-07-03: 10 rapid next() advance 10 steps (not collapse)", $iSteps, 10)
+    ; 10 wrapping steps from 1 in a 5-desktop ring: 2,3,4,5,1,2,3,4,5,1 -> final 1
+    _Test_AssertEqual("Regression 2026-07-03: 10 rapid next() land on correct wrapped final", $iOpt, 1)
+
+    ; Contrast — the pre-fix stale-index behavior: the index is never advanced between
+    ; inputs, so every input in the burst targets the SAME desktop (the collapse).
+    _Test_AssertEqual("Regression 2026-07-03: stale (unadvanced) index makes every burst input target the same desktop", _Nav_NextTarget(1, 5, False, True), 2)
+
+    ; Prev mirrors next: 6 rapid prev() from 4 with wrap must chain, not collapse.
+    Local $iOptP = 4, $iStepsP = 0, $iBurstP
+    For $iBurstP = 1 To 6
+        Local $iTP = _Nav_PrevTarget($iOptP, 5, True)
+        If $iTP <> $iOptP Then $iStepsP += 1
+        $iOptP = $iTP
+    Next
+    _Test_AssertEqual("Regression 2026-07-03: 6 rapid prev() advance 6 steps (not collapse)", $iStepsP, 6)
+    ; 4 -> 3,2,1,5,4,3 -> final 3
+    _Test_AssertEqual("Regression 2026-07-03: 6 rapid prev() land on correct wrapped final", $iOptP, 3)
+
+    ; Reconciliation corrects a drifted optimistic index to OS ground truth (denied or
+    ; external switch) and the next step continues from ground truth, never the stale value.
+    Local $iReconciled = _Nav_Reconcile(8, 3)
+    _Test_AssertEqual("Regression 2026-07-03: reconciliation corrects optimistic drift to ground truth", $iReconciled, 3)
+    _Test_AssertEqual("Regression 2026-07-03: step after reconcile continues from ground truth (not stale)", _Nav_NextTarget($iReconciled, 5, False, True), 4)
+
+    ; Failed switch: a target is computed but the OS never moved; reconciliation folds
+    ; the optimistic value back to where we actually are — no net advance.
+    Local $iAttempt = _Nav_NextTarget(3, 5, False, True)
+    _Test_AssertEqual("Regression 2026-07-03: failed-switch target computed as 4", $iAttempt, 4)
+    _Test_AssertEqual("Regression 2026-07-03: failed switch reconciles back with no advance", _Nav_Reconcile($iAttempt, 3), 3)
+
+    ; No-move boundaries: at an end with no wrap/create the target equals current (the
+    ; handler treats this as a no-op) — a burst must not push past the boundary.
+    _Test_AssertEqual("Regression 2026-07-03: next at last desktop, no wrap/create, is a no-move", _Nav_NextTarget(5, 5, False, False), 5)
+    _Test_AssertEqual("Regression 2026-07-03: prev at first desktop, no wrap, is a no-move", _Nav_PrevTarget(1, 5, False), 1)
+    _Test_AssertEqual("Regression 2026-07-03: next with a single desktop and wrap is a no-move", _Nav_NextTarget(1, 1, False, True), 1)
+
+    ; Autocreate: at the end with autocreate on, the target is the to-be-created desktop.
+    _Test_AssertEqual("Regression 2026-07-03: next at last desktop with autocreate targets a new desktop", _Nav_NextTarget(5, 5, True, False), 6)
+
     ; -- Init with bad path fails --
     Local $bBadInit = _VD_Init("C:\nonexistent_path\fake.dll")
     _Test_AssertFalse("Init with bad path returns False", $bBadInit)
