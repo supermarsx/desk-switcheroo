@@ -506,6 +506,91 @@ Func _Theme_IsCursorInWindowBridge($hWndA, $hWndB, $iPad = 12)
     Return False
 EndFunc
 
+; Name:        _Theme_RectsIntersect
+; Description: PURE geometry test — do two rectangles (given as edges) overlap? Right/bottom edges
+;              are exclusive, so rects that merely touch along an edge are NOT counted as
+;              overlapping. No globals, no API calls (headless-testable).
+; Parameters:  $iL1,$iT1,$iR1,$iB1 - first rect edges (left, top, right, bottom)
+;              $iL2,$iT2,$iR2,$iB2 - second rect edges
+; Return:      True if the rectangles share any area, else False
+Func _Theme_RectsIntersect($iL1, $iT1, $iR1, $iB1, $iL2, $iT2, $iR2, $iB2)
+    Return ($iL1 < $iR2 And $iR1 > $iL2 And $iT1 < $iB2 And $iB1 > $iT2)
+EndFunc
+
+; Name:        _Theme_IsWidgetOccluded
+; Description: PURE decision for the widget's topmost re-assert gate. Given the widget rect and a
+;              list of the windows sitting ABOVE it in the z-order (each row: visible flag, topmost
+;              flag, and rect edges), decide whether the widget is genuinely buried. A window only
+;              occludes the widget when it is visible AND topmost AND its rect overlaps the widget:
+;              a non-topmost window can never paint over our WS_EX_TOPMOST widget, so counting it
+;              would trigger a needless re-assert / repaint storm. No globals, no API calls, so it
+;              is headless-testable — the live z-order walk (see __WidgetIsOccluded) feeds it.
+; Parameters:  $iWL,$iWT,$iWR,$iWB - widget rect edges (left, top, right, bottom)
+;              $aAbove             - [$iCount][6] array; cols 0=visible,1=topmost,2=L,3=T,4=R,5=B
+;              $iCount             - number of valid rows in $aAbove
+; Return:      True if any qualifying window occludes the widget, else False
+Func _Theme_IsWidgetOccluded($iWL, $iWT, $iWR, $iWB, ByRef $aAbove, $iCount)
+    Local $i
+    For $i = 0 To $iCount - 1
+        If Not $aAbove[$i][0] Then ContinueLoop ; not visible
+        If Not $aAbove[$i][1] Then ContinueLoop ; not topmost — can't paint above our topmost widget
+        If _Theme_RectsIntersect($iWL, $iWT, $iWR, $iWB, _
+                $aAbove[$i][2], $aAbove[$i][3], $aAbove[$i][4], $aAbove[$i][5]) Then
+            Return True
+        EndIf
+    Next
+    Return False
+EndFunc
+
+; Name:        _Theme_WindowIsOccluded
+; Description: Live z-order probe: is $hWnd (a topmost window) currently buried under another
+;              visible topmost window? Walks from $hWnd toward the TOP of the z-order (GW_HWNDPREV),
+;              collects the windows painted above it (visible flag, topmost flag, rect), and defers
+;              the buried/not-buried call to the pure _Theme_IsWidgetOccluded. Windows owned by
+;              $iSkipPid are ignored (the widget passes @AutoItPID so its own list/menus/toasts,
+;              which stack above it on purpose, don't count as occluders); pass 0 to skip nothing.
+;              Because $hWnd is topmost, everything above it in the z-order is also topmost, so the
+;              walk terminates within the small topmost band — a few WinAPI calls.
+; Parameters:  $hWnd     - the (topmost) window to test
+;              $iSkipPid - process id whose windows are ignored (0 = consider all)
+; Return:      True if a qualifying window covers $hWnd, else False
+Func _Theme_WindowIsOccluded($hWnd, $iSkipPid = 0)
+    Local $aWP = WinGetPos($hWnd)
+    If @error Or Not IsArray($aWP) Then Return False
+    Local $iWL = $aWP[0], $iWT = $aWP[1]
+    Local $iWR = $aWP[0] + $aWP[2], $iWB = $aWP[1] + $aWP[3]
+
+    Local $aAbove[16][6]
+    Local $iCount = 0
+    Local $hCur = $hWnd
+    Local $iGuard = 0
+    While $iCount < 16 And $iGuard < 400
+        $iGuard += 1
+        Local $hPrev = _WinAPI_GetWindow($hCur, $GW_HWNDPREV)
+        If @error Or Not $hPrev Then ExitLoop
+        $hCur = $hPrev
+        If $iSkipPid <> 0 Then
+            Local $iPid = 0
+            _WinAPI_GetWindowThreadProcessId($hCur, $iPid)
+            If $iPid = $iSkipPid Then ContinueLoop
+        EndIf
+        Local $bVisible = _WinAPI_IsWindowVisible($hCur)
+        Local $iExStyle = _WinAPI_GetWindowLong($hCur, $GWL_EXSTYLE)
+        Local $bTopmost = (BitAND($iExStyle, $WS_EX_TOPMOST) <> 0)
+        Local $tRect = _WinAPI_GetWindowRect($hCur)
+        If @error Then ContinueLoop
+        $aAbove[$iCount][0] = $bVisible
+        $aAbove[$iCount][1] = $bTopmost
+        $aAbove[$iCount][2] = DllStructGetData($tRect, "Left")
+        $aAbove[$iCount][3] = DllStructGetData($tRect, "Top")
+        $aAbove[$iCount][4] = DllStructGetData($tRect, "Right")
+        $aAbove[$iCount][5] = DllStructGetData($tRect, "Bottom")
+        $iCount += 1
+    WEnd
+
+    Return _Theme_IsWidgetOccluded($iWL, $iWT, $iWR, $iWB, $aAbove, $iCount)
+EndFunc
+
 ; =============================================
 ; TOAST NOTIFICATION
 ; =============================================

@@ -241,4 +241,190 @@ Func _RunTest_Theme()
     ; step >= range yields a single frame; sleep = duration (still capped)
     _Test_AssertEqual("Fade sleep single frame = duration", __Theme_FadeSleep(100, 255, 30), 30)
     _Test_AssertEqual("Fade sleep single frame capped", __Theme_FadeSleep(100, 255, 400), 50)
+
+    ; -- Rect intersection (pure geometry backing the topmost re-assert gate) --
+    _Test_AssertTrue("Overlapping rects intersect", _Theme_RectsIntersect(0, 0, 100, 100, 50, 50, 150, 150))
+    _Test_AssertTrue("Containment counts as intersect", _Theme_RectsIntersect(0, 0, 100, 100, 10, 10, 20, 20))
+    _Test_AssertTrue("Full overlap intersects", _Theme_RectsIntersect(0, 0, 100, 100, 0, 0, 100, 100))
+    _Test_AssertFalse("Disjoint horizontally", _Theme_RectsIntersect(0, 0, 100, 100, 200, 0, 300, 100))
+    _Test_AssertFalse("Disjoint vertically", _Theme_RectsIntersect(0, 0, 100, 100, 0, 200, 100, 300))
+    _Test_AssertFalse("Edge-adjacent right does not overlap", _Theme_RectsIntersect(0, 0, 100, 100, 100, 0, 200, 100))
+    _Test_AssertFalse("Edge-adjacent bottom does not overlap", _Theme_RectsIntersect(0, 0, 100, 100, 0, 100, 100, 200))
+    _Test_AssertTrue("One-pixel overlap intersects", _Theme_RectsIntersect(0, 0, 100, 100, 99, 99, 200, 200))
+
+    ; -- Widget occlusion decision (pure) --
+    ; Widget rect used for all cases: taskbar-corner box at (10,1050)-(140,1080)
+    Local $iWL = 10, $iWT = 1050, $iWR = 140, $iWB = 1080
+
+    ; No windows above -> not occluded
+    Local $aNone[1][6]
+    _Test_AssertFalse("No windows above -> not occluded", _Theme_IsWidgetOccluded($iWL, $iWT, $iWR, $iWB, $aNone, 0))
+
+    ; A visible topmost window overlapping the widget -> occluded (the regression case)
+    Local $aBury[1][6] = [[True, True, 0, 1040, 200, 1080]]
+    _Test_AssertTrue("Visible topmost overlap -> occluded", _Theme_IsWidgetOccluded($iWL, $iWT, $iWR, $iWB, $aBury, 1))
+
+    ; Topmost + overlapping but NOT visible -> ignored
+    Local $aHidden[1][6] = [[False, True, 0, 1040, 200, 1080]]
+    _Test_AssertFalse("Hidden topmost overlap -> not occluded", _Theme_IsWidgetOccluded($iWL, $iWT, $iWR, $iWB, $aHidden, 1))
+
+    ; Visible + overlapping but NOT topmost -> ignored (can't paint over our topmost widget)
+    Local $aNonTop[1][6] = [[True, False, 0, 1040, 200, 1080]]
+    _Test_AssertFalse("Non-topmost overlap -> not occluded", _Theme_IsWidgetOccluded($iWL, $iWT, $iWR, $iWB, $aNonTop, 1))
+
+    ; Visible topmost but NOT overlapping (elsewhere on screen) -> not occluded
+    Local $aElsewhere[1][6] = [[True, True, 500, 100, 700, 300]]
+    _Test_AssertFalse("Topmost elsewhere -> not occluded", _Theme_IsWidgetOccluded($iWL, $iWT, $iWR, $iWB, $aElsewhere, 1))
+
+    ; Count guard: qualifying row present but $iCount excludes it -> not occluded
+    Local $aExcluded[2][6] = [[False, False, 0, 0, 1, 1], [True, True, 0, 1040, 200, 1080]]
+    _Test_AssertFalse("Count excludes buriers -> not occluded", _Theme_IsWidgetOccluded($iWL, $iWT, $iWR, $iWB, $aExcluded, 1))
+    _Test_AssertTrue("Count includes burier -> occluded", _Theme_IsWidgetOccluded($iWL, $iWT, $iWR, $iWB, $aExcluded, 2))
+
+    ; Mixed stack: first two disqualified, third genuinely buries -> occluded
+    Local $aMixed[3][6] = [[True, False, 0, 1040, 200, 1080], [False, True, 0, 1040, 200, 1080], [True, True, 120, 1055, 300, 1075]]
+    _Test_AssertTrue("Mixed stack with one burier -> occluded", _Theme_IsWidgetOccluded($iWL, $iWT, $iWR, $iWB, $aMixed, 3))
+
+    ; -- Concrete real-window regression (drives the actual mechanism, not just the math) --
+    __Test_Theme_TopmostOcclusionRegression()
+EndFunc
+
+; Name:        __Test_Theme_IsAbove
+; Description: Real z-order walk used by the regression test. Walks from $hBelow toward the top of
+;              the z-order; returns True if $hAbove is encountered above it.
+Func __Test_Theme_IsAbove($hAbove, $hBelow)
+    Local $hCur = $hBelow
+    Local $iGuard = 0
+    While $iGuard < 500
+        $iGuard += 1
+        Local $hPrev = _WinAPI_GetWindow($hCur, $GW_HWNDPREV)
+        If @error Or Not $hPrev Then Return False ; reached the top without finding $hAbove
+        If $hPrev = $hAbove Then Return True
+        $hCur = $hPrev
+    WEnd
+    Return False
+EndFunc
+
+; Name:        __Test_Theme_WalkOccluded
+; Description: Real z-order walk that builds the "windows above" array from LIVE hwnds and feeds it
+;              straight to the PURE _Theme_IsWidgetOccluded. Mirrors what the production
+;              _Theme_WindowIsOccluded does, but keeps the walk + pure decision explicit inside the
+;              test so the regression provably drives _Theme_IsWidgetOccluded on real hwnd data.
+Func __Test_Theme_WalkOccluded($hWnd)
+    Local $aWP = WinGetPos($hWnd)
+    If @error Or Not IsArray($aWP) Then Return False
+    Local $iWL = $aWP[0], $iWT = $aWP[1]
+    Local $iWR = $aWP[0] + $aWP[2], $iWB = $aWP[1] + $aWP[3]
+    Local $aAbove[16][6]
+    Local $iCount = 0
+    Local $hCur = $hWnd
+    Local $iGuard = 0
+    While $iCount < 16 And $iGuard < 400
+        $iGuard += 1
+        Local $hPrev = _WinAPI_GetWindow($hCur, $GW_HWNDPREV)
+        If @error Or Not $hPrev Then ExitLoop
+        $hCur = $hPrev
+        Local $tRect = _WinAPI_GetWindowRect($hCur)
+        If @error Then ContinueLoop
+        $aAbove[$iCount][0] = _WinAPI_IsWindowVisible($hCur)
+        $aAbove[$iCount][1] = (BitAND(_WinAPI_GetWindowLong($hCur, $GWL_EXSTYLE), $WS_EX_TOPMOST) <> 0)
+        $aAbove[$iCount][2] = DllStructGetData($tRect, "Left")
+        $aAbove[$iCount][3] = DllStructGetData($tRect, "Top")
+        $aAbove[$iCount][4] = DllStructGetData($tRect, "Right")
+        $aAbove[$iCount][5] = DllStructGetData($tRect, "Bottom")
+        $iCount += 1
+    WEnd
+    Return _Theme_IsWidgetOccluded($iWL, $iWT, $iWR, $iWB, $aAbove, $iCount)
+EndFunc
+
+; Name:        __Test_Theme_TopmostOcclusionRegression
+; Description: Regression 2026-07-03: the widget must re-assert topmost when occluded by ANOTHER
+;              topmost window. t1-e6 gated the re-assert on geometry/style-bit change only, so a
+;              peer topmost window stacked above the widget (bit still set, geometry unchanged) left
+;              it permanently buried. This exercises the REAL mechanism with REAL windows and a REAL
+;              z-order walk (not just the pure truth table):
+;                1a. Anti-flicker: with NO occluder, BOTH the production wrapper and an explicit
+;                    real-hwnd walk feeding _Theme_IsWidgetOccluded return no-action across 10
+;                    consecutive polls (the permanent guard against reintroducing the re-assert
+;                    storm).
+;                1b. Anti-flicker: a NON-topmost overlapping cover also yields no-action (it can
+;                    never sit above our topmost widget, so it must never trigger a re-assert).
+;                2.  Detection: a real topmost occluder above the widget is detected by both the
+;                    explicit real-hwnd walk + _Theme_IsWidgetOccluded AND the production
+;                    _Theme_WindowIsOccluded (the exact code the app runs; skip-pid 0 so the
+;                    same-process stand-in occluder counts).
+;                3.  Re-assert: the app's real SetWindowPos re-insert (SWP_NOACTIVATE|NOMOVE|NOSIZE)
+;                    puts the widget back above the occluder (verified by a FRESH z-order walk), and
+;                    detection then self-quiesces.
+;              Test windows are created OFF-SCREEN (large negative coords) so the default suite run
+;              does not flash visible topmost windows — z-order and rect-intersection are
+;              position-independent, and step 2 proves detection still fires off-screen. Cleanup is
+;              guarded (WinExists) at the end; _Test_Assert* are non-fatal, so it always runs and no
+;              topmost test window can linger even when an assertion fails.
+Func __Test_Theme_TopmostOcclusionRegression()
+    Local Const $iOX = -4000, $iOY = -4000 ; off all monitors
+    Local $hWidget = 0, $hOcc = 0, $hNonTop = 0
+    Local $k
+
+    ; Stand-in for the widget: a real WS_EX_TOPMOST popup, forced to the top of the z-order.
+    $hWidget = GUICreate("t2a_widget_regr", 130, 46, $iOX, $iOY, $WS_POPUP, BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW))
+    GUISetState(@SW_SHOWNOACTIVATE, $hWidget)
+    __Test_Theme_ForceTop($hWidget)
+    Sleep(40)
+
+    ; (1a) Anti-flicker — no occluder: production wrapper AND explicit real-hwnd walk both no-action
+    ;      across 10 consecutive polls.
+    Local $bGuardWrap = True, $bGuardWalk = True
+    For $k = 1 To 10
+        If _Theme_WindowIsOccluded($hWidget, 0) Then $bGuardWrap = False
+        If __Test_Theme_WalkOccluded($hWidget) Then $bGuardWalk = False
+        Sleep(10)
+    Next
+    _Test_AssertTrue("Regression 2026-07-03: no occluder -> wrapper no-action across 10 polls (anti-flicker)", $bGuardWrap)
+    _Test_AssertTrue("Regression 2026-07-03: no occluder -> real-walk+_Theme_IsWidgetOccluded no-action across 10 polls", $bGuardWalk)
+
+    ; (1b) Anti-flicker — a NON-topmost overlapping cover must also produce no-action.
+    $hNonTop = GUICreate("t2a_nontop_regr", 170, 86, $iOX - 20, $iOY - 20, $WS_POPUP, $WS_EX_TOOLWINDOW)
+    GUISetState(@SW_SHOWNOACTIVATE, $hNonTop)
+    Sleep(40)
+    Local $bGuardNonTop = True
+    For $k = 1 To 10
+        If _Theme_WindowIsOccluded($hWidget, 0) Then $bGuardNonTop = False
+        Sleep(10)
+    Next
+    _Test_AssertTrue("Regression 2026-07-03: non-topmost cover -> no-action across 10 polls (anti-flicker)", $bGuardNonTop)
+    If WinExists($hNonTop) Then GUIDelete($hNonTop)
+    $hNonTop = 0
+
+    ; (2) Real TOPMOST occluder overlapping the widget, forced above it.
+    Local $aWP = WinGetPos($hWidget)
+    $hOcc = GUICreate("t2a_occluder_regr", $aWP[2] + 40, $aWP[3] + 40, $aWP[0] - 20, $aWP[1] - 20, _
+            $WS_POPUP, BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW))
+    GUISetState(@SW_SHOWNOACTIVATE, $hOcc)
+    __Test_Theme_ForceTop($hOcc)
+    Sleep(40)
+
+    _Test_AssertTrue("Regression 2026-07-03: occluder starts above widget (real z-order)", __Test_Theme_IsAbove($hOcc, $hWidget))
+    _Test_AssertTrue("Regression 2026-07-03: occlusion detected via real-hwnd walk + _Theme_IsWidgetOccluded", __Test_Theme_WalkOccluded($hWidget))
+    _Test_AssertTrue("Regression 2026-07-03: occlusion detected via production _Theme_WindowIsOccluded", _Theme_WindowIsOccluded($hWidget, 0))
+
+    ; (3) Perform the app's real re-assert (HWND_TOPMOST, no move/size, no activate).
+    __Test_Theme_ForceTop($hWidget)
+    Sleep(40)
+    _Test_AssertTrue("Regression 2026-07-03: widget above occluder after re-assert (fresh real z-order)", __Test_Theme_IsAbove($hWidget, $hOcc))
+    _Test_AssertFalse("Regression 2026-07-03: occluder no longer above widget after re-assert", __Test_Theme_IsAbove($hOcc, $hWidget))
+    _Test_AssertFalse("Regression 2026-07-03: detection self-quiesces after re-assert", _Theme_WindowIsOccluded($hWidget, 0))
+
+    ; Guarded cleanup — always runs (asserts are non-fatal); leaves no lingering topmost test window.
+    If $hOcc <> 0 And WinExists($hOcc) Then GUIDelete($hOcc)
+    If $hNonTop <> 0 And WinExists($hNonTop) Then GUIDelete($hNonTop)
+    If $hWidget <> 0 And WinExists($hWidget) Then GUIDelete($hWidget)
+EndFunc
+
+; Name:        __Test_Theme_ForceTop
+; Description: Re-insert $hWnd at the top of the topmost band using the exact flags the app's
+;              _ForceTopMost re-assert uses (HWND_TOPMOST, no move/size/activate).
+Func __Test_Theme_ForceTop($hWnd)
+    DllCall("user32.dll", "bool", "SetWindowPos", "hwnd", $hWnd, "hwnd", $HWND_TOPMOST, _
+            "int", 0, "int", 0, "int", 0, "int", 0, "uint", BitOR($SWP_NOMOVE, $SWP_NOSIZE, $SWP_NOACTIVATE))
 EndFunc
