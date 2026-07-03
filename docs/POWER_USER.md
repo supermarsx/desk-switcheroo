@@ -73,7 +73,6 @@ Set `animations_enabled=false` to disable all fades globally. Set `fade_step=255
 | `cm_auto_hide_delay` | int | `500` | Ms before context menu hides |
 | `config_watcher_enabled` | bool | `false` | Hot-reload INI on external changes |
 | `config_watcher_interval` | int | `60000` | Ms between file change checks |
-| `count_cache_ttl` | int | `1000` | Desktop count cache (ms) |
 | `name_sync_interval` | int | `2000` | OS name sync polling (ms) |
 | `dll_check_interval` | int | `30000` | DLL health check (ms) |
 | `update_poll_interval` | int | `500` | Background download poll (ms) |
