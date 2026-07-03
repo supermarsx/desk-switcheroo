@@ -40,7 +40,6 @@ Global $__g_Cfg_iMinDesktops        = 0
 Global $__g_Cfg_iMaxDesktops        = 0       ; 0 = unlimited
 Global $__g_Cfg_bTaskbarFocusTrick  = False
 Global $__g_Cfg_bAutoFocusAfterSwitch = False
-Global $__g_Cfg_bCapslockModifier   = False
 Global $__g_Cfg_bDisableWinWidgets  = False
 Global $__g_Cfg_bDesktopListPinned  = False
 
@@ -63,7 +62,6 @@ Global $__g_Cfg_iTooltipFontSize   = 8
 Global $__g_Cfg_bThumbnailUseScreenshot = False
 Global $__g_Cfg_iThumbnailCacheTTL = 30
 Global $__g_Cfg_bDesktopListShowNumbers = True
-Global $__g_Cfg_iHotkeyDesktopCount = 9
 
 ; [Scroll]
 Global $__g_Cfg_bScrollEnabled     = False
@@ -124,13 +122,13 @@ Global $__g_Cfg_iCmAutoHideDelay   = 500
 Global $__g_Cfg_iCtxAutoHideDelay  = 750
 Global $__g_Cfg_bConfigWatcherEnabled = False
 Global $__g_Cfg_iConfigWatcherInterval = 60000
-Global $__g_Cfg_iCountCacheTTL = 1000
 Global $__g_Cfg_iNameSyncInterval  = 2000
 Global $__g_Cfg_iDllCheckInterval  = 30000
 Global $__g_Cfg_iUpdatePollInterval = 500
 Global $__g_Cfg_bConfirmQuit       = False
 Global $__g_Cfg_bConfirmRestart    = False
 Global $__g_Cfg_bDebugMode         = False
+Global $__g_Cfg_bDisableNativeOsd  = False
 
 ; [Display] - List font
 Global $__g_Cfg_sListFontName      = ""
@@ -149,7 +147,6 @@ Global $__g_Cfg_bAnimMenus         = True  ; context menus
 Global $__g_Cfg_bAnimDialogs       = True  ; settings, about, rename, confirm
 Global $__g_Cfg_bAnimToasts        = True  ; toast notifications
 Global $__g_Cfg_bAnimWidget        = True  ; main widget show/hide
-Global $__g_Cfg_iAnimHoverSpeed    = 0    ; ms for hover fade (0 = instant)
 Global $__g_Cfg_sToastPosition     = "widget" ; top-left|top-right|bottom-left|bottom-right|widget
 
 ; [Logging]
@@ -160,7 +157,6 @@ Global $__g_Cfg_iLogMaxSizeMB      = 5
 Global $__g_Cfg_iLogRotateCount    = 3
 Global $__g_Cfg_bLogCompressOld    = False
 Global $__g_Cfg_bLogIncludePID     = False
-Global $__g_Cfg_bLogIncludeFunc    = False
 Global $__g_Cfg_sLogDateFormat     = "iso"
 Global $__g_Cfg_bLogFlushImmediate = True
 
@@ -189,10 +185,13 @@ Global $__g_Cfg_bWindowListEnabled   = False
 Global $__g_Cfg_sWindowListPosition  = "top-left"
 Global $__g_Cfg_iWindowListWidth     = 280
 Global $__g_Cfg_iWindowListMaxVisible = 15
-Global $__g_Cfg_bWindowListShowIcons = True
 Global $__g_Cfg_bWindowListSearch    = True
 Global $__g_Cfg_bWindowListAutoRefresh = True
 Global $__g_Cfg_iWindowListRefreshInterval = 1000
+Global $__g_Cfg_bWindowListDraggable  = False
+Global $__g_Cfg_iWindowListCustomX    = -1  ; -1 = unset (fall back to anchor)
+Global $__g_Cfg_iWindowListCustomY    = -1  ; -1 = unset (fall back to anchor)
+Global $__g_Cfg_bWindowListPinned     = False
 
 ; [ExplorerMonitor]
 Global $__g_Cfg_bExplorerMonitorEnabled  = False
@@ -344,7 +343,6 @@ Func _Cfg_Load()
     $__g_Cfg_iMaxDesktops        = __Cfg_ReadInt($f, "General", "max_desktops", 0, 0, 50)
     $__g_Cfg_bTaskbarFocusTrick  = __Cfg_ReadBool($f, "General", "taskbar_focus_trick", False)
     $__g_Cfg_bAutoFocusAfterSwitch = __Cfg_ReadBool($f, "General", "auto_focus_after_switch", False)
-    $__g_Cfg_bCapslockModifier   = __Cfg_ReadBool($f, "General", "capslock_modifier", False)
     $__g_Cfg_bDisableWinWidgets  = __Cfg_ReadBool($f, "General", "disable_win_widgets", False)
     $__g_Cfg_bDesktopListPinned  = __Cfg_ReadBool($f, "General", "desktop_list_pinned", False)
 
@@ -378,7 +376,6 @@ Func _Cfg_Load()
     $__g_Cfg_sListScrollAction  = __Cfg_ReadEnum($f, "Scroll", "list_scroll_action", "switch", "switch|scroll")
 
     ; [Hotkeys]
-    $__g_Cfg_iHotkeyDesktopCount = __Cfg_ReadInt($f, "Hotkeys", "hotkey_desktop_count", 9, 1, 9)
     $__g_Cfg_sHotkeyNext       = IniRead($f, "Hotkeys", "hotkey_next", "^!{RIGHT}")
     $__g_Cfg_sHotkeyPrev       = IniRead($f, "Hotkeys", "hotkey_prev", "^!{LEFT}")
     Local $i
@@ -428,13 +425,13 @@ Func _Cfg_Load()
     $__g_Cfg_iCtxAutoHideDelay  = __Cfg_ReadInt($f, "Behavior", "ctx_auto_hide_delay", 750, 100, 5000)
     $__g_Cfg_bConfigWatcherEnabled = __Cfg_ReadBool($f, "Behavior", "config_watcher_enabled", False)
     $__g_Cfg_iConfigWatcherInterval = __Cfg_ReadInt($f, "Behavior", "config_watcher_interval", 60000, 5000, 300000)
-    $__g_Cfg_iCountCacheTTL = __Cfg_ReadInt($f, "Behavior", "count_cache_ttl", 1000, 100, 10000)
     $__g_Cfg_iNameSyncInterval = __Cfg_ReadInt($f, "Behavior", "name_sync_interval", 2000, 500, 60000)
     $__g_Cfg_iDllCheckInterval = __Cfg_ReadInt($f, "Behavior", "dll_check_interval", 30000, 5000, 300000)
     $__g_Cfg_iUpdatePollInterval = __Cfg_ReadInt($f, "Behavior", "update_poll_interval", 500, 100, 5000)
     $__g_Cfg_bConfirmQuit       = __Cfg_ReadBool($f, "Behavior", "confirm_quit", False)
     $__g_Cfg_bConfirmRestart    = __Cfg_ReadBool($f, "Behavior", "confirm_restart", False)
     $__g_Cfg_bDebugMode         = __Cfg_ReadBool($f, "Behavior", "debug_mode", False)
+    $__g_Cfg_bDisableNativeOsd  = __Cfg_ReadBool($f, "Behavior", "disable_native_osd", False)
 
     ; [Logging]
     ; [Animations]
@@ -449,7 +446,6 @@ Func _Cfg_Load()
     $__g_Cfg_bAnimDialogs       = __Cfg_ReadBool($f, "Animations", "anim_dialogs", True)
     $__g_Cfg_bAnimToasts        = __Cfg_ReadBool($f, "Animations", "anim_toasts", True)
     $__g_Cfg_bAnimWidget        = __Cfg_ReadBool($f, "Animations", "anim_widget", True)
-    $__g_Cfg_iAnimHoverSpeed    = __Cfg_ReadInt($f, "Animations", "anim_hover_speed", 0, 0, 50)
     $__g_Cfg_sToastPosition     = __Cfg_ReadEnum($f, "Animations", "toast_position", "widget", _
         "top-left|top-right|bottom-left|bottom-right|widget")
 
@@ -460,7 +456,6 @@ Func _Cfg_Load()
     $__g_Cfg_iLogRotateCount    = __Cfg_ReadInt($f, "Logging", "log_rotate_count", 3, 1, 10)
     $__g_Cfg_bLogCompressOld    = __Cfg_ReadBool($f, "Logging", "log_compress_old", False)
     $__g_Cfg_bLogIncludePID     = __Cfg_ReadBool($f, "Logging", "log_include_pid", False)
-    $__g_Cfg_bLogIncludeFunc    = __Cfg_ReadBool($f, "Logging", "log_include_func", False)
     $__g_Cfg_sLogDateFormat     = __Cfg_ReadEnum($f, "Logging", "log_date_format", "iso", "iso|us|eu")
     $__g_Cfg_bLogFlushImmediate = __Cfg_ReadBool($f, "Logging", "log_flush_immediate", True)
 
@@ -495,10 +490,13 @@ Func _Cfg_Load()
         "top-left|top-center|top-right|middle-left|middle-center|middle-right|bottom-left|bottom-center|bottom-right")
     $__g_Cfg_iWindowListWidth     = __Cfg_ReadInt($f, "WindowList", "window_list_width", 280, 150, 600)
     $__g_Cfg_iWindowListMaxVisible = __Cfg_ReadInt($f, "WindowList", "window_list_max_visible", 15, 5, 50)
-    $__g_Cfg_bWindowListShowIcons = __Cfg_ReadBool($f, "WindowList", "window_list_show_icons", True)
     $__g_Cfg_bWindowListSearch    = __Cfg_ReadBool($f, "WindowList", "window_list_search", True)
     $__g_Cfg_bWindowListAutoRefresh = __Cfg_ReadBool($f, "WindowList", "window_list_auto_refresh", True)
     $__g_Cfg_iWindowListRefreshInterval = __Cfg_ReadInt($f, "WindowList", "window_list_refresh_interval", 1000, 500, 10000)
+    $__g_Cfg_bWindowListDraggable  = __Cfg_ReadBool($f, "WindowList", "window_list_draggable", False)
+    $__g_Cfg_iWindowListCustomX    = __Cfg_ReadInt($f, "WindowList", "window_list_custom_x", -1, -1, 20000)
+    $__g_Cfg_iWindowListCustomY    = __Cfg_ReadInt($f, "WindowList", "window_list_custom_y", -1, -1, 20000)
+    $__g_Cfg_bWindowListPinned     = __Cfg_ReadBool($f, "WindowList", "window_list_pinned", False)
 
     ; [ExplorerMonitor]
     $__g_Cfg_bExplorerMonitorEnabled = __Cfg_ReadBool($f, "ExplorerMonitor", "explorer_monitor_enabled", False)
@@ -622,7 +620,6 @@ Func _Cfg_Save()
     IniWrite($f, "General", "max_desktops", $__g_Cfg_iMaxDesktops)
     __Cfg_WriteBool($f, "General", "taskbar_focus_trick", $__g_Cfg_bTaskbarFocusTrick)
     __Cfg_WriteBool($f, "General", "auto_focus_after_switch", $__g_Cfg_bAutoFocusAfterSwitch)
-    __Cfg_WriteBool($f, "General", "capslock_modifier", $__g_Cfg_bCapslockModifier)
     __Cfg_WriteBool($f, "General", "disable_win_widgets", $__g_Cfg_bDisableWinWidgets)
     __Cfg_WriteBool($f, "General", "desktop_list_pinned", $__g_Cfg_bDesktopListPinned)
 
@@ -656,7 +653,6 @@ Func _Cfg_Save()
     IniWrite($f, "Scroll", "list_scroll_action", $__g_Cfg_sListScrollAction)
 
     ; [Hotkeys]
-    IniWrite($f, "Hotkeys", "hotkey_desktop_count", $__g_Cfg_iHotkeyDesktopCount)
     IniWrite($f, "Hotkeys", "hotkey_next", $__g_Cfg_sHotkeyNext)
     IniWrite($f, "Hotkeys", "hotkey_prev", $__g_Cfg_sHotkeyPrev)
     Local $i
@@ -706,13 +702,13 @@ Func _Cfg_Save()
     IniWrite($f, "Behavior", "ctx_auto_hide_delay", $__g_Cfg_iCtxAutoHideDelay)
     __Cfg_WriteBool($f, "Behavior", "config_watcher_enabled", $__g_Cfg_bConfigWatcherEnabled)
     IniWrite($f, "Behavior", "config_watcher_interval", $__g_Cfg_iConfigWatcherInterval)
-    IniWrite($f, "Behavior", "count_cache_ttl", $__g_Cfg_iCountCacheTTL)
     IniWrite($f, "Behavior", "name_sync_interval", $__g_Cfg_iNameSyncInterval)
     IniWrite($f, "Behavior", "dll_check_interval", $__g_Cfg_iDllCheckInterval)
     IniWrite($f, "Behavior", "update_poll_interval", $__g_Cfg_iUpdatePollInterval)
     __Cfg_WriteBool($f, "Behavior", "confirm_quit", $__g_Cfg_bConfirmQuit)
     __Cfg_WriteBool($f, "Behavior", "confirm_restart", $__g_Cfg_bConfirmRestart)
     __Cfg_WriteBool($f, "Behavior", "debug_mode", $__g_Cfg_bDebugMode)
+    __Cfg_WriteBool($f, "Behavior", "disable_native_osd", $__g_Cfg_bDisableNativeOsd)
 
     ; [Logging]
     ; [Animations]
@@ -727,7 +723,6 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "Animations", "anim_dialogs", $__g_Cfg_bAnimDialogs)
     __Cfg_WriteBool($f, "Animations", "anim_toasts", $__g_Cfg_bAnimToasts)
     __Cfg_WriteBool($f, "Animations", "anim_widget", $__g_Cfg_bAnimWidget)
-    IniWrite($f, "Animations", "anim_hover_speed", $__g_Cfg_iAnimHoverSpeed)
     IniWrite($f, "Animations", "toast_position", $__g_Cfg_sToastPosition)
 
     __Cfg_WriteBool($f, "Logging", "logging_enabled", $__g_Cfg_bLoggingEnabled)
@@ -737,7 +732,6 @@ Func _Cfg_Save()
     IniWrite($f, "Logging", "log_rotate_count", $__g_Cfg_iLogRotateCount)
     __Cfg_WriteBool($f, "Logging", "log_compress_old", $__g_Cfg_bLogCompressOld)
     __Cfg_WriteBool($f, "Logging", "log_include_pid", $__g_Cfg_bLogIncludePID)
-    __Cfg_WriteBool($f, "Logging", "log_include_func", $__g_Cfg_bLogIncludeFunc)
     IniWrite($f, "Logging", "log_date_format", $__g_Cfg_sLogDateFormat)
     __Cfg_WriteBool($f, "Logging", "log_flush_immediate", $__g_Cfg_bLogFlushImmediate)
 
@@ -766,10 +760,13 @@ Func _Cfg_Save()
     IniWrite($f, "WindowList", "window_list_position", $__g_Cfg_sWindowListPosition)
     IniWrite($f, "WindowList", "window_list_width", $__g_Cfg_iWindowListWidth)
     IniWrite($f, "WindowList", "window_list_max_visible", $__g_Cfg_iWindowListMaxVisible)
-    __Cfg_WriteBool($f, "WindowList", "window_list_show_icons", $__g_Cfg_bWindowListShowIcons)
     __Cfg_WriteBool($f, "WindowList", "window_list_search", $__g_Cfg_bWindowListSearch)
     __Cfg_WriteBool($f, "WindowList", "window_list_auto_refresh", $__g_Cfg_bWindowListAutoRefresh)
     IniWrite($f, "WindowList", "window_list_refresh_interval", $__g_Cfg_iWindowListRefreshInterval)
+    __Cfg_WriteBool($f, "WindowList", "window_list_draggable", $__g_Cfg_bWindowListDraggable)
+    IniWrite($f, "WindowList", "window_list_custom_x", $__g_Cfg_iWindowListCustomX)
+    IniWrite($f, "WindowList", "window_list_custom_y", $__g_Cfg_iWindowListCustomY)
+    __Cfg_WriteBool($f, "WindowList", "window_list_pinned", $__g_Cfg_bWindowListPinned)
 
     ; [ExplorerMonitor]
     __Cfg_WriteBool($f, "ExplorerMonitor", "explorer_monitor_enabled", $__g_Cfg_bExplorerMonitorEnabled)
@@ -901,7 +898,6 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "General", "max_desktops", 0)
     __Cfg_DefaultBool($f, "General", "taskbar_focus_trick", False)
     __Cfg_DefaultBool($f, "General", "auto_focus_after_switch", False)
-    __Cfg_DefaultBool($f, "General", "capslock_modifier", False)
     __Cfg_DefaultBool($f, "General", "disable_win_widgets", False)
     __Cfg_DefaultBool($f, "General", "desktop_list_pinned", False)
 
@@ -931,7 +927,6 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "Scroll", "list_scroll_enabled", False)
     __Cfg_DefaultVal($f, "Scroll", "list_scroll_action", "switch")
 
-    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_desktop_count", 9)
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_next", "^!{RIGHT}")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_prev", "^!{LEFT}")
     Local $i
@@ -980,13 +975,13 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Behavior", "ctx_auto_hide_delay", 750)
     __Cfg_DefaultBool($f, "Behavior", "config_watcher_enabled", False)
     __Cfg_DefaultVal($f, "Behavior", "config_watcher_interval", 60000)
-    __Cfg_DefaultVal($f, "Behavior", "count_cache_ttl", 1000)
     __Cfg_DefaultVal($f, "Behavior", "name_sync_interval", 2000)
     __Cfg_DefaultVal($f, "Behavior", "dll_check_interval", 30000)
     __Cfg_DefaultVal($f, "Behavior", "update_poll_interval", 500)
     __Cfg_DefaultBool($f, "Behavior", "confirm_quit", False)
     __Cfg_DefaultBool($f, "Behavior", "confirm_restart", False)
     __Cfg_DefaultBool($f, "Behavior", "debug_mode", False)
+    __Cfg_DefaultBool($f, "Behavior", "disable_native_osd", False)
 
     __Cfg_DefaultBool($f, "Animations", "animations_enabled", True)
     __Cfg_DefaultVal($f, "Animations", "fade_in_duration", 80)
@@ -999,7 +994,6 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "Animations", "anim_dialogs", True)
     __Cfg_DefaultBool($f, "Animations", "anim_toasts", True)
     __Cfg_DefaultBool($f, "Animations", "anim_widget", True)
-    __Cfg_DefaultVal($f, "Animations", "anim_hover_speed", 0)
     __Cfg_DefaultVal($f, "Animations", "toast_position", "widget")
 
     __Cfg_DefaultBool($f, "Logging", "logging_enabled", False)
@@ -1009,7 +1003,6 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Logging", "log_rotate_count", 3)
     __Cfg_DefaultBool($f, "Logging", "log_compress_old", False)
     __Cfg_DefaultBool($f, "Logging", "log_include_pid", False)
-    __Cfg_DefaultBool($f, "Logging", "log_include_func", False)
     __Cfg_DefaultVal($f, "Logging", "log_date_format", "iso")
     __Cfg_DefaultBool($f, "Logging", "log_flush_immediate", True)
 
@@ -1031,10 +1024,13 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "WindowList", "window_list_position", "top-left")
     __Cfg_DefaultVal($f, "WindowList", "window_list_width", 280)
     __Cfg_DefaultVal($f, "WindowList", "window_list_max_visible", 15)
-    __Cfg_DefaultBool($f, "WindowList", "window_list_show_icons", True)
     __Cfg_DefaultBool($f, "WindowList", "window_list_search", True)
     __Cfg_DefaultBool($f, "WindowList", "window_list_auto_refresh", True)
     __Cfg_DefaultVal($f, "WindowList", "window_list_refresh_interval", 1000)
+    __Cfg_DefaultBool($f, "WindowList", "window_list_draggable", False)
+    __Cfg_DefaultVal($f, "WindowList", "window_list_custom_x", -1)
+    __Cfg_DefaultVal($f, "WindowList", "window_list_custom_y", -1)
+    __Cfg_DefaultBool($f, "WindowList", "window_list_pinned", False)
 
     __Cfg_DefaultBool($f, "ExplorerMonitor", "explorer_monitor_enabled", False)
     __Cfg_DefaultVal($f, "ExplorerMonitor", "shell_process_name", "explorer.exe")
@@ -1195,9 +1191,6 @@ EndFunc
 Func _Cfg_GetAutoFocusAfterSwitch()
     Return $__g_Cfg_bAutoFocusAfterSwitch
 EndFunc
-Func _Cfg_GetCapslockModifier()
-    Return $__g_Cfg_bCapslockModifier
-EndFunc
 Func _Cfg_GetDisableWinWidgets()
     Return $__g_Cfg_bDisableWinWidgets
 EndFunc
@@ -1278,14 +1271,6 @@ Func _Cfg_GetListScrollAction()
 EndFunc
 
 ; [Hotkeys]
-Func _Cfg_GetHotkeyDesktopCount()
-    Return $__g_Cfg_iHotkeyDesktopCount
-EndFunc
-Func _Cfg_SetHotkeyDesktopCount($i)
-    If $i < 1 Then $i = 1
-    If $i > 9 Then $i = 9
-    $__g_Cfg_iHotkeyDesktopCount = $i
-EndFunc
 Func _Cfg_GetHotkeyNext()
     Return $__g_Cfg_sHotkeyNext
 EndFunc
@@ -1361,9 +1346,6 @@ EndFunc
 Func _Cfg_GetConfigWatcherInterval()
     Return $__g_Cfg_iConfigWatcherInterval
 EndFunc
-Func _Cfg_GetCountCacheTTL()
-    Return $__g_Cfg_iCountCacheTTL
-EndFunc
 Func _Cfg_GetNameSyncInterval()
     Return $__g_Cfg_iNameSyncInterval
 EndFunc
@@ -1381,6 +1363,9 @@ Func _Cfg_GetConfirmRestart()
 EndFunc
 Func _Cfg_GetDebugMode()
     Return $__g_Cfg_bDebugMode
+EndFunc
+Func _Cfg_GetDisableNativeOsd()
+    Return $__g_Cfg_bDisableNativeOsd
 EndFunc
 
 ; [Logging]
@@ -1460,14 +1445,6 @@ EndFunc
 Func _Cfg_SetAnimWidget($b)
     $__g_Cfg_bAnimWidget = $b
 EndFunc
-Func _Cfg_GetAnimHoverSpeed()
-    Return $__g_Cfg_iAnimHoverSpeed
-EndFunc
-Func _Cfg_SetAnimHoverSpeed($i)
-    If $i < 0 Then $i = 0
-    If $i > 50 Then $i = 50
-    $__g_Cfg_iAnimHoverSpeed = $i
-EndFunc
 Func _Cfg_GetToastPosition()
     Return $__g_Cfg_sToastPosition
 EndFunc
@@ -1511,9 +1488,6 @@ Func _Cfg_GetLogFilePath()
 EndFunc
 Func _Cfg_GetLogIncludePID()
     Return $__g_Cfg_bLogIncludePID
-EndFunc
-Func _Cfg_GetLogIncludeFunc()
-    Return $__g_Cfg_bLogIncludeFunc
 EndFunc
 Func _Cfg_GetLogDateFormat()
     Return $__g_Cfg_sLogDateFormat
@@ -1561,9 +1535,6 @@ EndFunc
 Func _Cfg_GetWindowListMaxVisible()
     Return $__g_Cfg_iWindowListMaxVisible
 EndFunc
-Func _Cfg_GetWindowListShowIcons()
-    Return $__g_Cfg_bWindowListShowIcons
-EndFunc
 Func _Cfg_GetWindowListSearch()
     Return $__g_Cfg_bWindowListSearch
 EndFunc
@@ -1572,6 +1543,18 @@ Func _Cfg_GetWindowListAutoRefresh()
 EndFunc
 Func _Cfg_GetWindowListRefreshInterval()
     Return $__g_Cfg_iWindowListRefreshInterval
+EndFunc
+Func _Cfg_GetWindowListDraggable()
+    Return $__g_Cfg_bWindowListDraggable
+EndFunc
+Func _Cfg_GetWindowListCustomX()
+    Return $__g_Cfg_iWindowListCustomX
+EndFunc
+Func _Cfg_GetWindowListCustomY()
+    Return $__g_Cfg_iWindowListCustomY
+EndFunc
+Func _Cfg_GetWindowListPinned()
+    Return $__g_Cfg_bWindowListPinned
 EndFunc
 
 ; [ExplorerMonitor]
@@ -1825,9 +1808,6 @@ EndFunc
 Func _Cfg_SetAutoFocusAfterSwitch($b)
     $__g_Cfg_bAutoFocusAfterSwitch = $b
 EndFunc
-Func _Cfg_SetCapslockModifier($b)
-    $__g_Cfg_bCapslockModifier = $b
-EndFunc
 Func _Cfg_SetDisableWinWidgets($b)
     $__g_Cfg_bDisableWinWidgets = $b
 EndFunc
@@ -2053,11 +2033,6 @@ Func _Cfg_SetConfigWatcherInterval($i)
     If $i > 300000 Then $i = 300000
     $__g_Cfg_iConfigWatcherInterval = $i
 EndFunc
-Func _Cfg_SetCountCacheTTL($i)
-    If $i < 100 Then $i = 100
-    If $i > 10000 Then $i = 10000
-    $__g_Cfg_iCountCacheTTL = $i
-EndFunc
 Func _Cfg_SetNameSyncInterval($i)
     If $i < 500 Then $i = 500
     If $i > 60000 Then $i = 60000
@@ -2081,6 +2056,9 @@ Func _Cfg_SetConfirmRestart($b)
 EndFunc
 Func _Cfg_SetDebugMode($b)
     $__g_Cfg_bDebugMode = $b
+EndFunc
+Func _Cfg_SetDisableNativeOsd($b)
+    $__g_Cfg_bDisableNativeOsd = $b
 EndFunc
 
 ; [Logging]
@@ -2109,9 +2087,6 @@ Func _Cfg_SetLogCompressOld($b)
 EndFunc
 Func _Cfg_SetLogIncludePID($b)
     $__g_Cfg_bLogIncludePID = $b
-EndFunc
-Func _Cfg_SetLogIncludeFunc($b)
-    $__g_Cfg_bLogIncludeFunc = $b
 EndFunc
 Func _Cfg_SetLogDateFormat($s)
     If $s <> "iso" And $s <> "us" And $s <> "eu" Then $s = "iso"
@@ -2168,9 +2143,6 @@ Func _Cfg_SetWindowListMaxVisible($i)
     If $i > 50 Then $i = 50
     $__g_Cfg_iWindowListMaxVisible = $i
 EndFunc
-Func _Cfg_SetWindowListShowIcons($b)
-    $__g_Cfg_bWindowListShowIcons = $b
-EndFunc
 Func _Cfg_SetWindowListSearch($b)
     $__g_Cfg_bWindowListSearch = $b
 EndFunc
@@ -2181,6 +2153,22 @@ Func _Cfg_SetWindowListRefreshInterval($i)
     If $i < 500 Then $i = 500
     If $i > 10000 Then $i = 10000
     $__g_Cfg_iWindowListRefreshInterval = $i
+EndFunc
+Func _Cfg_SetWindowListDraggable($b)
+    $__g_Cfg_bWindowListDraggable = $b
+EndFunc
+Func _Cfg_SetWindowListCustomX($i)
+    If $i < -1 Then $i = -1
+    If $i > 20000 Then $i = 20000
+    $__g_Cfg_iWindowListCustomX = $i
+EndFunc
+Func _Cfg_SetWindowListCustomY($i)
+    If $i < -1 Then $i = -1
+    If $i > 20000 Then $i = 20000
+    $__g_Cfg_iWindowListCustomY = $i
+EndFunc
+Func _Cfg_SetWindowListPinned($b)
+    $__g_Cfg_bWindowListPinned = $b
 EndFunc
 
 ; [ExplorerMonitor]

@@ -380,7 +380,6 @@ Func _E2E_NewConfigPersistence()
     _Cfg_SetMinDesktops(5)
     _Cfg_SetTaskbarFocusTrick(True)
     _Cfg_SetAutoFocusAfterSwitch(True)
-    _Cfg_SetCapslockModifier(True)
 
     _Cfg_SetWallpaperEnabled(True)
     _Cfg_SetWallpaperChangeDelay(500)
@@ -394,7 +393,6 @@ Func _E2E_NewConfigPersistence()
     _Cfg_SetWindowListPosition("bottom-right")
     _Cfg_SetWindowListWidth(400)
     _Cfg_SetWindowListMaxVisible(25)
-    _Cfg_SetWindowListShowIcons(False)
     _Cfg_SetWindowListSearch(False)
     _Cfg_SetWindowListAutoRefresh(False)
     _Cfg_SetWindowListRefreshInterval(5000)
@@ -421,7 +419,6 @@ Func _E2E_NewConfigPersistence()
     _E2E_AssertEqual("Persisted: min_desktops", _Cfg_GetMinDesktops(), 5)
     _E2E_AssertTrue("Persisted: taskbar_focus_trick", _Cfg_GetTaskbarFocusTrick())
     _E2E_AssertTrue("Persisted: auto_focus_after_switch", _Cfg_GetAutoFocusAfterSwitch())
-    _E2E_AssertTrue("Persisted: capslock_modifier", _Cfg_GetCapslockModifier())
 
     ; Wallpaper
     _E2E_AssertTrue("Persisted: wallpaper_enabled", _Cfg_GetWallpaperEnabled())
@@ -439,7 +436,6 @@ Func _E2E_NewConfigPersistence()
     _E2E_AssertEqual("Persisted: window_list_position", _Cfg_GetWindowListPosition(), "bottom-right")
     _E2E_AssertEqual("Persisted: window_list_width", _Cfg_GetWindowListWidth(), 400)
     _E2E_AssertEqual("Persisted: window_list_max_visible", _Cfg_GetWindowListMaxVisible(), 25)
-    _E2E_AssertFalse("Persisted: window_list_show_icons", _Cfg_GetWindowListShowIcons())
     _E2E_AssertFalse("Persisted: window_list_search", _Cfg_GetWindowListSearch())
     _E2E_AssertFalse("Persisted: window_list_auto_refresh", _Cfg_GetWindowListAutoRefresh())
     _E2E_AssertEqual("Persisted: window_list_refresh_interval", _Cfg_GetWindowListRefreshInterval(), 5000)
@@ -583,7 +579,6 @@ Func _E2E_FullConfigRoundtrip()
     _Cfg_SetMinDesktops(5)                 ; default 0
     _Cfg_SetTaskbarFocusTrick(True)        ; default False
     _Cfg_SetAutoFocusAfterSwitch(True)     ; default False
-    _Cfg_SetCapslockModifier(True)         ; default False
 
     ; Wallpaper
     _Cfg_SetWallpaperEnabled(True)         ; default False
@@ -611,7 +606,6 @@ Func _E2E_FullConfigRoundtrip()
     _Cfg_SetWindowListPosition("top-right") ; default top-left
     _Cfg_SetWindowListWidth(350)           ; default 280
     _Cfg_SetWindowListMaxVisible(20)       ; default 15
-    _Cfg_SetWindowListShowIcons(False)     ; default True
     _Cfg_SetWindowListSearch(False)        ; default True
     _Cfg_SetWindowListAutoRefresh(False)   ; default True
     _Cfg_SetWindowListRefreshInterval(3000) ; default 1000
@@ -640,7 +634,6 @@ Func _E2E_FullConfigRoundtrip()
     _E2E_AssertEqual("Roundtrip: min_desktops", _Cfg_GetMinDesktops(), 5)
     _E2E_AssertTrue("Roundtrip: taskbar_focus_trick", _Cfg_GetTaskbarFocusTrick())
     _E2E_AssertTrue("Roundtrip: auto_focus_after_switch", _Cfg_GetAutoFocusAfterSwitch())
-    _E2E_AssertTrue("Roundtrip: capslock_modifier", _Cfg_GetCapslockModifier())
 
     ; Wallpaper
     _E2E_AssertTrue("Roundtrip: wallpaper_enabled", _Cfg_GetWallpaperEnabled())
@@ -667,7 +660,6 @@ Func _E2E_FullConfigRoundtrip()
     _E2E_AssertEqual("Roundtrip: window_list_position", _Cfg_GetWindowListPosition(), "top-right")
     _E2E_AssertEqual("Roundtrip: window_list_width", _Cfg_GetWindowListWidth(), 350)
     _E2E_AssertEqual("Roundtrip: window_list_max_visible", _Cfg_GetWindowListMaxVisible(), 20)
-    _E2E_AssertFalse("Roundtrip: window_list_show_icons", _Cfg_GetWindowListShowIcons())
     _E2E_AssertFalse("Roundtrip: window_list_search", _Cfg_GetWindowListSearch())
     _E2E_AssertFalse("Roundtrip: window_list_auto_refresh", _Cfg_GetWindowListAutoRefresh())
     _E2E_AssertEqual("Roundtrip: window_list_refresh_interval", _Cfg_GetWindowListRefreshInterval(), 3000)

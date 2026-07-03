@@ -259,15 +259,18 @@ Func _RunTest_Config()
     _Cfg_SetConfirmQuit(True)
     _Test_AssertTrue("Set+Get: confirm_quit", _Cfg_GetConfirmQuit())
 
-    ; -- Count cache TTL --
-    _Test_AssertEqual("Default: count_cache_ttl", _Cfg_GetCountCacheTTL(), 1000)
-    _Cfg_SetCountCacheTTL(2000)
-    _Test_AssertEqual("Set+Get: count_cache_ttl", _Cfg_GetCountCacheTTL(), 2000)
+    ; -- Context menu auto-hide delay --
+    _Test_AssertEqual("Default: ctx_auto_hide_delay", _Cfg_GetCtxAutoHideDelay(), 750)
+    _Cfg_SetCtxAutoHideDelay(2000)
+    _Test_AssertEqual("Set+Get: ctx_auto_hide_delay", _Cfg_GetCtxAutoHideDelay(), 2000)
 
-    ; -- Hotkey desktop count --
-    _Test_AssertEqual("Default: hotkey_desktop_count", _Cfg_GetHotkeyDesktopCount(), 9)
-    _Cfg_SetHotkeyDesktopCount(5)
-    _Test_AssertEqual("Set+Get: hotkey_desktop_count", _Cfg_GetHotkeyDesktopCount(), 5)
+    ; -- Newly UI-exposed hotkeys (getters/setters) --
+    _Cfg_SetHotkeySwapDesktops("^!x")
+    _Test_AssertEqual("Set+Get: hotkey_swap_desktops", _Cfg_GetHotkeySwapDesktops(), "^!x")
+    _Cfg_SetHotkeyToggleRules("^!y")
+    _Test_AssertEqual("Set+Get: hotkey_toggle_rules", _Cfg_GetHotkeyToggleRules(), "^!y")
+    _Cfg_SetHotkeyMoveToDesktop(3, "^!3")
+    _Test_AssertEqual("Set+Get: hotkey_move_to_desktop_3", _Cfg_GetHotkeyMoveToDesktop(3), "^!3")
 
     ; -- List font --
     _Test_AssertEqual("Default: list_font_name", _Cfg_GetListFontName(), "")
@@ -339,9 +342,6 @@ Func _RunTest_Config()
     _Test_AssertFalse("Default: log_include_pid", _Cfg_GetLogIncludePID())
     _Cfg_SetLogIncludePID(True)
     _Test_AssertTrue("Set+Get: log_include_pid", _Cfg_GetLogIncludePID())
-    _Test_AssertFalse("Default: log_include_func", _Cfg_GetLogIncludeFunc())
-    _Cfg_SetLogIncludeFunc(True)
-    _Test_AssertTrue("Set+Get: log_include_func", _Cfg_GetLogIncludeFunc())
     _Test_AssertEqual("Default: log_date_format", _Cfg_GetLogDateFormat(), "iso")
     _Cfg_SetLogDateFormat("us")
     _Test_AssertEqual("Set+Get: log_date_format", _Cfg_GetLogDateFormat(), "us")
@@ -477,11 +477,6 @@ Func _RunTest_Config()
     _Cfg_SetAutoFocusAfterSwitch(True)
     _Test_AssertTrue("Set+Get: auto_focus_after_switch", _Cfg_GetAutoFocusAfterSwitch())
 
-    ; -- [General] capslock_modifier: default False, set/get --
-    _Test_AssertFalse("Default: capslock_modifier", _Cfg_GetCapslockModifier())
-    _Cfg_SetCapslockModifier(True)
-    _Test_AssertTrue("Set+Get: capslock_modifier", _Cfg_GetCapslockModifier())
-
     ; -- [Wallpaper] wallpaper_enabled: default False, set/get --
     _Test_AssertFalse("Default: wallpaper_enabled", _Cfg_GetWallpaperEnabled())
     _Cfg_SetWallpaperEnabled(True)
@@ -579,12 +574,6 @@ Func _RunTest_Config()
     _Test_AssertGreaterEqual("window_list_max_visible clamped low", _Cfg_GetWindowListMaxVisible(), 5)
     _Cfg_SetWindowListMaxVisible(100)
     _Test_AssertLessEqual("window_list_max_visible clamped high", _Cfg_GetWindowListMaxVisible(), 50)
-
-    ; -- [WindowList] window_list_show_icons: default True, set/get --
-    _Cfg_Init($sTempIni)
-    _Test_AssertTrue("Default: window_list_show_icons", _Cfg_GetWindowListShowIcons())
-    _Cfg_SetWindowListShowIcons(False)
-    _Test_AssertFalse("Set+Get: window_list_show_icons off", _Cfg_GetWindowListShowIcons())
 
     ; -- [WindowList] window_list_search: default True, set/get --
     _Cfg_Init($sTempIni)
@@ -830,6 +819,60 @@ Func _RunTest_Config()
     _Test_AssertGreaterEqual("Balloon duration clamped low", _Cfg_GetTrayBalloonDuration(), 500)
     _Cfg_SetTrayBalloonDuration(99999)
     _Test_AssertLessEqual("Balloon duration clamped high", _Cfg_GetTrayBalloonDuration(), 10000)
+
+    ; -- [Behavior] disable_native_osd: default False, set/get --
+    _Cfg_Init($sTempIni)
+    _Test_AssertFalse("Default: disable_native_osd", _Cfg_GetDisableNativeOsd())
+    _Cfg_SetDisableNativeOsd(True)
+    _Test_AssertTrue("Set+Get: disable_native_osd", _Cfg_GetDisableNativeOsd())
+    _Cfg_SetDisableNativeOsd(False)
+    _Test_AssertFalse("Set+Get: disable_native_osd off", _Cfg_GetDisableNativeOsd())
+
+    ; -- [WindowList] window_list_draggable: default False, set/get --
+    _Cfg_Init($sTempIni)
+    _Test_AssertFalse("Default: window_list_draggable", _Cfg_GetWindowListDraggable())
+    _Cfg_SetWindowListDraggable(True)
+    _Test_AssertTrue("Set+Get: window_list_draggable", _Cfg_GetWindowListDraggable())
+
+    ; -- [WindowList] window_list_pinned: default False, set/get --
+    _Cfg_Init($sTempIni)
+    _Test_AssertFalse("Default: window_list_pinned", _Cfg_GetWindowListPinned())
+    _Cfg_SetWindowListPinned(True)
+    _Test_AssertTrue("Set+Get: window_list_pinned", _Cfg_GetWindowListPinned())
+
+    ; -- [WindowList] window_list_custom_x: default -1, set/get, clamped -1..20000 --
+    _Cfg_Init($sTempIni)
+    _Test_AssertEqual("Default: window_list_custom_x", _Cfg_GetWindowListCustomX(), -1)
+    _Cfg_SetWindowListCustomX(500)
+    _Test_AssertEqual("Set+Get: window_list_custom_x", _Cfg_GetWindowListCustomX(), 500)
+    _Cfg_SetWindowListCustomX(-50)
+    _Test_AssertGreaterEqual("window_list_custom_x clamped low", _Cfg_GetWindowListCustomX(), -1)
+    _Cfg_SetWindowListCustomX(99999)
+    _Test_AssertLessEqual("window_list_custom_x clamped high", _Cfg_GetWindowListCustomX(), 20000)
+
+    ; -- [WindowList] window_list_custom_y: default -1, set/get, clamped -1..20000 --
+    _Cfg_Init($sTempIni)
+    _Test_AssertEqual("Default: window_list_custom_y", _Cfg_GetWindowListCustomY(), -1)
+    _Cfg_SetWindowListCustomY(300)
+    _Test_AssertEqual("Set+Get: window_list_custom_y", _Cfg_GetWindowListCustomY(), 300)
+    _Cfg_SetWindowListCustomY(-50)
+    _Test_AssertGreaterEqual("window_list_custom_y clamped low", _Cfg_GetWindowListCustomY(), -1)
+    _Cfg_SetWindowListCustomY(99999)
+    _Test_AssertLessEqual("window_list_custom_y clamped high", _Cfg_GetWindowListCustomY(), 20000)
+
+    ; -- Custom position + draggable persist across reload --
+    _Cfg_Init($sTempIni)
+    _Cfg_SetWindowListDraggable(True)
+    _Cfg_SetWindowListPinned(True)
+    _Cfg_SetWindowListCustomX(640)
+    _Cfg_SetWindowListCustomY(480)
+    Sleep(600) ; wait for save debounce window
+    _Cfg_Save()
+    _Cfg_Load()
+    _Test_AssertTrue("Persist: window_list_draggable survives reload", _Cfg_GetWindowListDraggable())
+    _Test_AssertTrue("Persist: window_list_pinned survives reload", _Cfg_GetWindowListPinned())
+    _Test_AssertEqual("Persist: window_list_custom_x survives reload", _Cfg_GetWindowListCustomX(), 640)
+    _Test_AssertEqual("Persist: window_list_custom_y survives reload", _Cfg_GetWindowListCustomY(), 480)
 
     ; -- Cleanup --
     FileDelete($sTempIni)
