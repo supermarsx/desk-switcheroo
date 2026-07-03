@@ -204,13 +204,39 @@ Func _Theme_FadeIn($hGUI, $iTargetAlpha = Default, $sType = "")
     _WinAPI_SetLayeredWindowAttributes($hGUI, 0, 0, $LWA_ALPHA)
     GUISetState(@SW_SHOW, $hGUI)
     Local $iStep = _Cfg_GetFadeStep()
-    Local $iSleep = _Cfg_GetFadeSleepMs()
+    Local $iSleep = __Theme_FadeSleep($iTargetAlpha, $iStep, _Cfg_GetFadeInDuration())
     Local $i
     For $i = 0 To $iTargetAlpha Step $iStep
         _WinAPI_SetLayeredWindowAttributes($hGUI, 0, $i, $LWA_ALPHA)
         Sleep($iSleep)
     Next
     _WinAPI_SetLayeredWindowAttributes($hGUI, 0, $iTargetAlpha, $LWA_ALPHA)
+EndFunc
+
+; Name:        __Theme_FadeSleep
+; Description: Derives the per-frame sleep for a blocking fade so that the configured
+;              fade_in/out_duration (ms) controls the total fade time: sleep = duration / frames,
+;              where frames = ceil(alpha-range / step). When the duration key is 0/unset the legacy
+;              fade_sleep_ms value is used instead (unchanged default behavior). The per-frame value
+;              is capped at 50 ms (the fade_sleep_ms ceiling) so worst-case blocking can never exceed
+;              the prior pathological ceiling of frames * 50 ms.
+; Parameters:  $iAlphaRange - total alpha delta to traverse (e.g. target alpha)
+;              $iStep       - alpha increment per frame (>= 1)
+;              $iDuration   - configured fade duration in ms (0 = use fade_sleep_ms fallback)
+; Return:      Per-frame sleep in ms (0..50)
+Func __Theme_FadeSleep($iAlphaRange, $iStep, $iDuration)
+    If $iStep < 1 Then $iStep = 1
+    Local $iSleep
+    If $iDuration > 0 Then
+        Local $iFrames = Int($iAlphaRange / $iStep)
+        If $iFrames < 1 Then $iFrames = 1
+        $iSleep = Int($iDuration / $iFrames)
+    Else
+        $iSleep = _Cfg_GetFadeSleepMs()
+    EndIf
+    If $iSleep < 0 Then $iSleep = 0
+    If $iSleep > 50 Then $iSleep = 50
+    Return $iSleep
 EndFunc
 
 ; Name:        _Theme_FadeOut
@@ -225,7 +251,7 @@ Func _Theme_FadeOut($hGUI, $sType = "")
     EndIf
     Local $iAlpha = $THEME_ALPHA_POPUP
     Local $iStep = _Cfg_GetFadeStep()
-    Local $iSleep = _Cfg_GetFadeSleepMs()
+    Local $iSleep = __Theme_FadeSleep($iAlpha, $iStep, _Cfg_GetFadeOutDuration())
     Local $i
     For $i = $iAlpha To 0 Step -$iStep
         _WinAPI_SetLayeredWindowAttributes($hGUI, 0, $i, $LWA_ALPHA)
@@ -489,6 +515,8 @@ Global $__g_Toast_hTimer = 0
 Global $__g_Toast_iDuration = 0
 Global $__g_Toast_iFadeStep = 0
 Global $__g_Toast_iAlpha = 0
+Global $__g_Toast_iFadeInMs = 0        ; duration of the non-blocking fade-in ramp (0 = instant)
+Global Const $__g_Toast_iMaxAlpha = 230
 
 ; Toast status icon colors
 Global Const $TOAST_SUCCESS = 0x4AFF7E ; green
@@ -496,15 +524,42 @@ Global Const $TOAST_ERROR   = 0xFF5555 ; red
 Global Const $TOAST_WARNING = 0xFFD54A ; yellow
 Global Const $TOAST_INFO    = 0x4A9EFF ; blue
 
+; Name:        __Theme_ToastPosition
+; Description: Pure mapping from the configured toast_position (_Cfg_GetToastPosition) to on-screen
+;              coordinates for a toast of the given size. Supported positions: top-left, top-right,
+;              bottom-left, bottom-right, and "widget" (bottom-center, the default). Mirrors the OSD
+;              margins (20px edge, 60px bottom lift).
+; Parameters:  $iW, $iH - toast width/height
+;              $iX, $iY - ByRef outputs
+Func __Theme_ToastPosition($iW, $iH, ByRef $iX, ByRef $iY)
+    Switch _Cfg_GetToastPosition()
+        Case "top-left"
+            $iX = 20
+            $iY = 20
+        Case "top-right"
+            $iX = @DesktopWidth - $iW - 20
+            $iY = 20
+        Case "bottom-left"
+            $iX = 20
+            $iY = @DesktopHeight - $iH - 60
+        Case "bottom-right"
+            $iX = @DesktopWidth - $iW - 20
+            $iY = @DesktopHeight - $iH - 60
+        Case Else ; "widget" (default): bottom-center, near the widget's home position
+            $iX = (@DesktopWidth - $iW) / 2
+            $iY = @DesktopHeight - $iH - 60
+    EndSwitch
+EndFunc
+
 ; Name:        _Theme_Toast
 ; Description: Shows a small non-blocking toast notification with a colored status icon.
 ;              Call _Theme_ToastTick() from the main loop to handle fade-out.
 ; Parameters:  $sText - message text
-;              $iX - X position
-;              $iY - Y position
+;              $iX - X position, or Default to place per the configured toast_position
+;              $iY - Y position, or Default to place per the configured toast_position
 ;              $iDuration - how long to show in ms (default: 2000)
 ;              $iIconColor - status icon color ($TOAST_SUCCESS/ERROR/WARNING/INFO, default: $TOAST_INFO)
-Func _Theme_Toast($sText, $iX, $iY, $iDuration = 2000, $iIconColor = -1)
+Func _Theme_Toast($sText, $iX = Default, $iY = Default, $iDuration = 2000, $iIconColor = -1)
     If $iIconColor = -1 Then $iIconColor = $TOAST_INFO
 
     ; Destroy previous toast if still showing
@@ -516,6 +571,9 @@ Func _Theme_Toast($sText, $iX, $iY, $iDuration = 2000, $iIconColor = -1)
     If $iW < 120 Then $iW = 120
     If $iW > 320 Then $iW = 320
     Local $iH = 26
+
+    ; When the caller defers placement (Default x/y), honor the configured toast_position.
+    If $iX = Default Or $iY = Default Then __Theme_ToastPosition($iW, $iH, $iX, $iY)
 
     $__g_Toast_hGUI = GUICreate("Toast", $iW, $iH, $iX, $iY, $WS_POPUP, _
         BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW, $WS_EX_LAYERED))
@@ -534,26 +592,31 @@ Func _Theme_Toast($sText, $iX, $iY, $iDuration = 2000, $iIconColor = -1)
     GUICtrlSetColor(-1, $THEME_FG_PRIMARY)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
 
-    $__g_Toast_iAlpha = 230
+    ; Non-blocking fade-in: show transparent and let _Theme_ToastTick() ramp the alpha up over
+    ; the main loop. The old version blocked the whole app for the ramp duration (~64 ms).
     If _Cfg_GetAnimationsEnabled() Then
+        Local $iSteps = Int($__g_Toast_iMaxAlpha / _Cfg_GetFadeStep())
+        If $iSteps < 1 Then $iSteps = 1
+        $__g_Toast_iFadeInMs = $iSteps * _Cfg_GetFadeSleepMs()
+        $__g_Toast_iAlpha = 0
         _WinAPI_SetLayeredWindowAttributes($__g_Toast_hGUI, 0, 0, $LWA_ALPHA)
         GUISetState(@SW_SHOWNOACTIVATE, $__g_Toast_hGUI)
-        Local $iToastStep = _Cfg_GetFadeStep()
-        Local $iToastSleep = _Cfg_GetFadeSleepMs()
-        Local $iTS
-        For $iTS = 0 To $__g_Toast_iAlpha Step $iToastStep
-            _WinAPI_SetLayeredWindowAttributes($__g_Toast_hGUI, 0, $iTS, $LWA_ALPHA)
-            Sleep($iToastSleep)
-        Next
-        _WinAPI_SetLayeredWindowAttributes($__g_Toast_hGUI, 0, $__g_Toast_iAlpha, $LWA_ALPHA)
     Else
-        _WinAPI_SetLayeredWindowAttributes($__g_Toast_hGUI, 0, $__g_Toast_iAlpha, $LWA_ALPHA)
+        $__g_Toast_iFadeInMs = 0
+        $__g_Toast_iAlpha = $__g_Toast_iMaxAlpha
+        _WinAPI_SetLayeredWindowAttributes($__g_Toast_hGUI, 0, $__g_Toast_iMaxAlpha, $LWA_ALPHA)
         GUISetState(@SW_SHOWNOACTIVATE, $__g_Toast_hGUI)
     EndIf
 
     $__g_Toast_hTimer = TimerInit()
     $__g_Toast_iDuration = $iDuration
     $__g_Toast_iFadeStep = 0
+EndFunc
+
+; Name:        _Theme_IsToastActive
+; Description: Returns whether a toast is currently showing (used for the main-loop sleep tier)
+Func _Theme_IsToastActive()
+    Return ($__g_Toast_hGUI <> 0)
 EndFunc
 
 ; Name:        _Theme_ToastTick
@@ -564,15 +627,34 @@ Func _Theme_ToastTick()
 
     Local $iElapsed = TimerDiff($__g_Toast_hTimer)
 
-    ; Visible phase
-    If $iElapsed < $__g_Toast_iDuration Then Return True
+    ; Fade-in phase (non-blocking ramp)
+    If $iElapsed < $__g_Toast_iFadeInMs Then
+        Local $iInAlpha = Int($__g_Toast_iMaxAlpha * $iElapsed / $__g_Toast_iFadeInMs)
+        If $iInAlpha < 0 Then $iInAlpha = 0
+        If $iInAlpha > $__g_Toast_iMaxAlpha Then $iInAlpha = $__g_Toast_iMaxAlpha
+        If $iInAlpha <> $__g_Toast_iAlpha Then
+            $__g_Toast_iAlpha = $iInAlpha
+            _WinAPI_SetLayeredWindowAttributes($__g_Toast_hGUI, 0, $iInAlpha, $LWA_ALPHA)
+        EndIf
+        Return True
+    EndIf
+
+    ; Visible phase (fade-in offsets the duration so total on-screen time is preserved)
+    Local $iVisibleEnd = $__g_Toast_iFadeInMs + $__g_Toast_iDuration
+    If $iElapsed < $iVisibleEnd Then
+        If $__g_Toast_iAlpha <> $__g_Toast_iMaxAlpha Then
+            $__g_Toast_iAlpha = $__g_Toast_iMaxAlpha
+            _WinAPI_SetLayeredWindowAttributes($__g_Toast_hGUI, 0, $__g_Toast_iMaxAlpha, $LWA_ALPHA)
+        EndIf
+        Return True
+    EndIf
 
     ; Fade-out phase (configurable duration)
-    Local $iFadeElapsed = $iElapsed - $__g_Toast_iDuration
+    Local $iFadeElapsed = $iElapsed - $iVisibleEnd
     Local $iFadeMs = _Cfg_GetToastFadeOutDuration()
     If $iFadeMs < 1 Then $iFadeMs = 1
     If $iFadeElapsed < $iFadeMs Then
-        Local $iNewAlpha = 230 - Int(230 * $iFadeElapsed / $iFadeMs)
+        Local $iNewAlpha = $__g_Toast_iMaxAlpha - Int($__g_Toast_iMaxAlpha * $iFadeElapsed / $iFadeMs)
         If $iNewAlpha < 0 Then $iNewAlpha = 0
         If $iNewAlpha <> $__g_Toast_iAlpha Then
             $__g_Toast_iAlpha = $iNewAlpha

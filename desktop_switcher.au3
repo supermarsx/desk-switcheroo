@@ -223,6 +223,13 @@ Global $__g_hInetDownload = 0   ; background update download handle
 Global $__g_sInetTempFile = ""  ; temp file for update check
 Global $bDesktopChanged = False
 Global $bNamesChanged = False
+; Deferred desktop-index refresh: after _VD_GoTo we used to Sleep(50) then _RefreshIndex()
+; synchronously at ~18 sites, blocking input on every switch. Instead we arm a pending
+; refresh and run it from the main loop once the settle window has elapsed, so a rapid
+; second key/scroll is not dropped. The event-driven _WM_DESKTOPCHANGE refresh supersedes it.
+Global $__g_bPendingRefresh = False
+Global $__g_hPendingRefreshTimer = 0
+Global Const $NAV_SETTLE_MS = 50
 Global $__g_iLastCursorX = -1, $__g_iLastCursorY = -1
 Global $__g_hFgTrackTimer = 0
 Global $__g_iLastScreenW = @DesktopWidth, $__g_iLastScreenH = @DesktopHeight
@@ -281,8 +288,11 @@ Local $iCenterW = $__g_iWidgetW - (2 * $iBtnW)
 
 ; ---- Create main GUI ----
 Local $aInitPos = __CalcWidgetXY()
+; WS_EX_NOACTIVATE keeps taskbar/other-window clicks from deactivating the widget
+; (which used to fire _WM_ACTIVATE -> _ForceTopMost repaint churn / flicker). Input is
+; GetAsyncKeyState/MouseGetPos polling and $SS_NOTIFY control clicks, none focus-dependent.
 $gui = GUICreate(String($iDesktop), $__g_iWidgetW, $__g_iWidgetH, $aInitPos[0], $aInitPos[1], _
-    $WS_POPUP, BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW, $WS_EX_LAYERED))
+    $WS_POPUP, BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW, $WS_EX_LAYERED, $WS_EX_NOACTIVATE))
 GUISetBkColor($THEME_BG_MAIN)
 _WinAPI_SetLayeredWindowAttributes($gui, 0, _Cfg_GetThemeAlphaMain(), $LWA_ALPHA)
 
@@ -445,8 +455,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 ElseIf _Cfg_GetWrapNavigation() Then
                     _VD_GoTo($iCount)
                 EndIf
-                Sleep(50)
-                _RefreshIndex()
+                _RequestDeferredRefresh()
             Case $lblRight
                 _Log_Debug("Click: right arrow (next desktop)")
                 Local $iCount2 = _VD_GetCount()
@@ -457,8 +466,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 ElseIf _Cfg_GetWrapNavigation() Then
                     _VD_GoTo(1)
                 EndIf
-                Sleep(50)
-                _RefreshIndex()
+                _RequestDeferredRefresh()
             Case $lblNum, $lblName
                 If _Cfg_GetQuickAccessEnabled() And $msg = $lblNum And $__g_iClickCount >= 2 Then
                     _Log_Debug("Click: quick-access mode activated")
@@ -536,9 +544,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
         ElseIf $iTarget > 0 Then
             _Log_Debug("Click: desktop list item " & $iTarget & " — switching")
             _DL_CtxDestroy()
-            _VD_GoTo($iTarget)
-            Sleep(50)
-            _RefreshIndex()
+            _NavigateTo($iTarget)
         EndIf
     EndIf
 
@@ -550,9 +556,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
         Switch $sDLAction
             Case "switch"
                 _DL_CtxDestroy()
-                _VD_GoTo($iCtxTarget)
-                Sleep(50)
-                _RefreshIndex()
+                _NavigateTo($iCtxTarget)
             Case "rename"
                 _DL_CtxDestroy()
                 $iRenameTarget = $iCtxTarget
@@ -640,22 +644,20 @@ Func _ProcessGUIEvents($msg, $hFrom)
                     Local $bWasPinnedWL = _VD_IsPinnedWindow($hWLTarget)
                     _VD_TogglePinWindow($hWLTarget)
                     If _Cfg_GetNotificationsEnabled() And Not $bWasPinnedWL And _Cfg_GetNotifyWindowPinned() Then
-                        _Theme_Toast(_i18n("Toasts.toast_window_pinned", "Window pinned to all desktops"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                        _Theme_Toast(_i18n("Toasts.toast_window_pinned", "Window pinned to all desktops"), Default, Default, 1500, $TOAST_INFO)
                     ElseIf _Cfg_GetNotificationsEnabled() And $bWasPinnedWL And _Cfg_GetNotifyWindowUnpinned() Then
-                        _Theme_Toast(_i18n("Toasts.toast_window_unpinned", "Window unpinned"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                        _Theme_Toast(_i18n("Toasts.toast_window_unpinned", "Window unpinned"), Default, Default, 1500, $TOAST_INFO)
                     EndIf
                     _WL_Refresh($iDesktop)
                 EndIf
             Case "goto"
                 Local $iWinDesk = _VD_GetWindowDesktopNumber($hWLTarget)
                 If $iWinDesk > 0 And $iWinDesk <> $iDesktop Then
-                    _VD_GoTo($iWinDesk)
-                    Sleep(50)
-                    _RefreshIndex()
+                    _NavigateTo($iWinDesk)
                 EndIf
             Case "pull"
                 _VD_MoveWindowToDesktop($hWLTarget, $iDesktop)
-                If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iDesktop), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iDesktop), Default, Default, 1500, $TOAST_INFO)
                 _WL_Refresh($iDesktop)
             Case "minimize"
                 WinSetState($hWLTarget, "", @SW_MINIMIZE)
@@ -676,9 +678,9 @@ Func _ProcessGUIEvents($msg, $hFrom)
                         _VD_PinApp($hWLTarget)
                     EndIf
                     If _Cfg_GetNotificationsEnabled() And Not $bWasAppPinned And _Cfg_GetNotifyWindowPinned() Then
-                        _Theme_Toast(_i18n("Toasts.toast_app_pinned", "App pinned to all desktops"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                        _Theme_Toast(_i18n("Toasts.toast_app_pinned", "App pinned to all desktops"), Default, Default, 1500, $TOAST_INFO)
                     ElseIf _Cfg_GetNotificationsEnabled() And $bWasAppPinned And _Cfg_GetNotifyWindowUnpinned() Then
-                        _Theme_Toast(_i18n("Toasts.toast_app_unpinned", "App unpinned"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                        _Theme_Toast(_i18n("Toasts.toast_app_unpinned", "App unpinned"), Default, Default, 1500, $TOAST_INFO)
                     EndIf
                     _WL_Refresh($iDesktop)
                 EndIf
@@ -698,7 +700,7 @@ Func _ProcessGUIEvents($msg, $hFrom)
                     If $iWLNext > _VD_GetCount() And _Cfg_GetWrapNavigation() Then $iWLNext = 1
                     If $iWLNext >= 1 And $iWLNext <= _VD_GetCount() Then
                         _VD_MoveWindowToDesktop($hSendTarget, $iWLNext)
-                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLNext), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLNext), Default, Default, 1500, $TOAST_INFO)
                         _WL_Refresh($iDesktop)
                     EndIf
                 Case "send_prev"
@@ -706,14 +708,14 @@ Func _ProcessGUIEvents($msg, $hFrom)
                     If $iWLPrev < 1 And _Cfg_GetWrapNavigation() Then $iWLPrev = _VD_GetCount()
                     If $iWLPrev >= 1 And $iWLPrev <= _VD_GetCount() Then
                         _VD_MoveWindowToDesktop($hSendTarget, $iWLPrev)
-                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLPrev), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLPrev), Default, Default, 1500, $TOAST_INFO)
                         _WL_Refresh($iDesktop)
                     EndIf
                 Case "send_new"
                     Local $iWLNew = _DoCreateDesktop()
                     If $iWLNew > 0 Then
                         _VD_MoveWindowToDesktop($hSendTarget, $iWLNew)
-                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLNew), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                        If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iWLNew), Default, Default, 1500, $TOAST_INFO)
                         _WL_Refresh($iDesktop)
                     EndIf
                 Case Else
@@ -722,13 +724,74 @@ Func _ProcessGUIEvents($msg, $hFrom)
                         If $iTargetDesk >= 1 And $iTargetDesk <= _VD_GetCount() Then
                             _VD_MoveWindowToDesktop($hSendTarget, $iTargetDesk)
                             If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
-                                _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iTargetDesk), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                                _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iTargetDesk), Default, Default, 1500, $TOAST_INFO)
                             EndIf
                             _WL_Refresh($iDesktop)
                         EndIf
                     EndIf
             EndSwitch
             _WL_CtxDestroy()
+        EndIf
+    EndIf
+
+    ; Window list title-bar context menu events (Pin/Unpin, Refresh, Close)
+    If _WL_TitleCtxIsVisible() And $hFrom = _WL_TitleCtxGetGUI() Then
+        Local $sWLTitleAction = _WL_TitleCtxHandleClick($msg)
+        If $sWLTitleAction <> "" Then
+            _Log_Debug("WindowList title ctx: " & $sWLTitleAction)
+            Switch $sWLTitleAction
+                Case "pin", "unpin"
+                    Local $bWLPinNow = ($sWLTitleAction = "pin")
+                    _Cfg_SetWindowListPinned($bWLPinNow)
+                    _Cfg_Save()
+                    If _Cfg_GetNotificationsEnabled() Then
+                        If $bWLPinNow Then
+                            _Theme_Toast(_i18n("Toasts.toast_wl_pinned", "Window list pinned"), Default, Default, 1500, $TOAST_INFO)
+                        Else
+                            _Theme_Toast(_i18n("Toasts.toast_wl_unpinned", "Window list unpinned"), Default, Default, 1500, $TOAST_INFO)
+                        EndIf
+                    EndIf
+                Case "refresh"
+                    _WL_Refresh($iDesktop)
+                Case "close"
+                    _WL_Destroy()
+            EndSwitch
+            ; _WL_Destroy already cascades the title menu; guard against a double-destroy
+            If _WL_TitleCtxIsVisible() Then _WL_TitleCtxDestroy()
+        EndIf
+    EndIf
+
+    ; Window list "Send All to Desktop" submenu events
+    If _WL_SendAllIsVisible() And $hFrom = _WL_SendAllGetGUI() Then
+        Local $sSendAllAction = _WL_SendAllHandleClick($msg)
+        If $sSendAllAction <> "" Then
+            _Log_Debug("WindowList send-all: " & $sSendAllAction)
+            Local $iAllTarget = 0
+            Switch $sSendAllAction
+                Case "send_all_next"
+                    $iAllTarget = $iDesktop + 1
+                    If $iAllTarget > _VD_GetCount() And _Cfg_GetWrapNavigation() Then $iAllTarget = 1
+                    If $iAllTarget < 1 Or $iAllTarget > _VD_GetCount() Then $iAllTarget = 0
+                Case "send_all_prev"
+                    $iAllTarget = $iDesktop - 1
+                    If $iAllTarget < 1 And _Cfg_GetWrapNavigation() Then $iAllTarget = _VD_GetCount()
+                    If $iAllTarget < 1 Or $iAllTarget > _VD_GetCount() Then $iAllTarget = 0
+                Case "send_all_new"
+                    $iAllTarget = _DoCreateDesktop()
+                Case Else
+                    If StringLeft($sSendAllAction, 12) = "send_all_to:" Then
+                        $iAllTarget = Int(StringMid($sSendAllAction, 13))
+                        If $iAllTarget < 1 Or $iAllTarget > _VD_GetCount() Then $iAllTarget = 0
+                    EndIf
+            EndSwitch
+            If $iAllTarget >= 1 Then
+                Local $iAllMoved = _WL_SendAllToDesktop($iAllTarget)
+                _WL_Refresh($iDesktop)
+                If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
+                    _Theme_Toast(_i18n_Format("Toasts.toast_windows_sent_all", "{1} windows sent to Desktop {2}", $iAllMoved, $iAllTarget), Default, Default, 1500, $TOAST_INFO)
+                EndIf
+            EndIf
+            _WL_TitleCtxDestroy()
         EndIf
     EndIf
 
@@ -811,16 +874,25 @@ Func _ProcessMouseInput()
                     EndIf
                 EndIf
 
-            ; Right-click over window list -> show window context menu
+            ; Right-click over window list -> title-bar menu (title area) or per-row menu
             ElseIf _WL_IsVisible() And _Theme_IsCursorOverWindow(_WL_GetGUI()) Then
                 _CM_Destroy()
                 _DL_CtxDestroy()
-                Local $hRightClickWnd = _WL_GetItemAtPos()
-                If $hRightClickWnd <> 0 Then
-                    If _WL_CtxIsVisible() Then
-                        _WL_CtxDestroy()
+                If _WL_IsOverTitleBar() Then
+                    ; Title bar -> Pin/Refresh/Send All/Close menu (mutually exclusive with row menu, handled in WindowList)
+                    If _WL_TitleCtxIsVisible() Then
+                        _WL_TitleCtxDestroy()
                     Else
-                        _WL_CtxShow($hRightClickWnd)
+                        _WL_TitleCtxShow()
+                    EndIf
+                Else
+                    Local $hRightClickWnd = _WL_GetItemAtPos()
+                    If $hRightClickWnd <> 0 Then
+                        If _WL_CtxIsVisible() Then
+                            _WL_CtxDestroy()
+                        Else
+                            _WL_CtxShow($hRightClickWnd)
+                        EndIf
                     EndIf
                 EndIf
 
@@ -903,6 +975,9 @@ Func _ProcessMouseInput()
         If _DL_IsVisible() Then _DL_Reposition($iTaskbarY)
     EndIf
 
+    ; Window list title-bar drag (self-contained; no-op unless draggable + LMB over title)
+    _WL_ProcessDrag()
+
     ; LMB released
     If Not $bLeftDown And $bLeftWasDown Then
         ; Widget drag end
@@ -952,9 +1027,7 @@ Func _ProcessMouseInput()
         If _DL_IsDragging() Then
             Local $iNewCurrent = _DL_DragMouseUp($iDesktop, $iTaskbarY)
             If $iNewCurrent > 0 Then
-                _VD_GoTo($iNewCurrent)
-                Sleep(50)
-                _RefreshIndex()
+                _NavigateTo($iNewCurrent)
             EndIf
         EndIf
     EndIf
@@ -980,17 +1053,13 @@ Func _ProcessKeyboardInput()
         Local $retUp = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_UP)
         If Not @error And IsArray($retUp) And BitAND($retUp[0], 0x0001) <> 0 Then
             If $iDesktop > 1 Then
-                _VD_GoTo($iDesktop - 1)
-                Sleep(50)
-                _RefreshIndex()
+                _NavigateTo($iDesktop - 1)
             EndIf
         EndIf
         Local $retDown = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $VK_DOWN)
         If Not @error And IsArray($retDown) And BitAND($retDown[0], 0x0001) <> 0 Then
             If $iDesktop < _VD_GetCount() Then
-                _VD_GoTo($iDesktop + 1)
-                Sleep(50)
-                _RefreshIndex()
+                _NavigateTo($iDesktop + 1)
             EndIf
         EndIf
     EndIf
@@ -1004,7 +1073,7 @@ EndFunc
 Func _ProcessEventFlags()
     ; Explorer crash notification
     If _EM_CheckCrash() And _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyExplorerCrash() Then
-        _Theme_Toast(_i18n("Toasts.toast_explorer_crashed", "Shell process crashed"), 0, $iTaskbarY + $iTaskbarH + 4, 3000, $TOAST_ERROR)
+        _Theme_Toast(_i18n("Toasts.toast_explorer_crashed", "Shell process crashed"), Default, Default, 3000, $TOAST_ERROR)
     EndIf
 
     ; Explorer crash recovery
@@ -1017,7 +1086,7 @@ Func _ProcessEventFlags()
         _TAH_Reset()
         ; Show notification
         If _Cfg_GetNotificationsEnabled() And (_Cfg_GetExplorerNotifyRecovery() Or _Cfg_GetNotifyExplorerRecovery()) Then
-            _Theme_Toast(_i18n("Toasts.toast_explorer_recovered", "Explorer recovered — reinitializing"), 0, $iTaskbarY + $iTaskbarH + 4, 3000, $TOAST_WARNING)
+            _Theme_Toast(_i18n("Toasts.toast_explorer_recovered", "Explorer recovered — reinitializing"), Default, Default, 3000, $TOAST_WARNING)
         EndIf
     EndIf
 
@@ -1035,11 +1104,15 @@ Func _ProcessEventFlags()
         EndIf
     EndIf
 
-    ; Event-driven desktop change (flag set by _WM_DESKTOPCHANGE)
+    ; Event-driven desktop change (flag set by _WM_DESKTOPCHANGE) — supersedes any pending settle
     If $bDesktopChanged And Not _Peek_IsActive() Then
         $bDesktopChanged = False
+        $__g_bPendingRefresh = False
         _RefreshIndex()
     EndIf
+
+    ; Deferred post-navigation settle (armed by _NavigateTo / _RequestDeferredRefresh)
+    _ProcessPendingRefresh()
 
     ; Event-driven name sync (flag set by _AdlibSyncNames)
     If $bNamesChanged Then
@@ -1074,10 +1147,16 @@ Func _ProcessHoverAndVisuals()
 
     ; Skip all hit-testing when nothing changed (cursor still, no events, no drag)
     Local $bStateChanged = ($bCursorMoved Or _DL_IsDragging() Or $bDesktopChanged Or $bNamesChanged)
-    If Not $bStateChanged And Not $__g_bWasCursorActive Then Return False
+    If Not $bStateChanged And Not $__g_bWasCursorActive Then
+        ; Cursor idle and away from all windows — the TAH poll may hide freely
+        _TAH_SetCursorOverWidget(False)
+        Return False
+    EndIf
 
     ; Single-pass hit-test: determine which window (if any) the cursor is over
     Local $bOverWidget = _Theme_IsCursorOverWindow($gui)
+    ; Feed the auto-hide poll so it never hides the widget out from under the cursor
+    _TAH_SetCursorOverWidget($bOverWidget)
     Local $bOverDL = (_DL_IsVisible() And _Theme_IsCursorOverWindow(_DL_GetGUI()))
     Local $bOverCM = (_CM_IsVisible() And _Theme_IsCursorOverWindow(_CM_GetGUI()))
     Local $bOverCtx = (_DL_CtxIsVisible() And _Theme_IsCursorOverWindow(_DL_CtxGetGUI()))
@@ -1088,7 +1167,9 @@ Func _ProcessHoverAndVisuals()
     Local $bOverWL = (_WL_IsVisible() And _Theme_IsCursorOverWindow(_WL_GetGUI()))
     Local $bOverWLCtx = (_WL_CtxIsVisible() And _Theme_IsCursorOverWindow(_WL_CtxGetGUI()))
     Local $bOverWLSend = (_WL_SendToIsVisible() And _Theme_IsCursorOverWindow(_WL_SendToGetGUI()))
-    Local $bCursorActive = ($bOverWidget Or $bOverDL Or $bOverCM Or $bOverCtx Or $bOverCP Or $bOverMove Or $bOverRD Or $bOverThumb Or $bOverWL Or $bOverWLCtx Or $bOverWLSend)
+    Local $bOverWLTitleCtx = (_WL_TitleCtxIsVisible() And _Theme_IsCursorOverWindow(_WL_TitleCtxGetGUI()))
+    Local $bOverWLSendAll = (_WL_SendAllIsVisible() And _Theme_IsCursorOverWindow(_WL_SendAllGetGUI()))
+    Local $bCursorActive = ($bOverWidget Or $bOverDL Or $bOverCM Or $bOverCtx Or $bOverCP Or $bOverMove Or $bOverRD Or $bOverThumb Or $bOverWL Or $bOverWLCtx Or $bOverWLSend Or $bOverWLTitleCtx Or $bOverWLSendAll)
 
     ; Hover effects — reuse hit-test results (no redundant WinGetPos calls)
     If $bCursorActive And $bStateChanged Then
@@ -1102,6 +1183,8 @@ Func _ProcessHoverAndVisuals()
         If $bOverWL Then _WL_CheckHover()
         If $bOverWLCtx Then _WL_CtxCheckHover()
         If $bOverWLSend Then _WL_SendToCheckHover()
+        If $bOverWLTitleCtx Then _WL_TitleCtxCheckHover()
+        If $bOverWLSendAll Then _WL_SendAllCheckHover()
     EndIf
 
     ; Clear hover states when cursor leaves all windows (prevents stuck highlights)
@@ -1125,11 +1208,14 @@ EndFunc
 ; Description: Handles toast, update check, peek bounce, auto-hide, and dynamic sleep
 ; Parameters:  $bCursorActive - whether cursor is over any window
 Func _ProcessTimersAndSleep($bCursorActive)
-    ; Toast fade-out tick
+    ; Toast fade-in/out tick
     _Theme_ToastTick()
 
     ; OSD fade-out tick
     _Theme_OsdTick()
+
+    ; Taskbar auto-hide widget fade tick (non-blocking hide/show animation)
+    _TAH_FadeTick()
 
     ; Themed tooltip auto-dismiss
     _Theme_TooltipTick()
@@ -1169,12 +1255,15 @@ Func _ProcessTimersAndSleep($bCursorActive)
         _WL_CheckSearchInput()
     EndIf
     _WL_CtxCheckAutoHide()
+    _WL_TitleCtxCheckAutoHide()
 
     ; Dynamic sleep: responsive when interactive, lightweight when idle
-    ; 3 tiers: active hover (5ms), popups visible (15ms), fully idle (100ms)
-    If $bCursorActive Then
+    ; 3 tiers: active hover / animating / pending settle (5ms), popups visible (15ms), fully idle (100ms)
+    ; A running fade or an armed deferred refresh needs the fast tier so the animation stays
+    ; smooth and the settle completes promptly (both were previously blocking Sleep loops).
+    If $bCursorActive Or $__g_bPendingRefresh Or _TAH_IsFading() Then
         Sleep(5)
-    ElseIf _DL_IsVisible() Or _CM_IsVisible() Or _DL_CtxIsVisible() Or _DL_ColorPickerIsVisible() Or _DL_MoveMenuIsVisible() Or _WL_CtxIsVisible() Or _WL_SendToIsVisible() Then
+    ElseIf _Theme_IsToastActive() Or _DL_IsVisible() Or _CM_IsVisible() Or _DL_CtxIsVisible() Or _DL_ColorPickerIsVisible() Or _DL_MoveMenuIsVisible() Or _WL_CtxIsVisible() Or _WL_SendToIsVisible() Or _WL_TitleCtxIsVisible() Or _WL_SendAllIsVisible() Then
         Sleep(15)
     Else
         Sleep(100)
@@ -1314,8 +1403,53 @@ Func _ApplySettingsLive()
     _TAH_Stop()
     _TAH_Start()
 
+    ; Rules engine live-apply (P2): restart to pick up enabled/interval/rule edits.
+    ; _WR_Start no-ops when rules are disabled in config; _WR_Start reads the getters (B3).
+    _WR_Stop()
+    _WR_Start()
+
+    ; Logging live-apply (F6): re-init so enabled/level/folder/max-size changes take effect.
+    ; _Log_Init no-ops when logging is disabled in config.
+    _Log_Shutdown()
+    _Log_Init()
+
+    ; Explorer crash monitor live-apply (F7): _EM_Start no-ops when disabled in config.
+    _EM_Stop()
+    _EM_Start()
+
+    ; Re-register the periodic Adlibs with current intervals (PA-8/PA-9). AdlibRegister with the
+    ; same handler replaces the prior registration, so a config-watcher reload honors interval edits.
+    AdlibRegister("_AdlibSyncNames", _Cfg_GetNameSyncInterval())
+    AdlibRegister("_CheckDLLHealth", _Cfg_GetDllCheckInterval())
+
     ; Force reposition with new widget position/offset
     _ForceTopMost()
+EndFunc
+
+; Name:        _RequestDeferredRefresh
+; Description: Arms a non-blocking settle: _RefreshIndex() runs from the main loop once
+;              $NAV_SETTLE_MS has elapsed, instead of a synchronous Sleep(50)+_RefreshIndex().
+Func _RequestDeferredRefresh()
+    $__g_bPendingRefresh = True
+    $__g_hPendingRefreshTimer = TimerInit()
+EndFunc
+
+; Name:        _NavigateTo
+; Description: Switches to the given desktop and arms a deferred refresh (no blocking settle).
+; Parameters:  $iNew - target desktop number
+Func _NavigateTo($iNew)
+    _VD_GoTo($iNew)
+    _RequestDeferredRefresh()
+EndFunc
+
+; Name:        _ProcessPendingRefresh
+; Description: Runs a pending deferred refresh once the settle window has elapsed. Call from
+;              the main loop. No-op when nothing is pending.
+Func _ProcessPendingRefresh()
+    If $__g_bPendingRefresh And TimerDiff($__g_hPendingRefreshTimer) >= $NAV_SETTLE_MS Then
+        $__g_bPendingRefresh = False
+        _RefreshIndex()
+    EndIf
 EndFunc
 
 ; Name:        _RefreshIndex
@@ -1368,16 +1502,18 @@ EndFunc
 ; Return:      New desktop count on success, 0 if limit reached
 Func _DoCreateDesktop()
     If _VD_GetCount() >= _GetDesktopLimit() Then
-        _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+        _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), Default, Default, 1500, $TOAST_WARNING)
         Return 0
     EndIf
     _VD_CreateDesktop()
-    Sleep(100)
+    ; No blocking settle: _VD_CreateDesktop invalidates the count cache synchronously, so the
+    ; count below is already current. Display refresh is deferred to the main loop (R10).
     Local $iNewCount = _VD_GetCount()
     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
-        _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", $iNewCount), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
+        _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", $iNewCount), Default, Default, 1500, $TOAST_SUCCESS)
     EndIf
     _Hooks_Fire("on_desktop_create", "desktop=" & $iNewCount & "|desktop_count=" & $iNewCount)
+    _RequestDeferredRefresh()
     Return $iNewCount
 EndFunc
 
@@ -1397,13 +1533,15 @@ Func _DoDeleteDesktop($iTarget)
     Local $iOldCount = _VD_GetCount()
     Local $aSnap = _Labels_SnapshotLabels($iOldCount)
     _VD_RemoveDesktop($iTarget)
-    Sleep(100)
+    ; No blocking settle: the label shift is a pure snapshot-based memory op (timing-independent,
+    ; see Test_Labels double-shift regression) and the count cache is refreshed synchronously.
+    ; Ordering (remove -> shift -> deferred refresh) is preserved; refresh runs from the main loop.
     _Labels_RemoveAndShift($iTarget, $iOldCount, $aSnap)
     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopDeleted() Then
-        _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+        _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), Default, Default, 1500, $TOAST_INFO)
     EndIf
     _Hooks_Fire("on_desktop_delete", "desktop=" & $iTarget & "|desktop_count=" & _VD_GetCount())
-    _RefreshIndex()
+    _RequestDeferredRefresh()
     Return True
 EndFunc
 
@@ -1478,9 +1616,7 @@ Func _QuickAccess_Check()
                 _QuickAccess_Cancel()
                 Return
             EndIf
-            _VD_GoTo($iTarget)
-            Sleep(50)
-            _RefreshIndex()
+            _NavigateTo($iTarget)
             Return
         EndIf
     Next
@@ -1574,9 +1710,7 @@ Func __ScrollNavigate($iDirection, $bWrap)
         If Not $bWrap Then Return
         $iNew = 1
     EndIf
-    _VD_GoTo($iNew)
-    Sleep(50)
-    _RefreshIndex()
+    _NavigateTo($iNew)
 EndFunc
 
 ; Name:        _WM_MOUSEWHEEL
@@ -1706,9 +1840,6 @@ Func _ForceTopMost()
         EndIf
     EndIf
 
-    ; Always keep topmost flag (cheap)
-    WinSetOnTop($gui, "", 1)
-
     Local $aPos = __CalcWidgetXY()
     Local $bWidgetMoved = False
     Local $aCurPos = WinGetPos($gui)
@@ -1721,24 +1852,23 @@ Func _ForceTopMost()
     Local $bListNeedsGeometryRefresh = (_DL_IsVisible() And ($bTaskbarMoved Or $bScreenChanged))
     Local $bListNeedsReposition = False
 
-    If $bWidgetMoved Then
-        DllCall("user32.dll", "bool", "SetWindowPos", _
-            "hwnd", $gui, "hwnd", $HWND_TOPMOST, _
-            "int", $aPos[0], "int", $aPos[1], _
-            "int", $__g_iWidgetW, "int", $__g_iWidgetH, _
-            "uint", BitOR($SWP_NOACTIVATE, $SWP_SHOWWINDOW))
-        $bListNeedsReposition = _DL_IsVisible()
+    ; Verify TOPMOST style bit — other windows can steal it. Restore the bit if lost.
+    Local $iStyle = _WinAPI_GetWindowLong($gui, $GWL_EXSTYLE)
+    Local $bTopmostLost = (BitAND($iStyle, $WS_EX_TOPMOST) = 0)
+    If $bTopmostLost Then
+        _WinAPI_SetWindowLong($gui, $GWL_EXSTYLE, BitOR($iStyle, $WS_EX_TOPMOST))
     EndIf
 
-    ; Always verify TOPMOST style bit - other windows can steal it
-    Local $iStyle = _WinAPI_GetWindowLong($gui, $GWL_EXSTYLE)
-    If BitAND($iStyle, $WS_EX_TOPMOST) = 0 Then
-        _WinAPI_SetWindowLong($gui, $GWL_EXSTYLE, BitOR($iStyle, $WS_EX_TOPMOST))
+    ; Idempotent: only touch z-order/geometry when something actually changed.
+    ; The old unconditional WinSetOnTop + double SWP_SHOWWINDOW SetWindowPos fired every
+    ; 300ms tick and on every _WM_ACTIVATE, causing the repaint storm / flicker.
+    ; SWP_SHOWWINDOW is dropped so this never fights the auto-hide fade paths.
+    If $bWidgetMoved Or $bTopmostLost Then
         DllCall("user32.dll", "bool", "SetWindowPos", _
             "hwnd", $gui, "hwnd", $HWND_TOPMOST, _
             "int", $aPos[0], "int", $aPos[1], _
             "int", $__g_iWidgetW, "int", $__g_iWidgetH, _
-            "uint", BitOR($SWP_NOACTIVATE, $SWP_SHOWWINDOW))
+            "uint", $SWP_NOACTIVATE)
         $bListNeedsReposition = _DL_IsVisible()
     EndIf
 
@@ -1768,9 +1898,12 @@ Func _CarouselTick()
     Local $iNext = $iDesktop + 1
     If $iNext > $iCount Then $iNext = 1
 
+    ; Adlib handler: request a switch + deferred refresh only. Never Sleep here — an Adlib
+    ; cannot be preempted by another Adlib, so a blocking sleep froze _ForceTopMost/__TAH_Poll.
     _VD_GoTo($iNext)
-    Sleep(50)
-    _RefreshIndex()
+    _RequestDeferredRefresh()
+    ; Async fire (Run, non-blocking) — safe inside an Adlib. Keep the handler tiny; no Sleep/GUI.
+    _Hooks_Fire("on_carousel_tick", "desktop=" & $iNext & "|desktop_count=" & $iCount)
 EndFunc
 
 ; Name:        _CarouselStart
@@ -1782,7 +1915,7 @@ Func _CarouselStart()
     _Log_Info("Carousel started (interval=" & _Cfg_GetCarouselInterval() & "ms)")
     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyCarouselToggle() Then
         _Theme_Toast(_i18n("Toasts.toast_carousel_on", "Carousel enabled"), _
-            0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+            Default, Default, 1500, $TOAST_INFO)
     EndIf
 EndFunc
 
@@ -1795,7 +1928,7 @@ Func _CarouselStop()
     _Log_Info("Carousel stopped")
     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyCarouselToggle() Then
         _Theme_Toast(_i18n("Toasts.toast_carousel_off", "Carousel disabled"), _
-            0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+            Default, Default, 1500, $TOAST_INFO)
     EndIf
 EndFunc
 
@@ -2077,8 +2210,7 @@ Func _HK_Next()
     ElseIf _Cfg_GetWrapNavigation() Then
         _VD_GoTo(1)
     EndIf
-    Sleep(50)
-    _RefreshIndex()
+    _RequestDeferredRefresh()
 EndFunc
 
 ; Name:        _HK_Prev
@@ -2090,8 +2222,7 @@ Func _HK_Prev()
     ElseIf _Cfg_GetWrapNavigation() Then
         _VD_GoTo($iCount)
     EndIf
-    Sleep(50)
-    _RefreshIndex()
+    _RequestDeferredRefresh()
 EndFunc
 
 ; Name:        __HK_GotoDesktop
@@ -2100,9 +2231,7 @@ EndFunc
 ;              delegates here.
 Func __HK_GotoDesktop($iNum)
     If $iNum <= _VD_GetCount() Then
-        _VD_GoTo($iNum)
-        Sleep(50)
-        _RefreshIndex()
+        _NavigateTo($iNum)
     EndIf
 EndFunc
 
@@ -2152,9 +2281,7 @@ EndFunc
 Func _HK_ToggleLast()
     If $iPrevDesktop > 0 And $iPrevDesktop <> $iDesktop And $iPrevDesktop <= _VD_GetCount() Then
         _Log_Debug("Hotkey: toggle last -> desktop " & $iPrevDesktop)
-        _VD_GoTo($iPrevDesktop)
-        Sleep(50)
-        _RefreshIndex()
+        _NavigateTo($iPrevDesktop)
     EndIf
 EndFunc
 
@@ -2189,7 +2316,7 @@ EndFunc
 
 Func __ShowMovedWindowToast($hWnd, $iTargetDesktop)
     _Theme_Toast(_i18n_Format("Extra.window_move_toast", "{1} -> Desktop {2}", __GetWindowToastTitle($hWnd), $iTargetDesktop), _
-        0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+        Default, Default, 1500, $TOAST_INFO)
 EndFunc
 
 ; Name:        _HK_MoveFollowNext
@@ -2208,9 +2335,7 @@ Func _HK_MoveFollowNext()
     EndIf
     _Log_Debug("Hotkey: move+follow next -> window " & $hWnd & " to desktop " & $iTarget)
     _VD_MoveWindowToDesktop($hWnd, $iTarget)
-    _VD_GoTo($iTarget)
-    Sleep(50)
-    _RefreshIndex()
+    _NavigateTo($iTarget)
     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
         __ShowMovedWindowToast($hWnd, $iTarget)
     EndIf
@@ -2232,9 +2357,7 @@ Func _HK_MoveFollowPrev()
     EndIf
     _Log_Debug("Hotkey: move+follow prev -> window " & $hWnd & " to desktop " & $iTarget)
     _VD_MoveWindowToDesktop($hWnd, $iTarget)
-    _VD_GoTo($iTarget)
-    Sleep(50)
-    _RefreshIndex()
+    _NavigateTo($iTarget)
     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
         __ShowMovedWindowToast($hWnd, $iTarget)
     EndIf
@@ -2288,14 +2411,13 @@ Func _HK_SendNewDesktop()
     Local $hWnd = WinGetHandle("[ACTIVE]")
     If $hWnd = $gui Then Return
     If _VD_GetCount() >= _GetDesktopLimit() Then
-        _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+        _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), Default, Default, 1500, $TOAST_WARNING)
         Return
     EndIf
     _Log_Debug("Hotkey: send to new desktop -> window " & $hWnd)
-    _VD_CreateDesktop()
-    Sleep(100)
+    _VD_CreateDesktop() ; count cache refreshed synchronously; the new desktop exists for the move below (R10)
     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
-        _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
+        _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), Default, Default, 1500, $TOAST_SUCCESS)
     EndIf
     Local $iNewDesk = _VD_GetCount()
     _VD_MoveWindowToDesktop($hWnd, $iNewDesk)
@@ -2314,9 +2436,9 @@ Func _HK_PinWindow()
     _Log_Debug("Hotkey: toggle pin window -> " & $hWnd)
     Local $bPinned = _VD_TogglePinWindow($hWnd)
     If _Cfg_GetNotificationsEnabled() And $bPinned And _Cfg_GetNotifyWindowPinned() Then
-        _Theme_Toast(_i18n("Toasts.toast_window_pinned", "Window pinned to all desktops"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+        _Theme_Toast(_i18n("Toasts.toast_window_pinned", "Window pinned to all desktops"), Default, Default, 1500, $TOAST_INFO)
     ElseIf _Cfg_GetNotificationsEnabled() And Not $bPinned And _Cfg_GetNotifyWindowUnpinned() Then
-        _Theme_Toast(_i18n("Toasts.toast_window_unpinned", "Window unpinned"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+        _Theme_Toast(_i18n("Toasts.toast_window_unpinned", "Window unpinned"), Default, Default, 1500, $TOAST_INFO)
     EndIf
 EndFunc
 
@@ -2338,14 +2460,16 @@ EndFunc
 Func _HK_ToggleRules()
     _Log_Debug("Hotkey: toggle rules")
     _Cfg_SetRulesEnabled(Not _Cfg_GetRulesEnabled())
+    ; Persist first so _WR_LoadRules reads current rule_N rows from disk, and _WR_Start's
+    ; getter-based enabled/interval check sees the just-toggled in-memory state.
+    _Cfg_Save()
     If _Cfg_GetRulesEnabled() Then
         _WR_Start()
-        _Theme_Toast(_i18n("Extra.toast_rules_enabled", "Rules engine enabled"), 0, 0, 1500, $TOAST_SUCCESS)
+        _Theme_Toast(_i18n("Extra.toast_rules_enabled", "Rules engine enabled"), Default, Default, 1500, $TOAST_SUCCESS)
     Else
         _WR_Stop()
-        _Theme_Toast(_i18n("Extra.toast_rules_disabled", "Rules engine disabled"), 0, 0, 1500, $TOAST_INFO)
+        _Theme_Toast(_i18n("Extra.toast_rules_disabled", "Rules engine disabled"), Default, Default, 1500, $TOAST_INFO)
     EndIf
-    _Cfg_Save()
 EndFunc
 
 Func _HK_LoadNextProfile()
@@ -2359,7 +2483,7 @@ Func _HK_LoadNextProfile()
     $s_iProfileIdx += 1
     If $s_iProfileIdx > $aProfiles[0] Then $s_iProfileIdx = 1
     _Prof_LoadProfile($aProfiles[$s_iProfileIdx])
-    _Theme_Toast(_i18n_Format("Extra.toast_profile_loaded", "Profile: {1}", $aProfiles[$s_iProfileIdx]), 0, 0, 1500, $TOAST_INFO)
+    _Theme_Toast(_i18n_Format("Extra.toast_profile_loaded", "Profile: {1}", $aProfiles[$s_iProfileIdx]), Default, Default, 1500, $TOAST_INFO)
     _RefreshIndex()
 EndFunc
 
@@ -2372,7 +2496,7 @@ Func _HK_LoadPrevProfile()
     $s_iProfileIdx2 -= 1
     If $s_iProfileIdx2 < 1 Then $s_iProfileIdx2 = $aProfiles[0]
     _Prof_LoadProfile($aProfiles[$s_iProfileIdx2])
-    _Theme_Toast(_i18n_Format("Extra.toast_profile_loaded", "Profile: {1}", $aProfiles[$s_iProfileIdx2]), 0, 0, 1500, $TOAST_INFO)
+    _Theme_Toast(_i18n_Format("Extra.toast_profile_loaded", "Profile: {1}", $aProfiles[$s_iProfileIdx2]), Default, Default, 1500, $TOAST_INFO)
     _RefreshIndex()
 EndFunc
 
@@ -2380,9 +2504,9 @@ Func _HK_ToggleOsd()
     _Log_Debug("Hotkey: toggle OSD")
     _Cfg_SetOsdEnabled(Not _Cfg_GetOsdEnabled())
     If _Cfg_GetOsdEnabled() Then
-        _Theme_Toast(_i18n("Extra.toast_osd_enabled", "OSD enabled"), 0, 0, 1500, $TOAST_SUCCESS)
+        _Theme_Toast(_i18n("Extra.toast_osd_enabled", "OSD enabled"), Default, Default, 1500, $TOAST_SUCCESS)
     Else
-        _Theme_Toast(_i18n("Extra.toast_osd_disabled", "OSD disabled"), 0, 0, 1500, $TOAST_INFO)
+        _Theme_Toast(_i18n("Extra.toast_osd_disabled", "OSD disabled"), Default, Default, 1500, $TOAST_INFO)
     EndIf
     _Cfg_Save()
 EndFunc
@@ -2415,8 +2539,7 @@ Func _HK_SwapDesktops()
         If _Labels_IsSyncEnabled() Then _Labels_SyncFromOS()
         _VD_SwapDesktops($iDesktop, $iPrevDesktop)
         _Labels_Swap($iDesktop, $iPrevDesktop, True)
-        Sleep(50)
-        _RefreshIndex()
+        _RequestDeferredRefresh()
     EndIf
 EndFunc
 
@@ -2475,19 +2598,28 @@ EndFunc
 Func _GatherWindowsToCurrentDesktop()
     _Log_Debug("Gather: all windows to current desktop")
     Local $iCur = _VD_GetCurrent()
-    Local $iCount = _VD_GetCount()
-    Local $d
-    For $d = 1 To $iCount
-        If $d = $iCur Then ContinueLoop
-        Local $aWins = _VD_EnumWindowsOnDesktop($d)
-        If IsArray($aWins) And $aWins[0] > 0 Then
-            Local $w
-            For $w = 1 To $aWins[0]
-                _VD_MoveWindowToDesktop($aWins[$w], $iCur)
-            Next
-        EndIf
+    If $iCur < 1 Then Return
+
+    ; R13: one system enumeration total. _VD_EnumWindowsAllDesktops (t1-f4) does a single
+    ; EnumWindows + one desktop-number pass, returning every top-level window pre-tagged with its
+    ; desktop (child/owned windows and pinned/unknown already filtered out). The prior version
+    ; called _VD_EnumWindowsOnDesktop() once PER desktop — each a full system EnumWindows — which
+    ; froze the UI 0.5-2s with several populated desktops.
+    Local $aAll = _VD_EnumWindowsAllDesktops()
+    If Not IsArray($aAll) Then Return
+
+    Local $iMoved = 0
+    Local $i
+    For $i = 1 To $aAll[0][0]
+        Local $hWnd = $aAll[$i][0]
+        If $hWnd = 0 Then ContinueLoop
+        If $aAll[$i][1] = $iCur Then ContinueLoop ; already on the current desktop
+        If __IsInternalDeskSwitcherooWindow($hWnd) Then ContinueLoop
+        If _VD_MoveWindowToDesktop($hWnd, $iCur) Then $iMoved += 1
     Next
-    _Theme_Toast(_i18n("Extra.toast_windows_gathered", "All windows gathered"), 0, 0, 1500, $TOAST_SUCCESS)
+
+    _Log_Info("Gather: moved " & $iMoved & " windows to desktop " & $iCur)
+    _Theme_Toast(_i18n("Extra.toast_windows_gathered", "All windows gathered"), Default, Default, 1500, $TOAST_SUCCESS)
     If _WL_IsVisible() Then _WL_Refresh($iCur)
 EndFunc
 
@@ -2500,9 +2632,9 @@ Func _HK_ToggleSession()
     _Log_Debug("Hotkey: toggle session restore")
     _Cfg_SetSessionRestoreEnabled(Not _Cfg_GetSessionRestoreEnabled())
     If _Cfg_GetSessionRestoreEnabled() Then
-        _Theme_Toast(_i18n("Extra.toast_session_enabled", "Session restore enabled"), 0, 0, 1500, $TOAST_SUCCESS)
+        _Theme_Toast(_i18n("Extra.toast_session_enabled", "Session restore enabled"), Default, Default, 1500, $TOAST_SUCCESS)
     Else
-        _Theme_Toast(_i18n("Extra.toast_session_disabled", "Session restore disabled"), 0, 0, 1500, $TOAST_INFO)
+        _Theme_Toast(_i18n("Extra.toast_session_disabled", "Session restore disabled"), Default, Default, 1500, $TOAST_INFO)
     EndIf
     _Cfg_Save()
 EndFunc
@@ -2514,7 +2646,7 @@ Func __HK_MoveToDesktop($iNum)
         If $hFg <> 0 Then
             _VD_MoveWindowToDesktop($hFg, $iNum)
             If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
-                _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iNum), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $iNum), Default, Default, 1500, $TOAST_INFO)
             EndIf
             _Hooks_Fire("on_window_move", "desktop=" & $iNum & "|window_title=" & WinGetTitle($hFg) & "|window_process=")
         EndIf
@@ -2552,16 +2684,15 @@ EndFunc
 ; Description: Hotkey callback to create a new virtual desktop
 Func _HK_AddDesktop()
     If _VD_GetCount() >= _GetDesktopLimit() Then
-        _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+        _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), Default, Default, 1500, $TOAST_WARNING)
         Return
     EndIf
     _Log_Debug("Hotkey: add desktop")
-    _VD_CreateDesktop()
-    Sleep(100)
+    _VD_CreateDesktop() ; count cache refreshed synchronously — no blocking settle needed (R10)
     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
-        _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
+        _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), Default, Default, 1500, $TOAST_SUCCESS)
     EndIf
-    _RefreshIndex()
+    _RequestDeferredRefresh()
 EndFunc
 
 ; Name:        _HK_DeleteDesktop
@@ -2580,12 +2711,12 @@ Func _HK_DeleteDesktop()
     Local $iRemoved = $iDesktop
     Local $aSnap = _Labels_SnapshotLabels($iOldCount)
     _VD_RemoveDesktop($iDesktop)
-    Sleep(100)
+    ; Snapshot-based label shift is timing-independent; count cache refreshes synchronously (R10).
     _Labels_RemoveAndShift($iRemoved, $iOldCount, $aSnap)
     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopDeleted() Then
-        _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+        _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), Default, Default, 1500, $TOAST_INFO)
     EndIf
-    _RefreshIndex()
+    _RequestDeferredRefresh()
 EndFunc
 
 ; Name:        _HK_RenameDesktop
@@ -2650,7 +2781,7 @@ Func _InitTrayMode()
         $bHasTopSection = True
     EndIf
     If _Cfg_GetTrayMenuShowEdit() Then
-        $__g_iTrayEditLabel = TrayCreateItem(_i18n("Tray.tray_edit_label", "Edit Label"))
+        $__g_iTrayEditLabel = TrayCreateItem(_i18n("Tray.tray_edit_label", "Rename Desktop"))
         $bHasTopSection = True
     EndIf
     If $bHasTopSection Then TrayCreateItem("")
@@ -2784,16 +2915,14 @@ Func _DispatchTrayAction($sAction)
             ElseIf _Cfg_GetWrapNavigation() Then
                 _VD_GoTo(1)
             EndIf
-            Sleep(50)
-            _RefreshIndex()
+            _RequestDeferredRefresh()
         Case "add_desktop"
             If _VD_GetCount() < _GetDesktopLimit() Then
-                _VD_CreateDesktop()
-                Sleep(100)
+                _VD_CreateDesktop() ; count cache refreshed synchronously — no blocking settle (R10)
                 If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
-                    _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
+                    _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), Default, Default, 1500, $TOAST_SUCCESS)
                 EndIf
-                _RefreshIndex()
+                _RequestDeferredRefresh()
             EndIf
         Case "toggle_carousel"
             _CarouselToggle()
@@ -2817,9 +2946,7 @@ Func _CheckTraySubmenus($iTrayMsg)
     ; Desktop quick-switch submenu
     For $i = 1 To $__g_iTrayDesktopSubCount
         If $iTrayMsg = $__g_aTrayDesktopItems[$i] Then
-            _VD_GoTo($i)
-            Sleep(50)
-            _RefreshIndex()
+            _NavigateTo($i)
             Return
         EndIf
     Next
@@ -2830,7 +2957,7 @@ Func _CheckTraySubmenus($iTrayMsg)
             If $hWin <> 0 Then
                 _VD_MoveWindowToDesktop($hWin, $i)
                 If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyWindowMoved() Then
-                    _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $i), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                    _Theme_Toast(_i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", $i), Default, Default, 1500, $TOAST_INFO)
                 EndIf
             EndIf
             Return
@@ -2887,14 +3014,13 @@ Func _CheckTrayMessages()
         Case $__g_iTrayAddDesktop
             If $__g_iTrayAddDesktop <> 0 Then
                 If _VD_GetCount() >= _GetDesktopLimit() Then
-                    _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_WARNING)
+                    _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), Default, Default, 1500, $TOAST_WARNING)
                 Else
-                    _VD_CreateDesktop()
-                    Sleep(100)
+                    _VD_CreateDesktop() ; count cache refreshed synchronously — no blocking settle (R10)
                     If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopCreated() Then
-                        _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_SUCCESS)
+                        _Theme_Toast(_i18n_Format("Toasts.toast_desktop_created", "Desktop {1} created", _VD_GetCount()), Default, Default, 1500, $TOAST_SUCCESS)
                     EndIf
-                    _RefreshIndex()
+                    _RequestDeferredRefresh()
                 EndIf
             EndIf
         Case $__g_iTrayDelDesktop
@@ -2906,12 +3032,12 @@ Func _CheckTrayMessages()
                         Local $iRemovedTray = $iDesktop
                         Local $aSnapTray = _Labels_SnapshotLabels($iOldCountTray)
                         _VD_RemoveDesktop($iDesktop)
-                        Sleep(100)
+                        ; Snapshot label shift is timing-independent; count cache refreshes synchronously (R10)
                         _Labels_RemoveAndShift($iRemovedTray, $iOldCountTray, $aSnapTray)
                         If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyDesktopDeleted() Then
-                            _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), 0, $iTaskbarY + $iTaskbarH + 4, 1500, $TOAST_INFO)
+                            _Theme_Toast(_i18n("Toasts.toast_desktop_deleted", "Desktop deleted"), Default, Default, 1500, $TOAST_INFO)
                         EndIf
-                        _RefreshIndex()
+                        _RequestDeferredRefresh()
                     EndIf
                 EndIf
             EndIf
@@ -3318,8 +3444,9 @@ Func _Shutdown()
     EndIf
     $__g_bShuttingDown = True
 
-    ; Fire shutdown hook before stopping services
-    _Hooks_Fire("on_shutdown", "desktop=" & $iDesktop & "|desktop_count=" & _VD_GetCount())
+    ; Fire shutdown hook before stopping services. Synchronous so the hooks run to completion
+    ; instead of being killed by _Hooks_Shutdown() below (bounded by the configured hook timeout).
+    _Hooks_Fire("on_shutdown", "desktop=" & $iDesktop & "|desktop_count=" & _VD_GetCount(), True)
 
     ; Save session state if enabled
     If _Cfg_GetSessionRestoreEnabled() Then

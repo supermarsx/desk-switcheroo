@@ -74,4 +74,90 @@ Func _RunTest_TaskbarAutoHide()
 
     ; -- Stopping guard flag --
     _Test_AssertTrue("TAH stopping flag set after Stop", $__g_TAH_bStopping)
+
+    ; -- Stop resets hysteresis + fade state --
+    $__g_TAH_iHysteresisCount = 5
+    $__g_TAH_iFadeState = 2
+    _TAH_Stop()
+    _Test_AssertEqual("TAH Stop resets hysteresis count", $__g_TAH_iHysteresisCount, 0)
+    _Test_AssertEqual("TAH Stop resets fade state", $__g_TAH_iFadeState, 0)
+
+    ; ===========================================================
+    ; Pure decision function: __TAH_RawTaskbarHidden
+    ; Args: TBX, TBY, TBW, TBH, ScrW, ScrH, threshold
+    ; ===========================================================
+    ; Bottom taskbar (horizontal), 1920x1080, 40px tall, threshold 4
+    _Test_AssertFalse("Raw: bottom visible", __TAH_RawTaskbarHidden(0, 1040, 1920, 40, 1920, 1080, 4))
+    _Test_AssertTrue("Raw: bottom hidden (2px sliver)", __TAH_RawTaskbarHidden(0, 1078, 1920, 40, 1920, 1080, 4))
+    ; Top taskbar
+    _Test_AssertFalse("Raw: top visible", __TAH_RawTaskbarHidden(0, 0, 1920, 40, 1920, 1080, 4))
+    _Test_AssertTrue("Raw: top hidden", __TAH_RawTaskbarHidden(0, -38, 1920, 40, 1920, 1080, 4))
+    ; Vertical right taskbar (TBW < TBH)
+    _Test_AssertFalse("Raw: right visible", __TAH_RawTaskbarHidden(1880, 0, 40, 1080, 1920, 1080, 4))
+    _Test_AssertTrue("Raw: right hidden", __TAH_RawTaskbarHidden(1918, 0, 40, 1080, 1920, 1080, 4))
+    ; Vertical left taskbar
+    _Test_AssertFalse("Raw: left visible", __TAH_RawTaskbarHidden(0, 0, 40, 1080, 1920, 1080, 4))
+    _Test_AssertTrue("Raw: left hidden", __TAH_RawTaskbarHidden(-38, 0, 40, 1080, 1920, 1080, 4))
+    ; Threshold boundary: exactly at threshold counts as hidden (<=)
+    _Test_AssertTrue("Raw: sliver == threshold is hidden", __TAH_RawTaskbarHidden(0, 1076, 1920, 40, 1920, 1080, 4))
+    _Test_AssertFalse("Raw: sliver > threshold is visible", __TAH_RawTaskbarHidden(0, 1075, 1920, 40, 1920, 1080, 4))
+
+    ; ===========================================================
+    ; Pure hysteresis: __TAH_HysteresisNext (ByRef count)
+    ; ===========================================================
+    Local $iHyst = 0
+    ; Agreement never flips and resets the streak
+    _Test_AssertFalse("Hyst: agree keeps False", __TAH_HysteresisNext(False, False, $iHyst, 2))
+    _Test_AssertEqual("Hyst: agree count 0", $iHyst, 0)
+    ; First disagreement does not flip (threshold 2)
+    _Test_AssertFalse("Hyst: 1st disagree no flip", __TAH_HysteresisNext(True, False, $iHyst, 2))
+    _Test_AssertEqual("Hyst: count 1 after 1st", $iHyst, 1)
+    ; Second consecutive disagreement flips and resets count
+    _Test_AssertTrue("Hyst: 2nd disagree flips", __TAH_HysteresisNext(True, False, $iHyst, 2))
+    _Test_AssertEqual("Hyst: count reset after flip", $iHyst, 0)
+    ; An intervening agreement resets a partial streak (no strobe)
+    $iHyst = 0
+    __TAH_HysteresisNext(True, False, $iHyst, 3) ; count 1
+    __TAH_HysteresisNext(True, False, $iHyst, 3) ; count 2
+    _Test_AssertEqual("Hyst: streak at 2 of 3", $iHyst, 2)
+    _Test_AssertFalse("Hyst: agreement returns committed", __TAH_HysteresisNext(False, False, $iHyst, 3))
+    _Test_AssertEqual("Hyst: agreement resets streak", $iHyst, 0)
+    ; Threshold of 1 flips immediately
+    $iHyst = 0
+    _Test_AssertTrue("Hyst: threshold 1 flips immediately", __TAH_HysteresisNext(True, False, $iHyst, 1))
+
+    ; ===========================================================
+    ; Fade state machine + guards
+    ; ===========================================================
+    $__g_TAH_iFadeState = 0
+    $__g_TAH_hLastToggleTimer = 0
+    _Test_AssertFalse("TAH not fading initially", _TAH_IsFading())
+    _Test_AssertGreaterEqual("FadeStepSize >= 1", __TAH_FadeStepSize(235), 1)
+
+    ; Cursor-over-widget setter feeds the poll guard
+    _TAH_SetCursorOverWidget(True)
+    _Test_AssertTrue("TAH cursor-over-widget True", $__g_TAH_bCursorOverWidget)
+    _TAH_SetCursorOverWidget(False)
+    _Test_AssertFalse("TAH cursor-over-widget False", $__g_TAH_bCursorOverWidget)
+
+    ; Anti-strobe / mid-fade snap decision
+    $__g_TAH_iFadeState = 0
+    $__g_TAH_hLastToggleTimer = 0
+    _Test_AssertFalse("SkipFade: idle no recent toggle", __TAH_ShouldSkipFade())
+    $__g_TAH_iFadeState = 1
+    _Test_AssertTrue("SkipFade: mid-fade snaps", __TAH_ShouldSkipFade())
+    $__g_TAH_iFadeState = 0
+    $__g_TAH_hLastToggleTimer = TimerInit()
+    _Test_AssertTrue("SkipFade: recent toggle snaps", __TAH_ShouldSkipFade())
+    $__g_TAH_hLastToggleTimer = 0
+
+    ; FadeTick is a safe no-op when idle
+    $__g_TAH_iFadeState = 0
+    _TAH_FadeTick()
+    _Test_AssertTrue("TAH FadeTick no-op when idle", True)
+    ; FadeTick with an invalid handle mid-fade resets state (no crash)
+    $__g_TAH_iFadeState = 1
+    $__g_TAH_hFadeGUI = 0
+    _TAH_FadeTick()
+    _Test_AssertEqual("TAH FadeTick clears state on bad handle", $__g_TAH_iFadeState, 0)
 EndFunc

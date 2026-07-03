@@ -173,6 +173,16 @@ Func _RunTest_Theme()
     _Theme_ToastTick()
     _Test_AssertTrue("ToastTick no crash when inactive", True)
 
+    ; -- Toast active-state helper reflects no active toast --
+    _Test_AssertFalse("IsToastActive False when idle", _Theme_IsToastActive())
+
+    ; -- Toast max-alpha constant --
+    _Test_AssertEqual("Toast max alpha 230", $__g_Toast_iMaxAlpha, 230)
+
+    ; -- ToastTick returns False (idle) and stays inactive --
+    _Test_AssertFalse("ToastTick returns False when idle", _Theme_ToastTick())
+    _Test_AssertFalse("IsToastActive still False after tick", _Theme_IsToastActive())
+
     ; -- TooltipTick safe when no tooltip active --
     _Theme_TooltipTick()
     _Test_AssertTrue("TooltipTick no crash when inactive", True)
@@ -184,4 +194,51 @@ Func _RunTest_Theme()
     ; -- RemoveHover with ctrl ID 0 is no-op --
     _Theme_RemoveHover(0, 0xFFFFFF)
     _Test_AssertTrue("RemoveHover(0) no crash", True)
+
+    ; -- Toast position mapping (DK-4): pure config-driven placement --
+    Local $sOrigToastPos = _Cfg_GetToastPosition()
+    Local $iTX, $iTY
+    Local $iTW = 100, $iTH = 26
+
+    _Cfg_SetToastPosition("top-left")
+    __Theme_ToastPosition($iTW, $iTH, $iTX, $iTY)
+    _Test_AssertEqual("Toast top-left X = 20", $iTX, 20)
+    _Test_AssertEqual("Toast top-left Y = 20", $iTY, 20)
+
+    _Cfg_SetToastPosition("top-right")
+    __Theme_ToastPosition($iTW, $iTH, $iTX, $iTY)
+    _Test_AssertEqual("Toast top-right X = W-w-20", $iTX, @DesktopWidth - $iTW - 20)
+    _Test_AssertEqual("Toast top-right Y = 20", $iTY, 20)
+
+    _Cfg_SetToastPosition("bottom-left")
+    __Theme_ToastPosition($iTW, $iTH, $iTX, $iTY)
+    _Test_AssertEqual("Toast bottom-left X = 20", $iTX, 20)
+    _Test_AssertEqual("Toast bottom-left Y = H-h-60", $iTY, @DesktopHeight - $iTH - 60)
+
+    _Cfg_SetToastPosition("bottom-right")
+    __Theme_ToastPosition($iTW, $iTH, $iTX, $iTY)
+    _Test_AssertEqual("Toast bottom-right X = W-w-20", $iTX, @DesktopWidth - $iTW - 20)
+    _Test_AssertEqual("Toast bottom-right Y = H-h-60", $iTY, @DesktopHeight - $iTH - 60)
+
+    _Cfg_SetToastPosition("widget")
+    __Theme_ToastPosition($iTW, $iTH, $iTX, $iTY)
+    _Test_AssertEqual("Toast widget X = centered", $iTX, (@DesktopWidth - $iTW) / 2)
+    _Test_AssertEqual("Toast widget Y = H-h-60", $iTY, @DesktopHeight - $iTH - 60)
+
+    ; Invalid value clamps to widget (via _Cfg_SetToastPosition), so mapping falls to the default
+    _Cfg_SetToastPosition("nonsense")
+    __Theme_ToastPosition($iTW, $iTH, $iTX, $iTY)
+    _Test_AssertEqual("Toast invalid pos -> widget X centered", $iTX, (@DesktopWidth - $iTW) / 2)
+    _Cfg_SetToastPosition($sOrigToastPos)
+
+    ; -- Fade sleep derivation (DK-1/DK-2): duration / frame count, capped at 50ms --
+    ; duration = 0 falls back to fade_sleep_ms (legacy default behavior)
+    _Test_AssertEqual("Fade sleep duration=0 uses fade_sleep_ms", __Theme_FadeSleep(200, 20, 0), _Cfg_GetFadeSleepMs())
+    ; 200 alpha / 20 step = 10 frames; 100ms / 10 = 10ms per frame
+    _Test_AssertEqual("Fade sleep 100ms over 10 frames = 10", __Theme_FadeSleep(200, 20, 100), 10)
+    ; 1000ms / 10 frames = 100ms, capped to the 50ms ceiling
+    _Test_AssertEqual("Fade sleep caps at 50ms", __Theme_FadeSleep(200, 20, 1000), 50)
+    ; step >= range yields a single frame; sleep = duration (still capped)
+    _Test_AssertEqual("Fade sleep single frame = duration", __Theme_FadeSleep(100, 255, 30), 30)
+    _Test_AssertEqual("Fade sleep single frame capped", __Theme_FadeSleep(100, 255, 400), 50)
 EndFunc
