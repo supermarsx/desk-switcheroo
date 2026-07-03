@@ -4377,6 +4377,21 @@ Func __CD_SearchTickHighlight()
     EndIf
 EndFunc
 
+; Pure decision: given a GUIGetMsg event while the results panel is open, should the
+; panel close? Only a genuine click qualifies -- a click on some other control
+; (positive control id that is neither the search input nor a result row) or a click
+; on the dialog background ($GUI_EVENT_PRIMARYDOWN/$GUI_EVENT_SECONDARYDOWN). Mouse
+; movement ($GUI_EVENT_MOUSEMOVE), button-up events, the no-event idle (id 0), a click
+; on a result row, or a click on the search input all keep the panel open. This is what
+; lets results survive mere mouse motion over the dialog.
+Func __CD_SearchShouldCloseOnClick($id, $bRowClicked, $idSearchInput)
+    If $bRowClicked Then Return False           ; clicked a result row -> navigate handles it
+    If $id = $idSearchInput Then Return False    ; clicked/focused the search input
+    If $id > 0 Then Return True                  ; clicked some other control -> real click-away
+    If $id = $GUI_EVENT_PRIMARYDOWN Or $id = $GUI_EVENT_SECONDARYDOWN Then Return True
+    Return False                                 ; mouse-move / up-event / idle -> keep open
+EndFunc
+
 ; Navigate to a result: switch to its tab/sub-tab, close the panel, pulse the target.
 Func __CD_SearchNavigate($iEntry)
     If $iEntry < 0 Or $iEntry >= $__g_CD_iSearchCount Then Return
@@ -4535,8 +4550,9 @@ Func __CD_MessageLoop()
                         ExitLoop
                     EndIf
                 Next
-                ; Click-away: any other click (not a row, not the input) closes the panel
-                If Not $srClicked And $id <> $__g_CD_idSearchInput And $__g_CD_bSearchResultsVisible Then _
+                ; Click-away: only a genuine click outside the input + result rows closes
+                ; the panel. Mouse movement over the dialog no longer dismisses results.
+                If $__g_CD_bSearchResultsVisible And __CD_SearchShouldCloseOnClick($id, $srClicked, $__g_CD_idSearchInput) Then _
                     __CD_SearchHideResults()
             EndIf
         EndIf

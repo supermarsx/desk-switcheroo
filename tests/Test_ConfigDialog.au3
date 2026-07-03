@@ -179,6 +179,56 @@ Func _RunTest_ConfigDialog()
     __CD_SetActiveSubForTab(10, 0)
     _Test_AssertEqual("Nav: sub 0 is a no-op", $__g_CD_iGenActiveSub, 5)
 
+    ; -- Results-panel close decision (t2-b): panel must survive mouse motion --
+    ; __CD_SearchShouldCloseOnClick($id, $bRowClicked, $idSearchInput). Positive ids are
+    ; control clicks; negative ids are GUIGetMsg events. Input id fixed at 300 here.
+    Local $idInput = 300
+    ; Keep open on mere motion / non-click events (the reported regression)
+    _Test_AssertFalse("Close?: mouse-move keeps panel", __CD_SearchShouldCloseOnClick($GUI_EVENT_MOUSEMOVE, False, $idInput))
+    _Test_AssertFalse("Close?: primary-up keeps panel", __CD_SearchShouldCloseOnClick($GUI_EVENT_PRIMARYUP, False, $idInput))
+    _Test_AssertFalse("Close?: secondary-up keeps panel", __CD_SearchShouldCloseOnClick($GUI_EVENT_SECONDARYUP, False, $idInput))
+    _Test_AssertFalse("Close?: idle (no event) keeps panel", __CD_SearchShouldCloseOnClick(0, False, $idInput))
+    ; Keep open when interacting with the search input or a result row
+    _Test_AssertFalse("Close?: click search input keeps panel", __CD_SearchShouldCloseOnClick($idInput, False, $idInput))
+    _Test_AssertFalse("Close?: click result row keeps panel (navigate)", __CD_SearchShouldCloseOnClick(250, True, $idInput))
+    ; Close only on a genuine click-away
+    _Test_AssertTrue("Close?: click another control closes", __CD_SearchShouldCloseOnClick(250, False, $idInput))
+    _Test_AssertTrue("Close?: primary-down on background closes", __CD_SearchShouldCloseOnClick($GUI_EVENT_PRIMARYDOWN, False, $idInput))
+    _Test_AssertTrue("Close?: secondary-down on background closes", __CD_SearchShouldCloseOnClick($GUI_EVENT_SECONDARYDOWN, False, $idInput))
+    ; A row click takes precedence even over a real click id (navigate, don't just close)
+    _Test_AssertFalse("Close?: row click precedence over control id", __CD_SearchShouldCloseOnClick(250, True, $idInput))
+
+    ; Regression 2026-07-03: search results must survive mouse movement.
+    ; The original bug closed the panel on every GUIGetMsg mouse-move event. This replays
+    ; the failure as an ORDERED event sequence (a transition, not isolated states): the
+    ; panel is open, the mouse wanders across the dialog, and $bOpen -- mirroring the
+    ; message loop, which flips visibility off only when the decision says "close" -- must
+    ; stay True through all motion, then flip False on each genuine click-away.
+    Local $bOpen = True
+    Local $idRow = 250, $idOther = 260
+    ; Mouse drifts over background, input, panel and rows; releases buttons; goes idle.
+    Local $aWander[6] = [$GUI_EVENT_MOUSEMOVE, $GUI_EVENT_MOUSEMOVE, $GUI_EVENT_PRIMARYUP, _
+            $GUI_EVENT_SECONDARYUP, $GUI_EVENT_MOUSEMOVE, 0]
+    Local $wi
+    For $wi = 0 To UBound($aWander) - 1
+        If __CD_SearchShouldCloseOnClick($aWander[$wi], False, $idInput) Then $bOpen = False
+        _Test_AssertTrue("Regression seq: panel open after motion event " & $aWander[$wi], $bOpen)
+    Next
+    ; A result-row click is classified as navigate (not click-away), so the decision keeps
+    ; $bOpen True here; the actual close happens in __CD_SearchNavigate (see real-GUI test).
+    If __CD_SearchShouldCloseOnClick($idRow, True, $idInput) Then $bOpen = False
+    _Test_AssertTrue("Regression seq: row click routes to navigate, not click-away", $bOpen)
+    ; Now each genuine click-away trigger flips the panel closed (fresh $bOpen each time).
+    $bOpen = True
+    If __CD_SearchShouldCloseOnClick($GUI_EVENT_PRIMARYDOWN, False, $idInput) Then $bOpen = False
+    _Test_AssertFalse("Regression seq: click on background closes", $bOpen)
+    $bOpen = True
+    If __CD_SearchShouldCloseOnClick($GUI_EVENT_SECONDARYDOWN, False, $idInput) Then $bOpen = False
+    _Test_AssertFalse("Regression seq: right-click on background closes", $bOpen)
+    $bOpen = True
+    If __CD_SearchShouldCloseOnClick($idOther, False, $idInput) Then $bOpen = False
+    _Test_AssertFalse("Regression seq: click another control closes", $bOpen)
+
     ; Restore registry so later assertions / suites start clean
     __CD_SearchReset()
 
@@ -212,4 +262,89 @@ Func _RunTest_ConfigDialog()
     $__g_CD_idLblLastChecked = 0
     $__g_CD_idLblNextCheck = 0
     FileDelete($sTempIni)
+
+    ; -- Regression 2026-07-03 (real GUI): search results must survive mouse movement --
+    ; Builds the ACTUAL search UI, injects a query through the real filter path, then
+    ; replays the message loop's real close conditional against a sequence of mouse
+    ; events and every explicit close trigger, asserting the real panel-visible state
+    ; ($__g_CD_bSearchResultsVisible, owned by the real show/hide functions) after each.
+    Local $hGuiSearch = GUICreate("CD Search Regression Test", 540, 480)
+    $__g_CD_hGUI = $hGuiSearch
+    $__g_CD_iContentH = 360
+    __CD_BuildSearchUI()
+
+    ; Registry with rows that match "widget" (2 of 3), filtered through real code.
+    __CD_SearchReset()
+    __CD_SearchAdd(1001, 1, 1, "General > Widget > Enable widget drag", "Enable widget drag", "Hold and drag the widget", $GUI_BKCOLOR_TRANSPARENT)
+    __CD_SearchAdd(1002, 2, 1, "Display > Appearance > Widget opacity", "Widget opacity", "Widget transparency", $THEME_BG_INPUT)
+    __CD_SearchAdd(1003, 10, 0, "Window List > Draggable window list", "Draggable window list", "Drag to reposition", $GUI_BKCOLOR_TRANSPARENT)
+
+    GUICtrlSetData($__g_CD_idSearchInput, "widget")
+    __CD_SearchApplyFilter()
+    _Test_AssertTrue("Regression GUI: panel visible after typing 'widget'", $__g_CD_bSearchResultsVisible)
+    _Test_AssertEqual("Regression GUI: 2 rows matched 'widget'", $__g_CD_iSearchResultCount, 2)
+    _Test_AssertTrue("Regression GUI: row 0 populated via real path", StringLen(GUICtrlRead($__g_CD_aidSearchRowLbl[0])) > 0)
+
+    Local $idRealRow = $__g_CD_aidSearchRowLbl[0]
+    Local $idOtherCtrl = GUICtrlCreateButton("x", 0, 0, 10, 10) ; stands in for a tab / Apply button
+
+    ; Replay the loop's search-close conditional across a SEQUENCE of mouse events. The
+    ; panel must remain visible through all motion -- this is the exact regression.
+    Local $aMotion[6] = [$GUI_EVENT_MOUSEMOVE, $GUI_EVENT_MOUSEMOVE, $GUI_EVENT_PRIMARYUP, _
+            $GUI_EVENT_SECONDARYUP, $GUI_EVENT_MOUSEMOVE, 0]
+    Local $mi
+    For $mi = 0 To UBound($aMotion) - 1
+        Local $ev = $aMotion[$mi]
+        Local $bRow = ($ev = $idRealRow) ; negative motion events never equal a positive row id
+        If $__g_CD_bSearchResultsVisible And __CD_SearchShouldCloseOnClick($ev, $bRow, $__g_CD_idSearchInput) Then __CD_SearchHideResults()
+        _Test_AssertTrue("Regression GUI: panel still visible after event " & $ev, $__g_CD_bSearchResultsVisible)
+    Next
+
+    ; Close trigger 1: genuine click on the dialog background.
+    If $__g_CD_bSearchResultsVisible And __CD_SearchShouldCloseOnClick($GUI_EVENT_PRIMARYDOWN, False, $__g_CD_idSearchInput) Then __CD_SearchHideResults()
+    _Test_AssertFalse("Regression GUI: click-outside (background) closes panel", $__g_CD_bSearchResultsVisible)
+
+    ; Close trigger 2: click another control (input still holds 'widget' -> re-show first).
+    __CD_SearchApplyFilter()
+    _Test_AssertTrue("Regression GUI: panel re-shown for control-click test", $__g_CD_bSearchResultsVisible)
+    If $__g_CD_bSearchResultsVisible And __CD_SearchShouldCloseOnClick($idOtherCtrl, ($idOtherCtrl = $idRealRow), $__g_CD_idSearchInput) Then __CD_SearchHideResults()
+    _Test_AssertFalse("Regression GUI: click another control closes panel", $__g_CD_bSearchResultsVisible)
+
+    ; Close trigger 3: selecting a result row -> the loop routes it to navigate (decision
+    ; is not click-away), whose panel-close half is __CD_SearchClear (real path).
+    __CD_SearchApplyFilter()
+    _Test_AssertFalse("Regression GUI: row click is not a click-away", __CD_SearchShouldCloseOnClick($idRealRow, True, $__g_CD_idSearchInput))
+    __CD_SearchClear()
+    _Test_AssertFalse("Regression GUI: result-row selection closes panel", $__g_CD_bSearchResultsVisible)
+    _Test_AssertEqual("Regression GUI: selection cleared the query", GUICtrlRead($__g_CD_idSearchInput), "")
+
+    ; Close trigger 4: the query is cleared -> the real filter hides the panel.
+    GUICtrlSetData($__g_CD_idSearchInput, "widget")
+    __CD_SearchApplyFilter()
+    _Test_AssertTrue("Regression GUI: panel re-shown before query-clear", $__g_CD_bSearchResultsVisible)
+    GUICtrlSetData($__g_CD_idSearchInput, "")
+    __CD_SearchApplyFilter()
+    _Test_AssertFalse("Regression GUI: cleared query hides panel", $__g_CD_bSearchResultsVisible)
+
+    ; Close trigger 5: Escape -> the loop calls __CD_SearchClear while the panel is open.
+    GUICtrlSetData($__g_CD_idSearchInput, "widget")
+    __CD_SearchApplyFilter()
+    _Test_AssertTrue("Regression GUI: panel re-shown before Escape", $__g_CD_bSearchResultsVisible)
+    __CD_SearchClear()
+    _Test_AssertFalse("Regression GUI: Escape closes panel", $__g_CD_bSearchResultsVisible)
+
+    GUIDelete($hGuiSearch)
+    $__g_CD_hGUI = 0
+    $__g_CD_idSearchInput = 0
+    $__g_CD_idSearchPanelBg = 0
+    $__g_CD_idSearchCountLbl = 0
+    Local $rc
+    For $rc = 0 To $__g_CD_SEARCH_ROWS - 1
+        $__g_CD_aidSearchRowLbl[$rc] = 0
+        $__g_CD_aSearchRowEntry[$rc] = -1
+    Next
+    $__g_CD_bSearchResultsVisible = False
+    $__g_CD_sSearchLast = ""
+    $__g_CD_iSearchRowHovered = 0
+    __CD_SearchReset()
 EndFunc
