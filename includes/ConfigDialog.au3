@@ -292,6 +292,7 @@ Global $__g_CD_aSearchCtrl[$__g_CD_SEARCH_MAX]       ; navigable/highlight contr
 Global $__g_CD_aSearchTab[$__g_CD_SEARCH_MAX]        ; main tab 1-14
 Global $__g_CD_aSearchSub[$__g_CD_SEARCH_MAX]        ; sub-tab index (0 = none)
 Global $__g_CD_aSearchRow[$__g_CD_SEARCH_MAX]        ; display row "Tab > Sub > Label"
+Global $__g_CD_aSearchTip[$__g_CD_SEARCH_MAX]        ; raw tooltip text -> description line + hover elaborate
 Global $__g_CD_aSearchBlob[$__g_CD_SEARCH_MAX]       ; lowercased "label tooltip" match text
 Global $__g_CD_aSearchRestoreBg[$__g_CD_SEARCH_MAX]  ; bkcolor restored after highlight pulse
 Global $__g_CD_iSearchCount = 0                      ; registry size
@@ -301,15 +302,20 @@ Global $__g_CD_iSearchResultCount = 0
 Global $__g_CD_idSearchInput = 0
 Global $__g_CD_idSearchPanelBg = 0
 Global $__g_CD_idSearchCountLbl = 0
-Global $__g_CD_aidSearchRowLbl[$__g_CD_SEARCH_ROWS]  ; result row labels
+Global $__g_CD_aidSearchRowLbl[$__g_CD_SEARCH_ROWS]  ; result row labels (line 1: tab path)
+Global $__g_CD_aidSearchDescLbl[$__g_CD_SEARCH_ROWS] ; result row descriptions (line 2: dim tooltip)
+Global $__g_CD_aiSearchRowTipSlot[$__g_CD_SEARCH_ROWS] ; Theme tooltip registry slot per row (0 = none)
 Global $__g_CD_aSearchRowEntry[$__g_CD_SEARCH_ROWS]  ; entry index shown in each row
 Global $__g_CD_bSearchResultsVisible = False
 Global $__g_CD_sSearchLast = ""                      ; last query processed (incremental poll)
-Global $__g_CD_iSearchRowHovered = 0                 ; currently hovered result row ctrl
-; highlight pulse
+Global $__g_CD_iSearchRowHovered = 0                 ; currently hovered result row index (1-based; 0 = none)
+; highlight flash — a few on/off pulses on the navigated-to control (no Sleep; driven by the message loop)
+Global Const $__g_CD_PULSE_STEP = 150                ; ms per on/off half-cycle
+Global Const $__g_CD_PULSE_PHASES = 6                ; total half-cycles => 3 visible flashes
 Global $__g_CD_iPulseCtrl = 0
 Global $__g_CD_iPulseRestoreBg = 0
 Global $__g_CD_hPulseTimer = 0
+Global $__g_CD_iPulsePhase = -1                      ; last-applied flash phase (-1 = idle)
 ; escape edge detection (close-results vs close-dialog)
 Global $__g_CD_bEscWasDown = False
 
@@ -336,6 +342,7 @@ Func _CD_Show()
     $__g_CD_sSearchLast = ""
     $__g_CD_iSearchRowHovered = 0
     $__g_CD_iPulseCtrl = 0
+    $__g_CD_iPulsePhase = -1
     $__g_CD_bEscWasDown = False
     Local $t
     For $t = 1 To 14
@@ -496,6 +503,7 @@ Func _CD_Destroy()
     $__g_CD_sSearchLast = ""
     $__g_CD_iSearchRowHovered = 0
     $__g_CD_iPulseCtrl = 0
+    $__g_CD_iPulsePhase = -1
     $__g_CD_idSearchInput = 0
 EndFunc
 
@@ -1556,6 +1564,7 @@ Func __CD_BuildTabHotkeys()
     _Theme_FlattenInput($__g_CD_idInpHkLastDesktop)
     __CD_RegCtrl($t, $__g_CD_idInpHkLastDesktop)
     __CD_RegHkSub(1, $__g_CD_idInpHkLastDesktop)
+    _Theme_SetTooltip($__g_CD_idInpHkLastDesktop, _i18n("Settings.Hotkeys.tip_hotkey_toggle_last", "Global hotkey to jump to the last-active desktop"))
     $__g_CD_idBtnHkBuild[12] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[12], 8, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnHkBuild[12], $THEME_FG_DIM)
@@ -1717,6 +1726,7 @@ Func __CD_BuildTabHotkeys()
     _Theme_FlattenInput($__g_CD_idInpHkMoveFollowNext)
     __CD_RegCtrl($t, $__g_CD_idInpHkMoveFollowNext)
     __CD_RegHkSub(2, $__g_CD_idInpHkMoveFollowNext)
+    _Theme_SetTooltip($__g_CD_idInpHkMoveFollowNext, _i18n("Settings.Hotkeys.tip_hotkey_move_follow_next", "Global hotkey to move the active window to the next desktop and follow it there"))
     $__g_CD_idBtnHkBuild[13] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[13], 8, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnHkBuild[13], $THEME_FG_DIM)
@@ -1740,6 +1750,7 @@ Func __CD_BuildTabHotkeys()
     _Theme_FlattenInput($__g_CD_idInpHkMoveFollowPrev)
     __CD_RegCtrl($t, $__g_CD_idInpHkMoveFollowPrev)
     __CD_RegHkSub(2, $__g_CD_idInpHkMoveFollowPrev)
+    _Theme_SetTooltip($__g_CD_idInpHkMoveFollowPrev, _i18n("Settings.Hotkeys.tip_hotkey_move_follow_prev", "Global hotkey to move the active window to the previous desktop and follow it there"))
     $__g_CD_idBtnHkBuild[14] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[14], 8, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnHkBuild[14], $THEME_FG_DIM)
@@ -1763,6 +1774,7 @@ Func __CD_BuildTabHotkeys()
     _Theme_FlattenInput($__g_CD_idInpHkMoveToNext)
     __CD_RegCtrl($t, $__g_CD_idInpHkMoveToNext)
     __CD_RegHkSub(2, $__g_CD_idInpHkMoveToNext)
+    _Theme_SetTooltip($__g_CD_idInpHkMoveToNext, _i18n("Settings.Hotkeys.tip_hotkey_move_next", "Global hotkey to move the active window to the next desktop (you stay on the current one)"))
     $__g_CD_idBtnHkBuild[15] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[15], 8, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnHkBuild[15], $THEME_FG_DIM)
@@ -1786,6 +1798,7 @@ Func __CD_BuildTabHotkeys()
     _Theme_FlattenInput($__g_CD_idInpHkMoveToPrev)
     __CD_RegCtrl($t, $__g_CD_idInpHkMoveToPrev)
     __CD_RegHkSub(2, $__g_CD_idInpHkMoveToPrev)
+    _Theme_SetTooltip($__g_CD_idInpHkMoveToPrev, _i18n("Settings.Hotkeys.tip_hotkey_move_prev", "Global hotkey to move the active window to the previous desktop (you stay on the current one)"))
     $__g_CD_idBtnHkBuild[16] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[16], 8, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnHkBuild[16], $THEME_FG_DIM)
@@ -1809,6 +1822,7 @@ Func __CD_BuildTabHotkeys()
     _Theme_FlattenInput($__g_CD_idInpHkSendToNew)
     __CD_RegCtrl($t, $__g_CD_idInpHkSendToNew)
     __CD_RegHkSub(2, $__g_CD_idInpHkSendToNew)
+    _Theme_SetTooltip($__g_CD_idInpHkSendToNew, _i18n("Settings.Hotkeys.tip_hotkey_send_new", "Global hotkey to create a new desktop and send the active window to it"))
     $__g_CD_idBtnHkBuild[17] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[17], 8, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnHkBuild[17], $THEME_FG_DIM)
@@ -1832,6 +1846,7 @@ Func __CD_BuildTabHotkeys()
     _Theme_FlattenInput($__g_CD_idInpHkPinWindow)
     __CD_RegCtrl($t, $__g_CD_idInpHkPinWindow)
     __CD_RegHkSub(2, $__g_CD_idInpHkPinWindow)
+    _Theme_SetTooltip($__g_CD_idInpHkPinWindow, _i18n("Settings.Hotkeys.tip_hotkey_pin_window", "Global hotkey to pin or unpin the active window on all desktops"))
     $__g_CD_idBtnHkBuild[18] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[18], 8, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnHkBuild[18], $THEME_FG_DIM)
@@ -1855,6 +1870,7 @@ Func __CD_BuildTabHotkeys()
     _Theme_FlattenInput($__g_CD_idInpHkToggleWL)
     __CD_RegCtrl($t, $__g_CD_idInpHkToggleWL)
     __CD_RegHkSub(2, $__g_CD_idInpHkToggleWL)
+    _Theme_SetTooltip($__g_CD_idInpHkToggleWL, _i18n("Settings.Hotkeys.tip_hotkey_toggle_wl", "Global hotkey to open or close the window list"))
     $__g_CD_idBtnHkBuild[19] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[19], 8, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnHkBuild[19], $THEME_FG_DIM)
@@ -4085,9 +4101,43 @@ Func __CD_SearchAdd($idCtrl, $iTab, $iSub, $sRow, $sLabel, $sTip, $iRestoreBg)
     $__g_CD_aSearchTab[$i] = $iTab
     $__g_CD_aSearchSub[$i] = $iSub
     $__g_CD_aSearchRow[$i] = $sRow
+    $__g_CD_aSearchTip[$i] = $sTip
     $__g_CD_aSearchBlob[$i] = StringLower($sLabel & " " & $sTip)
     $__g_CD_aSearchRestoreBg[$i] = $iRestoreBg
     $__g_CD_iSearchCount = $i + 1
+EndFunc
+
+; Collapses a tooltip into a single-line description for the dim second row line.
+; Newlines/tabs/runs of whitespace become single spaces; over-long text is cut with an
+; ellipsis so the label never spills. Returns "" when there is no tooltip (fallback:
+; the row shows only its tab path). Pure — unit-testable.
+Func __CD_SearchFormatDesc($sTip, $iMaxChars = 78)
+    Local $s = StringStripWS($sTip, 3)
+    If $s = "" Then Return ""
+    $s = StringReplace($s, @CRLF, " ")
+    $s = StringReplace($s, @LF, " ")
+    $s = StringReplace($s, @CR, " ")
+    $s = StringReplace($s, @TAB, " ")
+    ; collapse any run of spaces to one
+    While StringInStr($s, "  ")
+        $s = StringReplace($s, "  ", " ")
+    WEnd
+    $s = StringStripWS($s, 3)
+    If StringLen($s) > $iMaxChars Then $s = StringLeft($s, $iMaxChars - 1) & ChrW(0x2026)
+    Return $s
+EndFunc
+
+; Flash phase for an elapsed time: floor(elapsed / step). Even phases show the highlight,
+; odd phases restore, and phase >= $__g_CD_PULSE_PHASES means the flash is finished.
+; Pure — unit-testable.
+Func __CD_PulsePhaseAt($iElapsed, $iStep = $__g_CD_PULSE_STEP)
+    If $iStep < 1 Then $iStep = 1
+    Return Int($iElapsed / $iStep)
+EndFunc
+
+; True if a flash phase is a "highlight on" phase (even). Pure — unit-testable.
+Func __CD_PulseIsOn($iPhase)
+    Return (Mod($iPhase, 2) = 0)
 EndFunc
 
 ; True if any registry entry belongs to $iTab (test/coverage helper).
@@ -4287,16 +4337,39 @@ Func __CD_BuildSearchUI()
     GUICtrlSetBkColor($__g_CD_idSearchCountLbl, $THEME_BG_POPUP)
     GUICtrlSetState($__g_CD_idSearchCountLbl, $GUI_HIDE)
 
+    ; Two-line result rows: line 1 = "Tab > Sub > Label" (primary), line 2 = a dim
+    ; single-line description harvested from the setting's tooltip. Both lines are
+    ; clickable so the whole row navigates. The description label carries a themed
+    ; tooltip (updated in place per filter) so hovering a truncated description shows
+    ; the full text — the "elaborate" gesture, reusing the existing tooltip mechanism.
     Local $iRy = $iPy + 28, $r
     For $r = 0 To $__g_CD_SEARCH_ROWS - 1
-        $__g_CD_aidSearchRowLbl[$r] = GUICtrlCreateLabel("", $iPx + 8, $iRy, $iPw - 16, 24, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+        $__g_CD_aidSearchRowLbl[$r] = GUICtrlCreateLabel("", $iPx + 8, $iRy, $iPw - 16, 18, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
         GUICtrlSetFont($__g_CD_aidSearchRowLbl[$r], 9, 400, 0, $THEME_FONT_MAIN)
         GUICtrlSetColor($__g_CD_aidSearchRowLbl[$r], $THEME_FG_MENU)
         GUICtrlSetBkColor($__g_CD_aidSearchRowLbl[$r], $THEME_BG_POPUP)
         GUICtrlSetCursor($__g_CD_aidSearchRowLbl[$r], 0)
         GUICtrlSetState($__g_CD_aidSearchRowLbl[$r], $GUI_HIDE)
+
+        $__g_CD_aidSearchDescLbl[$r] = GUICtrlCreateLabel("", $iPx + 8, $iRy + 17, $iPw - 16, 15, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+        GUICtrlSetFont($__g_CD_aidSearchDescLbl[$r], 8, 400, 0, $THEME_FONT_MAIN)
+        GUICtrlSetColor($__g_CD_aidSearchDescLbl[$r], $THEME_FG_DIM)
+        GUICtrlSetBkColor($__g_CD_aidSearchDescLbl[$r], $THEME_BG_POPUP)
+        GUICtrlSetCursor($__g_CD_aidSearchDescLbl[$r], 0)
+        GUICtrlSetState($__g_CD_aidSearchDescLbl[$r], $GUI_HIDE)
+        ; Reserve a themed-tooltip slot for this description row. Guard the 199-cap:
+        ; only remember the slot if the registration actually took (else in-place text
+        ; updates would clobber a foreign entry).
+        Local $iBeforeTip = $__g_Theme_iTipCount
+        _Theme_SetTooltip($__g_CD_aidSearchDescLbl[$r], "")
+        If $__g_Theme_iTipCount > $iBeforeTip Then
+            $__g_CD_aiSearchRowTipSlot[$r] = $__g_Theme_iTipCount
+        Else
+            $__g_CD_aiSearchRowTipSlot[$r] = 0
+        EndIf
+
         $__g_CD_aSearchRowEntry[$r] = -1
-        $iRy += 26
+        $iRy += 36
     Next
 EndFunc
 
@@ -4310,6 +4383,7 @@ Func __CD_SearchHideResults()
     Local $r
     For $r = 0 To $__g_CD_SEARCH_ROWS - 1
         GUICtrlSetState($__g_CD_aidSearchRowLbl[$r], $GUI_HIDE)
+        GUICtrlSetState($__g_CD_aidSearchDescLbl[$r], $GUI_HIDE)
     Next
     __CD_LockEnd()
     $__g_CD_bSearchResultsVisible = False
@@ -4348,9 +4422,21 @@ Func __CD_SearchApplyFilter()
             GUICtrlSetColor($__g_CD_aidSearchRowLbl[$r], $THEME_FG_MENU)
             GUICtrlSetBkColor($__g_CD_aidSearchRowLbl[$r], $THEME_BG_POPUP)
             GUICtrlSetState($__g_CD_aidSearchRowLbl[$r], $GUI_SHOW)
+            ; Description line (dim). Empty when the setting has no tooltip: the row then
+            ; shows only its tab path (graceful fallback).
+            Local $sTip = $__g_CD_aSearchTip[$iEntry]
+            GUICtrlSetData($__g_CD_aidSearchDescLbl[$r], "  " & __CD_SearchFormatDesc($sTip))
+            GUICtrlSetColor($__g_CD_aidSearchDescLbl[$r], $THEME_FG_DIM)
+            GUICtrlSetBkColor($__g_CD_aidSearchDescLbl[$r], $THEME_BG_POPUP)
+            GUICtrlSetState($__g_CD_aidSearchDescLbl[$r], $GUI_SHOW)
+            ; Full (untruncated) tooltip on hover-to-elaborate, updated in place — no new
+            ; registry entries per keystroke, so the 199-cap is never touched here.
+            If $__g_CD_aiSearchRowTipSlot[$r] > 0 Then $__g_Theme_aTipTexts[$__g_CD_aiSearchRowTipSlot[$r]] = $sTip
         Else
             $__g_CD_aSearchRowEntry[$r] = -1
             GUICtrlSetState($__g_CD_aidSearchRowLbl[$r], $GUI_HIDE)
+            GUICtrlSetState($__g_CD_aidSearchDescLbl[$r], $GUI_HIDE)
+            If $__g_CD_aiSearchRowTipSlot[$r] > 0 Then $__g_Theme_aTipTexts[$__g_CD_aiSearchRowTipSlot[$r]] = ""
         EndIf
     Next
     __CD_LockEnd()
@@ -4358,22 +4444,37 @@ Func __CD_SearchApplyFilter()
     $__g_CD_iSearchRowHovered = 0
 EndFunc
 
-; -- Highlight pulse on the navigated-to control ----------------------
+; -- Highlight flash on the navigated-to control ---------------------
 
+; Begins a multi-cycle flash on the target control: its background toggles between
+; $THEME_BG_HOVER and its normal colour a few times so the eye catches it. Time-driven
+; (the message loop ticks it) — no Sleep, so the dialog stays responsive.
 Func __CD_SearchStartPulse($idCtrl, $iRestoreBg)
     If $__g_CD_iPulseCtrl <> 0 Then GUICtrlSetBkColor($__g_CD_iPulseCtrl, $__g_CD_iPulseRestoreBg)
     $__g_CD_iPulseCtrl = $idCtrl
     $__g_CD_iPulseRestoreBg = $iRestoreBg
     $__g_CD_hPulseTimer = TimerInit()
-    GUICtrlSetBkColor($idCtrl, $THEME_BG_HOVER)
+    $__g_CD_iPulsePhase = 0
+    GUICtrlSetBkColor($idCtrl, $THEME_BG_HOVER) ; phase 0 = highlight on
 EndFunc
 
-; Restores the pulsed control ~1s later. Called every message-loop pass (no Sleep).
+; Advances the flash. Called every message-loop pass (no Sleep). Recolours only when the
+; phase actually changes, and restores + clears once all phases have elapsed.
 Func __CD_SearchTickHighlight()
     If $__g_CD_iPulseCtrl = 0 Then Return
-    If TimerDiff($__g_CD_hPulseTimer) >= 1000 Then
+    Local $iPhase = __CD_PulsePhaseAt(TimerDiff($__g_CD_hPulseTimer))
+    If $iPhase = $__g_CD_iPulsePhase Then Return
+    $__g_CD_iPulsePhase = $iPhase
+    If $iPhase >= $__g_CD_PULSE_PHASES Then
         GUICtrlSetBkColor($__g_CD_iPulseCtrl, $__g_CD_iPulseRestoreBg)
         $__g_CD_iPulseCtrl = 0
+        $__g_CD_iPulsePhase = -1
+        Return
+    EndIf
+    If __CD_PulseIsOn($iPhase) Then
+        GUICtrlSetBkColor($__g_CD_iPulseCtrl, $THEME_BG_HOVER)
+    Else
+        GUICtrlSetBkColor($__g_CD_iPulseCtrl, $__g_CD_iPulseRestoreBg)
     EndIf
 EndFunc
 
@@ -4544,7 +4645,8 @@ Func __CD_MessageLoop()
             If $__g_CD_bSearchResultsVisible And $id <> 0 Then
                 Local $srClicked = False, $sr
                 For $sr = 0 To $__g_CD_SEARCH_ROWS - 1
-                    If $id = $__g_CD_aidSearchRowLbl[$sr] Then
+                    ; either line (tab path or description) navigates the row
+                    If $id = $__g_CD_aidSearchRowLbl[$sr] Or $id = $__g_CD_aidSearchDescLbl[$sr] Then
                         If $__g_CD_aSearchRowEntry[$sr] >= 0 Then __CD_SearchNavigate($__g_CD_aSearchRowEntry[$sr])
                         $srClicked = True
                         ExitLoop
@@ -4673,19 +4775,27 @@ Func __CD_MessageLoop()
                 If $__g_CD_iSubTabHovered <> 0 Then _Theme_ApplyHover($__g_CD_iSubTabHovered, $THEME_FG_NORMAL, $THEME_BG_HOVER)
             EndIf
 
-            ; Search result-row hover (menu-style highlight)
+            ; Search result-row hover — highlight both lines of the row together.
+            ; $__g_CD_iSearchRowHovered holds the 1-based row index (0 = none).
             If $__g_CD_bSearchResultsVisible Then
                 Local $iRowHit = 0, $srh
                 For $srh = 0 To $__g_CD_SEARCH_ROWS - 1
-                    If $aCursor[4] = $__g_CD_aidSearchRowLbl[$srh] And $__g_CD_aSearchRowEntry[$srh] >= 0 Then
-                        $iRowHit = $__g_CD_aidSearchRowLbl[$srh]
+                    If $__g_CD_aSearchRowEntry[$srh] < 0 Then ContinueLoop
+                    If $aCursor[4] = $__g_CD_aidSearchRowLbl[$srh] Or $aCursor[4] = $__g_CD_aidSearchDescLbl[$srh] Then
+                        $iRowHit = $srh + 1
                         ExitLoop
                     EndIf
                 Next
                 If $iRowHit <> $__g_CD_iSearchRowHovered Then
-                    If $__g_CD_iSearchRowHovered <> 0 Then _Theme_RemoveHover($__g_CD_iSearchRowHovered, $THEME_FG_MENU, $THEME_BG_POPUP)
+                    If $__g_CD_iSearchRowHovered <> 0 Then
+                        _Theme_RemoveHover($__g_CD_aidSearchRowLbl[$__g_CD_iSearchRowHovered - 1], $THEME_FG_MENU, $THEME_BG_POPUP)
+                        _Theme_RemoveHover($__g_CD_aidSearchDescLbl[$__g_CD_iSearchRowHovered - 1], $THEME_FG_DIM, $THEME_BG_POPUP)
+                    EndIf
                     $__g_CD_iSearchRowHovered = $iRowHit
-                    If $__g_CD_iSearchRowHovered <> 0 Then _Theme_ApplyHover($__g_CD_iSearchRowHovered, $THEME_FG_WHITE, $THEME_BG_HOVER)
+                    If $__g_CD_iSearchRowHovered <> 0 Then
+                        _Theme_ApplyHover($__g_CD_aidSearchRowLbl[$__g_CD_iSearchRowHovered - 1], $THEME_FG_WHITE, $THEME_BG_HOVER)
+                        _Theme_ApplyHover($__g_CD_aidSearchDescLbl[$__g_CD_iSearchRowHovered - 1], $THEME_FG_NORMAL, $THEME_BG_HOVER)
+                    EndIf
                 EndIf
             EndIf
         EndIf

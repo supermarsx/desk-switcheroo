@@ -229,6 +229,58 @@ Func _RunTest_ConfigDialog()
     If __CD_SearchShouldCloseOnClick($idOther, False, $idInput) Then $bOpen = False
     _Test_AssertFalse("Regression seq: click another control closes", $bOpen)
 
+    ; -- Search result descriptions: registry stores the raw tooltip (t5-b2, pure) --
+    ; The description line shown under each result is harvested from the setting's tooltip,
+    ; so __CD_SearchAdd must retain the raw tip alongside the match blob. The 5 synthetic
+    ; entries above supply the tips.
+    _Test_AssertEqual("Desc: entry 0 keeps raw tooltip", $__g_CD_aSearchTip[0], "Hold and drag the widget")
+    _Test_AssertEqual("Desc: entry 2 keeps raw tooltip", $__g_CD_aSearchTip[2], "Widget transparency 50-255")
+    _Test_AssertEqual("Desc: entry 4 keeps raw tooltip", $__g_CD_aSearchTip[4], "Drag the window list to reposition")
+
+    ; -- __CD_SearchFormatDesc: tooltip -> single dim description line (t5-b2, pure) --
+    ; Empty tooltip yields "" so the row renders its tab path only (graceful fallback);
+    ; newlines/tabs/space-runs collapse to single spaces; over-long text is ellipsised.
+    _Test_AssertEqual("FormatDesc: empty tip -> '' (tab-path fallback)", __CD_SearchFormatDesc(""), "")
+    _Test_AssertEqual("FormatDesc: whitespace-only tip -> ''", __CD_SearchFormatDesc("   " & @TAB & @CRLF), "")
+    _Test_AssertEqual("FormatDesc: plain text passes through", __CD_SearchFormatDesc("Simple description"), "Simple description")
+    _Test_AssertEqual("FormatDesc: newlines collapse to single spaces", __CD_SearchFormatDesc("line one" & @CRLF & "line two"), "line one line two")
+    _Test_AssertEqual("FormatDesc: tabs collapse to spaces", __CD_SearchFormatDesc("a" & @TAB & "b"), "a b")
+    _Test_AssertEqual("FormatDesc: space runs collapse to one", __CD_SearchFormatDesc("a     b   c"), "a b c")
+    _Test_AssertEqual("FormatDesc: leading/trailing WS stripped", __CD_SearchFormatDesc("  padded  "), "padded")
+    ; At/under the cap the text is untouched; over the cap it is cut to $iMaxChars with an
+    ; ellipsis as the final glyph (so the label never spills its row).
+    _Test_AssertEqual("FormatDesc: at cap is unchanged", __CD_SearchFormatDesc("abcdefghij", 10), "abcdefghij")
+    Local $sCut = __CD_SearchFormatDesc("abcdefghijklmnop", 10)
+    _Test_AssertEqual("FormatDesc: over cap truncated to maxChars", StringLen($sCut), 10)
+    _Test_AssertEqual("FormatDesc: truncation ends with ellipsis", StringRight($sCut, 1), ChrW(0x2026))
+    _Test_AssertEqual("FormatDesc: truncation keeps the head", StringLeft($sCut, 9), "abcdefghi")
+
+    ; -- Highlight flash phase logic (t5-b2, pure) --
+    ; __CD_PulsePhaseAt = floor(elapsed / step); even phases show the highlight, odd
+    ; phases restore, and phase >= $__g_CD_PULSE_PHASES ends the flash. With the shipped
+    ; 150ms step / 6 phases this yields 3 visible on-cycles.
+    _Test_AssertEqual("Pulse: t=0 -> phase 0", __CD_PulsePhaseAt(0, 150), 0)
+    _Test_AssertEqual("Pulse: t=149 -> still phase 0", __CD_PulsePhaseAt(149, 150), 0)
+    _Test_AssertEqual("Pulse: t=150 -> phase 1", __CD_PulsePhaseAt(150, 150), 1)
+    _Test_AssertEqual("Pulse: t=300 -> phase 2", __CD_PulsePhaseAt(300, 150), 2)
+    _Test_AssertEqual("Pulse: t=900 -> phase 6 (finished)", __CD_PulsePhaseAt(900, 150), 6)
+    _Test_AssertTrue("Pulse: end phase reaches PULSE_PHASES", __CD_PulsePhaseAt(900, 150) >= $__g_CD_PULSE_PHASES)
+    _Test_AssertEqual("Pulse: zero step clamps to 1 (no div-by-zero)", __CD_PulsePhaseAt(5, 0), 5)
+    _Test_AssertTrue("Pulse: phase 0 is on", __CD_PulseIsOn(0))
+    _Test_AssertFalse("Pulse: phase 1 is off", __CD_PulseIsOn(1))
+    _Test_AssertTrue("Pulse: phase 2 is on", __CD_PulseIsOn(2))
+    _Test_AssertFalse("Pulse: phase 5 is off", __CD_PulseIsOn(5))
+    ; The shipped config produces an even phase count (starts and would-be-restored balance)
+    ; and an odd number of visible on-cycles = PULSE_PHASES / 2 = 3.
+    _Test_AssertEqual("Pulse: 6 phases => 3 visible flashes", Int($__g_CD_PULSE_PHASES / 2), 3)
+
+    ; -- Two-line row decision: description present vs tab-path fallback (t5-b2, pure) --
+    ; A tipped entry renders a non-empty description; an entry whose tip is blank renders
+    ; only its tab path. Model the render decision the filter makes via __CD_SearchFormatDesc.
+    __CD_SearchAdd(206, 1, 1, "General > Widget > No-tip control", "No-tip control", "", $THEME_BG_INPUT)
+    _Test_AssertTrue("Row: tipped entry -> non-empty desc", __CD_SearchFormatDesc($__g_CD_aSearchTip[0]) <> "")
+    _Test_AssertEqual("Row: blank-tip entry -> empty desc (fallback)", __CD_SearchFormatDesc($__g_CD_aSearchTip[5]), "")
+
     ; Restore registry so later assertions / suites start clean
     __CD_SearchReset()
 
