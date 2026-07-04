@@ -81,6 +81,24 @@ Func _RunTest_CLI()
     $__g_CLI_sCommand = "add-desktop"
     _Test_AssertFalse("add-desktop is not query", _CLI_IsQueryCommand())
 
+    ; -- Every action command must classify as NON-query. This is the exact
+    ;    seam the startup relay keys on: query -> local execute; non-query ->
+    ;    relayed to a running instance (or executed locally if none). --
+    $__g_CLI_sCommand = "prev"
+    _Test_AssertFalse("prev is not query", _CLI_IsQueryCommand())
+    $__g_CLI_sCommand = "remove-desktop"
+    _Test_AssertFalse("remove-desktop is not query", _CLI_IsQueryCommand())
+    $__g_CLI_sCommand = "rename"
+    _Test_AssertFalse("rename is not query", _CLI_IsQueryCommand())
+    $__g_CLI_sCommand = "move-window"
+    _Test_AssertFalse("move-window is not query", _CLI_IsQueryCommand())
+    $__g_CLI_sCommand = "toggle-carousel"
+    _Test_AssertFalse("toggle-carousel is not query", _CLI_IsQueryCommand())
+    $__g_CLI_sCommand = "load-profile"
+    _Test_AssertFalse("load-profile is not query", _CLI_IsQueryCommand())
+    $__g_CLI_sCommand = "save-profile"
+    _Test_AssertFalse("save-profile is not query", _CLI_IsQueryCommand())
+
     ; -- Empty command --
     $__g_CLI_sCommand = ""
     $__g_CLI_sArg = ""
@@ -108,9 +126,56 @@ Func _RunTest_CLI()
     $__g_CLI_sArg2 = ""
     _Test_AssertEqual("IPC string: load-profile", _CLI_BuildIPCString(), "load-profile MyProfile")
 
+    ; Action commands relayed over IPC — verify the packed payload for each shape
+    $__g_CLI_sCommand = "goto"
+    $__g_CLI_sArg = "3"
+    $__g_CLI_sArg2 = ""
+    _Test_AssertEqual("IPC string: goto 3", _CLI_BuildIPCString(), "goto 3")
+
+    $__g_CLI_sCommand = "prev"
+    $__g_CLI_sArg = ""
+    $__g_CLI_sArg2 = ""
+    _Test_AssertEqual("IPC string: prev", _CLI_BuildIPCString(), "prev")
+
+    $__g_CLI_sCommand = "add-desktop"
+    $__g_CLI_sArg = ""
+    $__g_CLI_sArg2 = ""
+    _Test_AssertEqual("IPC string: add-desktop", _CLI_BuildIPCString(), "add-desktop")
+
+    $__g_CLI_sCommand = "remove-desktop"
+    $__g_CLI_sArg = "2"
+    $__g_CLI_sArg2 = ""
+    _Test_AssertEqual("IPC string: remove-desktop 2", _CLI_BuildIPCString(), "remove-desktop 2")
+
+    $__g_CLI_sCommand = "move-window"
+    $__g_CLI_sArg = "4"
+    $__g_CLI_sArg2 = ""
+    _Test_AssertEqual("IPC string: move-window 4", _CLI_BuildIPCString(), "move-window 4")
+
+    $__g_CLI_sCommand = "toggle-carousel"
+    $__g_CLI_sArg = ""
+    $__g_CLI_sArg2 = ""
+    _Test_AssertEqual("IPC string: toggle-carousel", _CLI_BuildIPCString(), "toggle-carousel")
+
+    $__g_CLI_sCommand = "save-profile"
+    $__g_CLI_sArg = "Work"
+    $__g_CLI_sArg2 = ""
+    _Test_AssertEqual("IPC string: save-profile Work", _CLI_BuildIPCString(), "save-profile Work")
+
     $__g_CLI_sCommand = ""
     $__g_CLI_sArg = ""
     _Test_AssertEqual("IPC string: empty cmd", _CLI_BuildIPCString(), "")
+
+    ; ---- Relay send guard: an empty command must never emit a WM_COPYDATA send.
+    ;      _CLI_SendToRunning builds the payload and bails on an empty string
+    ;      BEFORE calling SendMessage, so this returns False without touching any
+    ;      window. (We deliberately do NOT unit-test the real send path: the IPC
+    ;      target title is a shared constant, so a live send could hit the user's
+    ;      running instance. The success path is covered by code-trace only.) ----
+    $__g_CLI_sCommand = ""
+    $__g_CLI_sArg = ""
+    $__g_CLI_sArg2 = ""
+    _Test_AssertFalse("SendToRunning with empty cmd sends nothing", _CLI_SendToRunning())
 
     ; ---- IPC pending mechanism ----
     ; Initially no pending command

@@ -57,6 +57,36 @@ Global $__g_bWasCursorActive = False
 Global $__g_oErrorHandler = ObjEvent("AutoIt.Error", "_OnAutoItError")
 OnAutoItExitRegister("_OnExit")
 
+; ---- Early CLI action relay (must run before the singleton kill and before we
+; ---- register our own IPC window) ----
+; Action commands (--goto, --next, --add-desktop, --rename, --toggle-list, etc.)
+; are meant to drive a RUNNING widget. We must relay them over WM_COPYDATA to the
+; running instance's IPC window BEFORE two things happen below: (1) the singleton
+; block, which would kill the very instance we want to talk to, and (2)
+; _CLI_RegisterIPC, which would create a SECOND window sharing the IPC title and
+; make the target lookup ambiguous. If a running instance receives the command we
+; exit cleanly without ever starting a widget. Query commands (--status etc.) are
+; left untouched and handled later after modules initialize.
+_CLI_ParseArgs()
+Global $__g_bCliActionInvocation = False
+Local $__bCliEarlyAutostart = False
+Local $__iCliArg
+For $__iCliArg = 1 To $CmdLine[0]
+    If $CmdLine[$__iCliArg] = "-autostart" Then $__bCliEarlyAutostart = True
+Next
+If (Not $__bCliEarlyAutostart) And _CLI_HasCommand() And Not _CLI_IsQueryCommand() Then
+    $__g_bCliActionInvocation = True
+    If _CLI_SendToRunning() Then
+        ; Relayed to the running instance — suppress _OnExit's crash-log path and
+        ; _Shutdown cleanup (nothing of ours is initialized yet) and exit success.
+        $__g_bShuttingDown = True
+        Exit 0
+    EndIf
+    ; No running instance found: fall through to normal init. Because no instance
+    ; exists, the singleton block is a no-op, and the action is executed locally at
+    ; the CLI dispatch point below (which needs Config/VD/Labels initialized).
+EndIf
+
 ; ---- Singleton: kill previous instance on relaunch ----
 ; Read singleton_enabled directly from INI (before _Cfg_Init)
 Local $__sSingletonIni = @ScriptDir & "\desk_switcheroo.ini"
@@ -65,7 +95,7 @@ If FileExists($__sSingletonIni) Then
     Local $__sVal = StringLower(IniRead($__sSingletonIni, "General", "singleton_enabled", "true"))
     If $__sVal = "false" Or $__sVal = "0" Then $__bSingleton = False
 EndIf
-If $__bSingleton Then
+If $__bSingleton And Not $__g_bCliActionInvocation Then
     Local $sMutexName = "DesktopSwitcherMutex_7F3A"
     Local $hMutex = DllCall("kernel32.dll", "handle", "CreateMutexW", "ptr", 0, "bool", True, "wstr", $sMutexName)
     Local $aLastErr = DllCall("kernel32.dll", "dword", "GetLastError")
@@ -171,6 +201,16 @@ If _CLI_HasCommand() Then
     If _CLI_IsQueryCommand() Then
         _CLI_ExecuteLocal()
         Exit
+    ElseIf Not $bAutoStart Then
+        ; Action command that reached this point had NO running instance to relay to
+        ; (the early IPC relay above found none). Execute it locally against the OS
+        ; and exit — virtual desktops are global, so goto/next/prev/add/remove/rename/
+        ; move-window work standalone. GUI-only actions (toggle-list, toggle-carousel,
+        ; load-/save-profile) print a "requires running instance" error and exit non-
+        ; zero, since there is no widget to drive. This mirrors query-command handling
+        ; and avoids spawning a persistent widget as a side effect of a one-shot action.
+        Local $bCliActionOk = _CLI_ExecuteLocal()
+        Exit ($bCliActionOk ? 0 : 1)
     EndIf
 EndIf
 
@@ -667,6 +707,21 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 WinSetState($hWLTarget, "", @SW_MAXIMIZE)
             Case "restore"
                 WinSetState($hWLTarget, "", @SW_RESTORE)
+            Case "toggle_topmost"
+                ; Best-effort: SetWindowPos silently fails on elevated windows (UIPI).
+                ; _WL_ToggleAlwaysOnTop verifies the ex-style actually changed and
+                ; reports "failed" when it didn't, so the toast stays honest.
+                Local $sTopmostResult = _WL_ToggleAlwaysOnTop($hWLTarget)
+                If _Cfg_GetNotificationsEnabled() Then
+                    Switch $sTopmostResult
+                        Case "set"
+                            _Theme_Toast(_i18n("Toasts.toast_window_always_on_top", "Window set always on top"), Default, Default, 1500, $TOAST_INFO)
+                        Case "removed"
+                            _Theme_Toast(_i18n("Toasts.toast_window_not_always_on_top", "Window no longer always on top"), Default, Default, 1500, $TOAST_INFO)
+                        Case "failed"
+                            _Theme_Toast(_i18n("Toasts.toast_window_topmost_failed", "Cannot change an elevated window"), Default, Default, 2000, $TOAST_WARNING)
+                    EndSwitch
+                EndIf
             Case "close"
                 WinClose($hWLTarget)
                 Sleep(200)
@@ -755,6 +810,34 @@ Func _ProcessGUIEvents($msg, $hFrom)
                     EndIf
                 Case "refresh"
                     _WL_Refresh($iDesktop)
+                Case "min_all"
+                    Local $iMinAll = _WL_MinimizeAll()
+                    _WL_Refresh($iDesktop)
+                    If _Cfg_GetNotificationsEnabled() Then
+                        _Theme_Toast(_i18n_Format("Toasts.toast_windows_minimized_all", "{1} windows minimized", $iMinAll), Default, Default, 1500, $TOAST_INFO)
+                    EndIf
+                Case "max_all"
+                    Local $iMaxAll = _WL_MaximizeAll()
+                    _WL_Refresh($iDesktop)
+                    If _Cfg_GetNotificationsEnabled() Then
+                        _Theme_Toast(_i18n_Format("Toasts.toast_windows_maximized_all", "{1} windows maximized", $iMaxAll), Default, Default, 1500, $TOAST_INFO)
+                    EndIf
+                Case "close_all"
+                    ; Destructive: reuse the delete-desktop confirm precedent, gated on
+                    ; the same "confirm destructive actions" preference. Graceful closes
+                    ; (WM_CLOSE) let apps still prompt to save.
+                    Local $bDoCloseAll = True
+                    If _Cfg_GetConfirmDelete() Then
+                        $bDoCloseAll = _Theme_Confirm(_i18n("Dialogs.confirm_close_all_title", "Close All Windows?"), _
+                            _i18n("Dialogs.confirm_close_all_msg", "All windows listed on this desktop will be closed. Unsaved work may be lost."))
+                    EndIf
+                    If $bDoCloseAll Then
+                        Local $iCloseAll = _WL_CloseAll()
+                        _WL_Refresh($iDesktop)
+                        If _Cfg_GetNotificationsEnabled() Then
+                            _Theme_Toast(_i18n_Format("Toasts.toast_windows_closed_all", "{1} windows closed", $iCloseAll), Default, Default, 1500, $TOAST_INFO)
+                        EndIf
+                    EndIf
                 Case "close"
                     _WL_Destroy()
             EndSwitch
