@@ -99,6 +99,27 @@ Func _RunTest_CLI()
     $__g_CLI_sCommand = "save-profile"
     _Test_AssertFalse("save-profile is not query", _CLI_IsQueryCommand())
 
+    ; -- Early query-path decision seam (t7-a). The startup code handles a command on
+    ;    the early read-only path (BEFORE the singleton kill) iff it HAS a command AND
+    ;    that command is a query. Proving this predicate per-command is the headless
+    ;    equivalent of proving --status/--list-desktops/--get-current/--help/--version
+    ;    exit before the singleton block and therefore never terminate the running
+    ;    widget. Actions and empty input must NOT take the early query path. --
+    Local $aEarlyQueryCmds[5] = ["help", "version", "list-desktops", "get-current", "status"]
+    Local $iEQ
+    For $iEQ = 0 To UBound($aEarlyQueryCmds) - 1
+        $__g_CLI_sCommand = $aEarlyQueryCmds[$iEQ]
+        _Test_AssertTrue("Early query path taken: " & $aEarlyQueryCmds[$iEQ], _CLI_HasCommand() And _CLI_IsQueryCommand())
+    Next
+    Local $aEarlyActionCmds[9] = ["goto", "next", "prev", "add-desktop", "remove-desktop", "rename", "move-window", "toggle-list", "save-profile"]
+    Local $iEA
+    For $iEA = 0 To UBound($aEarlyActionCmds) - 1
+        $__g_CLI_sCommand = $aEarlyActionCmds[$iEA]
+        _Test_AssertFalse("Early query path NOT taken (action): " & $aEarlyActionCmds[$iEA], _CLI_HasCommand() And _CLI_IsQueryCommand())
+    Next
+    $__g_CLI_sCommand = ""
+    _Test_AssertFalse("Early query path NOT taken (empty)", _CLI_HasCommand() And _CLI_IsQueryCommand())
+
     ; -- Empty command --
     $__g_CLI_sCommand = ""
     $__g_CLI_sArg = ""

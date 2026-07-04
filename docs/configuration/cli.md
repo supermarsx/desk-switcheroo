@@ -37,8 +37,9 @@ start-with-Windows path), so it never counts as a command.
 
 Query commands read state and print to standard output. They run **standalone** — the process
 starts, executes the query locally (`_CLI_ExecuteLocal`), prints the result, and exits immediately,
-whether or not a widget is already running. These are the commands that produce output on standard
-output for scripting (see the caveat under [dispatch behavior](#how-the-executable-dispatches-its-own-command-line) about queries and the running widget).
+whether or not a widget is already running. They are handled on an early read-only path that runs
+*before* the singleton block (see [dispatch behavior](#how-the-executable-dispatches-its-own-command-line)),
+so querying the executable never disturbs a running widget.
 
 | Command | Output |
 |---|---|
@@ -102,15 +103,18 @@ handles it as follows:
   `toggle-carousel`, `load-profile`, and `save-profile` — need a widget to drive, so with no
   instance running they print a "requires a running instance" error and exit `1` rather than
   spawning a persistent widget as a side effect.
-- **Query commands** execute locally and the process exits (`_CLI_ExecuteLocal` then `Exit`).
+- **Query commands** are handled on an early read-only path that runs *before* the singleton block.
+  The process initializes only what a query needs — config, i18n, and the VirtualDesktopAccessor DLL
+  (read-only calls; Labels are read with OS-name sync disabled so nothing is written) — then calls
+  `_CLI_ExecuteLocal` and exits. Because this happens before the singleton block, a query **never
+  kills the running widget**. If the DLL cannot be loaded, `--list-desktops`/`--get-current`/`--status`
+  degrade gracefully to reporting a single desktop rather than failing.
 
-> **Known caveat (open follow-up):** query commands do *not* go through the early relay, so with
-> `singleton_enabled` on (the default) launching the executable for a query — for example
-> `desk_switcheroo.exe --get-current` — triggers the singleton block and **kills the running
-> widget** as a side effect before printing its answer and exiting. Action commands are exempt
-> (the relay path suppresses the singleton kill). Until a lightweight query relay lands, script
-> query calls against a session where you want to keep the widget running by talking to the IPC
-> channel directly (below) instead of shelling out to the executable.
+> **Note:** earlier builds ran queries *after* the singleton block, so launching the executable for a
+> query (for example `desk_switcheroo.exe --get-current`) killed the running widget as a side effect,
+> and `--status` reported the DLL fallback of one desktop because it ran before the DLL was
+> initialized. Both are fixed: queries now run on the early read-only path above, so they leave a
+> running widget untouched and report the real desktop count.
 
 ## Scripting examples
 

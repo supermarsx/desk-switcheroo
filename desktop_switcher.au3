@@ -87,6 +87,35 @@ If (Not $__bCliEarlyAutostart) And _CLI_HasCommand() And Not _CLI_IsQueryCommand
     ; the CLI dispatch point below (which needs Config/VD/Labels initialized).
 EndIf
 
+; ---- Early CLI query path (must run before the singleton kill) ----
+; Query commands (--help, --version, --list-desktops, --get-current, --status) are
+; read-only. Handle them HERE, before the singleton block, so a query invocation of
+; desk_switcheroo never terminates the running widget as a side effect (the reported
+; bug). We initialize only the lightweight modules a query needs — no GUI, tray,
+; monitors, hotkeys, startup checks or IPC-window registration, and crucially no
+; singleton kill. Set the shutting-down flag first so the _OnExit / _Shutdown callbacks
+; guard-return cleanly instead of writing a spurious crash log and tearing down
+; half-initialized modules.
+If _CLI_HasCommand() And _CLI_IsQueryCommand() Then
+    $__g_bShuttingDown = True
+    _Cfg_Init()
+    _i18n_Init(_Cfg_GetLanguage())
+    ; Initialize the VirtualDesktopAccessor DLL (read-only calls) so list-desktops /
+    ; get-current / status report the ACTUAL desktop count, current index and names
+    ; rather than the fallback "1 desktop" the pre-fix code printed (it ran before
+    ; _VD_Init). Graceful degradation: if the DLL is missing or fails to load, _VD_Init
+    ; returns False and leaves the DLL closed, so _VD_GetCount / _VD_GetCurrent fall back
+    ; to 1 exactly as before — the query still prints, it never crashes.
+    _VD_Init()
+    ; Labels with OS-name sync DISABLED. Passing sync=False sets the INI path so real
+    ; labels are read, but skips _Labels_InitialSync's push step, which would IniWrite the
+    ; labels file and call _VD_SetName to overwrite OS desktop names. A query must stay
+    ; strictly read-only (no OS mutation, no INI writes) per the safety law.
+    _Labels_Init(Default, False)
+    _CLI_ExecuteLocal()
+    Exit
+EndIf
+
 ; ---- Singleton: kill previous instance on relaunch ----
 ; Read singleton_enabled directly from INI (before _Cfg_Init)
 Local $__sSingletonIni = @ScriptDir & "\desk_switcheroo.ini"
