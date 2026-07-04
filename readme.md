@@ -61,10 +61,12 @@ AutoIt3_x64.exe desktop_switcher.au3
 
 **Desktop Management**
 - Desktop list panel with click-to-switch, drag-to-reorder, pin/unpin, and auto-hide
+- Window list panel — send any window to another desktop, pin, minimize/maximize/close, toggle always-on-top, plus bulk Minimize/Maximize/Close All
 - Desktop peek — hover the eye icon to temporarily preview a desktop
 - Thumbnail previews on hover with optional screenshot capture
 - Custom labels with Windows 11 OS name sync (falls back to INI on Win10)
 - Per-desktop accent colors with 7 presets + custom hex color picker
+- Per-desktop wallpaper applied automatically on switch
 - Add, delete, and reorder desktops from the list context menu
 - Move active window to any desktop via right-click menu
 - Wrap navigation at desktop ends, auto-create desktop past last
@@ -79,6 +81,7 @@ AutoIt3_x64.exe desktop_switcher.au3
 
 **Appearance**
 - 5 dark themes — dark, darker, midnight, midday, sunset
+- On-screen desktop-change indicator (OSD) and toast notifications for actions
 - Configurable fade animations per location (list, menus, dialogs, toasts, widget)
 - Customizable list font, tooltip font, and widget opacity
 - Scrollable list with configurable max visible items
@@ -86,13 +89,19 @@ AutoIt3_x64.exe desktop_switcher.au3
 **System**
 - Start with Windows + start minimized options
 - System tray mode — run as tray icon instead of taskbar widget
+- Session restore — remembers which windows were on which desktop
+- Named settings profiles — save and load complete configurations
+- Window rules engine + event hooks — auto-place windows and run commands on desktop events
+- Explorer crash monitor — auto-recovers the widget if Explorer restarts
+- Taskbar auto-hide synchronization
 - Singleton enforcement — relaunch kills previous instance
 - Config file watcher — auto-reload settings on external INI changes
+- Searchable settings dialog
 - Auto-update checker with portable download from GitHub Releases
 - Debug logging with level filtering, rotation, compression, and PID/function tagging
 - Confirm-before-quit and confirm-before-delete safeguards
-- 33 locales with automatic language detection and in-app picker
-- 90+ settings across 9 tabs in the Settings dialog
+- 34 locales with automatic language detection and in-app picker
+- 90+ settings across 14 tabs in the Settings dialog
 
 ## How Desk Switcheroo Compares
 
@@ -113,15 +122,19 @@ AutoIt3_x64.exe desktop_switcher.au3
 | System tray mode | Yes | Yes | Yes | Yes | No | No | No | No |
 | CLI / IPC control | Yes | No | No | No | No | No | No | No |
 | Event hooks | Yes | No | No | No | No | No | Yes | No |
-| Locales | 33 | 2 | 5 | 3 | 1 | 20+ | 1 | 1 |
+| Locales | 34 | 2 | 5 | 3 | 1 | 20+ | 1 | 1 |
 | Themes | 5 | 1 | 3 | 1 | 1 | 1 | 0 | 0 |
 | Open source | Yes | Yes | No | Yes | Yes | Yes | Yes | Yes |
 | Price | Free | Free | Free/Paid | Free | Free | Free | Free | Free |
-| Actively maintained | Yes | Fragmented | Aging | Infrequent | Sporadic | Yes | Yes | Infrequent |
+| Actively maintained | Yes | Fragmented | Aging | Active | Archived | Yes | Yes | Infrequent |
+
+> **Notes (as of July 2026).** PowerToys is a utility suite that does not itself switch virtual desktops — its Workspaces (app-launch layouts) and FancyZones (window tiling) cover adjacent needs, so its cells reflect window management rather than desktop switching. VirtuaWin last shipped v4.5 (April 2025); `win-10-virtual-desktop-enhancer` was archived in December 2018.
+
+For a fuller, source-cited comparison with per-use-case recommendations, see [Comparison with Other Tools](docs/comparison.md).
 
 ## Localization
 
-Desk Switcheroo supports 33 locales out of the box:
+Desk Switcheroo supports 34 locales out of the box:
 
 | Language | Code | Language | Code |
 |----------|------|----------|------|
@@ -140,11 +153,12 @@ Desk Switcheroo supports 33 locales out of the box:
 | German | de-DE | Turkish | tr-TR |
 | Hindi (India) | hi-IN | Ukrainian | uk-UA |
 | Hungarian | hu-HU | Vietnamese | vi-VN |
+| Japanese | ja-JP | | |
 | Spanish (Argentina) | es-AR | | |
 | Spanish (Mexico) | es-MX | | |
 | Spanish (Spain) | es-ES | | |
 
-Change language in **Settings > General > Language**. To add your own translation, copy `locales/en-US.ini`, rename it (e.g. `ja-JP.ini`), translate the values, and it will appear automatically in the language picker.
+Change language in **Settings > General > Language**. To add your own translation, copy `locales/en-US.ini`, rename it (e.g. `el-GR.ini`), translate the values, and it will appear automatically in the language picker.
 
 ## Configuration
 
@@ -154,7 +168,7 @@ Example configurations are provided in the `examples/` folder:
 - `desk_switcheroo.prod.ini` — conservative defaults for daily use
 - `desk_switcheroo.debug.ini` — all features enabled for testing
 
-See [Power User Guide](docs/POWER_USER.md) for advanced configuration details.
+See the [Advanced INI Reference](docs/configuration/ini-reference.md) for every setting, and the [CLI Parameters](docs/configuration/cli.md) page for scripting.
 
 ## Third-Party
 
@@ -163,8 +177,16 @@ See [Power User Guide](docs/POWER_USER.md) for advanced configuration details.
 
 ## Documentation
 
-- [Power User Guide](docs/POWER_USER.md) — advanced configuration, INI reference, scripting
-- [Development Guide](docs/DEVELOPMENT.md) — building, testing, architecture, contributing
+Full documentation is published as a browsable site at **<https://supermarsx.github.io/desk-switcheroo/>** (goes live once GitHub Pages is enabled for this repo). The same pages live under [`docs/`](docs/) and render directly on GitHub:
+
+- [Getting Started](docs/getting-started.md) — install routes and first run
+- [How It Works](docs/how-it-works.md) — what the widget does under the hood
+- [Interface Tour](docs/interface-tour.md) — an annotated, screenshot-by-screenshot walkthrough
+- [Feature Set](docs/features.md) — the full, grouped feature list
+- **Configuration** — [overview](docs/configuration/index.md), [CLI Parameters](docs/configuration/cli.md), [Advanced INI Reference](docs/configuration/ini-reference.md)
+- **Guides** — [Everyday Usage](docs/guides/usage.md), [Coloring & Theming](docs/guides/coloring.md), [Desktop Management](docs/guides/desktop-management.md), [Persistence & Profiles](docs/guides/persistence.md), [Rules Engine & Hooks](docs/guides/rules-engine.md), [Logging & Diagnostics](docs/guides/logging.md)
+- **Reference** — [Compatibility](docs/reference/compatibility.md), [Stability & Mitigations](docs/reference/stability.md), [Known Limitations](docs/reference/limitations.md), [Architecture & Patterns](docs/reference/architecture.md), [Building from Source](docs/reference/building.md), [Deployment & Lifecycle](docs/reference/lifecycle.md), [Licensing](docs/reference/licensing.md)
+- [Comparison with Other Tools](docs/comparison.md) — researched, source-cited, with per-use-case recommendations
 
 ## License
 
