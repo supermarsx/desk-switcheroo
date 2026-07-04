@@ -138,6 +138,35 @@ Func _RunTest_WindowList()
     _Test_AssertEqual("SendAll: target 0 moves 0", _WL_SendAllToDesktop(0), 0)
     _Test_AssertEqual("SendAll: target -1 moves 0", _WL_SendAllToDesktop(-1), 0)
 
+    ; ---- All-window ops: empty (no-desktop) path returns 0 and touches nothing ----
+    ; Force the snapshot's desktop resolution to < 1 so no real windows are enumerated
+    ; or acted upon during the test run.
+    Local $iDeskSaveAll = $iDesktop
+    Local $iWLDeskSaveAll = $__g_WL_iDesktop
+    $iDesktop = 0
+    $__g_WL_iDesktop = 0
+    _Test_AssertEqual("MinAll: 0 windows affects 0", _WL_MinimizeAll(), 0)
+    _Test_AssertEqual("MaxAll: 0 windows affects 0", _WL_MaximizeAll(), 0)
+    _Test_AssertEqual("CloseAll: 0 windows affects 0", _WL_CloseAll(), 0)
+    _Test_AssertEqual("SendAll: no-desktop target affects 0", _WL_SendAllToDesktop(1), 0)
+    $__g_WL_iDesktop = $iWLDeskSaveAll
+    $iDesktop = $iDeskSaveAll
+
+    ; ---- Always-on-top target-state decision (pure) ----
+    _Test_AssertTrue("Topmost: not-topmost -> target on", __WL_TopmostTargetState(0))
+    _Test_AssertFalse("Topmost: topmost -> target off", __WL_TopmostTargetState($WS_EX_TOPMOST))
+    _Test_AssertFalse("Topmost: topmost+other -> target off", __WL_TopmostTargetState(BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW)))
+    _Test_AssertTrue("Topmost: other-only -> target on", __WL_TopmostTargetState($WS_EX_TOOLWINDOW))
+
+    ; ---- Always-on-top result classification (pure): success needs API ok AND the
+    ; ex-style bit actually reflecting the target (elevated windows silently reject) ----
+    _Test_AssertEqual("Topmost: set ok", __WL_ClassifyTopmostResult(True, True, $WS_EX_TOPMOST), "set")
+    _Test_AssertEqual("Topmost: removed ok", __WL_ClassifyTopmostResult(False, True, 0), "removed")
+    _Test_AssertEqual("Topmost: set but bit unchanged -> failed", __WL_ClassifyTopmostResult(True, True, 0), "failed")
+    _Test_AssertEqual("Topmost: remove but bit stuck -> failed", __WL_ClassifyTopmostResult(False, True, $WS_EX_TOPMOST), "failed")
+    _Test_AssertEqual("Topmost: API fail -> failed", __WL_ClassifyTopmostResult(True, False, $WS_EX_TOPMOST), "failed")
+    _Test_AssertEqual("Topmost: set ok with extra bits", __WL_ClassifyTopmostResult(True, True, BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW)), "set")
+
     ; ---- Title menu / send-all handlers with no menu ----
     _Test_AssertFalse("TitleCtx: not visible initially", _WL_TitleCtxIsVisible())
     _Test_AssertEqual("TitleCtx: GUI is 0 initially", _WL_TitleCtxGetGUI(), 0)
@@ -170,6 +199,10 @@ Func _RunTest_WindowList()
         ; -- Close item exists and returns correct action --
         _Test_AssertNotEqual("WL Ctx: Close item exists", $__g_WL_iCtxClose, 0)
         _Test_AssertEqual("WL Ctx: HandleClick(close) = 'close'", _WL_CtxHandleClick($__g_WL_iCtxClose), "close")
+
+        ; -- Always-on-top toggle item exists and maps to its action --
+        _Test_AssertNotEqual("WL Ctx: Topmost item exists", $__g_WL_iCtxTopmost, 0)
+        _Test_AssertEqual("WL Ctx: HandleClick(topmost) = 'toggle_topmost'", _WL_CtxHandleClick($__g_WL_iCtxTopmost), "toggle_topmost")
 
         ; -- Send-to submenu show --
         _WL_SendToShow()
@@ -220,11 +253,17 @@ Func _RunTest_WindowList()
         _Test_AssertNotEqual("TitleCtx: Pin item exists", $__g_WL_iTitlePin, 0)
         _Test_AssertNotEqual("TitleCtx: Refresh item exists", $__g_WL_iTitleRefresh, 0)
         _Test_AssertNotEqual("TitleCtx: SendAll parent exists", $__g_WL_iTitleSendAllParent, 0)
+        _Test_AssertNotEqual("TitleCtx: MinAll item exists", $__g_WL_iTitleMinAll, 0)
+        _Test_AssertNotEqual("TitleCtx: MaxAll item exists", $__g_WL_iTitleMaxAll, 0)
+        _Test_AssertNotEqual("TitleCtx: CloseAll item exists", $__g_WL_iTitleCloseAll, 0)
         _Test_AssertNotEqual("TitleCtx: Close item exists", $__g_WL_iTitleClose, 0)
 
         ; -- Action mapping (unpinned by default → Pin returns "pin") --
         _Test_AssertEqual("TitleCtx: HandleClick(pin) = 'pin'", _WL_TitleCtxHandleClick($__g_WL_iTitlePin), "pin")
         _Test_AssertEqual("TitleCtx: HandleClick(refresh) = 'refresh'", _WL_TitleCtxHandleClick($__g_WL_iTitleRefresh), "refresh")
+        _Test_AssertEqual("TitleCtx: HandleClick(min_all) = 'min_all'", _WL_TitleCtxHandleClick($__g_WL_iTitleMinAll), "min_all")
+        _Test_AssertEqual("TitleCtx: HandleClick(max_all) = 'max_all'", _WL_TitleCtxHandleClick($__g_WL_iTitleMaxAll), "max_all")
+        _Test_AssertEqual("TitleCtx: HandleClick(close_all) = 'close_all'", _WL_TitleCtxHandleClick($__g_WL_iTitleCloseAll), "close_all")
         _Test_AssertEqual("TitleCtx: HandleClick(close) = 'close'", _WL_TitleCtxHandleClick($__g_WL_iTitleClose), "close")
         ; -- Parent item only opens the submenu, no action --
         _Test_AssertEqual("TitleCtx: HandleClick(parent) = empty", _WL_TitleCtxHandleClick($__g_WL_iTitleSendAllParent), "")

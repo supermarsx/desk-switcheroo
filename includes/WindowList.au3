@@ -65,6 +65,7 @@ Global $__g_WL_iCtxRestore = 0
 Global $__g_WL_iCtxClose = 0
 Global $__g_WL_iCtxGoTo = 0
 Global $__g_WL_iCtxPinApp = 0
+Global $__g_WL_iCtxTopmost = 0   ; "Always on top" toggle
 
 ; Send to Desktop submenu state
 Global $__g_WL_hSendGUI = 0
@@ -103,6 +104,9 @@ Global $__g_WL_hTitleCtxAwayTimer = 0
 Global $__g_WL_iTitlePin = 0
 Global $__g_WL_iTitleRefresh = 0
 Global $__g_WL_iTitleSendAllParent = 0
+Global $__g_WL_iTitleMinAll = 0
+Global $__g_WL_iTitleMaxAll = 0
+Global $__g_WL_iTitleCloseAll = 0
 Global $__g_WL_iTitleClose = 0
 
 ; Send All to Desktop submenu (title menu)
@@ -870,6 +874,7 @@ Func _WL_CtxShow($hTargetWnd)
     Local $bMaximized = BitAND($iWinState, 32) ; 32 = maximized
     Local $bPinned = _VD_IsPinnedWindow($hTargetWnd)
     Local $bAppPinned = _VD_IsPinnedApp($hTargetWnd)
+    Local $bTopmost = (BitAND(_WinGetExStyle($hTargetWnd), $WS_EX_TOPMOST) <> 0)
 
     ; Check if window is on a different desktop
     Local $iWinDesktop = _VD_GetWindowDesktopNumber($hTargetWnd)
@@ -893,6 +898,7 @@ Func _WL_CtxShow($hTargetWnd)
     Else
         $iItemCount += 2 ; minimize + maximize
     EndIf
+    $iItemCount += 1 ; always on top toggle
     $iItemCount += 1 ; close
 
     Local $iMenuH = $iItemCount * $THEME_MENU_ITEM_H + $iSepCount * ($iSepH + 4) + 12
@@ -921,6 +927,7 @@ Func _WL_CtxShow($hTargetWnd)
     $__g_WL_iCtxMaximize = 0
     $__g_WL_iCtxRestore = 0
     $__g_WL_iCtxClose = 0
+    $__g_WL_iCtxTopmost = 0
 
     Local $iY = 4
 
@@ -999,6 +1006,16 @@ Func _WL_CtxShow($hTargetWnd)
         $iY += $THEME_MENU_ITEM_H
     EndIf
 
+    ; Always on top toggle (text reflects the window's current WS_EX_TOPMOST state)
+    Local $sTopmostText
+    If $bTopmost Then
+        $sTopmostText = "  " & _i18n("WindowList.wl_remove_always_on_top", "Remove Always on Top")
+    Else
+        $sTopmostText = "  " & _i18n("WindowList.wl_always_on_top", "Always on Top")
+    EndIf
+    $__g_WL_iCtxTopmost = _Theme_CreateMenuItem($sTopmostText, 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $iY += $THEME_MENU_ITEM_H
+
     ; Close (red text for danger)
     $__g_WL_iCtxClose = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_close", "Close"), _
         4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
@@ -1033,6 +1050,7 @@ Func _WL_CtxDestroy()
     $__g_WL_iCtxMinimize = 0
     $__g_WL_iCtxMaximize = 0
     $__g_WL_iCtxRestore = 0
+    $__g_WL_iCtxTopmost = 0
     $__g_WL_iCtxClose = 0
 EndFunc
 
@@ -1071,6 +1089,7 @@ Func _WL_CtxHandleClick($msg)
     If $__g_WL_iCtxMinimize <> 0 And $msg = $__g_WL_iCtxMinimize Then Return "minimize"
     If $__g_WL_iCtxMaximize <> 0 And $msg = $__g_WL_iCtxMaximize Then Return "maximize"
     If $__g_WL_iCtxRestore <> 0 And $msg = $__g_WL_iCtxRestore Then Return "restore"
+    If $__g_WL_iCtxTopmost <> 0 And $msg = $__g_WL_iCtxTopmost Then Return "toggle_topmost"
     If $__g_WL_iCtxClose <> 0 And $msg = $__g_WL_iCtxClose Then Return "close"
     Return ""
 EndFunc
@@ -1101,6 +1120,7 @@ Func _WL_CtxCheckHover()
     If $__g_WL_iCtxMinimize <> 0 And $aCursor[4] = $__g_WL_iCtxMinimize Then $iFound = $__g_WL_iCtxMinimize
     If $__g_WL_iCtxMaximize <> 0 And $aCursor[4] = $__g_WL_iCtxMaximize Then $iFound = $__g_WL_iCtxMaximize
     If $__g_WL_iCtxRestore <> 0 And $aCursor[4] = $__g_WL_iCtxRestore Then $iFound = $__g_WL_iCtxRestore
+    If $__g_WL_iCtxTopmost <> 0 And $aCursor[4] = $__g_WL_iCtxTopmost Then $iFound = $__g_WL_iCtxTopmost
     If $__g_WL_iCtxClose <> 0 And $aCursor[4] = $__g_WL_iCtxClose Then $iFound = $__g_WL_iCtxClose
 
     ; No change — skip update
@@ -1496,6 +1516,32 @@ Func _WL_ProcessDrag()
     $__g_WL_bDragLeftWasDown = $bLeftDown
 EndFunc
 
+; Name:        __WL_SnapshotListedWindows
+; Description: Snapshots the windows currently listed on the panel's desktop into
+;              $aWins (1-based; index 0 unused). Mirrors what the list shows via
+;              __WL_EnumFilteredWindows. Snapshotting up front is required because
+;              the enumeration overwrites the shared $__g_WL_aHWNDs display globals.
+; Parameters:  ByRef $aWins - receives a fresh array sized [count+1]
+; Return:      Number of windows captured
+Func __WL_SnapshotListedWindows(ByRef $aWins)
+    Local $iDesk = $__g_WL_iDesktop
+    If $iDesk < 1 Then $iDesk = $iDesktop
+    If $iDesk < 1 Then
+        Local $aEmpty[1] = [0]
+        $aWins = $aEmpty
+        Return 0
+    EndIf
+
+    Local $iCount = __WL_EnumFilteredWindows($iDesk)
+    Local $aOut[$iCount + 1]
+    Local $i
+    For $i = 1 To $iCount
+        $aOut[$i] = $__g_WL_aHWNDs[$i]
+    Next
+    $aWins = $aOut
+    Return $iCount
+EndFunc
+
 ; Name:        _WL_SendAllToDesktop
 ; Description: Moves every window currently listed on the panel's desktop to a
 ;              target desktop. No inter-move Sleep (responsiveness finding R14).
@@ -1503,26 +1549,116 @@ EndFunc
 ; Return:      Number of windows moved
 Func _WL_SendAllToDesktop($iTarget)
     If $iTarget < 1 Then Return 0
-    Local $iDesk = $__g_WL_iDesktop
-    If $iDesk < 1 Then $iDesk = $iDesktop
-    If $iDesk < 1 Then Return 0
 
-    Local $iCount = __WL_EnumFilteredWindows($iDesk)
+    Local $aWins
+    Local $iCount = __WL_SnapshotListedWindows($aWins)
     If $iCount < 1 Then Return 0
 
-    ; Snapshot handles first — the enumeration writes shared display globals.
-    Local $aWins[$iCount + 1]
-    Local $i
-    For $i = 1 To $iCount
-        $aWins[$i] = $__g_WL_aHWNDs[$i]
-    Next
-
-    Local $iMoved = 0
+    Local $iMoved = 0, $i
     For $i = 1 To $iCount
         If $aWins[$i] = 0 Then ContinueLoop
         If _VD_MoveWindowToDesktop($aWins[$i], $iTarget) Then $iMoved += 1
     Next
     Return $iMoved
+EndFunc
+
+; Name:        _WL_MinimizeAll
+; Description: Minimizes every window currently listed on the panel's desktop.
+;              No inter-window Sleep (responsiveness).
+; Return:      Number of windows minimized
+Func _WL_MinimizeAll()
+    Local $aWins
+    Local $iCount = __WL_SnapshotListedWindows($aWins)
+    Local $iAffected = 0, $i
+    For $i = 1 To $iCount
+        If $aWins[$i] = 0 Or Not WinExists($aWins[$i]) Then ContinueLoop
+        If WinSetState($aWins[$i], "", @SW_MINIMIZE) Then $iAffected += 1
+    Next
+    Return $iAffected
+EndFunc
+
+; Name:        _WL_MaximizeAll
+; Description: Maximizes every window currently listed on the panel's desktop.
+; Return:      Number of windows maximized
+Func _WL_MaximizeAll()
+    Local $aWins
+    Local $iCount = __WL_SnapshotListedWindows($aWins)
+    Local $iAffected = 0, $i
+    For $i = 1 To $iCount
+        If $aWins[$i] = 0 Or Not WinExists($aWins[$i]) Then ContinueLoop
+        If WinSetState($aWins[$i], "", @SW_MAXIMIZE) Then $iAffected += 1
+    Next
+    Return $iAffected
+EndFunc
+
+; Name:        _WL_CloseAll
+; Description: Gracefully closes every window currently listed on the panel's
+;              desktop (WinClose / WM_CLOSE — never a process kill, so apps can
+;              still prompt to save). No inter-window Sleep (responsiveness).
+; Return:      Number of windows a close was issued to
+Func _WL_CloseAll()
+    Local $aWins
+    Local $iCount = __WL_SnapshotListedWindows($aWins)
+    Local $iAffected = 0, $i
+    For $i = 1 To $iCount
+        If $aWins[$i] = 0 Or Not WinExists($aWins[$i]) Then ContinueLoop
+        If WinClose($aWins[$i]) Then $iAffected += 1
+    Next
+    Return $iAffected
+EndFunc
+
+; Name:        __WL_TopmostTargetState
+; Description: Pure decision helper — given a window's current extended style,
+;              returns the target always-on-top state for a toggle (the opposite
+;              of whatever it is now).
+; Parameters:  $iExStyle - the window's current WS_EX_* flags
+; Return:      True to make the window topmost, False to remove topmost
+Func __WL_TopmostTargetState($iExStyle)
+    Return Not BitAND($iExStyle, $WS_EX_TOPMOST)
+EndFunc
+
+; Name:        __WL_ClassifyTopmostResult
+; Description: Pure classifier for a topmost-toggle attempt. Success requires BOTH
+;              that SetWindowPos reported OK AND that the ex-style actually changed
+;              to the target: from a non-elevated process, UIPI makes SetWindowPos
+;              a silent no-op on elevated / higher-integrity windows, so the bit
+;              never flips even when the call "succeeds".
+; Parameters:  $bTargetTopmost - the state we tried to set (True = topmost)
+;              $bApiOk         - SetWindowPos returned success
+;              $iExStyleAfter  - the window's ex-style read back after the call
+; Return:      "set" | "removed" | "failed"
+Func __WL_ClassifyTopmostResult($bTargetTopmost, $bApiOk, $iExStyleAfter)
+    Local $bTgt = ($bTargetTopmost <> 0)
+    Local $bIsTopmost = (BitAND($iExStyleAfter, $WS_EX_TOPMOST) <> 0)
+    If $bApiOk And ($bIsTopmost = $bTgt) Then
+        If $bTgt Then Return "set"
+        Return "removed"
+    EndIf
+    Return "failed"
+EndFunc
+
+; Name:        _WL_ToggleAlwaysOnTop
+; Description: Toggles WS_EX_TOPMOST on a window via SetWindowPos. Best-effort from
+;              our non-elevated process: it attempts the change, reads the ex-style
+;              back, and reports honestly whether it took (see
+;              __WL_ClassifyTopmostResult — elevated windows silently reject it).
+; Parameters:  $hWnd - target window handle
+; Return:      "set" | "removed" | "failed"
+Func _WL_ToggleAlwaysOnTop($hWnd)
+    If Not WinExists($hWnd) Then Return "failed"
+
+    Local $iBefore = _WinGetExStyle($hWnd)
+    Local $bTarget = __WL_TopmostTargetState($iBefore)
+
+    Local $hInsertAfter = $HWND_NOTOPMOST
+    If $bTarget Then $hInsertAfter = $HWND_TOPMOST
+
+    Local $aRet = DllCall("user32.dll", "bool", "SetWindowPos", "hwnd", $hWnd, "hwnd", $hInsertAfter, _
+        "int", 0, "int", 0, "int", 0, "int", 0, "uint", BitOR($SWP_NOMOVE, $SWP_NOSIZE, $SWP_NOACTIVATE))
+    Local $bApiOk = (Not @error And IsArray($aRet) And $aRet[0] <> 0)
+
+    Local $iAfter = _WinGetExStyle($hWnd)
+    Return __WL_ClassifyTopmostResult($bTarget, $bApiOk, $iAfter)
 EndFunc
 
 ; =============================================
@@ -1538,8 +1674,9 @@ Func _WL_TitleCtxShow()
 
     Local $iMenuW = 200
     Local $iSepH = 1
-    Local $iItemCount = 4 ; pin, refresh, send-all parent, close
-    Local $iSepCount = 1
+    ; pin, refresh, send-all parent | minimize-all, maximize-all, close-all | close
+    Local $iItemCount = 7
+    Local $iSepCount = 2
     Local $iMenuH = $iItemCount * $THEME_MENU_ITEM_H + $iSepCount * ($iSepH + 4) + 12
 
     ; Cursor-anchored, clamped to the monitor under the cursor.
@@ -1558,6 +1695,9 @@ Func _WL_TitleCtxShow()
     $__g_WL_iTitlePin = 0
     $__g_WL_iTitleRefresh = 0
     $__g_WL_iTitleSendAllParent = 0
+    $__g_WL_iTitleMinAll = 0
+    $__g_WL_iTitleMaxAll = 0
+    $__g_WL_iTitleCloseAll = 0
     $__g_WL_iTitleClose = 0
 
     Local $iY = 4
@@ -1587,7 +1727,26 @@ Func _WL_TitleCtxShow()
     GUICtrlSetBkColor(-1, $THEME_BG_SEPARATOR)
     $iY += $iSepH + 4
 
-    ; Close
+    ; All-window operations (act on the windows the list currently shows)
+    $__g_WL_iTitleMinAll = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_title_min_all", "Minimize All"), _
+        4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $iY += $THEME_MENU_ITEM_H
+
+    $__g_WL_iTitleMaxAll = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_title_max_all", "Maximize All"), _
+        4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    $iY += $THEME_MENU_ITEM_H
+
+    $__g_WL_iTitleCloseAll = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_title_close_all", "Close All"), _
+        4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    GUICtrlSetColor($__g_WL_iTitleCloseAll, 0xCC6666) ; muted red for danger
+    $iY += $THEME_MENU_ITEM_H
+
+    ; Separator
+    GUICtrlCreateLabel("", 8, $iY + 2, $iMenuW - 16, $iSepH)
+    GUICtrlSetBkColor(-1, $THEME_BG_SEPARATOR)
+    $iY += $iSepH + 4
+
+    ; Close (dismisses the panel itself)
     $__g_WL_iTitleClose = _Theme_CreateMenuItem("  " & _i18n("WindowList.wl_title_close", "Close"), _
         4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
     GUICtrlSetColor($__g_WL_iTitleClose, 0xCC6666) ; muted red for danger
@@ -1616,6 +1775,9 @@ Func _WL_TitleCtxDestroy()
     $__g_WL_iTitlePin = 0
     $__g_WL_iTitleRefresh = 0
     $__g_WL_iTitleSendAllParent = 0
+    $__g_WL_iTitleMinAll = 0
+    $__g_WL_iTitleMaxAll = 0
+    $__g_WL_iTitleCloseAll = 0
     $__g_WL_iTitleClose = 0
 EndFunc
 
@@ -1643,6 +1805,9 @@ Func _WL_TitleCtxHandleClick($msg)
         Return "pin"
     EndIf
     If $__g_WL_iTitleRefresh <> 0 And $msg = $__g_WL_iTitleRefresh Then Return "refresh"
+    If $__g_WL_iTitleMinAll <> 0 And $msg = $__g_WL_iTitleMinAll Then Return "min_all"
+    If $__g_WL_iTitleMaxAll <> 0 And $msg = $__g_WL_iTitleMaxAll Then Return "max_all"
+    If $__g_WL_iTitleCloseAll <> 0 And $msg = $__g_WL_iTitleCloseAll Then Return "close_all"
     If $__g_WL_iTitleClose <> 0 And $msg = $__g_WL_iTitleClose Then Return "close"
     Return ""
 EndFunc
@@ -1657,7 +1822,7 @@ Func _WL_TitleCtxCheckHover()
         ; Keep the parent highlighted while its submenu is open.
         If $__g_WL_iTitleCtxHovered <> 0 And Not ($__g_WL_bSendAllVisible And $__g_WL_iTitleCtxHovered = $__g_WL_iTitleSendAllParent) Then
             Local $iFg = $THEME_FG_MENU
-            If $__g_WL_iTitleCtxHovered = $__g_WL_iTitleClose Then $iFg = 0xCC6666
+            If $__g_WL_iTitleCtxHovered = $__g_WL_iTitleClose Or $__g_WL_iTitleCtxHovered = $__g_WL_iTitleCloseAll Then $iFg = 0xCC6666
             _Theme_RemoveHover($__g_WL_iTitleCtxHovered, $iFg)
             $__g_WL_iTitleCtxHovered = 0
         EndIf
@@ -1668,12 +1833,15 @@ Func _WL_TitleCtxCheckHover()
     If $__g_WL_iTitlePin <> 0 And $aCursor[4] = $__g_WL_iTitlePin Then $iFound = $__g_WL_iTitlePin
     If $__g_WL_iTitleRefresh <> 0 And $aCursor[4] = $__g_WL_iTitleRefresh Then $iFound = $__g_WL_iTitleRefresh
     If $__g_WL_iTitleSendAllParent <> 0 And $aCursor[4] = $__g_WL_iTitleSendAllParent Then $iFound = $__g_WL_iTitleSendAllParent
+    If $__g_WL_iTitleMinAll <> 0 And $aCursor[4] = $__g_WL_iTitleMinAll Then $iFound = $__g_WL_iTitleMinAll
+    If $__g_WL_iTitleMaxAll <> 0 And $aCursor[4] = $__g_WL_iTitleMaxAll Then $iFound = $__g_WL_iTitleMaxAll
+    If $__g_WL_iTitleCloseAll <> 0 And $aCursor[4] = $__g_WL_iTitleCloseAll Then $iFound = $__g_WL_iTitleCloseAll
     If $__g_WL_iTitleClose <> 0 And $aCursor[4] = $__g_WL_iTitleClose Then $iFound = $__g_WL_iTitleClose
 
     If $iFound <> $__g_WL_iTitleCtxHovered Then
         If $__g_WL_iTitleCtxHovered <> 0 Then
             Local $iFgOld = $THEME_FG_MENU
-            If $__g_WL_iTitleCtxHovered = $__g_WL_iTitleClose Then $iFgOld = 0xCC6666
+            If $__g_WL_iTitleCtxHovered = $__g_WL_iTitleClose Or $__g_WL_iTitleCtxHovered = $__g_WL_iTitleCloseAll Then $iFgOld = 0xCC6666
             _Theme_RemoveHover($__g_WL_iTitleCtxHovered, $iFgOld)
         EndIf
         $__g_WL_iTitleCtxHovered = $iFound
