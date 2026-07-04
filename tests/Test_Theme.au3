@@ -165,6 +165,29 @@ Func _RunTest_Theme()
     _Theme_HideTooltip()
     _Test_AssertTrue("HideTooltip no crash when hidden", True)
 
+    ; -- Tooltip registry cap (raised 199 -> 399, array [400]) --
+    ; The settings search indexes FROM this registry, so a dropped tooltip = an
+    ; unsearchable, description-less setting. Registration must succeed past the old
+    ; 199 cap, up to 399, and the guard must still reject once full. Headless: the
+    ; registry is plain arrays, no GUI is created.
+    _Theme_ClearTooltips()
+    Local $iTip
+    For $iTip = 1 To 399
+        _Theme_SetTooltip(1000 + $iTip, "tip#" & $iTip)
+    Next
+    _Test_AssertEqual("Registry fills to new cap of 399", $__g_Theme_iTipCount, 399)
+    ; Entries past the OLD 199 cap were really stored (id + text round-trip)
+    _Test_AssertEqual("Entry 200 id stored (past old cap)", $__g_Theme_aTipIDs[200], 1200)
+    _Test_AssertEqual("Entry 200 text stored (past old cap)", $__g_Theme_aTipTexts[200], "tip#200")
+    _Test_AssertEqual("Entry 399 id stored (at new cap)", $__g_Theme_aTipIDs[399], 1399)
+    _Test_AssertEqual("Entry 399 text stored (at new cap)", $__g_Theme_aTipTexts[399], "tip#399")
+    ; Guard rejects at the new cap: further registrations are dropped, count unchanged
+    _Theme_SetTooltip(9999, "overflow")
+    _Test_AssertEqual("Guard rejects at 399 (count unchanged)", $__g_Theme_iTipCount, 399)
+    _Test_AssertEqual("Overflow tooltip not stored", $__g_Theme_aTipIDs[399], 1399)
+    _Theme_ClearTooltips()
+    _Test_AssertEqual("ClearTooltips resets count to 0", $__g_Theme_iTipCount, 0)
+
     ; -- ToastDestroy safe when no toast active --
     _Theme_ToastDestroy()
     _Test_AssertTrue("ToastDestroy no crash when inactive", True)

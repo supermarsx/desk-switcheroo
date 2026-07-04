@@ -91,8 +91,8 @@ Func _Theme_CacheFrameState()
 EndFunc
 
 ; -- Tooltip registry for themed tooltips --
-Global $__g_Theme_aTipIDs[200]
-Global $__g_Theme_aTipTexts[200]
+Global $__g_Theme_aTipIDs[400]
+Global $__g_Theme_aTipTexts[400]
 Global $__g_Theme_iTipCount = 0
 Global $__g_Theme_iLastTipCtrl = 0
 
@@ -102,7 +102,7 @@ Global $__g_Theme_iLastTipCtrl = 0
 ; Parameters:  $idCtrl - control ID
 ;              $sText - tooltip text
 Func _Theme_SetTooltip($idCtrl, $sText)
-    If $__g_Theme_iTipCount >= 199 Then Return
+    If $__g_Theme_iTipCount >= 399 Then Return
     $__g_Theme_iTipCount += 1
     $__g_Theme_aTipIDs[$__g_Theme_iTipCount] = $idCtrl
     $__g_Theme_aTipTexts[$__g_Theme_iTipCount] = $sText
