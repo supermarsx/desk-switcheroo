@@ -1076,3 +1076,250 @@ Func _Theme_FlattenInput($idCtrl)
         "int", 0, "int", 0, "int", 0, "int", 0, _
         "uint", BitOR(0x0001, 0x0002, 0x0004, 0x0020)) ; SWP_NOSIZE|SWP_NOMOVE|SWP_NOZORDER|SWP_FRAMECHANGED
 EndFunc
+
+; =============================================
+; WIDGET COLOR-BAR ANIMATION
+; =============================================
+; The color bar is a thin label at the bottom of the widget, repainted on every
+; desktop change. This is a non-blocking tick-driven state machine (house style, like
+; _TAH_FadeTick): globals below hold the running animation, _Theme_ColorBarTick advances
+; it one TimerDiff-gated step from the main loop, and it is a no-op when idle. The pure
+; frame math (_Theme_ColorLerp / _Theme_EaseOutCubic / __Theme_ColorBarFrame) is headless.
+;
+; Modes (config, _Cfg_GetWidgetColorBarAnim): "none" instant, "grow" width sweeps 0->W
+; with ease-out cubic (color set up front), "fade" background lerps from the currently
+; displayed color to the target. A new set mid-flight snap-completes the running animation
+; to its target, then starts fresh from that visual state (deterministic, no strobe).
+
+Global $__g_CB_idLbl      = 0             ; attached bar control id (0 = not attached, instant only)
+Global $__g_CB_iX         = 0             ; attached geometry (restored on every completed frame)
+Global $__g_CB_iY         = 0
+Global $__g_CB_iW         = 0
+Global $__g_CB_iH         = 0
+Global $__g_CB_bActive    = False         ; an animation is running
+Global $__g_CB_sMode      = "none"        ; running animation mode: none|grow|fade
+Global $__g_CB_iFromColor = $THEME_BG_MAIN ; fade start color
+Global $__g_CB_iToColor   = $THEME_BG_MAIN ; target color
+Global $__g_CB_iBgColor   = $THEME_BG_MAIN ; the "no color" fill (today $THEME_BG_MAIN)
+Global $__g_CB_iCurColor  = $THEME_BG_MAIN ; currently displayed color (module-tracked, fade source)
+Global $__g_CB_iDurationMs = 300          ; this animation's duration
+Global $__g_CB_hTimer     = 0             ; animation start (elapsed = TimerDiff)
+Global $__g_CB_hStepTimer = 0             ; per-step throttle timer (0 = apply next tick immediately)
+
+; ~16 ms step gate: a 300 ms animation is ~19 repaints of a 2-10 px label — negligible.
+Global Const $__CB_STEP_MS = 16
+
+; Name:        _Theme_ColorLerp
+; Description: PURE per-channel RGB linear interpolation between two 0xRRGGBB colors.
+;              $fT is clamped to [0,1]; each channel is rounded independently so the
+;              endpoints reproduce $iFrom (t=0) and $iTo (t=1) exactly. Headless.
+; Parameters:  $iFrom - start color (0xRRGGBB)
+;              $iTo   - end color (0xRRGGBB)
+;              $fT    - interpolation fraction 0..1
+; Return:      Interpolated color (0xRRGGBB)
+Func _Theme_ColorLerp($iFrom, $iTo, $fT)
+    If $fT < 0 Then $fT = 0
+    If $fT > 1 Then $fT = 1
+    Local $iFR = BitAND(BitShift($iFrom, 16), 0xFF)
+    Local $iFG = BitAND(BitShift($iFrom, 8), 0xFF)
+    Local $iFB = BitAND($iFrom, 0xFF)
+    Local $iTR = BitAND(BitShift($iTo, 16), 0xFF)
+    Local $iTG = BitAND(BitShift($iTo, 8), 0xFF)
+    Local $iTB = BitAND($iTo, 0xFF)
+    Local $iR = Int(Round($iFR + ($iTR - $iFR) * $fT))
+    Local $iG = Int(Round($iFG + ($iTG - $iFG) * $fT))
+    Local $iB = Int(Round($iFB + ($iTB - $iFB) * $fT))
+    Return BitOR(BitShift($iR, -16), BitShift($iG, -8), $iB)
+EndFunc
+
+; Name:        _Theme_EaseOutCubic
+; Description: PURE ease-out cubic easing: 1-(1-t)^3. Maps [0,1]->[0,1], monotonically
+;              increasing, with 0->0 and 1->1. Fast start, gentle settle — the tasteful
+;              default for the grow sweep. Input is clamped to [0,1]. Headless.
+; Parameters:  $fT - normalized time 0..1
+; Return:      Eased fraction 0..1
+Func _Theme_EaseOutCubic($fT)
+    If $fT < 0 Then $fT = 0
+    If $fT > 1 Then $fT = 1
+    Local $fInv = 1 - $fT
+    Return 1 - ($fInv * $fInv * $fInv)
+EndFunc
+
+; Name:        __Theme_ColorBarFrame
+; Description: PURE frame calculator — given the mode and elapsed/total time, returns the
+;              [width, color] the bar should show for this frame. "grow" eases the width
+;              0->$iW with a constant target color; "fade" holds full width and lerps the
+;              color from->to; "none" is the settled full-width target. $iDurationMs<=0 is
+;              treated as fully elapsed (final frame). Headless.
+; Parameters:  $sMode      - none|grow|fade
+;              $iElapsedMs - time since the animation started
+;              $iDurationMs- total animation duration
+;              $iW         - attached bar width (full)
+;              $iFromColor - fade source color
+;              $iToColor   - target color
+; Return:      [0]=width (px, 0..$iW), [1]=color (0xRRGGBB)
+Func __Theme_ColorBarFrame($sMode, $iElapsedMs, $iDurationMs, $iW, $iFromColor, $iToColor)
+    Local $aOut[2]
+    Local $fT
+    If $iDurationMs <= 0 Then
+        $fT = 1
+    Else
+        $fT = $iElapsedMs / $iDurationMs
+    EndIf
+    If $fT < 0 Then $fT = 0
+    If $fT > 1 Then $fT = 1
+
+    Switch $sMode
+        Case "grow"
+            Local $iWidth = Int(Round(_Theme_EaseOutCubic($fT) * $iW))
+            If $iWidth < 0 Then $iWidth = 0
+            If $iWidth > $iW Then $iWidth = $iW
+            $aOut[0] = $iWidth
+            $aOut[1] = $iToColor
+        Case "fade"
+            $aOut[0] = $iW
+            $aOut[1] = _Theme_ColorLerp($iFromColor, $iToColor, $fT)
+        Case Else ; "none"
+            $aOut[0] = $iW
+            $aOut[1] = $iToColor
+    EndSwitch
+    Return $aOut
+EndFunc
+
+; Name:        _Theme_ColorBarAttach
+; Description: Registers the color-bar label control and its geometry with the animator.
+;              Call after the widget's bar control is created, and again on live-apply if
+;              the geometry changes. Resets any in-flight animation (geometry is the anchor
+;              every frame restores to) and seeds the tracked displayed color to the "no
+;              color" fill so the first _Theme_ColorBarSet has a sane fade source.
+; Parameters:  $idLbl - color-bar label control id
+;              $iX,$iY,$iW,$iH - the bar's exact attached geometry
+Func _Theme_ColorBarAttach($idLbl, $iX, $iY, $iW, $iH)
+    $__g_CB_idLbl = $idLbl
+    $__g_CB_iX = $iX
+    $__g_CB_iY = $iY
+    $__g_CB_iW = $iW
+    $__g_CB_iH = $iH
+    $__g_CB_bActive = False
+    $__g_CB_sMode = "none"
+    $__g_CB_hStepTimer = 0
+    $__g_CB_iCurColor = $THEME_BG_MAIN
+EndFunc
+
+; Name:        __Theme_ColorBarSetWidth
+; Description: Repositions the bar label to the given width at the attached x/y/height.
+;              GUICtrlSetPos on a hidden GUI is safe (the widget may be hidden by TAH
+;              mid-animation). No-op when unattached.
+Func __Theme_ColorBarSetWidth($iWidth)
+    If $__g_CB_idLbl = 0 Then Return
+    GUICtrlSetPos($__g_CB_idLbl, $__g_CB_iX, $__g_CB_iY, $iWidth, $__g_CB_iH)
+EndFunc
+
+; Name:        __Theme_ColorBarSnap
+; Description: Instantly settles the bar to $iColor at full attached width, quiesces the
+;              state machine, and records the displayed color. This is both the instant
+;              path and the "final frame" / snap-complete path, so completion always
+;              restores the exact attached geometry.
+Func __Theme_ColorBarSnap($iColor)
+    $__g_CB_bActive = False
+    $__g_CB_sMode = "none"
+    If $__g_CB_idLbl <> 0 Then
+        __Theme_ColorBarSetWidth($__g_CB_iW)
+        GUICtrlSetBkColor($__g_CB_idLbl, $iColor)
+    EndIf
+    $__g_CB_iCurColor = $iColor
+EndFunc
+
+; Name:        _Theme_ColorBarSet
+; Description: Sets the color bar to $iColor. Instant GUICtrlSetBkColor (today's behavior)
+;              when not attached, animations are off, mode is "none", $bAnimate is False,
+;              the bar has zero width, the duration is degenerate, or the target already
+;              matches what's shown. Otherwise starts the grow or fade state machine toward
+;              $iColor. A set that arrives mid-animation snap-completes the running one to
+;              its target first, then starts fresh from the current visual state.
+; Parameters:  $iColor   - target color (0xRRGGBB); already resolved by the caller (equals
+;                          $iBgColor in the "no color" case)
+;              $iBgColor - the "no color" fill, today $THEME_BG_MAIN
+;              $bAnimate - False forces the instant path (init / settings-apply)
+Func _Theme_ColorBarSet($iColor, $iBgColor = $THEME_BG_MAIN, $bAnimate = True)
+    $__g_CB_iBgColor = $iBgColor
+
+    ; Not attached: the module owns no control — just track the color for callers/tests.
+    If $__g_CB_idLbl = 0 Then
+        $__g_CB_bActive = False
+        $__g_CB_iCurColor = $iColor
+        Return
+    EndIf
+
+    Local $sMode = _Cfg_GetWidgetColorBarAnim()
+
+    ; Instant path — byte-for-byte today's behavior.
+    If Not $bAnimate Or $sMode = "none" Or Not _Cfg_GetAnimationsEnabled() _
+            Or $__g_CB_iW <= 0 Or $iColor = $__g_CB_iCurColor Then
+        __Theme_ColorBarSnap($iColor)
+        Return
+    EndIf
+
+    ; Mid-flight retrigger: snap-complete the old animation, then start fresh.
+    If $__g_CB_bActive Then __Theme_ColorBarSnap($__g_CB_iToColor)
+
+    Local $iDuration = _Cfg_GetWidgetColorBarAnimDuration()
+    If $iDuration < 1 Then
+        __Theme_ColorBarSnap($iColor)
+        Return
+    EndIf
+
+    $__g_CB_sMode = $sMode
+    $__g_CB_iFromColor = $__g_CB_iCurColor
+    $__g_CB_iToColor = $iColor
+    $__g_CB_iDurationMs = $iDuration
+    $__g_CB_bActive = True
+    $__g_CB_hTimer = TimerInit()
+    $__g_CB_hStepTimer = 0 ; first tick applies immediately
+
+    ; Grow: set the target color up front and start from width 0.
+    ; Fade: keep full width; the tick lerps the color from the current displayed value.
+    If $sMode = "grow" Then
+        GUICtrlSetBkColor($__g_CB_idLbl, $iColor)
+        __Theme_ColorBarSetWidth(0)
+        $__g_CB_iCurColor = $iColor
+    EndIf
+EndFunc
+
+; Name:        _Theme_ColorBarTick
+; Description: Advances the color-bar animation one TimerDiff-gated (~16 ms) step. No-op
+;              when idle. Call from _ProcessTimersAndSleep. On the final frame it snaps to
+;              the exact attached geometry + target color and quiesces.
+Func _Theme_ColorBarTick()
+    If Not $__g_CB_bActive Then Return
+    If $__g_CB_idLbl = 0 Then
+        $__g_CB_bActive = False
+        Return
+    EndIf
+    If $__g_CB_hStepTimer <> 0 And TimerDiff($__g_CB_hStepTimer) < $__CB_STEP_MS Then Return
+    $__g_CB_hStepTimer = TimerInit()
+
+    Local $iElapsed = TimerDiff($__g_CB_hTimer)
+    If $iElapsed >= $__g_CB_iDurationMs Then
+        __Theme_ColorBarSnap($__g_CB_iToColor)
+        Return
+    EndIf
+
+    Local $aFrame = __Theme_ColorBarFrame($__g_CB_sMode, $iElapsed, $__g_CB_iDurationMs, _
+            $__g_CB_iW, $__g_CB_iFromColor, $__g_CB_iToColor)
+    Switch $__g_CB_sMode
+        Case "grow"
+            __Theme_ColorBarSetWidth($aFrame[0])
+            $__g_CB_iCurColor = $__g_CB_iToColor
+        Case "fade"
+            GUICtrlSetBkColor($__g_CB_idLbl, $aFrame[1])
+            $__g_CB_iCurColor = $aFrame[1]
+    EndSwitch
+EndFunc
+
+; Name:        _Theme_ColorBarIsAnimating
+; Description: True while a color-bar animation is running (OR-ed into the main loop's
+;              fast 5 ms sleep tier so the sweep stays smooth).
+Func _Theme_ColorBarIsAnimating()
+    Return $__g_CB_bActive
+EndFunc

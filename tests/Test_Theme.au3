@@ -308,8 +308,151 @@ Func _RunTest_Theme()
     Local $aMixed[3][6] = [[True, False, 0, 1040, 200, 1080], [False, True, 0, 1040, 200, 1080], [True, True, 120, 1055, 300, 1075]]
     _Test_AssertTrue("Mixed stack with one burier -> occluded", _Theme_IsWidgetOccluded($iWL, $iWT, $iWR, $iWB, $aMixed, 3))
 
+    ; -- Widget color-bar animation (pure frame math + tick state machine) --
+    __Test_Theme_ColorBar()
+
     ; -- Concrete real-window regression (drives the actual mechanism, not just the math) --
     __Test_Theme_TopmostOcclusionRegression()
+EndFunc
+
+; Name:        __Test_Theme_ColorBar
+; Description: Covers the widget color-bar animator (t6-c). Pure helpers (_Theme_ColorLerp,
+;              _Theme_EaseOutCubic, __Theme_ColorBarFrame) are headless truth tables; the
+;              tick state machine is driven against a real off-screen scratch GUI + label so
+;              the GUICtrlSetPos/SetBkColor paths execute. All config touched is saved and
+;              restored; the animator is detached at the end so no state leaks to other tests.
+Func __Test_Theme_ColorBar()
+    ; ---- _Theme_ColorLerp: per-channel RGB, clamped endpoints ----
+    _Test_AssertEqual("ColorLerp t=0 -> from", _Theme_ColorLerp(0x000000, 0xFFFFFF, 0), 0x000000)
+    _Test_AssertEqual("ColorLerp t=1 -> to", _Theme_ColorLerp(0x000000, 0xFFFFFF, 1), 0xFFFFFF)
+    _Test_AssertEqual("ColorLerp t=0 keeps from color", _Theme_ColorLerp(0x102030, 0x405060, 0), 0x102030)
+    _Test_AssertEqual("ColorLerp t=1 keeps to color", _Theme_ColorLerp(0x102030, 0x405060, 1), 0x405060)
+    ; Midpoint per channel: 0 -> 100 (0x64) at 0.5 = 50 (0x32) on every channel
+    _Test_AssertEqual("ColorLerp midpoint per-channel", _Theme_ColorLerp(0x000000, 0x646464, 0.5), 0x323232)
+    ; Channels are independent: R 0xFF->0x00, G 0x00->0xFF at 0.5 -> 0x80,0x80,0x00
+    _Test_AssertEqual("ColorLerp independent channels", _Theme_ColorLerp(0xFF0000, 0x00FF00, 0.5), 0x808000)
+    ; Clamp out-of-range t to the endpoints
+    _Test_AssertEqual("ColorLerp t>1 clamps to 'to'", _Theme_ColorLerp(0x000000, 0xFFFFFF, 2), 0xFFFFFF)
+    _Test_AssertEqual("ColorLerp t<0 clamps to 'from'", _Theme_ColorLerp(0x112233, 0xFFFFFF, -1), 0x112233)
+
+    ; ---- _Theme_EaseOutCubic: endpoints, known midpoint, monotonicity, clamp ----
+    _Test_AssertEqual("EaseOutCubic(0) = 0", _Theme_EaseOutCubic(0), 0)
+    _Test_AssertEqual("EaseOutCubic(1) = 1", _Theme_EaseOutCubic(1), 1)
+    _Test_AssertEqual("EaseOutCubic(0.5) = 0.875", _Theme_EaseOutCubic(0.5), 0.875)
+    _Test_AssertEqual("EaseOutCubic clamps t<0 to 0", _Theme_EaseOutCubic(-0.5), 0)
+    _Test_AssertEqual("EaseOutCubic clamps t>1 to 1", _Theme_EaseOutCubic(2), 1)
+    _Test_AssertTrue("EaseOutCubic monotone 0.25<0.5", _Theme_EaseOutCubic(0.25) < _Theme_EaseOutCubic(0.5))
+    _Test_AssertTrue("EaseOutCubic monotone 0.5<0.75", _Theme_EaseOutCubic(0.5) < _Theme_EaseOutCubic(0.75))
+    ; Ease-OUT: front-loaded — at t=0.5 it is already past halfway
+    _Test_AssertTrue("EaseOutCubic front-loaded (0.5 -> >0.5)", _Theme_EaseOutCubic(0.5) > 0.5)
+
+    ; ---- __Theme_ColorBarFrame: grow width sweep 0..W, monotone; color constant ----
+    Local $aF0 = __Theme_ColorBarFrame("grow", 0, 300, 100, 0x000000, 0x646464)
+    _Test_AssertEqual("Grow t=0 width 0", $aF0[0], 0)
+    _Test_AssertEqual("Grow t=0 color = target", $aF0[1], 0x646464)
+    Local $aFmid = __Theme_ColorBarFrame("grow", 150, 300, 100, 0x000000, 0x646464)
+    _Test_AssertTrue("Grow mid width in (0,W)", $aFmid[0] > 0 And $aFmid[0] < 100)
+    _Test_AssertEqual("Grow mid color = target", $aFmid[1], 0x646464)
+    Local $aFend = __Theme_ColorBarFrame("grow", 300, 300, 100, 0x000000, 0x646464)
+    _Test_AssertEqual("Grow t=duration width = W", $aFend[0], 100)
+    Local $aFpast = __Theme_ColorBarFrame("grow", 400, 300, 100, 0x000000, 0x646464)
+    _Test_AssertEqual("Grow t>duration width = W (clamped)", $aFpast[0], 100)
+    ; Monotone increasing width across the sweep
+    Local $aFq1 = __Theme_ColorBarFrame("grow", 75, 300, 100, 0x000000, 0x646464)
+    Local $aFq3 = __Theme_ColorBarFrame("grow", 225, 300, 100, 0x000000, 0x646464)
+    _Test_AssertTrue("Grow width monotone q1<mid", $aFq1[0] < $aFmid[0])
+    _Test_AssertTrue("Grow width monotone mid<q3", $aFmid[0] < $aFq3[0])
+
+    ; ---- __Theme_ColorBarFrame: fade holds full width, lerps color from->to ----
+    Local $aD0 = __Theme_ColorBarFrame("fade", 0, 300, 100, 0x000000, 0x646464)
+    _Test_AssertEqual("Fade t=0 width = W", $aD0[0], 100)
+    _Test_AssertEqual("Fade t=0 color = from", $aD0[1], 0x000000)
+    Local $aDmid = __Theme_ColorBarFrame("fade", 150, 300, 100, 0x000000, 0x646464)
+    _Test_AssertEqual("Fade mid color = lerp midpoint", $aDmid[1], 0x323232)
+    Local $aDend = __Theme_ColorBarFrame("fade", 300, 300, 100, 0x000000, 0x646464)
+    _Test_AssertEqual("Fade t=duration color = to", $aDend[1], 0x646464)
+
+    ; ---- __Theme_ColorBarFrame: none is the settled full-width target; degenerate duration ----
+    Local $aN = __Theme_ColorBarFrame("none", 0, 300, 100, 0x000000, 0x646464)
+    _Test_AssertEqual("None width = W", $aN[0], 100)
+    _Test_AssertEqual("None color = target", $aN[1], 0x646464)
+    Local $aZ = __Theme_ColorBarFrame("grow", 0, 0, 100, 0x000000, 0x646464)
+    _Test_AssertEqual("Grow duration<=0 -> final frame width W", $aZ[0], 100)
+
+    ; ---- Tick is a safe no-op when idle (no attach, nothing running) ----
+    _Theme_ColorBarAttach(0, 0, 0, 0, 0) ; ensure detached
+    _Test_AssertFalse("Idle: not animating", _Theme_ColorBarIsAnimating())
+    _Theme_ColorBarTick()
+    _Test_AssertFalse("Idle tick: still not animating", _Theme_ColorBarIsAnimating())
+
+    ; ---- Unattached set: tracks color, never animates ----
+    _Theme_ColorBarSet(0xABCDEF, $THEME_BG_MAIN, True)
+    _Test_AssertFalse("Unattached set: not animating", _Theme_ColorBarIsAnimating())
+    _Test_AssertEqual("Unattached set: tracks color", $__g_CB_iCurColor, 0xABCDEF)
+
+    ; ---- State machine against a real off-screen scratch GUI + label ----
+    Local $sAnimMode = _Cfg_GetWidgetColorBarAnim()
+    Local $iAnimDur = _Cfg_GetWidgetColorBarAnimDuration()
+    Local $bAnimOn = _Cfg_GetAnimationsEnabled()
+
+    Local $hCB = GUICreate("t6c_colorbar", 130, 46, -4000, -4000, $WS_POPUP, $WS_EX_TOOLWINDOW)
+    Local $idBar = GUICtrlCreateLabel("", 0, 40, 100, 6)
+    _Theme_ColorBarAttach($idBar, 0, 40, 100, 6)
+
+    ; Instant path: animations disabled -> snap, not animating
+    _Cfg_SetAnimationsEnabled(False)
+    _Cfg_SetWidgetColorBarAnim("grow")
+    _Theme_ColorBarSet(0x123456, $THEME_BG_MAIN, True)
+    _Test_AssertFalse("Anims off: not animating", _Theme_ColorBarIsAnimating())
+    _Test_AssertEqual("Anims off: color snapped", $__g_CB_iCurColor, 0x123456)
+
+    ; Instant path: mode none -> snap, not animating
+    _Cfg_SetAnimationsEnabled(True)
+    _Cfg_SetWidgetColorBarAnim("none")
+    _Theme_ColorBarSet(0x654321, $THEME_BG_MAIN, True)
+    _Test_AssertFalse("Mode none: not animating", _Theme_ColorBarIsAnimating())
+    _Test_AssertEqual("Mode none: color snapped", $__g_CB_iCurColor, 0x654321)
+
+    ; Instant path: $bAnimate = False forces snap even with grow enabled
+    _Cfg_SetWidgetColorBarAnim("grow")
+    _Theme_ColorBarSet(0x0A0B0C, $THEME_BG_MAIN, False)
+    _Test_AssertFalse("Animate=False: not animating", _Theme_ColorBarIsAnimating())
+    _Test_AssertEqual("Animate=False: color snapped", $__g_CB_iCurColor, 0x0A0B0C)
+
+    ; Grow start: target differs from displayed -> animation arms
+    _Cfg_SetWidgetColorBarAnimDuration(2000)
+    _Theme_ColorBarSet(0x00FF00, $THEME_BG_MAIN, True)
+    _Test_AssertTrue("Grow: animating after set", _Theme_ColorBarIsAnimating())
+    _Test_AssertEqual("Grow: running mode is grow", $__g_CB_sMode, "grow")
+    _Test_AssertEqual("Grow: from = prior displayed color", $__g_CB_iFromColor, 0x0A0B0C)
+    _Test_AssertEqual("Grow: to = requested target", $__g_CB_iToColor, 0x00FF00)
+
+    ; One tick mid-flight keeps it animating (2000ms budget, ~0ms elapsed)
+    _Theme_ColorBarTick()
+    _Test_AssertTrue("Grow: still animating after one mid tick", _Theme_ColorBarIsAnimating())
+
+    ; Retrigger mid-animation: snap-completes old target, starts fresh from it
+    _Theme_ColorBarSet(0x0000FF, $THEME_BG_MAIN, True)
+    _Test_AssertTrue("Retrigger: still animating", _Theme_ColorBarIsAnimating())
+    _Test_AssertEqual("Retrigger: from = old target (snapped)", $__g_CB_iFromColor, 0x00FF00)
+    _Test_AssertEqual("Retrigger: to = new target", $__g_CB_iToColor, 0x0000FF)
+
+    ; Completion: short duration + elapsed past it -> tick snaps and quiesces
+    _Cfg_SetWidgetColorBarAnim("fade")
+    _Cfg_SetWidgetColorBarAnimDuration(50)
+    _Theme_ColorBarSet(0x445566, $THEME_BG_MAIN, True)
+    _Test_AssertTrue("Fade: animating after set", _Theme_ColorBarIsAnimating())
+    Sleep(70)
+    _Theme_ColorBarTick()
+    _Test_AssertFalse("Fade: quiesced after duration elapses", _Theme_ColorBarIsAnimating())
+    _Test_AssertEqual("Fade: settled on target color", $__g_CB_iCurColor, 0x445566)
+
+    ; Cleanup: detach animator, restore config, destroy scratch GUI
+    _Theme_ColorBarAttach(0, 0, 0, 0, 0)
+    _Cfg_SetWidgetColorBarAnim($sAnimMode)
+    _Cfg_SetWidgetColorBarAnimDuration($iAnimDur)
+    _Cfg_SetAnimationsEnabled($bAnimOn)
+    If WinExists($hCB) Then GUIDelete($hCB)
 EndFunc
 
 ; Name:        __Test_Theme_IsAbove
