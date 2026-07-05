@@ -29,6 +29,8 @@ Global $__g_Cfg_iWidgetHeight      = 0  ; 0 = auto (taskbar height)
 Global $__g_Cfg_bWidgetDragEnabled = False
 Global $__g_Cfg_bWidgetColorBar   = False
 Global $__g_Cfg_iWidgetColorBarH  = 2
+Global $__g_Cfg_sWidgetColorBarAnim = "grow"       ; none|grow|fade
+Global $__g_Cfg_iWidgetColorBarAnimDuration = 300  ; ms
 Global $__g_Cfg_bTrayIconMode     = False
 Global $__g_Cfg_bQuickAccessEnabled = False
 Global $__g_Cfg_bStartMinimized    = False
@@ -94,7 +96,7 @@ Global $__g_Cfg_sHotkeyDeleteDesktop = ""
 Global $__g_Cfg_sHotkeyRenameDesktop = "^!r"
 Global $__g_Cfg_sHotkeyCloseWindow  = ""
 Global $__g_Cfg_sHotkeyMinimizeWindow = ""
-Global $__g_Cfg_sHotkeyToggleCarousel = ""
+Global $__g_Cfg_sHotkeyToggleSlideshow = ""
 Global $__g_Cfg_sHotkeyTaskView     = ""
 Global $__g_Cfg_sHotkeyToggleRules  = ""
 Global $__g_Cfg_sHotkeyLoadNextProfile = ""
@@ -254,12 +256,25 @@ Global $__g_Cfg_iHooksTimeout          = 10000
 ; [Profiles]
 Global $__g_Cfg_bProfilesEnabled       = False
 
-; [Carousel]
-Global $__g_Cfg_bCarouselEnabled       = False
-Global $__g_Cfg_iCarouselInterval      = 20000
-Global $__g_Cfg_bCarouselShowInMenu    = True
-Global $__g_Cfg_bNotifyCarouselToggle  = True
-Global $__g_bCarouselActive            = False
+; [Slideshow] (supersedes the former [Carousel] — migrated via fallback read, see _Cfg_Load)
+Global $__g_Cfg_bSlideshowEnabled            = False
+Global $__g_Cfg_iSlideshowInterval           = 20000
+Global $__g_Cfg_bSlideshowShowInMenu         = True
+Global $__g_Cfg_bNotifySlideshowToggle       = True
+Global $__g_Cfg_sSlideshowSelectionMode      = "all"      ; all|even|odd|name_contains|custom
+Global $__g_Cfg_sSlideshowDirection          = "forward"  ; forward|backward
+Global $__g_Cfg_sSlideshowNameFilter         = ""
+Global $__g_Cfg_sSlideshowSequence           = ""
+Global $__g_Cfg_sSlideshowDesktopIntervals   = ""
+Global $__g_Cfg_sSlideshowLoopMode           = "infinite" ; infinite|count|duration
+Global $__g_Cfg_iSlideshowLoopCount          = 3
+Global $__g_Cfg_iSlideshowLoopDuration       = 300
+Global $__g_Cfg_bSlideshowAutostart          = False
+Global $__g_Cfg_iSlideshowAutostartDelay     = 5000
+Global $__g_Cfg_bSlideshowBreakOnManualSwitch = True
+Global $__g_Cfg_bSlideshowBreakOnWidgetClick = True
+Global $__g_Cfg_bSlideshowBreakOnHotkey      = True
+Global $__g_Cfg_bSlideshowBreakOnAnyInput    = False
 
 ; [Tray]
 Global $__g_Cfg_sTrayLeftClick          = "menu"
@@ -332,6 +347,8 @@ Func _Cfg_Load()
     $__g_Cfg_bWidgetDragEnabled = __Cfg_ReadBool($f, "General", "widget_drag_enabled", False)
     $__g_Cfg_bWidgetColorBar   = __Cfg_ReadBool($f, "General", "widget_color_bar", False)
     $__g_Cfg_iWidgetColorBarH  = __Cfg_ReadInt($f, "General", "widget_color_bar_height", 2, 1, 10)
+    $__g_Cfg_sWidgetColorBarAnim = __Cfg_ReadEnum($f, "General", "widget_color_bar_anim", "grow", "none|grow|fade")
+    $__g_Cfg_iWidgetColorBarAnimDuration = __Cfg_ReadInt($f, "General", "widget_color_bar_anim_duration", 300, 50, 2000)
     $__g_Cfg_bTrayIconMode     = __Cfg_ReadBool($f, "General", "tray_icon_mode", False)
     $__g_Cfg_bQuickAccessEnabled = __Cfg_ReadBool($f, "General", "quick_access_enabled", False)
     $__g_Cfg_bStartMinimized    = __Cfg_ReadBool($f, "General", "start_minimized", False)
@@ -398,7 +415,8 @@ Func _Cfg_Load()
     $__g_Cfg_sHotkeyRenameDesktop = IniRead($f, "Hotkeys", "hotkey_rename_desktop", "^!r")
     $__g_Cfg_sHotkeyCloseWindow  = IniRead($f, "Hotkeys", "hotkey_close_window", "")
     $__g_Cfg_sHotkeyMinimizeWindow = IniRead($f, "Hotkeys", "hotkey_minimize_window", "")
-    $__g_Cfg_sHotkeyToggleCarousel = IniRead($f, "Hotkeys", "hotkey_toggle_carousel", "")
+    ; Migration: read new key, falling back to the legacy hotkey_toggle_carousel default
+    $__g_Cfg_sHotkeyToggleSlideshow = IniRead($f, "Hotkeys", "hotkey_toggle_slideshow", IniRead($f, "Hotkeys", "hotkey_toggle_carousel", ""))
     $__g_Cfg_sHotkeyTaskView     = IniRead($f, "Hotkeys", "hotkey_task_view", "")
     $__g_Cfg_sHotkeyToggleRules  = IniRead($f, "Hotkeys", "hotkey_toggle_rules", "")
     $__g_Cfg_sHotkeyLoadNextProfile = IniRead($f, "Hotkeys", "hotkey_load_next_profile", "")
@@ -560,16 +578,35 @@ Func _Cfg_Load()
     ; [Profiles]
     $__g_Cfg_bProfilesEnabled        = __Cfg_ReadBool($f, "Profiles", "profiles_enabled", False)
 
-    ; [Carousel]
-    $__g_Cfg_bCarouselEnabled      = __Cfg_ReadBool($f, "Carousel", "carousel_enabled", False)
-    $__g_Cfg_iCarouselInterval     = __Cfg_ReadInt($f, "Carousel", "carousel_interval", 20000, 3000, 300000)
-    $__g_Cfg_bCarouselShowInMenu   = __Cfg_ReadBool($f, "Carousel", "carousel_show_in_menu", True)
-    $__g_Cfg_bNotifyCarouselToggle = __Cfg_ReadBool($f, "Carousel", "notify_carousel_toggle", True)
+    ; [Slideshow] (supersedes [Carousel]) — each migrated key reads [Slideshow] first,
+    ; falling back to the legacy [Carousel] value as its default (Decision 1). Legacy
+    ; interval is re-clamped to the widened 1000-3600000 range on migration.
+    Local $iMigInterval = __Cfg_ReadInt($f, "Carousel", "carousel_interval", 20000, 1000, 3600000)
+    $__g_Cfg_bSlideshowEnabled      = __Cfg_ReadBool($f, "Slideshow", "slideshow_enabled", __Cfg_ReadBool($f, "Carousel", "carousel_enabled", False))
+    $__g_Cfg_iSlideshowInterval     = __Cfg_ReadInt($f, "Slideshow", "slideshow_interval", $iMigInterval, 1000, 3600000)
+    $__g_Cfg_bSlideshowShowInMenu   = __Cfg_ReadBool($f, "Slideshow", "slideshow_show_in_menu", __Cfg_ReadBool($f, "Carousel", "carousel_show_in_menu", True))
+    $__g_Cfg_bNotifySlideshowToggle = __Cfg_ReadBool($f, "Slideshow", "notify_slideshow_toggle", __Cfg_ReadBool($f, "Carousel", "notify_carousel_toggle", True))
+    $__g_Cfg_sSlideshowSelectionMode = __Cfg_ReadEnum($f, "Slideshow", "slideshow_selection_mode", "all", "all|even|odd|name_contains|custom")
+    $__g_Cfg_sSlideshowDirection    = __Cfg_ReadEnum($f, "Slideshow", "slideshow_direction", "forward", "forward|backward")
+    $__g_Cfg_sSlideshowNameFilter   = __Cfg_ClampStringLen(IniRead($f, "Slideshow", "slideshow_name_filter", ""), 128)
+    $__g_Cfg_sSlideshowSequence     = __Cfg_ClampStringLen(IniRead($f, "Slideshow", "slideshow_sequence", ""), 256)
+    $__g_Cfg_sSlideshowDesktopIntervals = __Cfg_ClampStringLen(IniRead($f, "Slideshow", "slideshow_desktop_intervals", ""), 512)
+    $__g_Cfg_sSlideshowLoopMode     = __Cfg_ReadEnum($f, "Slideshow", "slideshow_loop_mode", "infinite", "infinite|count|duration")
+    $__g_Cfg_iSlideshowLoopCount    = __Cfg_ReadInt($f, "Slideshow", "slideshow_loop_count", 3, 1, 1000)
+    $__g_Cfg_iSlideshowLoopDuration = __Cfg_ReadInt($f, "Slideshow", "slideshow_loop_duration", 300, 5, 86400)
+    $__g_Cfg_bSlideshowAutostart    = __Cfg_ReadBool($f, "Slideshow", "slideshow_autostart", False)
+    $__g_Cfg_iSlideshowAutostartDelay = __Cfg_ReadInt($f, "Slideshow", "slideshow_autostart_delay", 5000, 0, 3600000)
+    $__g_Cfg_bSlideshowBreakOnManualSwitch = __Cfg_ReadBool($f, "Slideshow", "slideshow_break_on_manual_switch", True)
+    $__g_Cfg_bSlideshowBreakOnWidgetClick = __Cfg_ReadBool($f, "Slideshow", "slideshow_break_on_widget_click", True)
+    $__g_Cfg_bSlideshowBreakOnHotkey = __Cfg_ReadBool($f, "Slideshow", "slideshow_break_on_hotkey", True)
+    $__g_Cfg_bSlideshowBreakOnAnyInput = __Cfg_ReadBool($f, "Slideshow", "slideshow_break_on_any_input", False)
 
     ; [Tray]
     $__g_Cfg_sTrayLeftClick          = __Cfg_ReadEnum($f, "Tray", "tray_left_click", "menu", "menu|toggle_list|next_desktop|nothing")
     $__g_Cfg_sTrayDoubleClick        = __Cfg_ReadEnum($f, "Tray", "tray_double_click", "settings", "settings|toggle_list|menu|nothing")
-    $__g_Cfg_sTrayMiddleClick        = __Cfg_ReadEnum($f, "Tray", "tray_middle_click", "toggle_list", "toggle_list|add_desktop|toggle_carousel|nothing")
+    ; toggle_carousel accepted for migration then normalized to toggle_slideshow (Decision 1)
+    $__g_Cfg_sTrayMiddleClick        = __Cfg_ReadEnum($f, "Tray", "tray_middle_click", "toggle_list", "toggle_list|add_desktop|toggle_slideshow|toggle_carousel|nothing")
+    If $__g_Cfg_sTrayMiddleClick = "toggle_carousel" Then $__g_Cfg_sTrayMiddleClick = "toggle_slideshow"
     $__g_Cfg_bTrayTooltipShowLabel   = __Cfg_ReadBool($f, "Tray", "tray_tooltip_show_label", True)
     $__g_Cfg_bTrayTooltipShowCount   = __Cfg_ReadBool($f, "Tray", "tray_tooltip_show_count", False)
     $__g_Cfg_bTrayMenuShowList       = __Cfg_ReadBool($f, "Tray", "tray_menu_show_list", True)
@@ -609,6 +646,8 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "General", "widget_drag_enabled", $__g_Cfg_bWidgetDragEnabled)
     __Cfg_WriteBool($f, "General", "widget_color_bar", $__g_Cfg_bWidgetColorBar)
     IniWrite($f, "General", "widget_color_bar_height", $__g_Cfg_iWidgetColorBarH)
+    IniWrite($f, "General", "widget_color_bar_anim", $__g_Cfg_sWidgetColorBarAnim)
+    IniWrite($f, "General", "widget_color_bar_anim_duration", $__g_Cfg_iWidgetColorBarAnimDuration)
     __Cfg_WriteBool($f, "General", "tray_icon_mode", $__g_Cfg_bTrayIconMode)
     __Cfg_WriteBool($f, "General", "quick_access_enabled", $__g_Cfg_bQuickAccessEnabled)
     __Cfg_WriteBool($f, "General", "start_minimized", $__g_Cfg_bStartMinimized)
@@ -675,7 +714,8 @@ Func _Cfg_Save()
     IniWrite($f, "Hotkeys", "hotkey_rename_desktop", $__g_Cfg_sHotkeyRenameDesktop)
     IniWrite($f, "Hotkeys", "hotkey_close_window", $__g_Cfg_sHotkeyCloseWindow)
     IniWrite($f, "Hotkeys", "hotkey_minimize_window", $__g_Cfg_sHotkeyMinimizeWindow)
-    IniWrite($f, "Hotkeys", "hotkey_toggle_carousel", $__g_Cfg_sHotkeyToggleCarousel)
+    IniWrite($f, "Hotkeys", "hotkey_toggle_slideshow", $__g_Cfg_sHotkeyToggleSlideshow)
+    IniDelete($f, "Hotkeys", "hotkey_toggle_carousel") ; drop legacy key on save (Decision 1)
     IniWrite($f, "Hotkeys", "hotkey_task_view", $__g_Cfg_sHotkeyTaskView)
     IniWrite($f, "Hotkeys", "hotkey_toggle_rules", $__g_Cfg_sHotkeyToggleRules)
     IniWrite($f, "Hotkeys", "hotkey_load_next_profile", $__g_Cfg_sHotkeyLoadNextProfile)
@@ -829,11 +869,26 @@ Func _Cfg_Save()
     ; [Profiles]
     __Cfg_WriteBool($f, "Profiles", "profiles_enabled", $__g_Cfg_bProfilesEnabled)
 
-    ; [Carousel]
-    __Cfg_WriteBool($f, "Carousel", "carousel_enabled", $__g_Cfg_bCarouselEnabled)
-    IniWrite($f, "Carousel", "carousel_interval", $__g_Cfg_iCarouselInterval)
-    __Cfg_WriteBool($f, "Carousel", "carousel_show_in_menu", $__g_Cfg_bCarouselShowInMenu)
-    __Cfg_WriteBool($f, "Carousel", "notify_carousel_toggle", $__g_Cfg_bNotifyCarouselToggle)
+    ; [Slideshow] (supersedes [Carousel])
+    __Cfg_WriteBool($f, "Slideshow", "slideshow_enabled", $__g_Cfg_bSlideshowEnabled)
+    IniWrite($f, "Slideshow", "slideshow_interval", $__g_Cfg_iSlideshowInterval)
+    __Cfg_WriteBool($f, "Slideshow", "slideshow_show_in_menu", $__g_Cfg_bSlideshowShowInMenu)
+    __Cfg_WriteBool($f, "Slideshow", "notify_slideshow_toggle", $__g_Cfg_bNotifySlideshowToggle)
+    IniWrite($f, "Slideshow", "slideshow_selection_mode", $__g_Cfg_sSlideshowSelectionMode)
+    IniWrite($f, "Slideshow", "slideshow_direction", $__g_Cfg_sSlideshowDirection)
+    IniWrite($f, "Slideshow", "slideshow_name_filter", $__g_Cfg_sSlideshowNameFilter)
+    IniWrite($f, "Slideshow", "slideshow_sequence", $__g_Cfg_sSlideshowSequence)
+    IniWrite($f, "Slideshow", "slideshow_desktop_intervals", $__g_Cfg_sSlideshowDesktopIntervals)
+    IniWrite($f, "Slideshow", "slideshow_loop_mode", $__g_Cfg_sSlideshowLoopMode)
+    IniWrite($f, "Slideshow", "slideshow_loop_count", $__g_Cfg_iSlideshowLoopCount)
+    IniWrite($f, "Slideshow", "slideshow_loop_duration", $__g_Cfg_iSlideshowLoopDuration)
+    __Cfg_WriteBool($f, "Slideshow", "slideshow_autostart", $__g_Cfg_bSlideshowAutostart)
+    IniWrite($f, "Slideshow", "slideshow_autostart_delay", $__g_Cfg_iSlideshowAutostartDelay)
+    __Cfg_WriteBool($f, "Slideshow", "slideshow_break_on_manual_switch", $__g_Cfg_bSlideshowBreakOnManualSwitch)
+    __Cfg_WriteBool($f, "Slideshow", "slideshow_break_on_widget_click", $__g_Cfg_bSlideshowBreakOnWidgetClick)
+    __Cfg_WriteBool($f, "Slideshow", "slideshow_break_on_hotkey", $__g_Cfg_bSlideshowBreakOnHotkey)
+    __Cfg_WriteBool($f, "Slideshow", "slideshow_break_on_any_input", $__g_Cfg_bSlideshowBreakOnAnyInput)
+    IniDelete($f, "Carousel") ; drop legacy section on save (Decision 1)
 
     ; [Tray]
     IniWrite($f, "Tray", "tray_left_click", $__g_Cfg_sTrayLeftClick)
@@ -887,6 +942,8 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "General", "widget_drag_enabled", False)
     __Cfg_DefaultBool($f, "General", "widget_color_bar", False)
     __Cfg_DefaultVal($f, "General", "widget_color_bar_height", 2)
+    __Cfg_DefaultVal($f, "General", "widget_color_bar_anim", "grow")
+    __Cfg_DefaultVal($f, "General", "widget_color_bar_anim_duration", 300)
     __Cfg_DefaultBool($f, "General", "tray_icon_mode", False)
     __Cfg_DefaultBool($f, "General", "quick_access_enabled", False)
     __Cfg_DefaultBool($f, "General", "start_minimized", False)
@@ -949,7 +1006,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_rename_desktop", "^!r")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_close_window", "")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_minimize_window", "")
-    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_carousel", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_slideshow", "")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_task_view", "")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_rules", "")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_load_next_profile", "")
@@ -1090,11 +1147,25 @@ Func _Cfg_WriteDefaults()
     ; [Profiles]
     __Cfg_DefaultBool($f, "Profiles", "profiles_enabled", False)
 
-    ; [Carousel]
-    __Cfg_DefaultBool($f, "Carousel", "carousel_enabled", False)
-    __Cfg_DefaultVal($f, "Carousel", "carousel_interval", 20000)
-    __Cfg_DefaultBool($f, "Carousel", "carousel_show_in_menu", True)
-    __Cfg_DefaultBool($f, "Carousel", "notify_carousel_toggle", True)
+    ; [Slideshow] (supersedes [Carousel])
+    __Cfg_DefaultBool($f, "Slideshow", "slideshow_enabled", False)
+    __Cfg_DefaultVal($f, "Slideshow", "slideshow_interval", 20000)
+    __Cfg_DefaultBool($f, "Slideshow", "slideshow_show_in_menu", True)
+    __Cfg_DefaultBool($f, "Slideshow", "notify_slideshow_toggle", True)
+    __Cfg_DefaultVal($f, "Slideshow", "slideshow_selection_mode", "all")
+    __Cfg_DefaultVal($f, "Slideshow", "slideshow_direction", "forward")
+    __Cfg_DefaultVal($f, "Slideshow", "slideshow_name_filter", "")
+    __Cfg_DefaultVal($f, "Slideshow", "slideshow_sequence", "")
+    __Cfg_DefaultVal($f, "Slideshow", "slideshow_desktop_intervals", "")
+    __Cfg_DefaultVal($f, "Slideshow", "slideshow_loop_mode", "infinite")
+    __Cfg_DefaultVal($f, "Slideshow", "slideshow_loop_count", 3)
+    __Cfg_DefaultVal($f, "Slideshow", "slideshow_loop_duration", 300)
+    __Cfg_DefaultBool($f, "Slideshow", "slideshow_autostart", False)
+    __Cfg_DefaultVal($f, "Slideshow", "slideshow_autostart_delay", 5000)
+    __Cfg_DefaultBool($f, "Slideshow", "slideshow_break_on_manual_switch", True)
+    __Cfg_DefaultBool($f, "Slideshow", "slideshow_break_on_widget_click", True)
+    __Cfg_DefaultBool($f, "Slideshow", "slideshow_break_on_hotkey", True)
+    __Cfg_DefaultBool($f, "Slideshow", "slideshow_break_on_any_input", False)
 
     ; [Tray]
     __Cfg_DefaultVal($f, "Tray", "tray_left_click", "menu")
@@ -1154,6 +1225,12 @@ Func _Cfg_GetWidgetColorBar()
 EndFunc
 Func _Cfg_GetWidgetColorBarHeight()
     Return $__g_Cfg_iWidgetColorBarH
+EndFunc
+Func _Cfg_GetWidgetColorBarAnim()
+    Return $__g_Cfg_sWidgetColorBarAnim
+EndFunc
+Func _Cfg_GetWidgetColorBarAnimDuration()
+    Return $__g_Cfg_iWidgetColorBarAnimDuration
 EndFunc
 Func _Cfg_GetTrayIconMode()
     Return $__g_Cfg_bTrayIconMode
@@ -1769,6 +1846,16 @@ Func _Cfg_SetWidgetColorBarHeight($i)
     If $i > 10 Then $i = 10
     $__g_Cfg_iWidgetColorBarH = $i
 EndFunc
+Func _Cfg_SetWidgetColorBarAnim($s)
+    Local $sValid = "none|grow|fade"
+    If Not StringInStr("|" & $sValid & "|", "|" & $s & "|") Then $s = "grow"
+    $__g_Cfg_sWidgetColorBarAnim = $s
+EndFunc
+Func _Cfg_SetWidgetColorBarAnimDuration($i)
+    If $i < 50 Then $i = 50
+    If $i > 2000 Then $i = 2000
+    $__g_Cfg_iWidgetColorBarAnimDuration = $i
+EndFunc
 Func _Cfg_SetTrayIconMode($b)
     $__g_Cfg_bTrayIconMode = $b
 EndFunc
@@ -2361,42 +2448,136 @@ Func _Cfg_SetProfilesEnabled($b)
     $__g_Cfg_bProfilesEnabled = $b
 EndFunc
 
-; [Carousel]
-Func _Cfg_GetCarouselEnabled()
-    Return $__g_Cfg_bCarouselEnabled
+; [Slideshow] (supersedes [Carousel])
+Func _Cfg_GetSlideshowEnabled()
+    Return $__g_Cfg_bSlideshowEnabled
 EndFunc
-Func _Cfg_SetCarouselEnabled($b)
-    $__g_Cfg_bCarouselEnabled = $b
+Func _Cfg_SetSlideshowEnabled($b)
+    $__g_Cfg_bSlideshowEnabled = $b
 EndFunc
-Func _Cfg_GetCarouselInterval()
-    Return $__g_Cfg_iCarouselInterval
+Func _Cfg_GetSlideshowInterval()
+    Return $__g_Cfg_iSlideshowInterval
 EndFunc
-Func _Cfg_SetCarouselInterval($i)
-    If $i < 3000 Then $i = 3000
-    If $i > 300000 Then $i = 300000
-    $__g_Cfg_iCarouselInterval = $i
+Func _Cfg_SetSlideshowInterval($i)
+    If $i < 1000 Then $i = 1000
+    If $i > 3600000 Then $i = 3600000
+    $__g_Cfg_iSlideshowInterval = $i
 EndFunc
-Func _Cfg_GetCarouselShowInMenu()
-    Return $__g_Cfg_bCarouselShowInMenu
+Func _Cfg_GetSlideshowShowInMenu()
+    Return $__g_Cfg_bSlideshowShowInMenu
 EndFunc
-Func _Cfg_SetCarouselShowInMenu($b)
-    $__g_Cfg_bCarouselShowInMenu = $b
+Func _Cfg_SetSlideshowShowInMenu($b)
+    $__g_Cfg_bSlideshowShowInMenu = $b
 EndFunc
-Func _Cfg_GetNotifyCarouselToggle()
-    Return $__g_Cfg_bNotifyCarouselToggle
+Func _Cfg_GetNotifySlideshowToggle()
+    Return $__g_Cfg_bNotifySlideshowToggle
 EndFunc
-Func _Cfg_SetNotifyCarouselToggle($b)
-    $__g_Cfg_bNotifyCarouselToggle = $b
+Func _Cfg_SetNotifySlideshowToggle($b)
+    $__g_Cfg_bNotifySlideshowToggle = $b
 EndFunc
-Func _CarouselIsActive()
-    Return $__g_bCarouselActive
+Func _Cfg_GetSlideshowSelectionMode()
+    Return $__g_Cfg_sSlideshowSelectionMode
 EndFunc
-Func _Cfg_GetHotkeyToggleCarousel()
-    Return $__g_Cfg_sHotkeyToggleCarousel
+Func _Cfg_SetSlideshowSelectionMode($s)
+    Local $sValid = "all|even|odd|name_contains|custom"
+    If Not StringInStr("|" & $sValid & "|", "|" & $s & "|") Then $s = "all"
+    $__g_Cfg_sSlideshowSelectionMode = $s
 EndFunc
-Func _Cfg_SetHotkeyToggleCarousel($s)
-    $__g_Cfg_sHotkeyToggleCarousel = __Cfg_ClampStringLen($s, 32)
+Func _Cfg_GetSlideshowDirection()
+    Return $__g_Cfg_sSlideshowDirection
 EndFunc
+Func _Cfg_SetSlideshowDirection($s)
+    Local $sValid = "forward|backward"
+    If Not StringInStr("|" & $sValid & "|", "|" & $s & "|") Then $s = "forward"
+    $__g_Cfg_sSlideshowDirection = $s
+EndFunc
+Func _Cfg_GetSlideshowNameFilter()
+    Return $__g_Cfg_sSlideshowNameFilter
+EndFunc
+Func _Cfg_SetSlideshowNameFilter($s)
+    $__g_Cfg_sSlideshowNameFilter = __Cfg_ClampStringLen($s, 128)
+EndFunc
+Func _Cfg_GetSlideshowSequence()
+    Return $__g_Cfg_sSlideshowSequence
+EndFunc
+Func _Cfg_SetSlideshowSequence($s)
+    $__g_Cfg_sSlideshowSequence = __Cfg_ClampStringLen($s, 256)
+EndFunc
+Func _Cfg_GetSlideshowDesktopIntervals()
+    Return $__g_Cfg_sSlideshowDesktopIntervals
+EndFunc
+Func _Cfg_SetSlideshowDesktopIntervals($s)
+    $__g_Cfg_sSlideshowDesktopIntervals = __Cfg_ClampStringLen($s, 512)
+EndFunc
+Func _Cfg_GetSlideshowLoopMode()
+    Return $__g_Cfg_sSlideshowLoopMode
+EndFunc
+Func _Cfg_SetSlideshowLoopMode($s)
+    Local $sValid = "infinite|count|duration"
+    If Not StringInStr("|" & $sValid & "|", "|" & $s & "|") Then $s = "infinite"
+    $__g_Cfg_sSlideshowLoopMode = $s
+EndFunc
+Func _Cfg_GetSlideshowLoopCount()
+    Return $__g_Cfg_iSlideshowLoopCount
+EndFunc
+Func _Cfg_SetSlideshowLoopCount($i)
+    If $i < 1 Then $i = 1
+    If $i > 1000 Then $i = 1000
+    $__g_Cfg_iSlideshowLoopCount = $i
+EndFunc
+Func _Cfg_GetSlideshowLoopDuration()
+    Return $__g_Cfg_iSlideshowLoopDuration
+EndFunc
+Func _Cfg_SetSlideshowLoopDuration($i)
+    If $i < 5 Then $i = 5
+    If $i > 86400 Then $i = 86400
+    $__g_Cfg_iSlideshowLoopDuration = $i
+EndFunc
+Func _Cfg_GetSlideshowAutostart()
+    Return $__g_Cfg_bSlideshowAutostart
+EndFunc
+Func _Cfg_SetSlideshowAutostart($b)
+    $__g_Cfg_bSlideshowAutostart = $b
+EndFunc
+Func _Cfg_GetSlideshowAutostartDelay()
+    Return $__g_Cfg_iSlideshowAutostartDelay
+EndFunc
+Func _Cfg_SetSlideshowAutostartDelay($i)
+    If $i < 0 Then $i = 0
+    If $i > 3600000 Then $i = 3600000
+    $__g_Cfg_iSlideshowAutostartDelay = $i
+EndFunc
+Func _Cfg_GetSlideshowBreakOnManualSwitch()
+    Return $__g_Cfg_bSlideshowBreakOnManualSwitch
+EndFunc
+Func _Cfg_SetSlideshowBreakOnManualSwitch($b)
+    $__g_Cfg_bSlideshowBreakOnManualSwitch = $b
+EndFunc
+Func _Cfg_GetSlideshowBreakOnWidgetClick()
+    Return $__g_Cfg_bSlideshowBreakOnWidgetClick
+EndFunc
+Func _Cfg_SetSlideshowBreakOnWidgetClick($b)
+    $__g_Cfg_bSlideshowBreakOnWidgetClick = $b
+EndFunc
+Func _Cfg_GetSlideshowBreakOnHotkey()
+    Return $__g_Cfg_bSlideshowBreakOnHotkey
+EndFunc
+Func _Cfg_SetSlideshowBreakOnHotkey($b)
+    $__g_Cfg_bSlideshowBreakOnHotkey = $b
+EndFunc
+Func _Cfg_GetSlideshowBreakOnAnyInput()
+    Return $__g_Cfg_bSlideshowBreakOnAnyInput
+EndFunc
+Func _Cfg_SetSlideshowBreakOnAnyInput($b)
+    $__g_Cfg_bSlideshowBreakOnAnyInput = $b
+EndFunc
+Func _Cfg_GetHotkeyToggleSlideshow()
+    Return $__g_Cfg_sHotkeyToggleSlideshow
+EndFunc
+Func _Cfg_SetHotkeyToggleSlideshow($s)
+    $__g_Cfg_sHotkeyToggleSlideshow = __Cfg_ClampStringLen($s, 32)
+EndFunc
+
 Func _Cfg_GetHotkeyTaskView()
     Return $__g_Cfg_sHotkeyTaskView
 EndFunc
@@ -2493,7 +2674,8 @@ Func _Cfg_GetTrayMiddleClick()
     Return $__g_Cfg_sTrayMiddleClick
 EndFunc
 Func _Cfg_SetTrayMiddleClick($s)
-    Local $sValid = "toggle_list|add_desktop|toggle_carousel|nothing"
+    If $s = "toggle_carousel" Then $s = "toggle_slideshow" ; normalize legacy value (Decision 1)
+    Local $sValid = "toggle_list|add_desktop|toggle_slideshow|nothing"
     If Not StringInStr("|" & $sValid & "|", "|" & $s & "|") Then $s = "toggle_list"
     $__g_Cfg_sTrayMiddleClick = $s
 EndFunc

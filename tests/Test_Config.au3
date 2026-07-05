@@ -874,6 +874,151 @@ Func _RunTest_Config()
     _Test_AssertEqual("Persist: window_list_custom_x survives reload", _Cfg_GetWindowListCustomX(), 640)
     _Test_AssertEqual("Persist: window_list_custom_y survives reload", _Cfg_GetWindowListCustomY(), 480)
 
+    ; -- Slideshow: defaults --
+    _Cfg_Init($sTempIni)
+    _Test_AssertFalse("Default: slideshow_enabled", _Cfg_GetSlideshowEnabled())
+    _Test_AssertEqual("Default: slideshow_interval", _Cfg_GetSlideshowInterval(), 20000)
+    _Test_AssertTrue("Default: slideshow_show_in_menu", _Cfg_GetSlideshowShowInMenu())
+    _Test_AssertTrue("Default: notify_slideshow_toggle", _Cfg_GetNotifySlideshowToggle())
+    _Test_AssertEqual("Default: slideshow_selection_mode", _Cfg_GetSlideshowSelectionMode(), "all")
+    _Test_AssertEqual("Default: slideshow_direction", _Cfg_GetSlideshowDirection(), "forward")
+    _Test_AssertEqual("Default: slideshow_name_filter", _Cfg_GetSlideshowNameFilter(), "")
+    _Test_AssertEqual("Default: slideshow_sequence", _Cfg_GetSlideshowSequence(), "")
+    _Test_AssertEqual("Default: slideshow_desktop_intervals", _Cfg_GetSlideshowDesktopIntervals(), "")
+    _Test_AssertEqual("Default: slideshow_loop_mode", _Cfg_GetSlideshowLoopMode(), "infinite")
+    _Test_AssertEqual("Default: slideshow_loop_count", _Cfg_GetSlideshowLoopCount(), 3)
+    _Test_AssertEqual("Default: slideshow_loop_duration", _Cfg_GetSlideshowLoopDuration(), 300)
+    _Test_AssertFalse("Default: slideshow_autostart", _Cfg_GetSlideshowAutostart())
+    _Test_AssertEqual("Default: slideshow_autostart_delay", _Cfg_GetSlideshowAutostartDelay(), 5000)
+    _Test_AssertTrue("Default: slideshow_break_on_manual_switch", _Cfg_GetSlideshowBreakOnManualSwitch())
+    _Test_AssertTrue("Default: slideshow_break_on_widget_click", _Cfg_GetSlideshowBreakOnWidgetClick())
+    _Test_AssertTrue("Default: slideshow_break_on_hotkey", _Cfg_GetSlideshowBreakOnHotkey())
+    _Test_AssertFalse("Default: slideshow_break_on_any_input", _Cfg_GetSlideshowBreakOnAnyInput())
+    _Test_AssertEqual("Default: hotkey_toggle_slideshow", _Cfg_GetHotkeyToggleSlideshow(), "")
+    _Test_AssertEqual("Default: widget_color_bar_anim", _Cfg_GetWidgetColorBarAnim(), "grow")
+    _Test_AssertEqual("Default: widget_color_bar_anim_duration", _Cfg_GetWidgetColorBarAnimDuration(), 300)
+
+    ; -- Slideshow: set/get round-trip --
+    _Cfg_SetSlideshowEnabled(True)
+    _Test_AssertTrue("Set+Get: slideshow_enabled", _Cfg_GetSlideshowEnabled())
+    _Cfg_SetSlideshowShowInMenu(False)
+    _Test_AssertFalse("Set+Get: slideshow_show_in_menu", _Cfg_GetSlideshowShowInMenu())
+    _Cfg_SetNotifySlideshowToggle(False)
+    _Test_AssertFalse("Set+Get: notify_slideshow_toggle", _Cfg_GetNotifySlideshowToggle())
+    _Cfg_SetSlideshowAutostart(True)
+    _Test_AssertTrue("Set+Get: slideshow_autostart", _Cfg_GetSlideshowAutostart())
+    _Cfg_SetSlideshowBreakOnAnyInput(True)
+    _Test_AssertTrue("Set+Get: slideshow_break_on_any_input", _Cfg_GetSlideshowBreakOnAnyInput())
+    _Cfg_SetHotkeyToggleSlideshow("^!c")
+    _Test_AssertEqual("Set+Get: hotkey_toggle_slideshow", _Cfg_GetHotkeyToggleSlideshow(), "^!c")
+
+    ; -- Slideshow: integer clamps --
+    _Cfg_SetSlideshowInterval(500)
+    _Test_AssertGreaterEqual("slideshow_interval clamped low", _Cfg_GetSlideshowInterval(), 1000)
+    _Cfg_SetSlideshowInterval(9999999)
+    _Test_AssertLessEqual("slideshow_interval clamped high", _Cfg_GetSlideshowInterval(), 3600000)
+    _Cfg_SetSlideshowLoopCount(0)
+    _Test_AssertGreaterEqual("slideshow_loop_count clamped low", _Cfg_GetSlideshowLoopCount(), 1)
+    _Cfg_SetSlideshowLoopCount(5000)
+    _Test_AssertLessEqual("slideshow_loop_count clamped high", _Cfg_GetSlideshowLoopCount(), 1000)
+    _Cfg_SetSlideshowLoopDuration(1)
+    _Test_AssertGreaterEqual("slideshow_loop_duration clamped low", _Cfg_GetSlideshowLoopDuration(), 5)
+    _Cfg_SetSlideshowLoopDuration(999999)
+    _Test_AssertLessEqual("slideshow_loop_duration clamped high", _Cfg_GetSlideshowLoopDuration(), 86400)
+    _Cfg_SetSlideshowAutostartDelay(-100)
+    _Test_AssertGreaterEqual("slideshow_autostart_delay clamped low", _Cfg_GetSlideshowAutostartDelay(), 0)
+    _Cfg_SetSlideshowAutostartDelay(9999999)
+    _Test_AssertLessEqual("slideshow_autostart_delay clamped high", _Cfg_GetSlideshowAutostartDelay(), 3600000)
+    _Cfg_SetWidgetColorBarAnimDuration(10)
+    _Test_AssertGreaterEqual("color_bar_anim_duration clamped low", _Cfg_GetWidgetColorBarAnimDuration(), 50)
+    _Cfg_SetWidgetColorBarAnimDuration(9999)
+    _Test_AssertLessEqual("color_bar_anim_duration clamped high", _Cfg_GetWidgetColorBarAnimDuration(), 2000)
+
+    ; -- Slideshow: enum validation --
+    _Cfg_SetSlideshowSelectionMode("even")
+    _Test_AssertEqual("slideshow_selection_mode valid", _Cfg_GetSlideshowSelectionMode(), "even")
+    _Cfg_SetSlideshowSelectionMode("garbage")
+    _Test_AssertEqual("slideshow_selection_mode invalid falls back", _Cfg_GetSlideshowSelectionMode(), "all")
+    _Cfg_SetSlideshowDirection("backward")
+    _Test_AssertEqual("slideshow_direction valid", _Cfg_GetSlideshowDirection(), "backward")
+    _Cfg_SetSlideshowDirection("garbage")
+    _Test_AssertEqual("slideshow_direction invalid falls back", _Cfg_GetSlideshowDirection(), "forward")
+    _Cfg_SetSlideshowLoopMode("count")
+    _Test_AssertEqual("slideshow_loop_mode valid", _Cfg_GetSlideshowLoopMode(), "count")
+    _Cfg_SetSlideshowLoopMode("garbage")
+    _Test_AssertEqual("slideshow_loop_mode invalid falls back", _Cfg_GetSlideshowLoopMode(), "infinite")
+    _Cfg_SetWidgetColorBarAnim("fade")
+    _Test_AssertEqual("color_bar_anim valid", _Cfg_GetWidgetColorBarAnim(), "fade")
+    _Cfg_SetWidgetColorBarAnim("garbage")
+    _Test_AssertEqual("color_bar_anim invalid falls back", _Cfg_GetWidgetColorBarAnim(), "grow")
+
+    ; -- Slideshow: string length clamps --
+    Local $sLong = ""
+    Local $__ci
+    For $__ci = 1 To 600
+        $sLong &= "a"
+    Next
+    _Cfg_SetSlideshowNameFilter($sLong)
+    _Test_AssertLessEqual("slideshow_name_filter clamped to 128", StringLen(_Cfg_GetSlideshowNameFilter()), 128)
+    _Cfg_SetSlideshowSequence($sLong)
+    _Test_AssertLessEqual("slideshow_sequence clamped to 256", StringLen(_Cfg_GetSlideshowSequence()), 256)
+    _Cfg_SetSlideshowDesktopIntervals($sLong)
+    _Test_AssertLessEqual("slideshow_desktop_intervals clamped to 512", StringLen(_Cfg_GetSlideshowDesktopIntervals()), 512)
+
+    ; -- Slideshow: invalid INI enum values fall back on load --
+    IniWrite($sTempIni, "Slideshow", "slideshow_selection_mode", "bogus")
+    IniWrite($sTempIni, "Slideshow", "slideshow_loop_mode", "bogus")
+    IniWrite($sTempIni, "General", "widget_color_bar_anim", "bogus")
+    _Cfg_Load()
+    _Test_AssertEqual("Invalid selection_mode from INI falls back", _Cfg_GetSlideshowSelectionMode(), "all")
+    _Test_AssertEqual("Invalid loop_mode from INI falls back", _Cfg_GetSlideshowLoopMode(), "infinite")
+    _Test_AssertEqual("Invalid color_bar_anim from INI falls back", _Cfg_GetWidgetColorBarAnim(), "grow")
+
+    ; -- Slideshow: persist across save/reload --
+    _Cfg_SetSlideshowSelectionMode("odd")
+    _Cfg_SetSlideshowSequence("1,3,2")
+    _Cfg_SetSlideshowDesktopIntervals("1:5000,3:8000")
+    _Cfg_SetSlideshowLoopMode("duration")
+    Sleep(600) ; wait for save debounce window
+    _Cfg_Save()
+    _Cfg_SetSlideshowSelectionMode("all")
+    _Cfg_Load()
+    _Test_AssertEqual("Persist: slideshow_selection_mode", _Cfg_GetSlideshowSelectionMode(), "odd")
+    _Test_AssertEqual("Persist: slideshow_sequence", _Cfg_GetSlideshowSequence(), "1,3,2")
+    _Test_AssertEqual("Persist: slideshow_desktop_intervals", _Cfg_GetSlideshowDesktopIntervals(), "1:5000,3:8000")
+    _Test_AssertEqual("Persist: slideshow_loop_mode", _Cfg_GetSlideshowLoopMode(), "duration")
+
+    ; -- Carousel -> Slideshow migration (legacy fallback read) --
+    Local $sMigIni = @TempDir & "\desk_switcheroo_test_migrate.ini"
+    If FileExists($sMigIni) Then FileDelete($sMigIni)
+    IniWrite($sMigIni, "General", "wrap_navigation", "true") ; mark file as readable
+    IniWrite($sMigIni, "Carousel", "carousel_enabled", "true")
+    IniWrite($sMigIni, "Carousel", "carousel_interval", "45000")
+    IniWrite($sMigIni, "Carousel", "carousel_show_in_menu", "false")
+    IniWrite($sMigIni, "Carousel", "notify_carousel_toggle", "false")
+    IniWrite($sMigIni, "Hotkeys", "hotkey_toggle_carousel", "^!k")
+    IniWrite($sMigIni, "Tray", "tray_middle_click", "toggle_carousel")
+    ; Point Config at the scratch file directly (bypasses _Cfg_WriteDefaults so the
+    ; fallback-from-[Carousel] path is exercised) and load.
+    $__g_Cfg_sIniPath = $sMigIni
+    _Cfg_Load()
+    _Test_AssertTrue("Migrate: carousel_enabled -> slideshow_enabled", _Cfg_GetSlideshowEnabled())
+    _Test_AssertEqual("Migrate: carousel_interval -> slideshow_interval", _Cfg_GetSlideshowInterval(), 45000)
+    _Test_AssertFalse("Migrate: carousel_show_in_menu -> slideshow_show_in_menu", _Cfg_GetSlideshowShowInMenu())
+    _Test_AssertFalse("Migrate: notify_carousel_toggle -> notify_slideshow_toggle", _Cfg_GetNotifySlideshowToggle())
+    _Test_AssertEqual("Migrate: hotkey_toggle_carousel -> hotkey_toggle_slideshow", _Cfg_GetHotkeyToggleSlideshow(), "^!k")
+    _Test_AssertEqual("Migrate: tray_middle_click toggle_carousel normalized", _Cfg_GetTrayMiddleClick(), "toggle_slideshow")
+
+    ; -- Save writes [Slideshow] and removes the legacy [Carousel] section + hotkey key --
+    Sleep(600) ; wait for save debounce window
+    _Cfg_Save()
+    _Test_AssertEqual("Save writes [Slideshow]", IniRead($sMigIni, "Slideshow", "slideshow_enabled", "MISSING"), "true")
+    _Test_AssertEqual("Save deletes [Carousel] section", IniRead($sMigIni, "Carousel", "carousel_enabled", "GONE"), "GONE")
+    _Test_AssertEqual("Save deletes legacy hotkey_toggle_carousel", IniRead($sMigIni, "Hotkeys", "hotkey_toggle_carousel", "GONE"), "GONE")
+    _Test_AssertEqual("Save writes hotkey_toggle_slideshow", IniRead($sMigIni, "Hotkeys", "hotkey_toggle_slideshow", "MISSING"), "^!k")
+    _Test_AssertEqual("Save writes normalized tray_middle_click", IniRead($sMigIni, "Tray", "tray_middle_click", "MISSING"), "toggle_slideshow")
+    FileDelete($sMigIni)
+
     ; -- Cleanup --
     FileDelete($sTempIni)
 EndFunc
