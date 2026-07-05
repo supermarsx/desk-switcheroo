@@ -455,6 +455,29 @@ Func _CLI_GetIPCPendingArg()
     Return $s
 EndFunc
 
+; Name:        _CLI_IPCPendingToken
+; Description: Pure map from a queued IPC pending action string to a stable dispatch
+;              token consumed by desktop_switcher.au3's _ProcessIPCPending. Kept pure and
+;              in this module (not the main script) so the consumer seam is headless-
+;              testable via Test_CLI.au3. Empty or unrecognised input returns "" so the
+;              consumer safely no-ops / logs and ignores it.
+; Parameters:  $sPending - the string _CLI_CheckIPCPending() returned
+; Return:      "dl_toggle" | "slideshow_toggle" | "profile_load" | "profile_save" | ""
+Func _CLI_IPCPendingToken($sPending)
+    Switch $sPending
+        Case "toggle-list"
+            Return "dl_toggle"
+        Case "toggle-slideshow"
+            Return "slideshow_toggle"
+        Case "load-profile"
+            Return "profile_load"
+        Case "save-profile"
+            Return "profile_save"
+        Case Else
+            Return ""
+    EndSwitch
+EndFunc
+
 ; Name:        __CLI_PrintHelp
 ; Description: Prints usage information to stdout
 Func __CLI_PrintHelp()

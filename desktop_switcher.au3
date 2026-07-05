@@ -463,6 +463,17 @@ AdlibRegister("_CheckDLLHealth", _Cfg_GetDllCheckInterval())
 ; ---- Register hotkeys ----
 _RegisterHotkeys()
 
+; ---- Bridge the Settings dialog to the main loop (t8-c) ----
+; Registers the three string callbacks ConfigDialog.au3 invokes via Call():
+;   1. suspend global hotkeys while the hotkey builder popup is open (t8-a),
+;   2. resume them on every builder exit path, and
+;   3. drive one main-loop frame per Settings iteration so the widget/tray/DL/WL/
+;      toasts/slideshow/IPC stay live while Settings is open (async settings).
+; Before this line the callbacks are empty strings and every wrapper no-ops, which
+; is exactly what headless tests want.
+_CD_RegisterMainCallbacks("_UnregisterHotkeys", "_RegisterHotkeys", "_MainTick_FromDialog")
+_Log_Info("CD main callbacks registered")
+
 ; ---- Tray icon mode (if enabled) ----
 If _Cfg_GetTrayIconMode() Then _InitTrayMode()
 
@@ -527,9 +538,68 @@ While 1
     If Not _ProcessMouseInput() Then ContinueLoop
     _ProcessKeyboardInput()
     _ProcessEventFlags()
+    _ProcessIPCPending()
     Local $bActive = _ProcessHoverAndVisuals()
     _ProcessTimersAndSleep($bActive)
 WEnd
+
+; Name:        _MainTick_FromDialog
+; Description: Runs one main-loop frame from inside the Settings message loop so the
+;              widget/tray/DL/CM/WL, toasts/OSD/TAH ticks, event flags, slideshow and
+;              relayed IPC actions all stay live while Settings is open (async settings,
+;              t8 Decision 3 "hybrid option b"). Invoked by ConfigDialog.au3 via
+;              Call($__g_CD_sCbMainTick, ...) once per CD loop iteration.
+; Parameters:  $msg/$hFrom - the event __CD_MessageLoop just read and did NOT consume
+;              (0/0 when idle or CD-owned, so CD control clicks are never double-processed).
+; Notes:       Mirrors the While-loop above, minus GUIGetMsg (the CD loop owns the single
+;              message read — guard 2) and _CheckTrayMessages placement. GUISwitch back to
+;              the CD GUI happens in the CD loop AFTER this returns (guard 3), so phase
+;              functions that create/switch GUIs don't break CD hover/cursor info.
+Func _MainTick_FromDialog($msg, $hFrom)
+    _Theme_CacheFrameState()
+    _CheckTrayMessages()
+    ; Route the non-CD event exactly once; never feed a CD-owned event to the widget
+    ; handlers (guard 12 — double protection over the CD loop's own 0/0 gating).
+    If $hFrom <> 0 And (Not _CD_IsVisible() Or $hFrom <> _CD_GetGUI()) Then _ProcessGUIEvents($msg, $hFrom)
+    If Not _ProcessMouseInput() Then Return ; preserve main-loop short-circuit order
+    _ProcessKeyboardInput()
+    _ProcessEventFlags()
+    _ProcessIPCPending()
+    Local $bActive = _ProcessHoverAndVisuals()
+    _ProcessTimersAndSleep($bActive)
+EndFunc
+
+; Name:        _ProcessIPCPending
+; Description: Consumes a relayed, instance-bound CLI command that __CLI_ProcessIPCCommand
+;              queued because it needs the running GUI/main loop (toggle-list,
+;              toggle-slideshow, load-/save-profile). Before t8-c nothing drained this
+;              queue, so relayed commands silently never executed (t6-b latent find).
+;              Runs from BOTH the main loop and _MainTick_FromDialog, so IPC works while
+;              Settings is open. Dispatches to the same handlers tray/hotkeys use.
+Func _ProcessIPCPending()
+    Local $sPending = _CLI_CheckIPCPending()
+    If $sPending = "" Then Return
+    Local $sArg = _CLI_GetIPCPendingArg()
+    Switch _CLI_IPCPendingToken($sPending)
+        Case "dl_toggle"
+            _Log_Info("IPC: dispatching toggle-list")
+            _HK_ToggleList()
+        Case "slideshow_toggle"
+            _Log_Info("IPC: dispatching toggle-slideshow")
+            _HK_ToggleSlideshow()
+        Case "profile_load"
+            _Log_Info("IPC: dispatching load-profile '" & $sArg & "'")
+            If _Prof_LoadProfile($sArg) Then
+                _Theme_Toast(_i18n_Format("Extra.toast_profile_loaded", "Profile: {1}", $sArg), Default, Default, 1500, $TOAST_INFO)
+                _RefreshIndex()
+            EndIf
+        Case "profile_save"
+            _Log_Info("IPC: dispatching save-profile '" & $sArg & "'")
+            _Prof_SaveProfile($sArg)
+        Case Else
+            _Log_Warn("IPC: unknown pending action '" & $sPending & "' ignored")
+    EndSwitch
+EndFunc
 
 ; Name:        _ProcessGUIEvents
 ; Description: Handles GUI messages from all windows (widget, menus, dialogs, color picker)
@@ -659,7 +729,16 @@ Func _ProcessGUIEvents($msg, $hFrom)
             Case "set_color"
                 _DL_ColorPickerShow($iCtxTarget)
             Case "move_menu"
-                _DL_MoveMenuShow($iCtxTarget)
+                ; Clickable "Move Here" (Decision 5): when move_here_click_enabled is on,
+                ; a click moves the active window straight to the row's desktop, reusing the
+                ; same primitive as the submenu's "move_window". Default OFF re-shows the
+                ; submenu (unchanged). Hover still auto-opens the submenu in both modes.
+                If _DL_MoveHereClickAction(_Cfg_GetMoveHereClickEnabled()) = "move_direct" Then
+                    _DL_CtxDestroy()
+                    _MoveTrackedWindowToDesktop($iCtxTarget)
+                Else
+                    _DL_MoveMenuShow($iCtxTarget)
+                EndIf
             Case "add"
                 _DL_CtxDestroy()
                 _DoCreateDesktop()
@@ -1404,7 +1483,9 @@ Func _ProcessTimersAndSleep($bCursorActive)
     ; smooth and the settle completes promptly (both were previously blocking Sleep loops).
     If $bCursorActive Or $__g_bPendingRefresh Or _TAH_IsFading() Or _Theme_ColorBarIsAnimating() Then
         Sleep(5)
-    ElseIf _Theme_IsToastActive() Or _DL_IsVisible() Or _CM_IsVisible() Or _DL_CtxIsVisible() Or _DL_ColorPickerIsVisible() Or _DL_MoveMenuIsVisible() Or _WL_CtxIsVisible() Or _WL_SendToIsVisible() Or _WL_TitleCtxIsVisible() Or _WL_SendAllIsVisible() Then
+    ElseIf _Theme_IsToastActive() Or _DL_IsVisible() Or _CM_IsVisible() Or _DL_CtxIsVisible() Or _DL_ColorPickerIsVisible() Or _DL_MoveMenuIsVisible() Or _WL_CtxIsVisible() Or _WL_SendToIsVisible() Or _WL_TitleCtxIsVisible() Or _WL_SendAllIsVisible() Or _CD_IsVisible() Then
+        ; _CD_IsVisible: with async settings (t8-c) this tick is the Settings loop's single
+        ; sleep source, so keep the dialog on the 15 ms popup tier (was the loop's own 10 ms).
         Sleep(15)
     Else
         Sleep(100)

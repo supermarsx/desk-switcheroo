@@ -218,6 +218,22 @@ Func _RunTest_CLI()
     _Test_AssertEqual("Pending cleared", _CLI_CheckIPCPending(), "")
     _Test_AssertEqual("Pending arg cleared", _CLI_GetIPCPendingArg(), "")
 
+    ; ---- IPC pending -> dispatch-token seam (t8-c fold-in) ----
+    ; The main loop consumes relayed instance-bound commands via _ProcessIPCPending, which
+    ; maps the pending string to a stable dispatch token through this pure function. Before
+    ; t8-c nothing drained the queue (t6-b latent find); this asserts the mapping the
+    ; consumer relies on. The four known actions map to their tokens; empty/unknown map to
+    ; "" so the consumer safely no-ops / logs and ignores (never crashes on garbage).
+    _Test_AssertEqual("IPC token: toggle-list -> dl_toggle", _CLI_IPCPendingToken("toggle-list"), "dl_toggle")
+    _Test_AssertEqual("IPC token: toggle-slideshow -> slideshow_toggle", _CLI_IPCPendingToken("toggle-slideshow"), "slideshow_toggle")
+    _Test_AssertEqual("IPC token: load-profile -> profile_load", _CLI_IPCPendingToken("load-profile"), "profile_load")
+    _Test_AssertEqual("IPC token: save-profile -> profile_save", _CLI_IPCPendingToken("save-profile"), "profile_save")
+    _Test_AssertEqual("IPC token: empty -> no-op", _CLI_IPCPendingToken(""), "")
+    _Test_AssertEqual("IPC token: unknown -> safe ignore", _CLI_IPCPendingToken("frobnicate"), "")
+    ; toggle-carousel is a deprecated CLI alias resolved to toggle-slideshow at queue time
+    ; (__CLI_ProcessIPCCommand), so it never reaches the token map as a raw pending string.
+    _Test_AssertEqual("IPC token: raw carousel string is not a consumer action", _CLI_IPCPendingToken("toggle-carousel"), "")
+
     ; ---- Slideshow toggle + deprecated carousel alias (Decision 1) ----
     ; --toggle-slideshow is the new flag; --toggle-carousel is an accepted alias mapping
     ; to the SAME IPC pending command. Both are non-query, GUI-only, relayed verbatim.
