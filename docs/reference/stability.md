@@ -178,6 +178,21 @@ anything when desktop animations are ON. When animations are already OFF the nat
 never appears, so the guard is a no-op and suppression is satisfied by construction
 (`includes/VirtualDesktop.au3`).
 
+### Responsive Settings dialog
+
+The Settings dialog used to be a hard modal: while it was open its own message loop ran and the
+main loop did not, so the widget, tray, panels, toasts, ticks, and slideshow all froze until you
+closed it. It is now **asynchronous**. The dialog's loop calls back once per iteration into
+`_MainTick_FromDialog` (registered at startup by `_CD_RegisterMainCallbacks`), which runs the same
+main-loop phase functions — GUI events, input, event flags, relayed IPC actions, hover/visuals, and
+the timer/tick phase. So with Settings open the widget still switches desktops, the tray and panels
+still respond, toasts and the taskbar-auto-hide fade still tick, the slideshow keeps stepping, and a
+relayed CLI action still executes. Events are not double-processed (the dialog owns the single
+`GUIGetMsg` read and only forwards events it did not consume, and `GUISwitch` is restored to the
+dialog after each tick), and the dialog drops to the 15 ms popup sleep tier so the extra work stays
+cheap. Nested sub-loops the dialog itself opens — the hotkey builder, folder/file pickers, and the
+update check — deliberately do not run the tick.
+
 ### Locale fallback chain
 
 A missing or incomplete translation must never leave a blank label. String lookups

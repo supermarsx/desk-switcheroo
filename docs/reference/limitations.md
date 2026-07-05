@@ -53,6 +53,9 @@ the whole UI for its duration. Most hot-path stalls have been eliminated:
 - Log-rotation compression is launched detached, not waited on.
 - Manual update check and download run a pumped, cancellable modal instead of freezing
   the app.
+- The Settings dialog no longer freezes the widget while open: its message loop drives the
+  main-loop phases, so the widget, panels, ticks, slideshow, and relayed IPC stay live
+  (see [Stability](../reference/stability.md)).
 
 What remains, honestly:
 

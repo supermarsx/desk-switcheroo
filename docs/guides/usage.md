@@ -58,7 +58,10 @@ the **desktop list** — the popup panel showing every desktop. Day to day you w
 - **Click a row** to switch to that desktop.
 - **Right-click a row** for per-desktop actions — Switch, Rename, Peek, Set Color, Move Here
   (the active window), Add Desktop, and Delete. Delete is shown in red and asks for
-  confirmation first by default.
+  confirmation first by default. Hovering **Move Here** opens a submenu to pick the target
+  desktop; if you turn on *Click Move Here to move window* (`move_here_click_enabled` in
+  `[Behavior]`, off by default) a single click on **Move Here** sends the active window straight
+  to that desktop instead, and hovering still opens the submenu.
 - **Pin the panel open** (from the widget menu's "keep list open", or `desktop_list_pinned`)
   when you want it to stay visible while you work. While pinned it ignores auto-hide and the
   widget number no longer toggles it.
@@ -149,6 +152,12 @@ Jump-to-desktop hotkeys (`hotkey_desktop_1` through `hotkey_desktop_9`) and seve
 (delete desktop, toggle slideshow, load profiles) ship *unbound* — set them in Settings or the
 INI. The complete list with every default chord is in the
 [Advanced INI Reference](../configuration/ini-reference.md).
+
+Every row on the Hotkeys tab has a **`…` builder button** for capturing a binding: click it,
+press the full key combination you want (modifiers included), and confirm with **OK**. Press
+**Esc** to cancel, and if you press nothing it times out after 10 seconds. Global hotkeys are
+suspended while the builder is open, so recording a chord such as `Ctrl+Alt+Right` never fires the
+action it is currently bound to.
 
 ## Quick access (jumping)
 

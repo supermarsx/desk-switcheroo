@@ -81,9 +81,11 @@ A running instance creates a hidden window titled `DeskSwitcheroo_IPC` and regis
 `COPYDATASTRUCT.dwData` field equals the magic value `0x44534B` (ASCII "DSK"); the payload is the
 command string (for example `goto 3` or `rename 2 Work`). On receipt, navigation and
 desktop-management commands are executed directly, while the GUI-level commands (`toggle-list`,
-`toggle-slideshow`, `load-profile`, `save-profile`) are queued for the main loop to pick up
-(`_CLI_CheckIPCPending`). This is a stable contract an external tool can target to drive a running
-widget.
+`toggle-slideshow`, `load-profile`, `save-profile`) are queued and then consumed on the next
+main-loop pass by `_ProcessIPCPending`, which drains `_CLI_CheckIPCPending` and dispatches them
+through the same handlers the tray and hotkeys use. That drain also runs while the Settings dialog
+is open, so a relayed GUI command takes effect even then. This is a stable contract an external
+tool can target to drive a running widget.
 
 ### How the executable dispatches its own command line
 

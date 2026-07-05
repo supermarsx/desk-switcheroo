@@ -30,7 +30,7 @@ convention is the primary signal of what is safe to call across module boundarie
 ## Single-threaded cooperative concurrency
 
 AutoIt is single-threaded, so the entire app is a cooperative system built around one
-`While 1` main loop in `desktop_switcher.au3`. Each iteration calls **six phase
+`While 1` main loop in `desktop_switcher.au3`. Each iteration calls **seven phase
 functions** in order:
 
 1. `_ProcessGUIEvents` — dispatch GUI messages (clicks, control notifications).
@@ -38,8 +38,10 @@ functions** in order:
 3. `_ProcessKeyboardInput` — polled keyboard state.
 4. `_ProcessEventFlags` — consume flags set by hooks/Adlibs (including the deferred
    nav refresh).
-5. `_ProcessHoverAndVisuals` — hover-driven visuals; returns whether the cursor is active.
-6. `_ProcessTimersAndSleep` — advance all ticked animations/timers, then sleep.
+5. `_ProcessIPCPending` — execute a relayed, instance-bound CLI action queued over IPC
+   (`toggle-list`, `toggle-slideshow`, `load-`/`save-profile`).
+6. `_ProcessHoverAndVisuals` — hover-driven visuals; returns whether the cursor is active.
+7. `_ProcessTimersAndSleep` — advance all ticked animations/timers, then sleep.
 
 Because everything shares this one thread, the golden rule is **never block the loop**.
 The supporting patterns all exist to honor that rule:
@@ -87,6 +89,16 @@ the [Stability](../reference/stability.md) page.
 burst of setting changes coalesces into one disk write; wallpaper application and taskbar
 auto-hide transitions are similarly debounced.
 
+**Async modal dialog via a re-entrant tick.** The Settings dialog runs its own blocking message
+loop, but rather than freezing the app it calls back once per iteration into
+`_MainTick_FromDialog` (registered by `_CD_RegisterMainCallbacks`), which runs the same phase
+functions listed above — minus the single `GUIGetMsg` read, which the dialog owns. So the widget,
+tray, panels, ticks, slideshow, and relayed IPC actions all stay live while Settings is open. The
+dialog forwards only the events it does not consume (no double-processing), and `GUISwitch` is
+restored to the dialog after the tick so phase functions that create or switch GUIs don't disturb
+its hover state. Nested sub-loops the dialog opens itself (hotkey builder, file pickers, update
+check) deliberately skip the tick.
+
 ## The multi-site config-key pattern
 
 Adding a configuration key touches a fixed set of sites, and following the pattern is
@@ -122,7 +134,7 @@ locale's INI into a `Scripting.Dictionary` and **always** loads `en-US.ini` into
 dictionary as the fallback (`includes/i18n.au3`). A lookup (`_i18n`) resolves through a
 three-step chain — **current locale → `en-US` → the hardcoded English default** passed at
 the call site — so a missing key can never render blank. There are **34 locale files**,
-each with roughly 700 keys (`en-US.ini` has 700), and a CI guard, `scripts/locale-check.ps1`,
+each with roughly 760 keys (`en-US.ini` has 759), and a CI guard, `scripts/locale-check.ps1`,
 verifies key parity across locales so a translation cannot silently drift out of sync.
 
 ## Window enumeration bypass
@@ -154,8 +166,11 @@ CLI action commands are relayed to the already-running instance rather than acti
 directly. The running instance registers a `WM_COPYDATA` handler (`_CLI_RegisterIPC` in
 `includes/CLI.au3`); a second launch that parses an action command packages it and sends
 it via `WM_COPYDATA`, guarded by a magic number (`0x44534B`, ASCII "DSK") so the handler
-ignores foreign messages. Query commands (`list-desktops`, `get-current`, `status`, …)
-run standalone without a running instance. The command set is documented on the
+ignores foreign messages. Commands that need the running GUI — `toggle-list`,
+`toggle-slideshow`, and profile load/save — cannot complete inside the message handler, so they
+are queued and drained each pass by `_ProcessIPCPending` (phase 5 above), which also runs from the
+Settings dialog's tick. Query commands (`list-desktops`, `get-current`, `status`, …) run
+standalone without a running instance. The command set is documented on the
 [CLI Parameters](../configuration/cli.md) page.
 
 ## Background update checker

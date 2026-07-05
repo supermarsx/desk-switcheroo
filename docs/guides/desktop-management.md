@@ -130,7 +130,10 @@ active or a chosen window to another desktop:
   (defaults `Ctrl+Alt+Shift+Right` / `Left`) move it *and* follow it there.
   `hotkey_send_new_desktop` (default `Ctrl+Alt+N`) creates a new desktop and sends the active
   window to it.
-- **Move Here** — from a desktop row's context menu, when move-window is enabled.
+- **Move Here** — from a desktop row's context menu, when move-window is enabled. Hovering it
+  opens a submenu to choose the target desktop. If `move_here_click_enabled` in `[Behavior]` is
+  on (off by default), a single click on **Move Here** moves the active window straight to that
+  desktop instead of just opening the submenu (hovering still opens the submenu).
 - **CLI** — `move-window N` (see [CLI Parameters](../configuration/cli.md)).
 
 All window moves go through `_VD_MoveWindowToDesktop` in `VirtualDesktop.au3`.
@@ -212,6 +215,11 @@ actions that apply to every window on the panel's desktop:
 Desk Switcheroo exposes many more optional hotkeys (rename, add/delete desktop, open settings,
 task view, toggle slideshow, load profiles, and more); the full list with defaults is in the
 [Advanced INI Reference](../configuration/ini-reference.md).
+
+Any hotkey can be rebound on the **Hotkeys** tab in Settings. Every row has a **`…` builder
+button**: click it, press the full chord you want, then confirm with **OK** (**Esc** cancels, and
+it times out after 10 seconds). Global hotkeys are suspended while the builder is open, so pressing
+a combination to record it never triggers the action it is currently bound to.
 
 ## Quick access
 

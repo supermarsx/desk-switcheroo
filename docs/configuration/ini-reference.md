@@ -36,7 +36,7 @@ Each section is a `[Section]` header in the INI. Columns:
 
 Types, defaults, and ranges are all taken from `includes/Config.au3`. The **Settings UI** column
 was verified against `includes/ConfigDialog.au3` by checking, for each key, whether the dialog's
-apply path calls that key's setter — 204 of the keys below are wired to a control; the ones marked
+apply path calls that key's setter — 205 of the keys below are wired to a control; the ones marked
 `INI-only` are not.
 
 ## `[General]`
@@ -186,6 +186,7 @@ polling intervals noted below.
 | `confirm_delete` | bool | `true` | | Yes (Behavior) | Confirm before deleting a desktop. |
 | `middle_click_delete` | bool | `false` | | Yes (Behavior) | Middle-click a list row to delete that desktop. |
 | `move_window_enabled` | bool | `true` | | Yes (Behavior) | Show "Move window here" in menus. |
+| `move_here_click_enabled` | bool | `false` | | Yes (Behavior) | When on, clicking **Move Here** in a desktop row's context menu moves the active window to that desktop immediately instead of only opening the send-to submenu (hovering still opens the submenu). Has effect only when `move_window_enabled` is on. |
 | `peek_bounce_delay` | int | `500` | 100–5000 | Yes (Behavior) | Milliseconds before a peek bounces back. |
 | `auto_hide_timeout` | int | `3000` | 500–30000 | Yes (Behavior) | Milliseconds before the desktop list auto-hides. |
 | `topmost_interval` | int | `300` | 100–5000 | Yes (Behavior) | Milliseconds between re-asserting the widget's topmost state. |

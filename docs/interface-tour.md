@@ -340,7 +340,10 @@ each row:
 
 - **A label** names the action (Next desktop, Previous desktop, Toggle list, …).
 - **A key field** shows the current binding in AutoIt syntax (`^!{RIGHT}` = Ctrl+Alt+Right).
-- **The `…` button** captures a new chord for that action.
+- **The `…` builder button** (now on every row) captures a new chord: click it, press the full
+  key combination, and confirm with **OK**. **Esc** cancels and it times out after 10 seconds;
+  global hotkeys are suspended while it is open, so recording a chord never fires the action bound
+  to it.
 - **Enable global hotkeys** at the top is the master switch for all of them.
 - **The legend at the bottom** (`^ = Ctrl  ! = Alt  + = Shift  # = Win`) decodes the syntax.
 
@@ -357,6 +360,8 @@ The **Behavior → Interaction** sub-tab gathers confirmation prompts and intera
 - **Confirm before deleting** — ask before removing a desktop.
 - **Middle-click to delete** — allow deleting a desktop by middle-clicking its list row.
 - **Enable Move Window Here** — show the *Move Here* action in menus.
+- **Click Move Here to move window** — when on, clicking *Move Here* in a desktop row's menu moves
+  the active window there immediately (hovering still opens the submenu); off by default.
 - **Confirm before quitting / restarting** — guard those actions with a prompt.
 - **Debug mode** — extra logging/diagnostics.
 - **Disable native desktop-switch OSD** — suppress Windows' own switch overlay.

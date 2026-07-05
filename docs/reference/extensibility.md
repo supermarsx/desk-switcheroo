@@ -95,8 +95,10 @@ integrator needs.
 
 On receipt the app validates the magic number and length, then dispatches
 (`__CLI_ProcessIPCCommand`): navigation and desktop-management commands run immediately, while
-GUI-only commands (`toggle-list`, `toggle-slideshow`, `load-profile`, `save-profile`) are
-queued for the main loop to pick up. The shipped executable itself uses exactly this channel —
+GUI-only commands (`toggle-list`, `toggle-slideshow`, `load-profile`, `save-profile`) are queued
+and consumed on the next main-loop pass by `_ProcessIPCPending` — which also runs from the Settings
+dialog's tick, so a relayed GUI command is acted on even with Settings open. The shipped executable
+itself uses exactly this channel —
 running `desk_switcheroo.exe --next` while an instance is up relays the command over IPC to
 that instance (`_CLI_SendToRunning` in the startup path) rather than starting a second widget.
 

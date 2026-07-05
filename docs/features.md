@@ -66,7 +66,8 @@ Management](guides/desktop-management.md).
 - **Add, delete, and reorder desktops** from the list context menu (`_DL_CtxShow`), including
   confirm-before-delete.
 - **Move the active window** to any desktop from the widget or list menus
-  (`_DL_MoveMenuShow`).
+  (`_DL_MoveMenuShow`), including an optional single-click **Move Here** that sends it straight to
+  a desktop from the list's context menu (`move_here_click_enabled`, off by default).
 - **Wrap navigation and auto-create.** Navigation can wrap around at the ends, and moving past
   the last desktop can auto-create a new one (`wrap_navigation`, `auto_create_desktop`).
 
@@ -99,6 +100,9 @@ Reference](configuration/ini-reference.md).
 
 - **Global hotkeys** for next / previous / toggle-list / toggle-last plus direct jump to
   desktops 1–9 (`hotkey_next`, `hotkey_prev`, `hotkey_desktop_1..9`, and more).
+- **Hotkey chord builder** — every row on the Hotkeys tab has a `…` capture button that records a
+  full key combination (**Esc** cancels, 10-second timeout), with global hotkeys suspended while it
+  is open so recording a chord never fires the action bound to it.
 - **Scroll-wheel navigation** on the widget and list, in normal or inverted direction, with
   optional wrap (`scroll_direction`).
 - **Quick-access number input** — double-click the widget to type a desktop number and jump
@@ -217,6 +221,7 @@ Everything that keeps the app running cleanly and out of your way. Reliability d
 | Desktop mgmt | Per-desktop accent colors | 7 presets + custom hex picker |
 | Desktop mgmt | Add / delete / reorder desktops | From list context menu |
 | Desktop mgmt | Move active window to any desktop | Widget/list menus |
+| Desktop mgmt | Optional click-to-move (Move Here) | `move_here_click_enabled`, off by default |
 | Desktop mgmt | Wrap navigation + auto-create | `wrap_navigation`, `auto_create_desktop` |
 | Window list | Send-to-desktop / pull / go-to | `WindowList.au3` |
 | Window list | Per-window minimize/maximize/restore/close/pin | Per-window context menu |
@@ -224,6 +229,7 @@ Everything that keeps the app running cleanly and out of your way. Reliability d
 | Window list | Minimize All / Maximize All / Close All | Title-bar menu, graceful close |
 | Window list | Title search + all-desktops scope | `_WL_SearchFilter`, `window_list_scope` |
 | Input | Global hotkeys (next/prev/toggle + 1–9) | `hotkey_*` keys |
+| Input | Hotkey chord builder on every row | `…` capture, Esc / 10 s timeout |
 | Input | Scroll-wheel navigation | Normal/inverted, wrap |
 | Input | Quick-access number input | Double-click widget |
 | Input | Triple-click rename, middle-click delete | `RenameDialog.au3`, `middle_click_delete` |
