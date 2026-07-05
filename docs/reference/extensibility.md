@@ -37,7 +37,15 @@ define in the `[Hooks]` INI section. The full event list, syntax, and execution 
 are, from `$__HOOKS_EVENTS` in the code:
 
 `on_desktop_change`, `on_desktop_create`, `on_desktop_delete`, `on_window_move`,
-`on_profile_load`, `on_startup`, `on_shutdown`, and `on_carousel_tick`.
+`on_profile_load`, `on_startup`, `on_shutdown`, `on_slideshow_start`, `on_slideshow_step`,
+`on_slideshow_stop`, and `on_carousel_tick`.
+
+The three `on_slideshow_*` events cover the desktop slideshow: `on_slideshow_start`
+(`mode`, `direction`, `steps`, `loop`), `on_slideshow_step` (`desktop`, `step`,
+`desktop_count`) on every advance, and `on_slideshow_stop` (`reason`). For backward
+compatibility, the legacy `on_carousel_tick` (`desktop`, `desktop_count`) still fires on
+every slideshow step alongside `on_slideshow_step`, so existing hook scripts keep working;
+new hooks should prefer `on_slideshow_step`.
 
 Because a hook is just a command line — run asynchronously with per-process timeout tracking
 (`__Hooks_Execute`, `__Hooks_CheckTimeouts`) and `{1}`-style variable substitution
@@ -87,7 +95,7 @@ integrator needs.
 
 On receipt the app validates the magic number and length, then dispatches
 (`__CLI_ProcessIPCCommand`): navigation and desktop-management commands run immediately, while
-GUI-only commands (`toggle-list`, `toggle-carousel`, `load-profile`, `save-profile`) are
+GUI-only commands (`toggle-list`, `toggle-slideshow`, `load-profile`, `save-profile`) are
 queued for the main loop to pick up. The shipped executable itself uses exactly this channel —
 running `desk_switcheroo.exe --next` while an instance is up relays the command over IPC to
 that instance (`_CLI_SendToRunning` in the startup path) rather than starting a second widget.

@@ -34,7 +34,8 @@ extension and not an Explorer injection.
   defaults (`_Cfg_GetWidgetWidth`/`_Cfg_GetWidgetHeight`).
 - **Color bar accent.** An accent bar matches the current desktop's color
   (`widget_color_bar`, `widget_color_bar_height`) — see [Coloring &
-  Theming](guides/coloring.md).
+  Theming](guides/coloring.md). Its transition on a desktop change is configurable
+  (`widget_color_bar_anim`: `none`/`grow`/`fade`, `widget_color_bar_anim_duration`).
 - **Desktop count display.** An optional "2/5"-style counter shows the current desktop and the
   total, with a configurable font size.
 - **Always-on-top enforcement.** A periodic re-assert keeps the widget above other windows
@@ -160,7 +161,7 @@ Parameters](configuration/cli.md).
   `list-desktops`, `get-current`, `status` (`includes/CLI.au3`).
 - **Action commands** relayed to a running instance over a `WM_COPYDATA` IPC channel — `goto`,
   `next`, `prev`, `add-desktop`, `remove-desktop`, `rename`, `move-window`, `toggle-list`,
-  `toggle-carousel`, `load-profile`, `save-profile`.
+  `toggle-slideshow`, `load-profile`, `save-profile`.
 - **Flexible prefixes** — `--`, `-`, and `/` are all accepted, with a legacy `-autostart`
   passthrough.
 
@@ -173,8 +174,11 @@ Everything that keeps the app running cleanly and out of your way. Reliability d
 - **Start with Windows** and **start minimized** options.
 - **System tray mode** — run as a tray icon instead of the taskbar widget, with configurable
   double-click and middle-click actions.
-- **Carousel mode** — auto-advance through desktops on a timer (`_CarouselTick`,
-  `carousel_enabled`, `carousel_interval`).
+- **Slideshow mode** — auto-advance through desktops on a timer, for dashboards or a rotating
+  display (`_SlideshowTick`, `includes/Slideshow.au3`, `slideshow_enabled`, `slideshow_interval`).
+  Choose which desktops participate (all/even/odd/name-filter/custom sequence), the direction,
+  per-desktop dwell times, loop mode (infinite/count/duration), autostart, and the conditions
+  that break it. Supersedes the former carousel.
 - **Singleton enforcement** — relaunching kills the previous instance so only one runs
   (`singleton_enabled`).
 - **Config file watcher** — reloads settings automatically when the INI changes on disk
@@ -237,7 +241,7 @@ Everything that keeps the app running cleanly and out of your way. Reliability d
 | CLI & IPC | Query + action commands | `WM_COPYDATA` IPC to running instance |
 | System | Start with Windows / start minimized | Autostart options |
 | System | System tray mode | Configurable click actions |
-| System | Carousel mode | Timed auto-advance |
+| System | Slideshow mode | Timed auto-advance with selection modes, loops, and break conditions |
 | System | Singleton enforcement | Relaunch kills previous |
 | System | Config file watcher | Hot-reload on external INI change |
 | System | Explorer crash recovery | `ExplorerMonitor.au3` |

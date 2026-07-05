@@ -35,7 +35,7 @@ navigation arrows (`desktop_switcher.au3`). It is the hub for everything:
   wrapping past the ends.
 - **Drag the widget** to reposition it; the position persists so it stays where you put it.
 - **Right-click the widget** for its context menu (`includes/ContextMenu.au3`): rename the
-  current desktop, add a desktop, keep the desktop list open (pin), toggle carousel mode,
+  current desktop, add a desktop, keep the desktop list open (pin), start/stop the slideshow,
   open **Settings**, open **About**, and **Quit**, among other actions. Which items appear
   depends on which features you have enabled.
 
@@ -146,7 +146,7 @@ hotkey. The defaults that ship enabled:
 | Open Settings | `Ctrl+Alt+S` | `hotkey_open_settings` |
 
 Jump-to-desktop hotkeys (`hotkey_desktop_1` through `hotkey_desktop_9`) and several others
-(delete desktop, toggle carousel, load profiles) ship *unbound* — set them in Settings or the
+(delete desktop, toggle slideshow, load profiles) ship *unbound* — set them in Settings or the
 INI. The complete list with every default chord is in the
 [Advanced INI Reference](../configuration/ini-reference.md).
 
@@ -165,13 +165,15 @@ switches you there while remembering where you came from; when you leave, a shor
 you back. If you decide to stay, the peek can be committed so the peeked desktop becomes the
 active one. Full behavior is in [Peeking at a desktop](desktop-management.md#peeking-at-a-desktop).
 
-## Carousel mode
+## Slideshow mode
 
-Carousel mode cycles through your desktops automatically on a timer — handy for dashboards or
-a rotating display. Enable it with `carousel_enabled` and set the dwell time with
-`carousel_interval` (default 20 seconds). Toggle it from the tray/context menu or a hotkey;
-it shows a toast when toggled unless you turn that off. See
-[Carousel mode](desktop-management.md#carousel-mode) for the details.
+Slideshow mode cycles through your desktops automatically on a timer — handy for dashboards or
+a rotating display. Enable it with `slideshow_enabled` and set the default dwell time with
+`slideshow_interval` (default 20 seconds). You can pick which desktops take part
+(all/even/odd/name-filter/custom sequence), the direction, per-desktop dwell times, and whether
+it loops forever, for a number of passes, or for a set duration. Start/stop it from the
+tray/context menu, a hotkey, or `--toggle-slideshow`; it shows a toast when toggled unless you
+turn that off. See [Slideshow mode](desktop-management.md#slideshow-mode) for the details.
 
 ## Finding a setting (Settings search)
 
@@ -196,9 +198,9 @@ by what they do, not just their exact name.
 Right-clicking the Desk Switcheroo **tray icon** gives you a menu that mirrors the most common
 actions without needing the widget in view (`desktop_switcher.au3`): **Show Desktop List**,
 **Rename Desktop**, **Add Desktop**, **Delete Desktop**, a **Switch to Desktop** submenu, a
-**Move Window to** submenu, **Toggle Carousel**, **Settings**, **About**, and **Quit**. Which
-items appear depends on which features you have enabled (for example the carousel item only
-shows when `carousel_show_in_menu` is on). In tray-only mode, where the widget is hidden, this
+**Move Window to** submenu, **Start/Stop Slideshow**, **Settings**, **About**, and **Quit**. Which
+items appear depends on which features you have enabled (for example the slideshow item only
+shows when `slideshow_show_in_menu` is on). In tray-only mode, where the widget is hidden, this
 menu is your primary control surface.
 
 ## A worked workflow: a project per desktop

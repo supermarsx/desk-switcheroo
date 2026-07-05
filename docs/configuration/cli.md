@@ -67,7 +67,7 @@ a **running instance** over the app's `WM_COPYDATA` IPC channel (see below).
 | `--rename N "label"` | number + label | Rename desktop *N*. |
 | `--move-window N` | desktop number | Move the currently active window to desktop *N*. |
 | `--toggle-list` | — | Show/hide the desktop list panel. |
-| `--toggle-carousel` | — | Toggle carousel (auto-rotate) mode. |
+| `--toggle-slideshow` | — | Start/stop the desktop slideshow. (`--toggle-carousel` is accepted as a deprecated alias for the same action.) |
 | `--load-profile "name"` | profile name | Load a saved profile. |
 | `--save-profile "name"` | profile name | Save the current state as a profile. |
 
@@ -81,7 +81,7 @@ A running instance creates a hidden window titled `DeskSwitcheroo_IPC` and regis
 `COPYDATASTRUCT.dwData` field equals the magic value `0x44534B` (ASCII "DSK"); the payload is the
 command string (for example `goto 3` or `rename 2 Work`). On receipt, navigation and
 desktop-management commands are executed directly, while the GUI-level commands (`toggle-list`,
-`toggle-carousel`, `load-profile`, `save-profile`) are queued for the main loop to pick up
+`toggle-slideshow`, `load-profile`, `save-profile`) are queued for the main loop to pick up
 (`_CLI_CheckIPCPending`). This is a stable contract an external tool can target to drive a running
 widget.
 
@@ -100,7 +100,7 @@ handles it as follows:
   the OS (`_CLI_ExecuteLocal`), then exit. Because virtual desktops are global to the session, the
   desktop operations — `goto`, `next`, `prev`, `add-desktop`, `remove-desktop`, `rename`, and
   `move-window` — work standalone and exit `0` on success. The GUI-only actions — `toggle-list`,
-  `toggle-carousel`, `load-profile`, and `save-profile` — need a widget to drive, so with no
+  `toggle-slideshow`, `load-profile`, and `save-profile` — need a widget to drive, so with no
   instance running they print a "requires a running instance" error and exit `1` rather than
   spawning a persistent widget as a side effect.
 - **Query commands** are handled on an early read-only path that runs *before* the singleton block.

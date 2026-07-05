@@ -36,7 +36,7 @@ Each section is a `[Section]` header in the INI. Columns:
 
 Types, defaults, and ranges are all taken from `includes/Config.au3`. The **Settings UI** column
 was verified against `includes/ConfigDialog.au3` by checking, for each key, whether the dialog's
-apply path calls that key's setter — 188 of the keys below are wired to a control; the ones marked
+apply path calls that key's setter — 204 of the keys below are wired to a control; the ones marked
 `INI-only` are not.
 
 ## `[General]`
@@ -58,6 +58,8 @@ Widget placement, startup, and top-level behavior toggles. Editable on the **Gen
 | `widget_drag_enabled` | bool | `false` | | Yes (General) | Allow dragging the widget to reposition it (persists the offset). |
 | `widget_color_bar` | bool | `false` | | Yes (General) | Show the per-desktop color accent bar on the widget. |
 | `widget_color_bar_height` | int | `2` | 1–10 | Yes (General) | Height of the color bar, in pixels. |
+| `widget_color_bar_anim` | enum | `grow` | `none`, `grow`, `fade` | Yes (General) | How the color bar transitions on a desktop change: `none` (instant, the classic behavior), `grow` (bar width sweeps 0 → full with an ease-out curve), `fade` (background color lerps to the target). Only animates when `animations_enabled` is on and the mode is not `none`. |
+| `widget_color_bar_anim_duration` | int | `300` | 50–2000 | Yes (General) | Duration of the `grow`/`fade` color-bar animation, in milliseconds. |
 | `tray_icon_mode` | bool | `false` | | Yes (General) | Run as a system-tray icon instead of a taskbar widget. |
 | `quick_access_enabled` | bool | `false` | | Yes (General) | Double-click the widget number to type a desktop number (1–9). |
 | `start_minimized` | bool | `false` | | Yes (General) | Start with the widget hidden. |
@@ -163,7 +165,7 @@ a raw `IniRead`.
 | `hotkey_minimize_window` | string | *(empty)* | chord | Yes (Hotkeys) | Minimize the active window. |
 | `hotkey_maximize_window` | string | *(empty)* | chord | Yes (Hotkeys) | Maximize the active window. |
 | `hotkey_restore_window` | string | *(empty)* | chord | Yes (Hotkeys) | Restore the active window. |
-| `hotkey_toggle_carousel` | string | *(empty)* | chord | Yes (Hotkeys) | Toggle carousel (auto-rotate) mode. |
+| `hotkey_toggle_slideshow` | string | *(empty)* | chord | Yes (Hotkeys) | Start/stop the desktop slideshow. Reads the legacy `hotkey_toggle_carousel` value once on first load, then that legacy key is removed on save. |
 | `hotkey_task_view` | string | *(empty)* | chord | Yes (Hotkeys) | Open Windows Task View. |
 | `hotkey_toggle_rules` | string | *(empty)* | chord | Yes (Hotkeys) | Toggle the window rules engine. |
 | `hotkey_load_next_profile` | string | *(empty)* | chord | Yes (Hotkeys) | Load the next saved profile. |
@@ -386,16 +388,46 @@ Individual `[Hooks]` event entries and their syntax are documented in
 |---|---|---|---|---|---|
 | `profiles_enabled` | bool | `false` | | INI-only | Enable named configuration profiles. Advanced feature; no dialog control. See [Persistence & Profiles](../guides/persistence.md). |
 
-## `[Carousel]`
+## `[Slideshow]`
 
-Auto-rotation through desktops. Editable on the **Behavior** tab (Carousel subsection).
+Automatic, configurable rotation through desktops — a dashboard/kiosk feature. Editable on the
+**Behavior** tab, **Slideshow** sub-tab. Supersedes the former `[Carousel]` (see the migration
+note below). Defaults and clamps are read in `_Cfg_Load` (`includes/Config.au3`); the participating
+desktops, per-desktop timing, loops, and break conditions are resolved by the pure engine in
+`includes/Slideshow.au3`.
 
 | Key | Type | Default | Range / Values | Settings UI | Notes |
 |---|---|---|---|---|---|
-| `carousel_enabled` | bool | `false` | | Yes (Behavior) | Enable carousel (auto-rotate) mode. |
-| `carousel_interval` | int | `20000` | 3000–300000 | Yes (Behavior) | Milliseconds between automatic switches. |
-| `carousel_show_in_menu` | bool | `true` | | Yes (Behavior) | Show the carousel toggle in menus. |
-| `notify_carousel_toggle` | bool | `true` | | Yes (Behavior) | Toast when carousel mode is toggled. |
+| `slideshow_enabled` | bool | `false` | | Yes (Behavior) | Master enable. Exposes the slideshow's tray item, context-menu entry, and hotkey. Does **not** auto-start on launch — that is `slideshow_autostart`. |
+| `slideshow_interval` | int | `20000` | 1000–3600000 | Yes (Behavior) | Default milliseconds a desktop is shown before advancing. Per-desktop overrides come from `slideshow_desktop_intervals`. |
+| `slideshow_show_in_menu` | bool | `true` | | Yes (Behavior) | Show the Start/Stop Slideshow entry in the tray and context menus. |
+| `notify_slideshow_toggle` | bool | `true` | | Yes (Behavior) | Toast when the slideshow starts/stops. |
+| `slideshow_selection_mode` | enum | `all` | `all`, `even`, `odd`, `name_contains`, `custom` | Yes (Behavior) | Which desktops participate: `all` = every desktop `1..N`; `even`/`odd` = even-/odd-numbered desktops; `name_contains` = desktops whose label contains `slideshow_name_filter` (case-insensitive substring); `custom` = the explicit `slideshow_sequence` list. |
+| `slideshow_direction` | enum | `forward` | `forward`, `backward` | Yes (Behavior) | Composes with every selection mode: ascending vs. descending desktop order for `all`/`even`/`odd`/`name_contains`, and original vs. reversed list order for `custom`. |
+| `slideshow_name_filter` | string | *(empty)* | ≤128 chars | Yes (Behavior) | Case-insensitive substring matched against desktop labels; used only by `name_contains`. Labels are snapshotted when the slideshow starts, so renaming a desktop mid-run does not re-filter it (restart to re-filter). An empty filter or zero matches makes the selection invalid — the slideshow refuses to start with a toast. |
+| `slideshow_sequence` | string | *(empty)* | ≤256 chars | Yes (Behavior) | CSV of 1-based desktop numbers used only by `custom`, e.g. `1,3,2,5`; repeats are allowed. Non-numeric or out-of-range tokens are skipped; an empty result refuses to start. |
+| `slideshow_desktop_intervals` | string | *(empty)* | ≤512 chars | Yes (Behavior) | Per-desktop dwell overrides as a `desktop:ms` CSV, e.g. `1:5000,3:8000`. Applies in **every** selection mode. Any step landing on a listed desktop uses its override; unlisted / zero / invalid desktops fall back to `slideshow_interval`. Override milliseconds are clamped to 500–3600000. |
+| `slideshow_loop_mode` | enum | `infinite` | `infinite`, `count`, `duration` | Yes (Behavior) | When the slideshow stops on its own: `infinite` never stops; `count` stops after `slideshow_loop_count` full passes; `duration` stops after `slideshow_loop_duration` seconds. |
+| `slideshow_loop_count` | int | `3` | 1–1000 | Yes (Behavior) | Full passes through the resolved selection before stopping (`count` mode). |
+| `slideshow_loop_duration` | int | `300` | 5–86400 | Yes (Behavior) | Seconds to run before stopping (`duration` mode). |
+| `slideshow_autostart` | bool | `false` | | Yes (Behavior) | Start the slideshow automatically at launch (after `slideshow_autostart_delay`). Requires `slideshow_enabled`. |
+| `slideshow_autostart_delay` | int | `5000` | 0–3600000 | Yes (Behavior) | Milliseconds to wait after launch before auto-starting. |
+| `slideshow_break_on_manual_switch` | bool | `true` | | Yes (Behavior) | Stop the slideshow if a desktop change happens that the slideshow did not command. |
+| `slideshow_break_on_widget_click` | bool | `true` | | Yes (Behavior) | Stop the slideshow on any click on the widget. |
+| `slideshow_break_on_hotkey` | bool | `true` | | Yes (Behavior) | Stop the slideshow on any app navigation/action hotkey. |
+| `slideshow_break_on_any_input` | bool | `false` | | Yes (Behavior) | Stop the slideshow on any keyboard/mouse activity (via `GetLastInputInfo`). The slideshow's own switches generate no input, so they never trip this. |
+
+Regardless of the break settings above, the toggle hotkey, tray item, context-menu entry, and
+`--toggle-slideshow` always stop a running slideshow — a manual stop is always available.
+
+**Migration from `[Carousel]`.** The old `[Carousel]` section is read once as a fallback and then
+removed. On load, each new key falls back to its legacy counterpart for a default
+(`slideshow_enabled` ← `carousel_enabled`, `slideshow_interval` ← `carousel_interval` re-clamped
+from the old 3000–300000 range to 1000–3600000, `slideshow_show_in_menu` ← `carousel_show_in_menu`,
+`notify_slideshow_toggle` ← `notify_carousel_toggle`), and `hotkey_toggle_slideshow` falls back to
+`hotkey_toggle_carousel`. The first time the config is saved, the legacy `[Carousel]` section and
+the `hotkey_toggle_carousel` key are deleted. A stored `tray_middle_click = toggle_carousel` is
+normalized to `toggle_slideshow` on load.
 
 ## `[Tray]`
 
@@ -406,7 +438,7 @@ the **Tray** tab.
 |---|---|---|---|---|---|
 | `tray_left_click` | enum | `menu` | `menu`, `toggle_list`, `next_desktop`, `nothing` | Yes (Tray) | Left-click action. |
 | `tray_double_click` | enum | `settings` | `settings`, `toggle_list`, `menu`, `nothing` | Yes (Tray) | Double-click action. |
-| `tray_middle_click` | enum | `toggle_list` | `toggle_list`, `add_desktop`, `toggle_carousel`, `nothing` | Yes (Tray) | Middle-click action. |
+| `tray_middle_click` | enum | `toggle_list` | `toggle_list`, `add_desktop`, `toggle_slideshow`, `nothing` | Yes (Tray) | Middle-click action. A legacy `toggle_carousel` value is accepted and normalized to `toggle_slideshow` on load. |
 | `tray_tooltip_show_label` | bool | `true` | | Yes (Tray) | Show the desktop label in the tray tooltip. |
 | `tray_tooltip_show_count` | bool | `false` | | Yes (Tray) | Show the desktop count in the tray tooltip. |
 | `tray_menu_show_list` | bool | `true` | | Yes (Tray) | Include the desktop list in the tray menu. |

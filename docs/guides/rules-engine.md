@@ -190,7 +190,14 @@ in `Hooks.au3`, and all **eight** are actually fired by the running application 
 | `on_desktop_delete` | A desktop is removed | `desktop`, `desktop_count` |
 | `on_window_move` | A window is sent to a desktop | `desktop`, `window_title`, `window_process` |
 | `on_profile_load` | A named profile is loaded | `profile`, `desktop_count` |
-| `on_carousel_tick` | The carousel advances one step | `desktop`, `desktop_count` |
+| `on_slideshow_start` | The desktop slideshow starts | `mode`, `direction`, `steps`, `loop` |
+| `on_slideshow_step` | The slideshow advances one step | `desktop`, `step`, `desktop_count` |
+| `on_slideshow_stop` | The slideshow stops | `reason` |
+| `on_carousel_tick` | *(Deprecated)* Fires on every slideshow step, alongside `on_slideshow_step` | `desktop`, `desktop_count` |
+
+`on_carousel_tick` is retained only for backward compatibility with hook scripts written for
+the former carousel; it still fires on every slideshow step. New hooks should use
+`on_slideshow_step`.
 
 An unknown event name is ignored with a warning (`__Hooks_IsValidEvent`).
 `window_process` on `on_window_move` is currently sent empty, so `{window_process}` will

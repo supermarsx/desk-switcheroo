@@ -72,7 +72,7 @@ Everything you need is reachable from there:
   color, and move the active window to it.
 
 That is enough to switch, rename, and organize desktops. The full set of gestures — scroll-
-wheel navigation, drag-to-reorder, quick-access number entry, hotkeys, carousel mode — is
+wheel navigation, drag-to-reorder, quick-access number entry, hotkeys, slideshow mode — is
 covered in [Desktop Management](guides/desktop-management.md). For a plain-language account
 of what actually happens when you switch, see [How It Works](how-it-works.md).
 

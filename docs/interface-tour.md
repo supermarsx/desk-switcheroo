@@ -265,7 +265,7 @@ its text, position, size, opacity, and duration are all configurable.
 - **A message** describing what happened (`Moved window to Desktop 3 — Chat`).
 
 Toasts appear for events you opt into — window moved, desktop created/deleted, window
-pinned/unpinned, carousel toggled, update available, and so on — and fade out after a couple of
+pinned/unpinned, slideshow toggled, update available, and so on — and fade out after a couple of
 seconds.
 
 **Where to configure / learn more.** Per-event toggles live on the
@@ -362,7 +362,7 @@ The **Behavior → Interaction** sub-tab gathers confirmation prompts and intera
 - **Disable native desktop-switch OSD** — suppress Windows' own switch overlay.
 - **Enable window pinning** — turn on the pin-window / pin-app actions.
 
-The *Timers*, *Carousel*, and *Rules* sub-tabs hold polling intervals, carousel (auto-cycle)
+The *Timers*, *Slideshow*, and *Rules* sub-tabs hold polling intervals, slideshow (auto-cycle)
 options, and the window-rules engine toggle.
 
 ### Settings: Desktops tab

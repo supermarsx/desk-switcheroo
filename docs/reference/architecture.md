@@ -67,8 +67,11 @@ View, another tool) still updates the widget.
 
 **Tick / state-machine animations instead of blocking sleeps.** Fades that would
 otherwise be `For … Sleep` loops are driven one step per main-loop pass: the toast fade
-(`_Theme_ToastTick`), OSD fade (`_Theme_OsdTick`), and taskbar auto-hide fade
-(`_TAH_FadeTick`) all advance from `_ProcessTimersAndSleep`. (The generic menu/dialog
+(`_Theme_ToastTick`), OSD fade (`_Theme_OsdTick`), taskbar auto-hide fade
+(`_TAH_FadeTick`), and the widget color-bar animation (`_Theme_ColorBarTick`) all advance
+from `_ProcessTimersAndSleep`. The desktop slideshow steps the same way, from its own
+main-loop tick (`_SlideshowTick`) rather than an Adlib, because its per-step intervals vary
+and the idle sleep granularity is fine for second-scale steps. (The generic menu/dialog
 fade is a documented exception that still blocks briefly — see
 [Known Limitations](../reference/limitations.md).)
 

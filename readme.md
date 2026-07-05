@@ -117,7 +117,7 @@ AutoIt3_x64.exe desktop_switcher.au3
 | Global hotkeys | Yes | Yes | Yes | Yes | Yes | Limited | Yes | Yes |
 | Window management | Yes | Limited | Yes | Yes | Limited | Yes | Yes | Yes |
 | Drag-to-reorder desktops | Yes | No | Yes | No | No | No | No | No |
-| Carousel mode | Yes | No | No | No | No | No | No | No |
+| Slideshow mode | Yes | No | No | No | No | No | No | No |
 | Taskbar widget | Yes | No | No | No | No | No | No | No |
 | System tray mode | Yes | Yes | Yes | Yes | No | No | No | No |
 | CLI / IPC control | Yes | No | No | No | No | No | No | No |

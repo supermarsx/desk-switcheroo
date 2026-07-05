@@ -210,7 +210,7 @@ actions that apply to every window on the panel's desktop:
   wheel does over the desktop list panel.
 
 Desk Switcheroo exposes many more optional hotkeys (rename, add/delete desktop, open settings,
-task view, toggle carousel, load profiles, and more); the full list with defaults is in the
+task view, toggle slideshow, load profiles, and more); the full list with defaults is in the
 [Advanced INI Reference](../configuration/ini-reference.md).
 
 ## Quick access
@@ -220,13 +220,56 @@ quick-access input (`_QuickAccess_Show` in `desktop_switcher.au3`) where you typ
 number to jump straight to it — useful when you have many desktops and do not want to open the
 full list.
 
-## Carousel mode
+## Slideshow mode
 
-Carousel mode cycles automatically through your desktops on a timer (`[Carousel]` section).
-Enable it with `carousel_enabled` and set the dwell time with `carousel_interval` (range
-3000–300000 ms, default 20000). It can be toggled from the tray/context menu (when
-`carousel_show_in_menu` is on) or a hotkey (`hotkey_toggle_carousel`), and shows a toast when
-toggled unless `notify_carousel_toggle` is off.
+Slideshow mode cycles automatically through your desktops on a timer — useful for dashboards,
+kiosks, or a rotating display. It is configured in the `[Slideshow]` section and on the
+**Behavior** tab's **Slideshow** sub-tab, and driven by the pure engine in
+`includes/Slideshow.au3`. Enable it with `slideshow_enabled` (this exposes its controls but does
+not start it) and set the default dwell time with `slideshow_interval` (range 1000–3600000 ms,
+default 20000).
+
+**Which desktops take part** is set by `slideshow_selection_mode`:
+
+- `all` — every desktop (the classic behavior).
+- `even` / `odd` — even- or odd-numbered desktops only.
+- `name_contains` — desktops whose label contains `slideshow_name_filter` (case-insensitive
+  substring). Labels are read once when the slideshow starts, so renaming a desktop mid-run does
+  not re-filter it. An empty filter or zero matches makes the selection invalid and the slideshow
+  refuses to start (with a toast).
+- `custom` — the explicit `slideshow_sequence`, a CSV of 1-based desktop numbers like `1,3,2,5`
+  (repeats allowed; out-of-range entries are skipped).
+
+`slideshow_direction` (`forward`/`backward`) composes with every mode: it sets ascending vs.
+descending order for `all`/`even`/`odd`/`name_contains`, and original vs. reversed order for a
+custom sequence.
+
+**Per-desktop timing.** `slideshow_desktop_intervals` overrides the dwell time for specific
+desktops as a `desktop:ms` CSV (e.g. `1:5000,3:8000`). It applies in **every** selection mode —
+any step landing on a listed desktop uses its override (each occurrence of a repeated desktop
+shares the same time); unlisted desktops use `slideshow_interval`. Override times are clamped to
+500–3600000 ms.
+
+**How long it runs** is set by `slideshow_loop_mode`: `infinite` (until you stop it), `count`
+(`slideshow_loop_count` full passes, default 3), or `duration` (`slideshow_loop_duration`
+seconds, default 300).
+
+**Autostart.** With `slideshow_autostart` on, the slideshow begins automatically at launch after
+`slideshow_autostart_delay` milliseconds (default 5000). This requires `slideshow_enabled`.
+
+**Breaking out.** By default the slideshow stops as soon as you take over: a manual desktop
+switch (`slideshow_break_on_manual_switch`), a click on the widget
+(`slideshow_break_on_widget_click`), or an app navigation/action hotkey
+(`slideshow_break_on_hotkey`). You can also stop it on any keyboard/mouse activity
+(`slideshow_break_on_any_input`, off by default). Regardless of those settings, the toggle
+hotkey, tray item, context-menu entry, and `--toggle-slideshow` always stop it.
+
+**Control it** from the tray/context menu (when `slideshow_show_in_menu` is on), the
+`hotkey_toggle_slideshow` hotkey, or the `--toggle-slideshow` command-line flag; it shows a toast
+when it starts/stops unless `notify_slideshow_toggle` is off.
+
+Slideshow mode supersedes the former carousel; existing `[Carousel]` settings are migrated
+automatically (see the [migration note](../configuration/ini-reference.md#slideshow)).
 
 ## Navigation options
 

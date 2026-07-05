@@ -53,7 +53,7 @@ called out in the notes below the table.
 | Global hotkeys | Yes | Yes | Yes | Yes | Yes | Limited | Yes | Yes | No³ | Yes |
 | Window management | Yes | Limited | Yes | Yes | Limited | Yes | Yes | Yes | Yes | Limited |
 | Drag-to-reorder desktops | Yes | No | Yes | No | No | No | No | No | No | Yes² |
-| Carousel mode | **Yes** | No | No | No | No | No | No | No | No | No |
+| Slideshow mode | **Yes** | No | No | No | No | No | No | No | No | No |
 | Taskbar widget | **Yes** | No | No | No | No | No | No | No | No | No |
 | System tray mode | Yes | Yes | Yes | Yes | No | No | No | No | No | — |
 | CLI / IPC control | Yes | No | No | No | No | No | Yes⁴ | No | Yes | No |
@@ -79,7 +79,7 @@ called out in the notes below the table.
 5. **Dexpot** is free for private use; a commercial license is required for business use.
 
 Desk Switcheroo is the only tool here that combines per-desktop **colors**, a **rules engine**,
-**session persistence**, a **carousel**, and a **taskbar widget** (the bolded cells above).
+**session persistence**, a **slideshow**, and a **taskbar widget** (the bolded cells above).
 
 ## At a glance
 
