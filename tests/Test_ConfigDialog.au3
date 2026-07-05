@@ -482,6 +482,244 @@ Func _RunTest_ConfigDialog()
     $__g_CD_hGUI = 0
     __CD_SearchReset()
     FileDelete($sSsIni)
+
+    ; ============================================================
+    ; t8-a: hotkey builder capture state machine + builder coverage
+    ; ============================================================
+
+    ; -- Excluded-VK classifier (pure): mouse, Esc, and every modifier are never chord keys --
+    _Test_AssertTrue("HkCap excl: mouse VK 0x01", __CD_HkCap_IsExcludedVK(0x01))
+    _Test_AssertTrue("HkCap excl: mouse VK 0x06", __CD_HkCap_IsExcludedVK(0x06))
+    _Test_AssertTrue("HkCap excl: Esc 0x1B", __CD_HkCap_IsExcludedVK(0x1B))
+    _Test_AssertTrue("HkCap excl: Shift 0x10", __CD_HkCap_IsExcludedVK(0x10))
+    _Test_AssertTrue("HkCap excl: Ctrl 0x11", __CD_HkCap_IsExcludedVK(0x11))
+    _Test_AssertTrue("HkCap excl: Alt 0x12", __CD_HkCap_IsExcludedVK(0x12))
+    _Test_AssertTrue("HkCap excl: LWin 0x5B", __CD_HkCap_IsExcludedVK(0x5B))
+    _Test_AssertTrue("HkCap excl: RWin 0x5C", __CD_HkCap_IsExcludedVK(0x5C))
+    _Test_AssertTrue("HkCap excl: LShift 0xA0", __CD_HkCap_IsExcludedVK(0xA0))
+    _Test_AssertTrue("HkCap excl: RMenu 0xA5", __CD_HkCap_IsExcludedVK(0xA5))
+    _Test_AssertFalse("HkCap keep: letter A 0x41", __CD_HkCap_IsExcludedVK(0x41))
+    _Test_AssertFalse("HkCap keep: RIGHT 0x27", __CD_HkCap_IsExcludedVK(0x27))
+    _Test_AssertFalse("HkCap keep: F1 0x70", __CD_HkCap_IsExcludedVK(0x70))
+    _Test_AssertFalse("HkCap keep: Apps key 0x5D", __CD_HkCap_IsExcludedVK(0x5D))
+
+    ; -- __CD_HkCap_Tick truth table (pure state machine) --
+    ; Signature: __CD_HkCap_Tick($iState, $iVkDown, $iModMask, $bEscDown, $bAnyKeyDown)
+    ;            -> [newState, capturedVK, capturedModMask]
+    Local $aT
+
+    ; FLUSH stays FLUSH while any key (a stale held key) is still down -> blocks arming.
+    $aT = __CD_HkCap_Tick($CD_HKCAP_FLUSH, 0x41, 1, False, True)
+    _Test_AssertEqual("Tick: FLUSH + keys held stays FLUSH", $aT[0], $CD_HKCAP_FLUSH)
+    _Test_AssertEqual("Tick: FLUSH holds capture 0 while blocked", $aT[1], 0)
+
+    ; FLUSH -> ARMED once everything is released.
+    $aT = __CD_HkCap_Tick($CD_HKCAP_FLUSH, 0, 0, False, False)
+    _Test_AssertEqual("Tick: FLUSH + all released -> ARMED", $aT[0], $CD_HKCAP_ARMED)
+
+    ; ARMED + modifier-only (no non-modifier key) never completes.
+    $aT = __CD_HkCap_Tick($CD_HKCAP_ARMED, 0, 1, False, True)
+    _Test_AssertEqual("Tick: ARMED + Ctrl-only stays ARMED", $aT[0], $CD_HKCAP_ARMED)
+    $aT = __CD_HkCap_Tick($CD_HKCAP_ARMED, 0, 7, False, True)
+    _Test_AssertEqual("Tick: ARMED + all-mods-only stays ARMED", $aT[0], $CD_HKCAP_ARMED)
+
+    ; ARMED -> DONE on a non-modifier keydown; modifiers snapshotted the SAME tick.
+    $aT = __CD_HkCap_Tick($CD_HKCAP_ARMED, 0x27, 3, False, True) ; RIGHT + Ctrl+Alt
+    _Test_AssertEqual("Tick: ARMED + chord -> DONE", $aT[0], $CD_HKCAP_DONE)
+    _Test_AssertEqual("Tick: DONE captures the VK", $aT[1], 0x27)
+    _Test_AssertEqual("Tick: DONE snapshots modifiers same tick", $aT[2], 3)
+
+    ; Bare key with no modifiers still completes with mask 0.
+    $aT = __CD_HkCap_Tick($CD_HKCAP_ARMED, 0x70, 0, False, True) ; F1, no mods
+    _Test_AssertEqual("Tick: ARMED + bare key -> DONE", $aT[0], $CD_HKCAP_DONE)
+    _Test_AssertEqual("Tick: bare-key modifier mask 0", $aT[2], 0)
+
+    ; Escape cancels from every state and is not itself capturable.
+    $aT = __CD_HkCap_Tick($CD_HKCAP_FLUSH, 0, 0, True, True)
+    _Test_AssertEqual("Tick: Esc from FLUSH -> CANCEL", $aT[0], $CD_HKCAP_CANCEL)
+    $aT = __CD_HkCap_Tick($CD_HKCAP_ARMED, 0, 0, True, True)
+    _Test_AssertEqual("Tick: Esc from ARMED -> CANCEL", $aT[0], $CD_HKCAP_CANCEL)
+    ; Esc takes precedence even when a real key is also down that tick (Esc wins, no capture).
+    $aT = __CD_HkCap_Tick($CD_HKCAP_ARMED, 0x41, 5, True, True)
+    _Test_AssertEqual("Tick: Esc precedence over key -> CANCEL", $aT[0], $CD_HKCAP_CANCEL)
+    _Test_AssertEqual("Tick: Esc cancel captures nothing", $aT[1], 0)
+
+    ; Terminal states are sticky.
+    $aT = __CD_HkCap_Tick($CD_HKCAP_DONE, 0x41, 1, False, True)
+    _Test_AssertEqual("Tick: DONE is terminal", $aT[0], $CD_HKCAP_DONE)
+    $aT = __CD_HkCap_Tick($CD_HKCAP_CANCEL, 0x41, 1, False, True)
+    _Test_AssertEqual("Tick: CANCEL is terminal", $aT[0], $CD_HKCAP_CANCEL)
+
+    ; -- Ordered capture sequence: stale key held -> released -> mod-only -> full chord --
+    ; Mirrors a real capture: the user is still holding a key from clicking Capture, lets go,
+    ; presses only modifiers, then completes the chord. Only the last tick DONEs.
+    Local $iSeqState = $CD_HKCAP_FLUSH
+    $aT = __CD_HkCap_Tick($iSeqState, 0, 0, False, True)  ; stale key still down
+    $iSeqState = $aT[0]
+    _Test_AssertEqual("Seq: still FLUSH while stale key held", $iSeqState, $CD_HKCAP_FLUSH)
+    $aT = __CD_HkCap_Tick($iSeqState, 0, 0, False, False) ; released
+    $iSeqState = $aT[0]
+    _Test_AssertEqual("Seq: arms after release", $iSeqState, $CD_HKCAP_ARMED)
+    $aT = __CD_HkCap_Tick($iSeqState, 0, 2, False, True)  ; Alt only
+    $iSeqState = $aT[0]
+    _Test_AssertEqual("Seq: waits through modifier-only", $iSeqState, $CD_HKCAP_ARMED)
+    $aT = __CD_HkCap_Tick($iSeqState, 0x25, 2, False, True) ; Alt+LEFT
+    $iSeqState = $aT[0]
+    _Test_AssertEqual("Seq: completes on the chord", $iSeqState, $CD_HKCAP_DONE)
+    _Test_AssertEqual("Seq: captured LEFT", $aT[1], 0x25)
+    _Test_AssertEqual("Seq: captured Alt mask", $aT[2], 2)
+
+    ; -- Build string with the captured VK + modifier mask (end-to-end encode) --
+    ; The builder maps the mask bits to Ctrl/Alt/Shift/Win exactly as done in the capture case.
+    _Test_AssertEqual("Encode: Alt+LEFT from capture", _
+        __CD_BuildHotkeyString(BitAND(2, 1) <> 0, BitAND(2, 2) <> 0, BitAND(2, 4) <> 0, BitAND(2, 8) <> 0, __CD_VKToAutoItKey(0x25)), "!{LEFT}")
+    _Test_AssertEqual("Encode: Ctrl+Alt+RIGHT from capture", _
+        __CD_BuildHotkeyString(BitAND(3, 1) <> 0, BitAND(3, 2) <> 0, BitAND(3, 4) <> 0, BitAND(3, 8) <> 0, __CD_VKToAutoItKey(0x27)), "^!{RIGHT}")
+    _Test_AssertEqual("Encode: Win+D from capture", _
+        __CD_BuildHotkeyString(BitAND(8, 1) <> 0, BitAND(8, 2) <> 0, BitAND(8, 4) <> 0, BitAND(8, 8) <> 0, __CD_VKToAutoItKey(0x44)), "#d")
+    _Test_AssertEqual("Encode: all mods + F5 from capture", _
+        __CD_BuildHotkeyString(BitAND(15, 1) <> 0, BitAND(15, 2) <> 0, BitAND(15, 4) <> 0, BitAND(15, 8) <> 0, __CD_VKToAutoItKey(0x74)), "^!+#{F5}")
+
+    ; -- Hotkey-suspend/resume callback seam (Decision 1, headless) --
+    ; The builder suspends global hotkeys for its whole lifetime via registered string
+    ; callbacks invoked with Call(). Here we register test callbacks and assert the wrappers
+    ; both count the dispatch AND actually invoke the registered function (pairing proof).
+    $g_CDTest_iSuspendFired = 0
+    $g_CDTest_iResumeFired = 0
+    Local $iSusBefore = $__g_CD_iHkSuspendCalls, $iResBefore = $__g_CD_iHkResumeCalls
+    _CD_RegisterMainCallbacks("__CDTest_SuspendCb", "__CDTest_ResumeCb", "")
+    __CD_HkSuspend()
+    __CD_HkResume()
+    _Test_AssertEqual("Suspend wrapper counted the dispatch", $__g_CD_iHkSuspendCalls, $iSusBefore + 1)
+    _Test_AssertEqual("Resume wrapper counted the dispatch", $__g_CD_iHkResumeCalls, $iResBefore + 1)
+    _Test_AssertEqual("Suspend callback actually invoked via Call()", $g_CDTest_iSuspendFired, 1)
+    _Test_AssertEqual("Resume callback actually invoked via Call()", $g_CDTest_iResumeFired, 1)
+    _Test_AssertEqual("Suspend/resume dispatched in a matched pair", $g_CDTest_iSuspendFired, $g_CDTest_iResumeFired)
+    ; Unregistered (empty strings) => wrappers no-op the Call but still count. This is the
+    ; planned mid-state until t8-c wires the real _UnregisterHotkeys/_RegisterHotkeys.
+    _CD_RegisterMainCallbacks("", "", "")
+    __CD_HkSuspend()
+    __CD_HkResume()
+    _Test_AssertEqual("Unregistered suspend does not re-fire callback", $g_CDTest_iSuspendFired, 1)
+    _Test_AssertEqual("Unregistered resume does not re-fire callback", $g_CDTest_iResumeFired, 1)
+    _Test_AssertEqual("Unregistered suspend still counted", $__g_CD_iHkSuspendCalls, $iSusBefore + 2)
+
+    ; -- Main-tick callback registration (t8-c, Risk-2 typo mitigation) --
+    ; The async-settings bridge stores the tick callback as a string invoked via Call().
+    ; Au3Check can't see Call()-by-string typos, so assert the stored string round-trips.
+    _CD_RegisterMainCallbacks("_UnregisterHotkeys", "_RegisterHotkeys", "_MainTick_FromDialog")
+    _Test_AssertEqual("Suspend callback string stored", $__g_CD_sCbHkSuspend, "_UnregisterHotkeys")
+    _Test_AssertEqual("Resume callback string stored", $__g_CD_sCbHkResume, "_RegisterHotkeys")
+    _Test_AssertEqual("Main-tick callback string stored", $__g_CD_sCbMainTick, "_MainTick_FromDialog")
+    _CD_RegisterMainCallbacks("", "", "") ; back to headless mid-state (no live tick/hotkey mutation)
+
+    ; -- Reentry guard (t8-c guard 1): _CD_Show() while already visible must NOT nest --
+    ; With async settings the ctx/tray/hotkey/IPC open paths stay reachable while the dialog
+    ; is up. The entry guard returns immediately instead of building a second GUI + nested
+    ; blocking loop. Drive it headlessly with hGUI=0 so no WinActivate/flash/DllCall runs;
+    ; the guard must return without creating a GUI and leave bVisible untouched.
+    Local $bSavVisible = $__g_CD_bVisible, $hSavGui = $__g_CD_hGUI
+    $__g_CD_bVisible = True
+    $__g_CD_hGUI = 0
+    _CD_Show() ; must return via the guard, not block
+    _Test_AssertTrue("Reentry guard left dialog marked visible", $__g_CD_bVisible)
+    _Test_AssertEqual("Reentry guard created no new GUI", $__g_CD_hGUI, 0)
+    $__g_CD_bVisible = $bSavVisible
+    $__g_CD_hGUI = $hSavGui
+
+    ; -- Builder coverage: EVERY hotkey row gets a "..." builder (Decision 4, real GUI) --
+    ; Building the Hotkeys tab must register a builder for all 47 rows (28 legacy + 19 that
+    ; previously had none). The registry is count-agnostic; we assert the current total and
+    ; that every registered pair is a live (button, input) mapping.
+    Local $sHkIni = @TempDir & "\desk_switcheroo_cd_hkbuild.ini"
+    If FileExists($sHkIni) Then FileDelete($sHkIni)
+    _Cfg_Init($sHkIni)
+
+    Local $hGuiHk = GUICreate("CD Hotkey Builder Coverage Test", 540, 700)
+    $__g_CD_hGUI = $hGuiHk
+    $__g_CD_iChkCount = 0
+    $__g_CD_aiTabCtrlCount[3] = 0
+    $__g_CD_iHkBuildCount = 0
+    __CD_BuildTabHotkeys()
+
+    _Test_AssertEqual("Builder registry covers all 47 hotkey rows", $__g_CD_iHkBuildCount, 47)
+    Local $bAllPairsLive = True, $hi
+    For $hi = 0 To $__g_CD_iHkBuildCount - 1
+        If $__g_CD_aHkBuildBtn[$hi] = 0 Or $__g_CD_aHkBuildInp[$hi] = 0 Then $bAllPairsLive = False
+    Next
+    _Test_AssertTrue("Every builder registry pair is (button, input) nonzero", $bAllPairsLive)
+    ; First row built is Navigation > Next: its registry entry maps to that input.
+    _Test_AssertEqual("Registry[0] input is the Next hotkey field", $__g_CD_aHkBuildInp[0], $__g_CD_idInpHkNext)
+    ; The 19 formerly-buttonless rows now have builders too (spot-check across sub-tabs).
+    _Test_AssertTrue("Maximize-window row now has a builder input registered", __CDTest_HkInputRegistered($__g_CD_idInpHkMaximizeWindow))
+    _Test_AssertTrue("Move-to-desktop 1 row now has a builder", __CDTest_HkInputRegistered($__g_CD_aidInpHkMoveToDesktop[1]))
+    _Test_AssertTrue("Toggle-rules action row now has a builder", __CDTest_HkInputRegistered($__g_CD_idInpHkToggleRules))
+    _Test_AssertTrue("Swap-desktops action row now has a builder", __CDTest_HkInputRegistered($__g_CD_idInpHkSwapDesktops))
+
+    GUIDelete($hGuiHk)
+    $__g_CD_hGUI = 0
+    __CD_SearchReset()
+    FileDelete($sHkIni)
+
+    ; -- Settings row: "Click Move Here" checkbox populate/apply round-trip (Decision 5) --
+    ; Builds the Behavior tab, then round-trips the new checkbox through the real
+    ; populate (__CD_PopulateControls) and apply (__CD_ApplyChanges) seams against t8-b's
+    ; _Cfg_GetMoveHereClickEnabled / _Cfg_SetMoveHereClickEnabled.
+    Local $sMhIni = @TempDir & "\desk_switcheroo_cd_movehere.ini"
+    If FileExists($sMhIni) Then FileDelete($sMhIni)
+    _Cfg_Init($sMhIni)
+
+    Local $hGuiMh = GUICreate("CD Move-Here Click Test", 540, 700)
+    $__g_CD_hGUI = $hGuiMh
+    $__g_CD_iChkCount = 0
+    $__g_CD_aiTabCtrlCount[1] = 0
+    $__g_CD_aiTabCtrlCount[4] = 0
+    __CD_BuildTabGeneral()
+    __CD_BuildTabBehavior()
+    _Test_AssertTrue("Move-here-click checkbox created", $__g_CD_idChkMoveHereClick <> 0)
+
+    ; Default is OFF -> populate leaves it unchecked.
+    _Cfg_SetMoveHereClickEnabled(False)
+    __CD_PopulateControls()
+    _Test_AssertFalse("Populate: move-here-click off reads unchecked", __CD_GetCheckState($__g_CD_idChkMoveHereClick))
+    ; ON -> populate checks it.
+    _Cfg_SetMoveHereClickEnabled(True)
+    __CD_PopulateControls()
+    _Test_AssertTrue("Populate: move-here-click on reads checked", __CD_GetCheckState($__g_CD_idChkMoveHereClick))
+    ; Apply writes the control state back to config.
+    __CD_SetCheckState($__g_CD_idChkMoveHereClick, False)
+    __CD_ApplyChanges()
+    _Test_AssertFalse("Apply: unchecked -> config off", _Cfg_GetMoveHereClickEnabled())
+    __CD_SetCheckState($__g_CD_idChkMoveHereClick, True)
+    __CD_ApplyChanges()
+    _Test_AssertTrue("Apply: checked -> config on", _Cfg_GetMoveHereClickEnabled())
+
+    ; The new row is tooltip-indexed and thus discoverable via settings search.
+    __CD_BuildSearchIndex()
+    _Test_AssertTrue("Search: 'move here' finds the new row", __CD_SearchMatch("move here") >= 1)
+
+    GUIDelete($hGuiMh)
+    $__g_CD_hGUI = 0
+    __CD_SearchReset()
+    FileDelete($sMhIni)
+EndFunc
+
+; Test callbacks for the hotkey-suspend/resume seam (invoked via Call() by the wrappers).
+Global $g_CDTest_iSuspendFired = 0, $g_CDTest_iResumeFired = 0
+Func __CDTest_SuspendCb()
+    $g_CDTest_iSuspendFired += 1
+EndFunc
+Func __CDTest_ResumeCb()
+    $g_CDTest_iResumeFired += 1
+EndFunc
+
+; True if the given input control id is registered to a hotkey-builder "..." button.
+Func __CDTest_HkInputRegistered($idInp)
+    Local $i
+    For $i = 0 To $__g_CD_iHkBuildCount - 1
+        If $__g_CD_aHkBuildInp[$i] = $idInp Then Return True
+    Next
+    Return False
 EndFunc
 
 ; Asserts every option value survives localize -> delocalize (the combo apply/populate seam).

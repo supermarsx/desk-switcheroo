@@ -62,7 +62,19 @@ Global $__g_CD_idLblScrollDir, $__g_CD_idLblListAction
 ; -- Tab 3: Hotkeys --
 Global $__g_CD_idInpHkNext, $__g_CD_idInpHkPrev, $__g_CD_idInpHkToggleList
 Global $__g_CD_aidInpHkDesktop[10] ; index 1-9
-Global $__g_CD_idBtnHkBuild[28]    ; index 0-27 for each hotkey row "..." button
+; Dynamic hotkey-builder registry: parallel arrays map each "..." button to its input.
+; Populated by __CD_RegHkBuilder as rows are built (count-agnostic, replaces the old
+; fixed 28-slot array + if-chain). Sized generously for all current + future rows.
+Global $__g_CD_aHkBuildBtn[64], $__g_CD_aHkBuildInp[64], $__g_CD_iHkBuildCount = 0
+
+; -- Main-loop callbacks (registered by desktop_switcher.au3 at startup) --
+; String names invoked via Call(); empty until registered so headless tests no-op.
+; Suspend/resume gate global hotkeys for the hotkey builder's whole lifetime (t8-c wires
+; them to _UnregisterHotkeys/_RegisterHotkeys; until then they are no-ops). $sCbMainTick
+; is used by t8-c's async-settings tick.
+Global $__g_CD_sCbHkSuspend = "", $__g_CD_sCbHkResume = "", $__g_CD_sCbMainTick = ""
+; Test seam: counts suspend/resume dispatches so pairing can be asserted headlessly.
+Global $__g_CD_iHkSuspendCalls = 0, $__g_CD_iHkResumeCalls = 0
 
 ; -- Tab 1 extras: General --
 Global $__g_CD_idChkWidgetDrag, $__g_CD_idChkWidgetColorBar, $__g_CD_idChkTrayMode, $__g_CD_idChkQuickAccess
@@ -212,7 +224,7 @@ Global $__g_CD_iHkActionsCount = 0
 Global $__g_CD_iHkActiveSub = 1  ; 1=Nav, 2=Win, 3=Desk, 4=Send, 5=Actions
 
 ; -- Tab 4: Behavior --
-Global $__g_CD_idChkConfirmDel, $__g_CD_idChkMidClick, $__g_CD_idChkMoveWin
+Global $__g_CD_idChkConfirmDel, $__g_CD_idChkMidClick, $__g_CD_idChkMoveWin, $__g_CD_idChkMoveHereClick
 Global $__g_CD_idInpPeekDelay, $__g_CD_idInpAutoHide, $__g_CD_idInpTopmost, $__g_CD_idInpCmDelay
 Global $__g_CD_idChkConfigWatcher, $__g_CD_idInpWatcherInterval
 Global $__g_CD_idInpCtxDelay
@@ -334,6 +346,24 @@ Global $__g_CD_bEscWasDown = False
 ; #FUNCTIONS# ===================================================
 
 Func _CD_Show()
+    ; Reentry guard (guard 1): with async settings the ctx-menu "settings", tray, hotkey
+    ; and relayed-IPC open paths all stay reachable while the dialog is already up. Never
+    ; nest a second blocking message loop — just surface and flash the existing dialog.
+    If $__g_CD_bVisible Then
+        If $__g_CD_hGUI <> 0 Then
+            WinActivate($__g_CD_hGUI)
+            ; Brief caption flash for feedback (FLASHW_CAPTION=1, 2 flashes, default rate).
+            Local $tFlash = DllStructCreate("uint;hwnd;dword;uint;dword")
+            DllStructSetData($tFlash, 1, DllStructGetSize($tFlash))
+            DllStructSetData($tFlash, 2, $__g_CD_hGUI)
+            DllStructSetData($tFlash, 3, 1)
+            DllStructSetData($tFlash, 4, 2)
+            DllStructSetData($tFlash, 5, 0)
+            DllCall("user32.dll", "bool", "FlashWindowEx", "struct*", $tFlash)
+        EndIf
+        _Log_Info("Settings dialog already open — focusing existing instance")
+        Return
+    EndIf
     _Log_Info("Settings dialog opened")
     Local $iW = 540
     ; Dynamic height: use up to 85% of screen, minimum 600
@@ -524,6 +554,30 @@ EndFunc
 
 Func _CD_GetGUI()
     Return $__g_CD_hGUI
+EndFunc
+
+; Name:        _CD_RegisterMainCallbacks
+; Description: Registers the main-loop bridge callbacks (invoked by string via Call()).
+;              desktop_switcher.au3 calls this at startup after _RegisterHotkeys():
+;                _CD_RegisterMainCallbacks("_UnregisterHotkeys", "_RegisterHotkeys", "_MainTick_FromDialog")
+;              Until then the strings are empty and every wrapper below no-ops, which is
+;              exactly what headless tests want (no live hotkey mutation, no main tick).
+Func _CD_RegisterMainCallbacks($sSuspendHk, $sResumeHk, $sMainTick)
+    $__g_CD_sCbHkSuspend = $sSuspendHk
+    $__g_CD_sCbHkResume = $sResumeHk
+    $__g_CD_sCbMainTick = $sMainTick
+EndFunc
+
+; Suspend global hotkeys (builder open). No-op until t8-c registers _UnregisterHotkeys.
+Func __CD_HkSuspend()
+    $__g_CD_iHkSuspendCalls += 1
+    If $__g_CD_sCbHkSuspend <> "" Then Call($__g_CD_sCbHkSuspend)
+EndFunc
+
+; Resume global hotkeys (builder closed). No-op until t8-c registers _RegisterHotkeys.
+Func __CD_HkResume()
+    $__g_CD_iHkResumeCalls += 1
+    If $__g_CD_sCbHkResume <> "" Then Call($__g_CD_sCbHkResume)
 EndFunc
 
 ; =============================================
@@ -1451,7 +1505,7 @@ EndFunc
 
 Func __CD_BuildTabHotkeys()
     Local $t = 3, $iX = 20, $iY = 94
-    Local $iLblW = 100, $iInpW = 130, $iBtnBuildW = 24, $i
+    Local $iLblW = 100, $iInpW = 130, $i
     Local $idLbl, $iContentStartY
 
     ; Reset sub-tab tracking
@@ -1460,6 +1514,7 @@ Func __CD_BuildTabHotkeys()
     $__g_CD_iHkDeskCount = 0
     $__g_CD_iHkSendCount = 0
     $__g_CD_iHkActionsCount = 0
+    $__g_CD_iHkBuildCount = 0
     $__g_CD_iHkActiveSub = 1
 
     ; Sub-tab buttons for Hotkeys
@@ -1531,15 +1586,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkNext)
     __CD_RegHkSub(1, $__g_CD_idInpHkNext)
     _Theme_SetTooltip($__g_CD_idInpHkNext, _i18n("Settings.Hotkeys.tip_hotkey_format", "AutoIt hotkey format: ^=Ctrl !=Alt +=Shift #=Win e.g. ^!{RIGHT}"))
-    $__g_CD_idBtnHkBuild[0] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
-        BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[0], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[0], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[0], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[0], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[0])
-    __CD_RegHkSub(1, $__g_CD_idBtnHkBuild[0])
-    _Theme_SetTooltip($__g_CD_idBtnHkBuild[0], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 1, $__g_CD_idInpHkNext)
     $iY += 24
 
     ; Prev (build index 1)
@@ -1557,15 +1604,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkPrev)
     __CD_RegHkSub(1, $__g_CD_idInpHkPrev)
     _Theme_SetTooltip($__g_CD_idInpHkPrev, _i18n("Settings.Hotkeys.tip_hotkey_format", "AutoIt hotkey format: ^=Ctrl !=Alt +=Shift #=Win e.g. ^!{RIGHT}"))
-    $__g_CD_idBtnHkBuild[1] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
-        BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[1], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[1], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[1], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[1], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[1])
-    __CD_RegHkSub(1, $__g_CD_idBtnHkBuild[1])
-    _Theme_SetTooltip($__g_CD_idBtnHkBuild[1], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 1, $__g_CD_idInpHkPrev)
     $iY += 24
 
     ; Toggle List (build index 11)
@@ -1583,15 +1622,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkToggleList)
     __CD_RegHkSub(1, $__g_CD_idInpHkToggleList)
     _Theme_SetTooltip($__g_CD_idInpHkToggleList, _i18n("Settings.Hotkeys.tip_hotkey_format", "AutoIt hotkey format: ^=Ctrl !=Alt +=Shift #=Win e.g. ^!{RIGHT}"))
-    $__g_CD_idBtnHkBuild[11] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
-        BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[11], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[11], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[11], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[11], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[11])
-    __CD_RegHkSub(1, $__g_CD_idBtnHkBuild[11])
-    _Theme_SetTooltip($__g_CD_idBtnHkBuild[11], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 1, $__g_CD_idInpHkToggleList)
     $iY += 24
 
     ; Last Desktop (build index 12)
@@ -1609,13 +1640,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkLastDesktop)
     __CD_RegHkSub(1, $__g_CD_idInpHkLastDesktop)
     _Theme_SetTooltip($__g_CD_idInpHkLastDesktop, _i18n("Settings.Hotkeys.tip_hotkey_toggle_last", "Global hotkey to jump to the last-active desktop"))
-    $__g_CD_idBtnHkBuild[12] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[12], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[12], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[12], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[12], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[12])
-    __CD_RegHkSub(1, $__g_CD_idBtnHkBuild[12])
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 1, $__g_CD_idInpHkLastDesktop)
     $iY += 24
 
     ; Open Settings (build index 20)
@@ -1633,14 +1658,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkOpenSettings)
     __CD_RegHkSub(1, $__g_CD_idInpHkOpenSettings)
     _Theme_SetTooltip($__g_CD_idInpHkOpenSettings, _i18n("Settings.Hotkeys.tip_hotkey_settings", "Global hotkey to open the settings dialog"))
-    $__g_CD_idBtnHkBuild[20] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[20], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[20], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[20], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[20], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[20])
-    __CD_RegHkSub(1, $__g_CD_idBtnHkBuild[20])
-    _Theme_SetTooltip($__g_CD_idBtnHkBuild[20], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 1, $__g_CD_idInpHkOpenSettings)
     $iY += 28
 
     ; Add Desktop (build index 21)
@@ -1658,14 +1676,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkAddDesktop)
     __CD_RegHkSub(1, $__g_CD_idInpHkAddDesktop)
     _Theme_SetTooltip($__g_CD_idInpHkAddDesktop, _i18n("Settings.Hotkeys.tip_hotkey_add_desktop", "Global hotkey to create a new virtual desktop"))
-    $__g_CD_idBtnHkBuild[21] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[21], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[21], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[21], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[21], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[21])
-    __CD_RegHkSub(1, $__g_CD_idBtnHkBuild[21])
-    _Theme_SetTooltip($__g_CD_idBtnHkBuild[21], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 1, $__g_CD_idInpHkAddDesktop)
     $iY += 24
 
     ; Delete Desktop (build index 22)
@@ -1683,14 +1694,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkDeleteDesktop)
     __CD_RegHkSub(1, $__g_CD_idInpHkDeleteDesktop)
     _Theme_SetTooltip($__g_CD_idInpHkDeleteDesktop, _i18n("Settings.Hotkeys.tip_hotkey_delete_desktop", "Global hotkey to delete the current virtual desktop"))
-    $__g_CD_idBtnHkBuild[22] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[22], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[22], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[22], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[22], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[22])
-    __CD_RegHkSub(1, $__g_CD_idBtnHkBuild[22])
-    _Theme_SetTooltip($__g_CD_idBtnHkBuild[22], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 1, $__g_CD_idInpHkDeleteDesktop)
     $iY += 24
 
     ; Rename Desktop (build index 23)
@@ -1708,14 +1712,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkRenameDesktop)
     __CD_RegHkSub(1, $__g_CD_idInpHkRenameDesktop)
     _Theme_SetTooltip($__g_CD_idInpHkRenameDesktop, _i18n("Settings.Hotkeys.tip_hotkey_rename_desktop", "Global hotkey to rename the current desktop label"))
-    $__g_CD_idBtnHkBuild[23] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[23], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[23], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[23], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[23], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[23])
-    __CD_RegHkSub(1, $__g_CD_idBtnHkBuild[23])
-    _Theme_SetTooltip($__g_CD_idBtnHkBuild[23], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 1, $__g_CD_idInpHkRenameDesktop)
     $iY += 28
 
     ; Toggle Slideshow (build index 27)
@@ -1733,14 +1730,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkSlideshow)
     __CD_RegHkSub(1, $__g_CD_idInpHkSlideshow)
     _Theme_SetTooltip($__g_CD_idInpHkSlideshow, _i18n("Settings.Hotkeys.tip_hotkey_slideshow", "Global hotkey to start or stop the desktop slideshow"))
-    $__g_CD_idBtnHkBuild[27] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[27], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[27], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[27], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[27], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[27])
-    __CD_RegHkSub(1, $__g_CD_idBtnHkBuild[27])
-    _Theme_SetTooltip($__g_CD_idBtnHkBuild[27], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 1, $__g_CD_idInpHkSlideshow)
     $iY += 28
 
     ; Format help (Navigation)
@@ -1771,13 +1761,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkMoveFollowNext)
     __CD_RegHkSub(2, $__g_CD_idInpHkMoveFollowNext)
     _Theme_SetTooltip($__g_CD_idInpHkMoveFollowNext, _i18n("Settings.Hotkeys.tip_hotkey_move_follow_next", "Global hotkey to move the active window to the next desktop and follow it there"))
-    $__g_CD_idBtnHkBuild[13] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[13], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[13], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[13], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[13], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[13])
-    __CD_RegHkSub(2, $__g_CD_idBtnHkBuild[13])
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 2, $__g_CD_idInpHkMoveFollowNext)
     $iY += 24
 
     ; Move+Follow Prev (build index 14)
@@ -1795,13 +1779,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkMoveFollowPrev)
     __CD_RegHkSub(2, $__g_CD_idInpHkMoveFollowPrev)
     _Theme_SetTooltip($__g_CD_idInpHkMoveFollowPrev, _i18n("Settings.Hotkeys.tip_hotkey_move_follow_prev", "Global hotkey to move the active window to the previous desktop and follow it there"))
-    $__g_CD_idBtnHkBuild[14] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[14], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[14], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[14], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[14], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[14])
-    __CD_RegHkSub(2, $__g_CD_idBtnHkBuild[14])
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 2, $__g_CD_idInpHkMoveFollowPrev)
     $iY += 24
 
     ; Move to Next (build index 15)
@@ -1819,13 +1797,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkMoveToNext)
     __CD_RegHkSub(2, $__g_CD_idInpHkMoveToNext)
     _Theme_SetTooltip($__g_CD_idInpHkMoveToNext, _i18n("Settings.Hotkeys.tip_hotkey_move_next", "Global hotkey to move the active window to the next desktop (you stay on the current one)"))
-    $__g_CD_idBtnHkBuild[15] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[15], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[15], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[15], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[15], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[15])
-    __CD_RegHkSub(2, $__g_CD_idBtnHkBuild[15])
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 2, $__g_CD_idInpHkMoveToNext)
     $iY += 24
 
     ; Move to Prev (build index 16)
@@ -1843,13 +1815,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkMoveToPrev)
     __CD_RegHkSub(2, $__g_CD_idInpHkMoveToPrev)
     _Theme_SetTooltip($__g_CD_idInpHkMoveToPrev, _i18n("Settings.Hotkeys.tip_hotkey_move_prev", "Global hotkey to move the active window to the previous desktop (you stay on the current one)"))
-    $__g_CD_idBtnHkBuild[16] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[16], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[16], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[16], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[16], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[16])
-    __CD_RegHkSub(2, $__g_CD_idBtnHkBuild[16])
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 2, $__g_CD_idInpHkMoveToPrev)
     $iY += 24
 
     ; Send to New (build index 17)
@@ -1867,13 +1833,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkSendToNew)
     __CD_RegHkSub(2, $__g_CD_idInpHkSendToNew)
     _Theme_SetTooltip($__g_CD_idInpHkSendToNew, _i18n("Settings.Hotkeys.tip_hotkey_send_new", "Global hotkey to create a new desktop and send the active window to it"))
-    $__g_CD_idBtnHkBuild[17] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[17], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[17], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[17], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[17], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[17])
-    __CD_RegHkSub(2, $__g_CD_idBtnHkBuild[17])
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 2, $__g_CD_idInpHkSendToNew)
     $iY += 24
 
     ; Pin Window (build index 18)
@@ -1891,13 +1851,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkPinWindow)
     __CD_RegHkSub(2, $__g_CD_idInpHkPinWindow)
     _Theme_SetTooltip($__g_CD_idInpHkPinWindow, _i18n("Settings.Hotkeys.tip_hotkey_pin_window", "Global hotkey to pin or unpin the active window on all desktops"))
-    $__g_CD_idBtnHkBuild[18] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[18], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[18], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[18], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[18], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[18])
-    __CD_RegHkSub(2, $__g_CD_idBtnHkBuild[18])
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 2, $__g_CD_idInpHkPinWindow)
     $iY += 24
 
     ; Toggle Window List (build index 19)
@@ -1915,13 +1869,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkToggleWL)
     __CD_RegHkSub(2, $__g_CD_idInpHkToggleWL)
     _Theme_SetTooltip($__g_CD_idInpHkToggleWL, _i18n("Settings.Hotkeys.tip_hotkey_toggle_wl", "Global hotkey to open or close the window list"))
-    $__g_CD_idBtnHkBuild[19] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[19], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[19], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[19], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[19], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[19])
-    __CD_RegHkSub(2, $__g_CD_idBtnHkBuild[19])
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 2, $__g_CD_idInpHkToggleWL)
     $iY += 24
 
     ; Close Window (build index 24)
@@ -1939,14 +1887,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkCloseWindow)
     __CD_RegHkSub(2, $__g_CD_idInpHkCloseWindow)
     _Theme_SetTooltip($__g_CD_idInpHkCloseWindow, _i18n("Settings.Hotkeys.tip_hotkey_close_window", "Global hotkey to close the active window"))
-    $__g_CD_idBtnHkBuild[24] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[24], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[24], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[24], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[24], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[24])
-    __CD_RegHkSub(2, $__g_CD_idBtnHkBuild[24])
-    _Theme_SetTooltip($__g_CD_idBtnHkBuild[24], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 2, $__g_CD_idInpHkCloseWindow)
     $iY += 24
 
     ; Minimize Window (build index 25)
@@ -1964,14 +1905,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkMinimizeWindow)
     __CD_RegHkSub(2, $__g_CD_idInpHkMinimizeWindow)
     _Theme_SetTooltip($__g_CD_idInpHkMinimizeWindow, _i18n("Settings.Hotkeys.tip_hotkey_minimize_window", "Global hotkey to minimize the active window"))
-    $__g_CD_idBtnHkBuild[25] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[25], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[25], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[25], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[25], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[25])
-    __CD_RegHkSub(2, $__g_CD_idBtnHkBuild[25])
-    _Theme_SetTooltip($__g_CD_idBtnHkBuild[25], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 2, $__g_CD_idInpHkMinimizeWindow)
     $iY += 24
 
     $__g_CD_idInpHkMaximizeWindow = __CD_AddHkRow($iX, $iY, $iLblW, $iInpW, _i18n("Settings.Hotkeys.lbl_hotkey_maximize_window", "Maximize window:"), 2, _i18n("Settings.Hotkeys.tip_hotkey_maximize_window", "Global hotkey to maximize the active window"))
@@ -2000,15 +1934,7 @@ Func __CD_BuildTabHotkeys()
         __CD_RegCtrl($t, $__g_CD_aidInpHkDesktop[$i])
         __CD_RegHkSub(3, $__g_CD_aidInpHkDesktop[$i])
         _Theme_SetTooltip($__g_CD_aidInpHkDesktop[$i], _i18n("Settings.Hotkeys.tip_hotkey_format", "AutoIt hotkey format: ^=Ctrl !=Alt +=Shift #=Win e.g. ^!{RIGHT}"))
-        $__g_CD_idBtnHkBuild[$i + 1] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, _
-            BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-        GUICtrlSetFont($__g_CD_idBtnHkBuild[$i + 1], 8, 700, 0, $THEME_FONT_MAIN)
-        GUICtrlSetColor($__g_CD_idBtnHkBuild[$i + 1], $THEME_FG_DIM)
-        GUICtrlSetBkColor($__g_CD_idBtnHkBuild[$i + 1], $THEME_BG_HOVER)
-        GUICtrlSetCursor($__g_CD_idBtnHkBuild[$i + 1], 0)
-        __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[$i + 1])
-        __CD_RegHkSub(3, $__g_CD_idBtnHkBuild[$i + 1])
-        _Theme_SetTooltip($__g_CD_idBtnHkBuild[$i + 1], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+        __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 3, $__g_CD_aidInpHkDesktop[$i])
         $iY += 24
     Next
 
@@ -2028,14 +1954,7 @@ Func __CD_BuildTabHotkeys()
     __CD_RegCtrl($t, $__g_CD_idInpHkTaskView)
     __CD_RegHkSub(3, $__g_CD_idInpHkTaskView)
     _Theme_SetTooltip($__g_CD_idInpHkTaskView, _i18n("Settings.Hotkeys.tip_hotkey_task_view", "Global hotkey to open Windows Task View (Win+Tab)"))
-    $__g_CD_idBtnHkBuild[26] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBtnHkBuild[26], 8, 700, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBtnHkBuild[26], $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBtnHkBuild[26], $THEME_BG_HOVER)
-    GUICtrlSetCursor($__g_CD_idBtnHkBuild[26], 0)
-    __CD_RegCtrl($t, $__g_CD_idBtnHkBuild[26])
-    __CD_RegHkSub(3, $__g_CD_idBtnHkBuild[26])
-    _Theme_SetTooltip($__g_CD_idBtnHkBuild[26], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, 3, $__g_CD_idInpHkTaskView)
     $iY += 24
 
     ; Format help (Desktops)
@@ -2087,10 +2006,9 @@ Func __CD_BuildTabHotkeys()
 EndFunc
 
 ; Name:        __CD_AddHkRow
-; Description: Builds one hotkey row (label + input + tooltip), registers both
-;              controls to tab 3 and the given hotkey sub-tab, advances $iY, and
-;              returns the input control ID. No "..." builder button (the format
-;              tooltip explains the syntax; the input is typed directly).
+; Description: Builds one hotkey row (label + input + "..." builder button + tooltips),
+;              registers all controls to tab 3 and the given hotkey sub-tab, advances
+;              $iY, and returns the input control ID.
 Func __CD_AddHkRow($iX, ByRef $iY, $iLblW, $iInpW, $sLblText, $iSub, $sTipText)
     Local $idLbl = GUICtrlCreateLabel($sLblText, $iX, $iY + 2, $iLblW, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
@@ -2106,8 +2024,36 @@ Func __CD_AddHkRow($iX, ByRef $iY, $iLblW, $iInpW, $sLblText, $iSub, $sTipText)
     __CD_RegCtrl(3, $idInp)
     __CD_RegHkSub($iSub, $idInp)
     _Theme_SetTooltip($idInp, $sTipText)
+    __CD_AddHkBuildBtn($iX + $iLblW + $iInpW + 4, $iY, $iSub, $idInp)
     $iY += 24
     Return $idInp
+EndFunc
+
+; Name:        __CD_RegHkBuilder
+; Description: Appends a ("..." button -> input) pair to the hotkey-builder registry so
+;              __CD_HandleHotkeyBuildClick can dispatch the click to the right input.
+Func __CD_RegHkBuilder($idBtn, $idInp)
+    If $__g_CD_iHkBuildCount >= UBound($__g_CD_aHkBuildBtn) Then Return
+    $__g_CD_aHkBuildBtn[$__g_CD_iHkBuildCount] = $idBtn
+    $__g_CD_aHkBuildInp[$__g_CD_iHkBuildCount] = $idInp
+    $__g_CD_iHkBuildCount += 1
+EndFunc
+
+; Name:        __CD_AddHkBuildBtn
+; Description: Creates one styled "..." hotkey-builder button at ($iBtnX, $iY), registers
+;              it to tab 3 + the given hotkey sub-tab, sets its tooltip, and records the
+;              button->input mapping. Returns the button control ID.
+Func __CD_AddHkBuildBtn($iBtnX, $iY, $iSub, $idInput)
+    Local $idBtn = GUICtrlCreateLabel("...", $iBtnX, $iY, 24, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($idBtn, 8, 700, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idBtn, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idBtn, $THEME_BG_HOVER)
+    GUICtrlSetCursor($idBtn, 0)
+    __CD_RegCtrl(3, $idBtn)
+    __CD_RegHkSub($iSub, $idBtn)
+    _Theme_SetTooltip($idBtn, _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
+    __CD_RegHkBuilder($idBtn, $idInput)
+    Return $idBtn
 EndFunc
 
 ; Name:        __CD_RegHkSub
@@ -2519,6 +2465,10 @@ Func __CD_BuildTabBehavior()
     $__g_CD_idChkMoveWin = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_move_window", "Move Window Here in menu"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkMoveWin, _i18n("Settings.Behavior.tip_move_window", "Show 'Move Window Here' in the desktop right-click menu"))
     __CD_RegBhvSub(1, $__g_CD_idChkMoveWin)
+    $iY += 26
+    $__g_CD_idChkMoveHereClick = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_move_here_click", "Click Move Here to move window"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkMoveHereClick, _i18n("Settings.Behavior.tip_move_here_click", "When enabled, clicking Move Here in the desktop list menu immediately moves the active window to that desktop (hover still opens the submenu)"))
+    __CD_RegBhvSub(1, $__g_CD_idChkMoveHereClick)
     $iY += 34
 
     $__g_CD_idChkConfirmQuit = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_confirm_quit", "Confirm before quitting"), $iX, $iY, 300, $t)
@@ -4082,6 +4032,7 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkConfirmDel, _Cfg_GetConfirmDelete())
     __CD_SetCheckState($__g_CD_idChkMidClick, _Cfg_GetMiddleClickDelete())
     __CD_SetCheckState($__g_CD_idChkMoveWin, _Cfg_GetMoveWindowEnabled())
+    __CD_SetCheckState($__g_CD_idChkMoveHereClick, _Cfg_GetMoveHereClickEnabled())
     GUICtrlSetData($__g_CD_idInpPeekDelay, _Cfg_GetPeekBounceDelay())
     GUICtrlSetData($__g_CD_idInpAutoHide, _Cfg_GetAutoHideTimeout())
     GUICtrlSetData($__g_CD_idInpTopmost, _Cfg_GetTopmostInterval())
@@ -4901,9 +4852,12 @@ Func __CD_MessageLoop()
 
         ; Escape: close the results panel first (if open), otherwise close the dialog.
         ; Edge-detected so a single tap of a held key doesn't cascade both actions.
+        ; Focus-gated on WinActive (guard 7): with async settings the widget's own
+        ; Escape handling (drag-cancel) now runs concurrently, and pressing Escape in any
+        ; other app must not close Settings — only act when the dialog is foreground.
         Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
         Local $bEscDown = (Not @error And IsArray($retEsc) And BitAND($retEsc[0], 0x8000) <> 0)
-        If $bEscDown And Not $__g_CD_bEscWasDown Then
+        If $bEscDown And Not $__g_CD_bEscWasDown And WinActive($__g_CD_hGUI) Then
             If $__g_CD_bSearchResultsVisible Then
                 __CD_SearchClear()
             Else
@@ -4912,6 +4866,21 @@ Func __CD_MessageLoop()
             EndIf
         EndIf
         $__g_CD_bEscWasDown = $bEscDown
+
+        ; Async settings (t8-c): drive one main-loop frame so the widget/tray/DL/CM/WL,
+        ; toasts/ticks, event flags, slideshow and relayed IPC stay live while Settings is
+        ; open. Pass the event this loop just read and did NOT consume; pass 0/0 for
+        ; CD-owned events (already handled above) and idle so widget handlers never
+        ; double-process a CD control click (guard 12). Runs BEFORE GUISwitch (guard 3) so
+        ; phase functions that create/switch GUIs don't clobber CD hover/cursor context.
+        ; No-op string in headless tests (no callback registered).
+        If $__g_CD_sCbMainTick <> "" Then
+            If $aMsg[1] <> 0 And $aMsg[1] <> $__g_CD_hGUI Then
+                Call($__g_CD_sCbMainTick, $aMsg[0], $aMsg[1])
+            Else
+                Call($__g_CD_sCbMainTick, 0, 0)
+            EndIf
+        EndIf
 
         ; Ensure ConfigDialog is the "current" GUI for GUIGetCursorInfo
         ; (tooltip creation via GUICreate switches it away, breaking $aCursor[4])
@@ -5078,7 +5047,11 @@ Func __CD_MessageLoop()
         ; Restore the search-highlight pulse ~1s after navigation (no Sleep)
         __CD_SearchTickHighlight()
 
-        Sleep(10)
+        ; Single sleep source: when the main tick is registered it sleeps via
+        ; _ProcessTimersAndSleep (15 ms popup tier — imperceptibly above the old 10 ms),
+        ; so a second Sleep here would double the loop's idle latency. Headless tests have
+        ; no callback registered and keep the local 10 ms cadence.
+        If $__g_CD_sCbMainTick = "" Then Sleep(10)
     WEnd
 
     _Theme_ClearTooltips()
@@ -5210,6 +5183,7 @@ Func __CD_ApplyChanges()
     _Cfg_SetConfirmDelete(__CD_GetCheckState($__g_CD_idChkConfirmDel))
     _Cfg_SetMiddleClickDelete(__CD_GetCheckState($__g_CD_idChkMidClick))
     _Cfg_SetMoveWindowEnabled(__CD_GetCheckState($__g_CD_idChkMoveWin))
+    _Cfg_SetMoveHereClickEnabled(__CD_GetCheckState($__g_CD_idChkMoveHereClick))
     $s = GUICtrlRead($__g_CD_idInpPeekDelay)
     If StringIsInt($s) Then _Cfg_SetPeekBounceDelay(Int($s))
     $s = GUICtrlRead($__g_CD_idInpAutoHide)
@@ -5586,59 +5560,19 @@ EndFunc
 ; Description: Checks if a hotkey build "..." button was clicked and opens the builder
 ; Parameters:  $id - control ID from GUIGetMsg
 Func __CD_HandleHotkeyBuildClick($id)
-    ; Map build button index to corresponding input control
-    ; Index 0=Next, 1=Prev, 2-10=Desktop 1-9, 11=Toggle List, 12-19=new hotkeys
-    Local $idInput = 0
-    If $id = $__g_CD_idBtnHkBuild[0] Then
-        $idInput = $__g_CD_idInpHkNext
-    ElseIf $id = $__g_CD_idBtnHkBuild[1] Then
-        $idInput = $__g_CD_idInpHkPrev
-    ElseIf $id = $__g_CD_idBtnHkBuild[11] Then
-        $idInput = $__g_CD_idInpHkToggleList
-    ElseIf $id = $__g_CD_idBtnHkBuild[12] Then
-        $idInput = $__g_CD_idInpHkLastDesktop
-    ElseIf $id = $__g_CD_idBtnHkBuild[13] Then
-        $idInput = $__g_CD_idInpHkMoveFollowNext
-    ElseIf $id = $__g_CD_idBtnHkBuild[14] Then
-        $idInput = $__g_CD_idInpHkMoveFollowPrev
-    ElseIf $id = $__g_CD_idBtnHkBuild[15] Then
-        $idInput = $__g_CD_idInpHkMoveToNext
-    ElseIf $id = $__g_CD_idBtnHkBuild[16] Then
-        $idInput = $__g_CD_idInpHkMoveToPrev
-    ElseIf $id = $__g_CD_idBtnHkBuild[17] Then
-        $idInput = $__g_CD_idInpHkSendToNew
-    ElseIf $id = $__g_CD_idBtnHkBuild[18] Then
-        $idInput = $__g_CD_idInpHkPinWindow
-    ElseIf $id = $__g_CD_idBtnHkBuild[19] Then
-        $idInput = $__g_CD_idInpHkToggleWL
-    ElseIf $id = $__g_CD_idBtnHkBuild[20] Then
-        $idInput = $__g_CD_idInpHkOpenSettings
-    ElseIf $id = $__g_CD_idBtnHkBuild[21] Then
-        $idInput = $__g_CD_idInpHkAddDesktop
-    ElseIf $id = $__g_CD_idBtnHkBuild[22] Then
-        $idInput = $__g_CD_idInpHkDeleteDesktop
-    ElseIf $id = $__g_CD_idBtnHkBuild[23] Then
-        $idInput = $__g_CD_idInpHkRenameDesktop
-    ElseIf $id = $__g_CD_idBtnHkBuild[24] Then
-        $idInput = $__g_CD_idInpHkCloseWindow
-    ElseIf $id = $__g_CD_idBtnHkBuild[25] Then
-        $idInput = $__g_CD_idInpHkMinimizeWindow
-    ElseIf $id = $__g_CD_idBtnHkBuild[26] Then
-        $idInput = $__g_CD_idInpHkTaskView
-    ElseIf $id = $__g_CD_idBtnHkBuild[27] Then
-        $idInput = $__g_CD_idInpHkSlideshow
-    Else
-        Local $i
-        For $i = 1 To 9
-            If $id = $__g_CD_idBtnHkBuild[$i + 1] Then
-                $idInput = $__g_CD_aidInpHkDesktop[$i]
-                ExitLoop
-            EndIf
-        Next
-    EndIf
+    ; Registry lookup: find the input paired with this "..." button (uniform across all
+    ; hotkey rows now — see __CD_RegHkBuilder).
+    Local $idInput = 0, $i
+    For $i = 0 To $__g_CD_iHkBuildCount - 1
+        If $id = $__g_CD_aHkBuildBtn[$i] Then
+            $idInput = $__g_CD_aHkBuildInp[$i]
+            ExitLoop
+        EndIf
+    Next
     If $idInput = 0 Then Return
 
     Local $sResult = __CD_ShowHotkeyBuilder()
+    ; Explicit confirm: only OK (non-empty result) writes to the row input.
     If $sResult <> "" Then GUICtrlSetData($idInput, $sResult)
 EndFunc
 
@@ -5646,6 +5580,10 @@ EndFunc
 ; Description: Shows a dialog to visually build a hotkey string
 ; Return:      AutoIt hotkey string (e.g. "^!{RIGHT}") or "" if cancelled
 Func __CD_ShowHotkeyBuilder()
+    ; Suspend global hotkeys for the builder's WHOLE lifetime so recording a chord like
+    ; Ctrl+Alt+Right doesn't also FIRE it. Resumed once, on the single exit path below.
+    __CD_HkSuspend()
+
     Local $iDlgW = 280, $iDlgH = 220
     Local $iDlgX = (@DesktopWidth - $iDlgW) / 2
     Local $iDlgY = (@DesktopHeight - $iDlgH) / 2
@@ -5705,7 +5643,7 @@ Func __CD_ShowHotkeyBuilder()
     GUICtrlSetColor($idCapture, $THEME_FG_MENU)
     GUICtrlSetBkColor($idCapture, $THEME_BG_HOVER)
     GUICtrlSetCursor($idCapture, 0)
-    _Theme_SetTooltip($idCapture, _i18n("HotkeyBuilder.hkb_tip_capture", "Press to capture a key (waits 5 seconds)"))
+    _Theme_SetTooltip($idCapture, _i18n("HotkeyBuilder.hkb_tip_capture", "Press the full key combination; Esc cancels (times out after 10 seconds)"))
 
     ; Hint
     Local $idHint = GUICtrlCreateLabel(_i18n("HotkeyBuilder.hkb_hint", "e.g.: LEFT, RIGHT, F1-F12, 1-9, A-Z"), 16, $iKeyY + 26, 250, 14)
@@ -5748,6 +5686,9 @@ Func __CD_ShowHotkeyBuilder()
     Local $bCtrl = False, $bAlt = False, $bShift = False, $bWin = False
     Local $sLastKey = "", $sResult = ""
     Local $iHovered = 0
+    ; Edge-detected + focus-gated Esc/Enter (a held key from clicking Capture must not
+    ; instantly confirm/cancel, and keys pressed in OTHER apps must not reach this dialog).
+    Local $bDlgEscWasDown = False, $bDlgEnterWasDown = False
 
     ; Blocking loop
     While 1
@@ -5778,36 +5719,28 @@ Func __CD_ShowHotkeyBuilder()
                     GUICtrlSetData($idChkWin, __CD_GetHotkeyModifierLabel("Extra.hkb_mod_win", "Win", $bWin))
                     GUICtrlSetColor($idChkWin, $bWin ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
                 Case $idCapture
-                    ; Set input to "Press a key..." and capture
-                    GUICtrlSetData($idKeyInput, _i18n("HotkeyBuilder.hkb_press_key", "Press a key..."))
-                    Local $sCaptured = __CD_CaptureKeyPress()
+                    ; Prompt, then run the armed-chord capture state machine. It waits for
+                    ; the full combination to be pressed and snapshots the modifiers held in
+                    ; the SAME tick as the key (fixes lost/ghost modifiers), or returns "" on
+                    ; Esc/timeout. Capture only fills the builder fields; OK commits.
+                    GUICtrlSetData($idKeyInput, _i18n("HotkeyBuilder.hkb_press_key", "Press the key combination..."))
+                    Local $iCapMod = 0
+                    Local $sCaptured = __CD_CaptureKeyPress($iCapMod)
                     If $sCaptured <> "" Then
                         GUICtrlSetData($idKeyInput, $sCaptured)
-                        ; Auto-detect modifiers held during capture
-                        Local $retModCtrl = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x11)
-                        If Not @error And IsArray($retModCtrl) And BitAND($retModCtrl[0], 0x8000) <> 0 Then
-                            $bCtrl = True
-                            GUICtrlSetData($idChkCtrl, __CD_GetHotkeyModifierLabel("Extra.hkb_mod_ctrl", "Ctrl", True))
-                            GUICtrlSetColor($idChkCtrl, $THEME_FG_WHITE)
-                        EndIf
-                        Local $retModAlt = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x12)
-                        If Not @error And IsArray($retModAlt) And BitAND($retModAlt[0], 0x8000) <> 0 Then
-                            $bAlt = True
-                            GUICtrlSetData($idChkAlt, __CD_GetHotkeyModifierLabel("Extra.hkb_mod_alt", "Alt", True))
-                            GUICtrlSetColor($idChkAlt, $THEME_FG_WHITE)
-                        EndIf
-                        Local $retModShift = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x10)
-                        If Not @error And IsArray($retModShift) And BitAND($retModShift[0], 0x8000) <> 0 Then
-                            $bShift = True
-                            GUICtrlSetData($idChkShift, __CD_GetHotkeyModifierLabel("Extra.hkb_mod_shift", "Shift", True))
-                            GUICtrlSetColor($idChkShift, $THEME_FG_WHITE)
-                        EndIf
-                        Local $retModWin = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x5B)
-                        If Not @error And IsArray($retModWin) And BitAND($retModWin[0], 0x8000) <> 0 Then
-                            $bWin = True
-                            GUICtrlSetData($idChkWin, __CD_GetHotkeyModifierLabel("Extra.hkb_mod_win", "Win", True))
-                            GUICtrlSetColor($idChkWin, $THEME_FG_WHITE)
-                        EndIf
+                        ; Snapshot the chord's modifiers into the toggles (replaces prior state).
+                        $bCtrl = (BitAND($iCapMod, 1) <> 0)
+                        $bAlt = (BitAND($iCapMod, 2) <> 0)
+                        $bShift = (BitAND($iCapMod, 4) <> 0)
+                        $bWin = (BitAND($iCapMod, 8) <> 0)
+                        GUICtrlSetData($idChkCtrl, __CD_GetHotkeyModifierLabel("Extra.hkb_mod_ctrl", "Ctrl", $bCtrl))
+                        GUICtrlSetColor($idChkCtrl, $bCtrl ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
+                        GUICtrlSetData($idChkAlt, __CD_GetHotkeyModifierLabel("Extra.hkb_mod_alt", "Alt", $bAlt))
+                        GUICtrlSetColor($idChkAlt, $bAlt ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
+                        GUICtrlSetData($idChkShift, __CD_GetHotkeyModifierLabel("Extra.hkb_mod_shift", "Shift", $bShift))
+                        GUICtrlSetColor($idChkShift, $bShift ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
+                        GUICtrlSetData($idChkWin, __CD_GetHotkeyModifierLabel("Extra.hkb_mod_win", "Win", $bWin))
+                        GUICtrlSetColor($idChkWin, $bWin ? $THEME_FG_WHITE : $THEME_FG_PRIMARY)
                     Else
                         GUICtrlSetData($idKeyInput, "")
                     EndIf
@@ -5821,13 +5754,25 @@ Func __CD_ShowHotkeyBuilder()
             GUICtrlSetData($idPreview, " " & __CD_BuildHotkeyString($bCtrl, $bAlt, $bShift, $bWin, $sCurKey))
         EndIf
 
-        ; Escape closes, Enter confirms
-        Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
-        If Not @error And IsArray($retEsc) And BitAND($retEsc[0], 0x8000) <> 0 Then ExitLoop
-        Local $retEnter = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x0D)
-        If Not @error And IsArray($retEnter) And BitAND($retEnter[0], 0x8000) <> 0 Then
-            $sResult = __CD_BuildHotkeyString($bCtrl, $bAlt, $bShift, $bWin, GUICtrlRead($idKeyInput))
-            ExitLoop
+        ; Escape cancels, Enter confirms — only while THIS dialog is focused, and only on a
+        ; fresh key-down edge (so a key still held from clicking Capture doesn't fire, and
+        ; keys pressed in other apps are ignored).
+        If WinActive($hDlg) Then
+            Local $retEsc = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x1B)
+            Local $bEscDown = (Not @error And IsArray($retEsc) And BitAND($retEsc[0], 0x8000) <> 0)
+            If $bEscDown And Not $bDlgEscWasDown Then ExitLoop ; cancel: $sResult stays ""
+            $bDlgEscWasDown = $bEscDown
+
+            Local $retEnter = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", 0x0D)
+            Local $bEnterDown = (Not @error And IsArray($retEnter) And BitAND($retEnter[0], 0x8000) <> 0)
+            If $bEnterDown And Not $bDlgEnterWasDown Then
+                $sResult = __CD_BuildHotkeyString($bCtrl, $bAlt, $bShift, $bWin, GUICtrlRead($idKeyInput))
+                ExitLoop
+            EndIf
+            $bDlgEnterWasDown = $bEnterDown
+        Else
+            $bDlgEscWasDown = False
+            $bDlgEnterWasDown = False
         EndIf
 
         ; Button hover
@@ -5861,31 +5806,112 @@ Func __CD_ShowHotkeyBuilder()
     WEnd
 
     _Theme_FadeOut($hDlg, "dialog")
+    ; Single resume path: every exit (OK / Cancel / Escape / window close) reaches here.
+    __CD_HkResume()
     Return $sResult
 EndFunc
 
-; Name:        __CD_CaptureKeyPress
-; Description: Polls all virtual keys looking for a new keypress (non-modifier).
-;              Waits up to 5 seconds for a key to be pressed.
-; Return:      AutoIt key name string, or "" on timeout
-Func __CD_CaptureKeyPress()
-    ; Flush any currently-held keys by waiting for all to be released
-    Local $hFlush = TimerInit()
-    While TimerDiff($hFlush) < 300
-        Sleep(10)
-    WEnd
+; Armed-chord capture state machine states.
+Global Const $CD_HKCAP_FLUSH = 0    ; wait for all keys physically released
+Global Const $CD_HKCAP_ARMED = 1    ; wait for a non-modifier keydown
+Global Const $CD_HKCAP_DONE = 2      ; chord captured
+Global Const $CD_HKCAP_CANCEL = 3    ; cancelled (Esc)
 
-    Local $hTimeout = TimerInit()
-    While TimerDiff($hTimeout) < 5000
-        Local $i
-        For $i = 0x08 To 0xFE
-            ; Skip modifier keys themselves
-            If $i = 0x10 Or $i = 0x11 Or $i = 0x12 Or $i = 0x5B Or $i = 0x5C Then ContinueLoop
-            Local $ret = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $i)
-            If Not @error And IsArray($ret) And BitAND($ret[0], 0x0001) <> 0 Then
-                Return __CD_VKToAutoItKey($i)
+; Name:        __CD_HkCap_Tick
+; Description: Pure armed-chord capture state machine, one tick. Headless-testable.
+; Parameters:  $iState      - current state ($CD_HKCAP_*)
+;              $iVkDown     - the non-modifier VK currently held (0 if none)
+;              $iModMask    - modifier bitmask held this tick (1=Ctrl 2=Alt 4=Shift 8=Win)
+;              $bEscDown    - True if Escape is held
+;              $bAnyKeyDown - True if ANY physical key (incl. modifiers) is held
+; Return:      [newState, capturedVK, capturedModMask]
+Func __CD_HkCap_Tick($iState, $iVkDown, $iModMask, $bEscDown, $bAnyKeyDown)
+    Local $aOut[3] = [$iState, 0, 0]
+    ; Terminal states are sticky.
+    If $iState = $CD_HKCAP_DONE Or $iState = $CD_HKCAP_CANCEL Then Return $aOut
+    ; Escape cancels from any state and is never itself capturable.
+    If $bEscDown Then
+        $aOut[0] = $CD_HKCAP_CANCEL
+        Return $aOut
+    EndIf
+    Switch $iState
+        Case $CD_HKCAP_FLUSH
+            ; Arm only once every key (incl. stale modifiers) is released — replaces the old
+            ; fake sleep-flush and kills the stale-transition-bit phantom capture.
+            If Not $bAnyKeyDown Then $aOut[0] = $CD_HKCAP_ARMED
+        Case $CD_HKCAP_ARMED
+            ; Complete on a real (non-modifier) keydown; snapshot modifiers in the SAME tick.
+            ; A modifier-only press never completes (stays ARMED).
+            If $iVkDown <> 0 Then
+                $aOut[0] = $CD_HKCAP_DONE
+                $aOut[1] = $iVkDown
+                $aOut[2] = $iModMask
             EndIf
-        Next
+    EndSwitch
+    Return $aOut
+EndFunc
+
+; Name:        __CD_HkCap_IsExcludedVK
+; Description: Pure. True for VKs that must not be captured as the chord's main key:
+;              mouse buttons, Escape, and every modifier (generic + L/R variants).
+Func __CD_HkCap_IsExcludedVK($iVK)
+    If $iVK <= 0x07 Then Return True                      ; mouse buttons
+    If $iVK = 0x1B Then Return True                       ; Esc (cancel, not capturable)
+    If $iVK = 0x10 Or $iVK = 0x11 Or $iVK = 0x12 Then Return True ; Shift/Ctrl/Alt (generic)
+    If $iVK = 0x5B Or $iVK = 0x5C Then Return True         ; Left/Right Win
+    If $iVK >= 0xA0 And $iVK <= 0xA5 Then Return True      ; Left/Right Shift/Ctrl/Alt
+    Return False
+EndFunc
+
+; Name:        __CD_KeyLevelDown
+; Description: Impure. True if the VK's LEVEL bit (0x8000) is set — "is physically down
+;              right now". Never reads the transition bit 0x0001 (that is the stale-state bug).
+Func __CD_KeyLevelDown($iVK)
+    Local $ret = DllCall("user32.dll", "short", "GetAsyncKeyState", "int", $iVK)
+    Return (Not @error And IsArray($ret) And BitAND($ret[0], 0x8000) <> 0)
+EndFunc
+
+; Name:        __CD_HkCap_ScanKeys
+; Description: Impure companion to __CD_HkCap_Tick: samples LEVEL key state for one tick.
+Func __CD_HkCap_ScanKeys(ByRef $iVkDown, ByRef $iModMask, ByRef $bEscDown, ByRef $bAnyKeyDown)
+    $iVkDown = 0
+    $iModMask = 0
+    $bAnyKeyDown = False
+    $bEscDown = __CD_KeyLevelDown(0x1B)
+    ; Modifier level state (generic VKs cover both L/R variants).
+    If __CD_KeyLevelDown(0x11) Then $iModMask = BitOR($iModMask, 1) ; Ctrl
+    If __CD_KeyLevelDown(0x12) Then $iModMask = BitOR($iModMask, 2) ; Alt
+    If __CD_KeyLevelDown(0x10) Then $iModMask = BitOR($iModMask, 4) ; Shift
+    If __CD_KeyLevelDown(0x5B) Or __CD_KeyLevelDown(0x5C) Then $iModMask = BitOR($iModMask, 8) ; Win
+    Local $i
+    For $i = 0x08 To 0xFE
+        If Not __CD_KeyLevelDown($i) Then ContinueLoop
+        $bAnyKeyDown = True
+        If __CD_HkCap_IsExcludedVK($i) Then ContinueLoop
+        If $iVkDown = 0 Then $iVkDown = $i ; first non-modifier key wins
+    Next
+EndFunc
+
+; Name:        __CD_CaptureKeyPress
+; Description: Drives __CD_HkCap_Tick from live key state until the chord completes, Escape
+;              cancels, or ~10 s elapses. LEVEL bits only — no transition bits, no Send().
+; Parameters:  $iModMask - ByRef out; captured modifier bitmask (1=Ctrl 2=Alt 4=Shift 8=Win)
+; Return:      AutoIt key name string, or "" on cancel/timeout
+Func __CD_CaptureKeyPress(ByRef $iModMask)
+    $iModMask = 0
+    Local $iState = $CD_HKCAP_FLUSH
+    Local $hTimeout = TimerInit()
+    While TimerDiff($hTimeout) < 10000
+        Local $iVkDown = 0, $iMods = 0, $bEscDown = False, $bAnyKeyDown = False
+        __CD_HkCap_ScanKeys($iVkDown, $iMods, $bEscDown, $bAnyKeyDown)
+        Local $aTick = __CD_HkCap_Tick($iState, $iVkDown, $iMods, $bEscDown, $bAnyKeyDown)
+        $iState = $aTick[0]
+        If $iState = $CD_HKCAP_DONE Then
+            $iModMask = $aTick[2]
+            Return __CD_VKToAutoItKey($aTick[1])
+        ElseIf $iState = $CD_HKCAP_CANCEL Then
+            Return ""
+        EndIf
         Sleep(10)
     WEnd
     Return "" ; timeout
