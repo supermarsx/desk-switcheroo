@@ -45,6 +45,7 @@ Global $__g_CD_idScrollUp = 0, $__g_CD_idScrollDn = 0
 Global $__g_CD_idChkStartWin, $__g_CD_idChkWrapNav, $__g_CD_idChkAutoCreate
 Global $__g_CD_idInpPadding, $__g_CD_idInpOffsetX
 Global $__g_CD_idInpOffsetY, $__g_CD_idInpWidgetWidth, $__g_CD_idInpWidgetHeight, $__g_CD_idInpColorBarH
+Global $__g_CD_idCmbColorBarAnim, $__g_CD_idInpColorBarAnimDur
 Global $__g_CD_idLblPosition ; label that cycles left/center/right
 
 ; -- Tab 2: Display --
@@ -152,7 +153,11 @@ Global Const $CD_OPT_OSD_POS = $CD_OPT_PANEL_POS & "|widget"
 Global Const $CD_OPT_TOAST_POS = "top-left|top-right|bottom-left|bottom-right|widget"
 Global Const $CD_OPT_TRAY_LEFT = "menu|toggle_list|next_desktop|nothing"
 Global Const $CD_OPT_TRAY_DOUBLE = "settings|toggle_list|menu|nothing"
-Global Const $CD_OPT_TRAY_MIDDLE = "toggle_list|add_desktop|toggle_carousel|nothing"
+Global Const $CD_OPT_TRAY_MIDDLE = "toggle_list|add_desktop|toggle_slideshow|nothing"
+Global Const $CD_OPT_SLIDESHOW_SELMODE = "all|even|odd|name_contains|custom"
+Global Const $CD_OPT_SLIDESHOW_DIRECTION = "forward|backward"
+Global Const $CD_OPT_SLIDESHOW_LOOPMODE = "infinite|count|duration"
+Global Const $CD_OPT_COLOR_BAR_ANIM = "none|grow|fade"
 
 ; -- Tab 1 extras: General --
 Global $__g_CD_idChkSingleton, $__g_CD_idChkTaskbarFocus, $__g_CD_idChkAutoFocus
@@ -231,21 +236,27 @@ Global $__g_CD_idChkLogPID, $__g_CD_idLblLogDateFormat, $__g_CD_idChkLogFlush
 ; -- Tab 4: Behavior extras --
 Global $__g_CD_idChkConfirmQuit, $__g_CD_idChkConfirmRestart, $__g_CD_idChkDebugMode
 
-; -- Tab 4: Carousel --
-Global $__g_CD_idChkCarouselEnabled, $__g_CD_idInpCarouselInterval
-Global $__g_CD_idChkCarouselMenu, $__g_CD_idChkNotifyCarousel
+; -- Tab 4: Slideshow (supersedes Carousel) --
+Global $__g_CD_idChkSlideshowEnabled, $__g_CD_idInpSlideshowInterval
+Global $__g_CD_idCmbSlideshowSelMode, $__g_CD_idCmbSlideshowDirection
+Global $__g_CD_idInpSlideshowNameFilter, $__g_CD_idInpSlideshowSequence, $__g_CD_idInpSlideshowDesktopIntervals
+Global $__g_CD_idCmbSlideshowLoopMode, $__g_CD_idInpSlideshowLoopCount, $__g_CD_idInpSlideshowLoopDuration
+Global $__g_CD_idChkSlideshowAutostart, $__g_CD_idInpSlideshowAutostartDelay
+Global $__g_CD_idChkSlideshowMenu, $__g_CD_idChkNotifySlideshow
+Global $__g_CD_idChkSlideshowBreakManual, $__g_CD_idChkSlideshowBreakWidget
+Global $__g_CD_idChkSlideshowBreakHotkey, $__g_CD_idChkSlideshowBreakInput
 
 ; -- Tab 4: Behavior sub-tabs --
-Global $__g_CD_idBhvSubInteract = 0, $__g_CD_idBhvSubTimers = 0, $__g_CD_idBhvSubCarousel = 0, $__g_CD_idBhvSubRules = 0
+Global $__g_CD_idBhvSubInteract = 0, $__g_CD_idBhvSubTimers = 0, $__g_CD_idBhvSubSlideshow = 0, $__g_CD_idBhvSubRules = 0
 Global $__g_CD_aBhvInteractCtrls[50]
 Global $__g_CD_iBhvInteractCount = 0
 Global $__g_CD_aBhvTimersCtrls[50]
 Global $__g_CD_iBhvTimersCount = 0
-Global $__g_CD_aBhvCarouselCtrls[50]
-Global $__g_CD_iBhvCarouselCount = 0
+Global $__g_CD_aBhvSlideshowCtrls[50]
+Global $__g_CD_iBhvSlideshowCount = 0
 Global $__g_CD_aBhvRulesCtrls[50]
 Global $__g_CD_iBhvRulesCount = 0
-Global $__g_CD_iBhvActiveSub = 1     ; 1=Interaction, 2=Timers, 3=Carousel, 4=Rules
+Global $__g_CD_iBhvActiveSub = 1     ; 1=Interaction, 2=Timers, 3=Slideshow, 4=Rules
 
 ; -- Tab 4: Rules engine controls --
 Global $__g_CD_idChkRulesEnabled = 0
@@ -255,8 +266,8 @@ Global $__g_CD_aidRuleType[11]     ; cycle labels: "Process" / "Class"
 Global $__g_CD_aidRulePattern[11]  ; pattern input fields
 Global $__g_CD_aidRuleDesktop[11]  ; target desktop number inputs
 
-; -- Tab 3: Carousel hotkey --
-Global $__g_CD_idInpHkCarousel
+; -- Tab 3: Slideshow hotkey --
+Global $__g_CD_idInpHkSlideshow
 
 ; -- Buttons --
 Global $__g_CD_idBtnApply, $__g_CD_idBtnClose
@@ -986,6 +997,39 @@ Func __CD_BuildTabGeneral()
     _Theme_SetTooltip($__g_CD_idInpColorBarH, _i18n("Settings.General.tip_color_bar_height", "Height of the widget color bar in pixels (1-10)"))
     $iY += 34
 
+    ; Color bar animation (mode + duration), indented under the color-bar rows
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.General.lbl_color_bar_anim", "Color bar animation:"), $iX + 20, $iY + 2, 145, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegGenSub(1, $idLbl)
+    $__g_CD_idCmbColorBarAnim = GUICtrlCreateCombo("", $iX + 170, $iY, 110, 22, 0x0003) ; CBS_DROPDOWNLIST
+    GUICtrlSetFont($__g_CD_idCmbColorBarAnim, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idCmbColorBarAnim, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idCmbColorBarAnim, $THEME_BG_INPUT)
+    GUICtrlSetCursor($__g_CD_idCmbColorBarAnim, 0)
+    __CD_RegCtrl($t, $__g_CD_idCmbColorBarAnim)
+    __CD_RegGenSub(1, $__g_CD_idCmbColorBarAnim)
+    _Theme_SetTooltip($__g_CD_idCmbColorBarAnim, _i18n("Settings.General.tip_color_bar_anim", "How the color bar transitions when the desktop changes (none, grow, or fade)"))
+    $iY += 34
+
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.General.lbl_color_bar_anim_duration", "Color bar anim duration (ms):"), $iX + 20, $iY + 2, 165, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegGenSub(1, $idLbl)
+    $__g_CD_idInpColorBarAnimDur = GUICtrlCreateInput("", $iX + 190, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpColorBarAnimDur, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpColorBarAnimDur, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpColorBarAnimDur, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpColorBarAnimDur)
+    __CD_RegCtrl($t, $__g_CD_idInpColorBarAnimDur)
+    __CD_RegGenSub(1, $__g_CD_idInpColorBarAnimDur)
+    _Theme_SetTooltip($__g_CD_idInpColorBarAnimDur, _i18n("Settings.General.tip_color_bar_anim_duration", "How long the color bar grow/fade animation takes (50-2000ms)"))
+    $iY += 34
+
     $__g_CD_idChkTrayMode = __CD_CreateCheckbox(_i18n("Settings.General.chk_tray_mode", "Tray icon mode"), $iX, $iY, 300, $t)
     _Theme_SetTooltip($__g_CD_idChkTrayMode, _i18n("Settings.General.tip_tray_mode", "Run as system tray icon instead of taskbar widget (requires restart)"))
     __CD_RegGenSub(1, $__g_CD_idChkTrayMode)
@@ -1674,21 +1718,21 @@ Func __CD_BuildTabHotkeys()
     _Theme_SetTooltip($__g_CD_idBtnHkBuild[23], _i18n("Settings.Hotkeys.tip_hotkey_builder", "Open hotkey builder to visually create a key combination"))
     $iY += 28
 
-    ; Toggle Carousel (build index 27)
-    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_hotkey_carousel", "Toggle carousel:"), $iX, $iY + 2, $iLblW, 18)
+    ; Toggle Slideshow (build index 27)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_hotkey_slideshow", "Toggle slideshow:"), $iX, $iY + 2, $iLblW, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $idLbl)
     __CD_RegHkSub(1, $idLbl)
-    $__g_CD_idInpHkCarousel = GUICtrlCreateInput("", $iX + $iLblW, $iY, $iInpW, 20)
-    GUICtrlSetFont($__g_CD_idInpHkCarousel, 9, 400, 0, $THEME_FONT_MONO)
-    GUICtrlSetColor($__g_CD_idInpHkCarousel, $THEME_FG_TEXT)
-    GUICtrlSetBkColor($__g_CD_idInpHkCarousel, $THEME_BG_INPUT)
-    _Theme_FlattenInput($__g_CD_idInpHkCarousel)
-    __CD_RegCtrl($t, $__g_CD_idInpHkCarousel)
-    __CD_RegHkSub(1, $__g_CD_idInpHkCarousel)
-    _Theme_SetTooltip($__g_CD_idInpHkCarousel, _i18n("Settings.Hotkeys.tip_hotkey_carousel", "Global hotkey to toggle carousel auto-rotation on or off"))
+    $__g_CD_idInpHkSlideshow = GUICtrlCreateInput("", $iX + $iLblW, $iY, $iInpW, 20)
+    GUICtrlSetFont($__g_CD_idInpHkSlideshow, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idInpHkSlideshow, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpHkSlideshow, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpHkSlideshow)
+    __CD_RegCtrl($t, $__g_CD_idInpHkSlideshow)
+    __CD_RegHkSub(1, $__g_CD_idInpHkSlideshow)
+    _Theme_SetTooltip($__g_CD_idInpHkSlideshow, _i18n("Settings.Hotkeys.tip_hotkey_slideshow", "Global hotkey to start or stop the desktop slideshow"))
     $__g_CD_idBtnHkBuild[27] = GUICtrlCreateLabel("...", $iX + $iLblW + $iInpW + 4, $iY, $iBtnBuildW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBtnHkBuild[27], 8, 700, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($__g_CD_idBtnHkBuild[27], $THEME_FG_DIM)
@@ -2331,8 +2375,8 @@ Func __CD_RegBhvSub($iSub, $idCtrl)
             $__g_CD_aBhvTimersCtrls[$__g_CD_iBhvTimersCount] = $idCtrl
             $__g_CD_iBhvTimersCount += 1
         Case 3
-            $__g_CD_aBhvCarouselCtrls[$__g_CD_iBhvCarouselCount] = $idCtrl
-            $__g_CD_iBhvCarouselCount += 1
+            $__g_CD_aBhvSlideshowCtrls[$__g_CD_iBhvSlideshowCount] = $idCtrl
+            $__g_CD_iBhvSlideshowCount += 1
         Case 4
             $__g_CD_aBhvRulesCtrls[$__g_CD_iBhvRulesCount] = $idCtrl
             $__g_CD_iBhvRulesCount += 1
@@ -2358,11 +2402,11 @@ Func __CD_SwitchBhvSub($iSub)
             GUICtrlSetState($__g_CD_aBhvTimersCtrls[$i], $GUI_HIDE)
         EndIf
     Next
-    For $i = 0 To $__g_CD_iBhvCarouselCount - 1
+    For $i = 0 To $__g_CD_iBhvSlideshowCount - 1
         If $iSub = 3 Then
-            GUICtrlSetState($__g_CD_aBhvCarouselCtrls[$i], $GUI_SHOW)
+            GUICtrlSetState($__g_CD_aBhvSlideshowCtrls[$i], $GUI_SHOW)
         Else
-            GUICtrlSetState($__g_CD_aBhvCarouselCtrls[$i], $GUI_HIDE)
+            GUICtrlSetState($__g_CD_aBhvSlideshowCtrls[$i], $GUI_HIDE)
         EndIf
     Next
     For $i = 0 To $__g_CD_iBhvRulesCount - 1
@@ -2392,13 +2436,13 @@ Func __CD_SwitchBhvSub($iSub)
         GUICtrlSetFont($__g_CD_idBhvSubTimers, 7, 400, 0, $THEME_FONT_MAIN)
     EndIf
     If $iSub = 3 Then
-        GUICtrlSetColor($__g_CD_idBhvSubCarousel, $THEME_FG_WHITE)
-        GUICtrlSetBkColor($__g_CD_idBhvSubCarousel, $THEME_BG_ACTIVE)
-        GUICtrlSetFont($__g_CD_idBhvSubCarousel, 7, 700, 0, $THEME_FONT_MAIN)
+        GUICtrlSetColor($__g_CD_idBhvSubSlideshow, $THEME_FG_WHITE)
+        GUICtrlSetBkColor($__g_CD_idBhvSubSlideshow, $THEME_BG_ACTIVE)
+        GUICtrlSetFont($__g_CD_idBhvSubSlideshow, 7, 700, 0, $THEME_FONT_MAIN)
     Else
-        GUICtrlSetColor($__g_CD_idBhvSubCarousel, $THEME_FG_DIM)
-        GUICtrlSetBkColor($__g_CD_idBhvSubCarousel, $THEME_BG_MAIN)
-        GUICtrlSetFont($__g_CD_idBhvSubCarousel, 7, 400, 0, $THEME_FONT_MAIN)
+        GUICtrlSetColor($__g_CD_idBhvSubSlideshow, $THEME_FG_DIM)
+        GUICtrlSetBkColor($__g_CD_idBhvSubSlideshow, $THEME_BG_MAIN)
+        GUICtrlSetFont($__g_CD_idBhvSubSlideshow, 7, 400, 0, $THEME_FONT_MAIN)
     EndIf
     If $iSub = 4 Then
         GUICtrlSetColor($__g_CD_idBhvSubRules, $THEME_FG_WHITE)
@@ -2419,11 +2463,11 @@ Func __CD_BuildTabBehavior()
     ; Reset sub-tab tracking
     $__g_CD_iBhvInteractCount = 0
     $__g_CD_iBhvTimersCount = 0
-    $__g_CD_iBhvCarouselCount = 0
+    $__g_CD_iBhvSlideshowCount = 0
     $__g_CD_iBhvRulesCount = 0
     $__g_CD_iBhvActiveSub = 1
 
-    ; Sub-tab buttons (4 buttons: Interaction, Timers, Carousel, Rules)
+    ; Sub-tab buttons (4 buttons: Interaction, Timers, Slideshow, Rules)
     Local $iSubY = $iY
     Local $iSubBtnW = 80
     Local $iSubGap = 4
@@ -2442,12 +2486,12 @@ Func __CD_BuildTabBehavior()
     GUICtrlSetCursor($__g_CD_idBhvSubTimers, 0)
     __CD_RegCtrl($t, $__g_CD_idBhvSubTimers)
 
-    $__g_CD_idBhvSubCarousel = GUICtrlCreateLabel(_i18n("Settings.Behavior.sub_carousel", "Carousel"), $iX + ($iSubBtnW + $iSubGap) * 2, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
-    GUICtrlSetFont($__g_CD_idBhvSubCarousel, 7, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idBhvSubCarousel, $THEME_FG_DIM)
-    GUICtrlSetBkColor($__g_CD_idBhvSubCarousel, $THEME_BG_MAIN)
-    GUICtrlSetCursor($__g_CD_idBhvSubCarousel, 0)
-    __CD_RegCtrl($t, $__g_CD_idBhvSubCarousel)
+    $__g_CD_idBhvSubSlideshow = GUICtrlCreateLabel(_i18n("Settings.Behavior.sub_slideshow", "Slideshow"), $iX + ($iSubBtnW + $iSubGap) * 2, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
+    GUICtrlSetFont($__g_CD_idBhvSubSlideshow, 7, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idBhvSubSlideshow, $THEME_FG_DIM)
+    GUICtrlSetBkColor($__g_CD_idBhvSubSlideshow, $THEME_BG_MAIN)
+    GUICtrlSetCursor($__g_CD_idBhvSubSlideshow, 0)
+    __CD_RegCtrl($t, $__g_CD_idBhvSubSlideshow)
 
     $__g_CD_idBhvSubRules = GUICtrlCreateLabel(_i18n("Settings.Behavior.sub_rules", "Rules"), $iX + ($iSubBtnW + $iSubGap) * 3, $iSubY, $iSubBtnW, 20, BitOR($SS_CENTER, $SS_CENTERIMAGE, $SS_NOTIFY))
     GUICtrlSetFont($__g_CD_idBhvSubRules, 7, 400, 0, $THEME_FONT_MAIN)
@@ -2603,39 +2647,219 @@ Func __CD_BuildTabBehavior()
     _Theme_SetTooltip($__g_CD_idInpCtxDelay, _i18n("Settings.Behavior.tip_ms_hint", "Time in milliseconds (1000ms = 1 second)"))
 
     ; ========================================
-    ; Sub-tab 3: Carousel
+    ; Sub-tab 3: Slideshow (supersedes Carousel)
     ; ========================================
+    ; ~16 rows; tightened pitch (24px chk / 26px field) + 2x2 break grid keeps the pane
+    ; within the single-column budget (ends ~y=528; button row starts at $iH-70).
     $iY = $iContentStartY
 
-    $__g_CD_idChkCarouselEnabled = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_carousel_enabled", "Enable carousel mode"), $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkCarouselEnabled, _i18n("Settings.Behavior.tip_carousel_enabled", "Auto-rotate through virtual desktops at a set interval"))
-    __CD_RegBhvSub(3, $__g_CD_idChkCarouselEnabled)
-    $iY += 26
+    $__g_CD_idChkSlideshowEnabled = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_slideshow_enabled", "Enable slideshow"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkSlideshowEnabled, _i18n("Settings.Behavior.tip_slideshow_enabled", "Automatically cycle through virtual desktops at a set interval"))
+    __CD_RegBhvSub(3, $__g_CD_idChkSlideshowEnabled)
+    $iY += 24
 
-    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_carousel_interval", "Carousel interval (ms):"), $iX, $iY + 2, 175, 18)
+    ; Interval (ms)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_slideshow_interval", "Slideshow interval (ms):"), $iX, $iY + 2, 175, 18)
     GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor($idLbl, $THEME_FG_DIM)
     GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
     __CD_RegCtrl($t, $idLbl)
     __CD_RegBhvSub(3, $idLbl)
-    $__g_CD_idInpCarouselInterval = GUICtrlCreateInput("", $iX + 180, $iY, 80, 22, $ES_NUMBER)
-    GUICtrlSetFont($__g_CD_idInpCarouselInterval, 9, 400, 0, $THEME_FONT_MAIN)
-    GUICtrlSetColor($__g_CD_idInpCarouselInterval, $THEME_FG_TEXT)
-    GUICtrlSetBkColor($__g_CD_idInpCarouselInterval, $THEME_BG_INPUT)
-    _Theme_FlattenInput($__g_CD_idInpCarouselInterval)
-    __CD_RegCtrl($t, $__g_CD_idInpCarouselInterval)
-    __CD_RegBhvSub(3, $__g_CD_idInpCarouselInterval)
-    _Theme_SetTooltip($__g_CD_idInpCarouselInterval, _i18n("Settings.Behavior.tip_carousel_interval", "Time between automatic desktop switches (3000-300000ms)"))
-    $iY += 28
-
-    $__g_CD_idChkCarouselMenu = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_carousel_menu", "Show in context menu"), $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkCarouselMenu, _i18n("Settings.Behavior.tip_carousel_menu", "Show carousel toggle in the right-click context menu"))
-    __CD_RegBhvSub(3, $__g_CD_idChkCarouselMenu)
+    $__g_CD_idInpSlideshowInterval = GUICtrlCreateInput("", $iX + 180, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpSlideshowInterval, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpSlideshowInterval, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpSlideshowInterval, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpSlideshowInterval)
+    __CD_RegCtrl($t, $__g_CD_idInpSlideshowInterval)
+    __CD_RegBhvSub(3, $__g_CD_idInpSlideshowInterval)
+    _Theme_SetTooltip($__g_CD_idInpSlideshowInterval, _i18n("Settings.Behavior.tip_slideshow_interval", "Default time between automatic desktop switches (1000-3600000ms)"))
     $iY += 26
 
-    $__g_CD_idChkNotifyCarousel = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_notify_carousel", "Toast on carousel toggle"), $iX, $iY, 300, $t)
-    _Theme_SetTooltip($__g_CD_idChkNotifyCarousel, _i18n("Settings.Behavior.tip_notify_carousel", "Show a toast when carousel is toggled on or off"))
-    __CD_RegBhvSub(3, $__g_CD_idChkNotifyCarousel)
+    ; Selection mode (which desktops participate)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_slideshow_selection_mode", "Desktops to include:"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegBhvSub(3, $idLbl)
+    $__g_CD_idCmbSlideshowSelMode = GUICtrlCreateCombo("", $iX + 180, $iY, 150, 22, 0x0003) ; CBS_DROPDOWNLIST
+    GUICtrlSetFont($__g_CD_idCmbSlideshowSelMode, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idCmbSlideshowSelMode, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idCmbSlideshowSelMode, $THEME_BG_INPUT)
+    GUICtrlSetCursor($__g_CD_idCmbSlideshowSelMode, 0)
+    __CD_RegCtrl($t, $__g_CD_idCmbSlideshowSelMode)
+    __CD_RegBhvSub(3, $__g_CD_idCmbSlideshowSelMode)
+    _Theme_SetTooltip($__g_CD_idCmbSlideshowSelMode, _i18n("Settings.Behavior.tip_slideshow_selection_mode", "Which desktops the slideshow visits: all, even-numbered, odd-numbered, those whose name matches a filter, or a custom sequence"))
+    $iY += 26
+
+    ; Direction
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_slideshow_direction", "Direction:"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegBhvSub(3, $idLbl)
+    $__g_CD_idCmbSlideshowDirection = GUICtrlCreateCombo("", $iX + 180, $iY, 150, 22, 0x0003) ; CBS_DROPDOWNLIST
+    GUICtrlSetFont($__g_CD_idCmbSlideshowDirection, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idCmbSlideshowDirection, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idCmbSlideshowDirection, $THEME_BG_INPUT)
+    GUICtrlSetCursor($__g_CD_idCmbSlideshowDirection, 0)
+    __CD_RegCtrl($t, $__g_CD_idCmbSlideshowDirection)
+    __CD_RegBhvSub(3, $__g_CD_idCmbSlideshowDirection)
+    _Theme_SetTooltip($__g_CD_idCmbSlideshowDirection, _i18n("Settings.Behavior.tip_slideshow_direction", "Visit desktops ascending (forward) or descending (backward); reverses the custom sequence order"))
+    $iY += 26
+
+    ; Name filter (name_contains mode)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_slideshow_name_filter", "Name filter:"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegBhvSub(3, $idLbl)
+    $__g_CD_idInpSlideshowNameFilter = GUICtrlCreateInput("", $iX + 180, $iY, 200, 22)
+    GUICtrlSetFont($__g_CD_idInpSlideshowNameFilter, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpSlideshowNameFilter, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpSlideshowNameFilter, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpSlideshowNameFilter)
+    __CD_RegCtrl($t, $__g_CD_idInpSlideshowNameFilter)
+    __CD_RegBhvSub(3, $__g_CD_idInpSlideshowNameFilter)
+    _Theme_SetTooltip($__g_CD_idInpSlideshowNameFilter, _i18n("Settings.Behavior.tip_slideshow_name_filter", "Case-insensitive text matched against desktop names; only used by the ""name contains"" selection mode"))
+    $iY += 26
+
+    ; Custom sequence (custom mode) — mono input like the hotkey fields
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_slideshow_sequence", "Custom sequence:"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegBhvSub(3, $idLbl)
+    $__g_CD_idInpSlideshowSequence = GUICtrlCreateInput("", $iX + 180, $iY, 200, 22)
+    GUICtrlSetFont($__g_CD_idInpSlideshowSequence, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idInpSlideshowSequence, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpSlideshowSequence, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpSlideshowSequence)
+    __CD_RegCtrl($t, $__g_CD_idInpSlideshowSequence)
+    __CD_RegBhvSub(3, $__g_CD_idInpSlideshowSequence)
+    _Theme_SetTooltip($__g_CD_idInpSlideshowSequence, _i18n("Settings.Behavior.tip_slideshow_sequence", "Comma-separated 1-based desktop numbers to visit, e.g. 1,3,2,5; repeats allowed; only used by the ""custom"" selection mode"))
+    $iY += 26
+
+    ; Per-desktop intervals (all modes) — mono input
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_slideshow_desktop_intervals", "Per-desktop intervals:"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegBhvSub(3, $idLbl)
+    $__g_CD_idInpSlideshowDesktopIntervals = GUICtrlCreateInput("", $iX + 180, $iY, 200, 22)
+    GUICtrlSetFont($__g_CD_idInpSlideshowDesktopIntervals, 9, 400, 0, $THEME_FONT_MONO)
+    GUICtrlSetColor($__g_CD_idInpSlideshowDesktopIntervals, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpSlideshowDesktopIntervals, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpSlideshowDesktopIntervals)
+    __CD_RegCtrl($t, $__g_CD_idInpSlideshowDesktopIntervals)
+    __CD_RegBhvSub(3, $__g_CD_idInpSlideshowDesktopIntervals)
+    _Theme_SetTooltip($__g_CD_idInpSlideshowDesktopIntervals, _i18n("Settings.Behavior.tip_slideshow_desktop_intervals", "Per-desktop timing overrides as desktop:ms pairs, e.g. 1:5000,3:8000; applies in every selection mode; unlisted desktops use the default interval"))
+    $iY += 26
+
+    ; Loop mode
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_slideshow_loop_mode", "Loop mode:"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegBhvSub(3, $idLbl)
+    $__g_CD_idCmbSlideshowLoopMode = GUICtrlCreateCombo("", $iX + 180, $iY, 150, 22, 0x0003) ; CBS_DROPDOWNLIST
+    GUICtrlSetFont($__g_CD_idCmbSlideshowLoopMode, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idCmbSlideshowLoopMode, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idCmbSlideshowLoopMode, $THEME_BG_INPUT)
+    GUICtrlSetCursor($__g_CD_idCmbSlideshowLoopMode, 0)
+    __CD_RegCtrl($t, $__g_CD_idCmbSlideshowLoopMode)
+    __CD_RegBhvSub(3, $__g_CD_idCmbSlideshowLoopMode)
+    _Theme_SetTooltip($__g_CD_idCmbSlideshowLoopMode, _i18n("Settings.Behavior.tip_slideshow_loop_mode", "Run forever (infinite), for a number of full passes (count), or for a total time (duration)"))
+    $iY += 26
+
+    ; Loop count
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_slideshow_loop_count", "Loop count:"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegBhvSub(3, $idLbl)
+    $__g_CD_idInpSlideshowLoopCount = GUICtrlCreateInput("", $iX + 180, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpSlideshowLoopCount, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpSlideshowLoopCount, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpSlideshowLoopCount, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpSlideshowLoopCount)
+    __CD_RegCtrl($t, $__g_CD_idInpSlideshowLoopCount)
+    __CD_RegBhvSub(3, $__g_CD_idInpSlideshowLoopCount)
+    _Theme_SetTooltip($__g_CD_idInpSlideshowLoopCount, _i18n("Settings.Behavior.tip_slideshow_loop_count", "Number of full passes through the selection before stopping (1-1000)"))
+    $iY += 26
+
+    ; Loop duration (s)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_slideshow_loop_duration", "Loop duration (s):"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegBhvSub(3, $idLbl)
+    $__g_CD_idInpSlideshowLoopDuration = GUICtrlCreateInput("", $iX + 180, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpSlideshowLoopDuration, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpSlideshowLoopDuration, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpSlideshowLoopDuration, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpSlideshowLoopDuration)
+    __CD_RegCtrl($t, $__g_CD_idInpSlideshowLoopDuration)
+    __CD_RegBhvSub(3, $__g_CD_idInpSlideshowLoopDuration)
+    _Theme_SetTooltip($__g_CD_idInpSlideshowLoopDuration, _i18n("Settings.Behavior.tip_slideshow_loop_duration", "Total run time in seconds before stopping (5-86400)"))
+    $iY += 26
+
+    ; Auto-start on launch
+    $__g_CD_idChkSlideshowAutostart = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_slideshow_autostart", "Auto-start on launch"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkSlideshowAutostart, _i18n("Settings.Behavior.tip_slideshow_autostart", "Start the slideshow automatically after the app launches"))
+    __CD_RegBhvSub(3, $__g_CD_idChkSlideshowAutostart)
+    $iY += 24
+
+    ; Auto-start delay (ms)
+    $idLbl = GUICtrlCreateLabel(_i18n("Settings.Behavior.lbl_slideshow_autostart_delay", "Auto-start delay (ms):"), $iX, $iY + 2, 175, 18)
+    GUICtrlSetFont($idLbl, 8, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($idLbl, $THEME_FG_DIM)
+    GUICtrlSetBkColor($idLbl, $GUI_BKCOLOR_TRANSPARENT)
+    __CD_RegCtrl($t, $idLbl)
+    __CD_RegBhvSub(3, $idLbl)
+    $__g_CD_idInpSlideshowAutostartDelay = GUICtrlCreateInput("", $iX + 180, $iY, 80, 22, $ES_NUMBER)
+    GUICtrlSetFont($__g_CD_idInpSlideshowAutostartDelay, 9, 400, 0, $THEME_FONT_MAIN)
+    GUICtrlSetColor($__g_CD_idInpSlideshowAutostartDelay, $THEME_FG_TEXT)
+    GUICtrlSetBkColor($__g_CD_idInpSlideshowAutostartDelay, $THEME_BG_INPUT)
+    _Theme_FlattenInput($__g_CD_idInpSlideshowAutostartDelay)
+    __CD_RegCtrl($t, $__g_CD_idInpSlideshowAutostartDelay)
+    __CD_RegBhvSub(3, $__g_CD_idInpSlideshowAutostartDelay)
+    _Theme_SetTooltip($__g_CD_idInpSlideshowAutostartDelay, _i18n("Settings.Behavior.tip_slideshow_autostart_delay", "Wait this long after launch before auto-starting the slideshow (0-3600000ms)"))
+    $iY += 26
+
+    ; Show in context menu
+    $__g_CD_idChkSlideshowMenu = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_slideshow_menu", "Show in context menu"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkSlideshowMenu, _i18n("Settings.Behavior.tip_slideshow_menu", "Show the slideshow start/stop entry in the right-click context menu"))
+    __CD_RegBhvSub(3, $__g_CD_idChkSlideshowMenu)
+    $iY += 24
+
+    ; Toast on toggle
+    $__g_CD_idChkNotifySlideshow = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_notify_slideshow", "Toast on slideshow toggle"), $iX, $iY, 300, $t)
+    _Theme_SetTooltip($__g_CD_idChkNotifySlideshow, _i18n("Settings.Behavior.tip_notify_slideshow", "Show a toast when the slideshow is started or stopped"))
+    __CD_RegBhvSub(3, $__g_CD_idChkNotifySlideshow)
+    $iY += 24
+
+    ; Break conditions (2x2 grid to conserve vertical space)
+    $__g_CD_idChkSlideshowBreakManual = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_slideshow_break_manual", "Stop on manual switch"), $iX, $iY, 230, $t)
+    _Theme_SetTooltip($__g_CD_idChkSlideshowBreakManual, _i18n("Settings.Behavior.tip_slideshow_break_manual", "Stop the slideshow when you change desktops yourself"))
+    __CD_RegBhvSub(3, $__g_CD_idChkSlideshowBreakManual)
+    $__g_CD_idChkSlideshowBreakWidget = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_slideshow_break_widget", "Stop on widget click"), $iX + 245, $iY, 230, $t)
+    _Theme_SetTooltip($__g_CD_idChkSlideshowBreakWidget, _i18n("Settings.Behavior.tip_slideshow_break_widget", "Stop the slideshow when you click the widget"))
+    __CD_RegBhvSub(3, $__g_CD_idChkSlideshowBreakWidget)
+    $iY += 24
+    $__g_CD_idChkSlideshowBreakHotkey = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_slideshow_break_hotkey", "Stop on hotkey"), $iX, $iY, 230, $t)
+    _Theme_SetTooltip($__g_CD_idChkSlideshowBreakHotkey, _i18n("Settings.Behavior.tip_slideshow_break_hotkey", "Stop the slideshow when you use an app navigation or action hotkey"))
+    __CD_RegBhvSub(3, $__g_CD_idChkSlideshowBreakHotkey)
+    $__g_CD_idChkSlideshowBreakInput = __CD_CreateCheckbox(_i18n("Settings.Behavior.chk_slideshow_break_input", "Stop on any input"), $iX + 245, $iY, 230, $t)
+    _Theme_SetTooltip($__g_CD_idChkSlideshowBreakInput, _i18n("Settings.Behavior.tip_slideshow_break_input", "Stop the slideshow on any keyboard or mouse activity"))
+    __CD_RegBhvSub(3, $__g_CD_idChkSlideshowBreakInput)
 
     ; ========================================
     ; Sub-tab 4: Rules
@@ -3813,6 +4037,8 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkWidgetDrag, _Cfg_GetWidgetDragEnabled())
     __CD_SetCheckState($__g_CD_idChkWidgetColorBar, _Cfg_GetWidgetColorBar())
     GUICtrlSetData($__g_CD_idInpColorBarH, _Cfg_GetWidgetColorBarHeight())
+    __CD_SetLocalizedOptions($__g_CD_idCmbColorBarAnim, "Options.color_bar_anim", $CD_OPT_COLOR_BAR_ANIM, _Cfg_GetWidgetColorBarAnim())
+    GUICtrlSetData($__g_CD_idInpColorBarAnimDur, _Cfg_GetWidgetColorBarAnimDuration())
     __CD_SetCheckState($__g_CD_idChkTrayMode, _Cfg_GetTrayIconMode())
     __CD_SetCheckState($__g_CD_idChkQuickAccess, _Cfg_GetQuickAccessEnabled())
     __CD_SetCheckState($__g_CD_idChkListKeyNav, _Cfg_GetListKeyboardNav())
@@ -3850,7 +4076,7 @@ Func __CD_PopulateControls()
         GUICtrlSetData($__g_CD_aidInpHkDesktop[$i], _Cfg_GetHotkeyDesktop($i))
     Next
     GUICtrlSetData($__g_CD_idInpHkToggleList, _Cfg_GetHotkeyToggleList())
-    GUICtrlSetData($__g_CD_idInpHkCarousel, _Cfg_GetHotkeyToggleCarousel())
+    GUICtrlSetData($__g_CD_idInpHkSlideshow, _Cfg_GetHotkeyToggleSlideshow())
 
     ; Behavior
     __CD_SetCheckState($__g_CD_idChkConfirmDel, _Cfg_GetConfirmDelete())
@@ -3869,11 +4095,25 @@ Func __CD_PopulateControls()
     __CD_SetCheckState($__g_CD_idChkDisableNativeOsd, _Cfg_GetDisableNativeOsd())
     __CD_SetCheckState($__g_CD_idChkPinningEnabled, _Cfg_GetPinningEnabled())
 
-    ; Carousel
-    __CD_SetCheckState($__g_CD_idChkCarouselEnabled, _Cfg_GetCarouselEnabled())
-    GUICtrlSetData($__g_CD_idInpCarouselInterval, _Cfg_GetCarouselInterval())
-    __CD_SetCheckState($__g_CD_idChkCarouselMenu, _Cfg_GetCarouselShowInMenu())
-    __CD_SetCheckState($__g_CD_idChkNotifyCarousel, _Cfg_GetNotifyCarouselToggle())
+    ; Slideshow
+    __CD_SetCheckState($__g_CD_idChkSlideshowEnabled, _Cfg_GetSlideshowEnabled())
+    GUICtrlSetData($__g_CD_idInpSlideshowInterval, _Cfg_GetSlideshowInterval())
+    __CD_SetLocalizedOptions($__g_CD_idCmbSlideshowSelMode, "Options.slideshow_selection_mode", $CD_OPT_SLIDESHOW_SELMODE, _Cfg_GetSlideshowSelectionMode())
+    __CD_SetLocalizedOptions($__g_CD_idCmbSlideshowDirection, "Options.slideshow_direction", $CD_OPT_SLIDESHOW_DIRECTION, _Cfg_GetSlideshowDirection())
+    GUICtrlSetData($__g_CD_idInpSlideshowNameFilter, _Cfg_GetSlideshowNameFilter())
+    GUICtrlSetData($__g_CD_idInpSlideshowSequence, _Cfg_GetSlideshowSequence())
+    GUICtrlSetData($__g_CD_idInpSlideshowDesktopIntervals, _Cfg_GetSlideshowDesktopIntervals())
+    __CD_SetLocalizedOptions($__g_CD_idCmbSlideshowLoopMode, "Options.slideshow_loop_mode", $CD_OPT_SLIDESHOW_LOOPMODE, _Cfg_GetSlideshowLoopMode())
+    GUICtrlSetData($__g_CD_idInpSlideshowLoopCount, _Cfg_GetSlideshowLoopCount())
+    GUICtrlSetData($__g_CD_idInpSlideshowLoopDuration, _Cfg_GetSlideshowLoopDuration())
+    __CD_SetCheckState($__g_CD_idChkSlideshowAutostart, _Cfg_GetSlideshowAutostart())
+    GUICtrlSetData($__g_CD_idInpSlideshowAutostartDelay, _Cfg_GetSlideshowAutostartDelay())
+    __CD_SetCheckState($__g_CD_idChkSlideshowMenu, _Cfg_GetSlideshowShowInMenu())
+    __CD_SetCheckState($__g_CD_idChkNotifySlideshow, _Cfg_GetNotifySlideshowToggle())
+    __CD_SetCheckState($__g_CD_idChkSlideshowBreakManual, _Cfg_GetSlideshowBreakOnManualSwitch())
+    __CD_SetCheckState($__g_CD_idChkSlideshowBreakWidget, _Cfg_GetSlideshowBreakOnWidgetClick())
+    __CD_SetCheckState($__g_CD_idChkSlideshowBreakHotkey, _Cfg_GetSlideshowBreakOnHotkey())
+    __CD_SetCheckState($__g_CD_idChkSlideshowBreakInput, _Cfg_GetSlideshowBreakOnAnyInput())
 
     ; Rules engine
     __CD_SetCheckState($__g_CD_idChkRulesEnabled, _Cfg_GetRulesEnabled())
@@ -4228,7 +4468,7 @@ Func __CD_SearchFindSub($idCtrl, $iTab)
         Case 4
             If __CD_SearchInArray($idCtrl, $__g_CD_aBhvInteractCtrls, $__g_CD_iBhvInteractCount) Then Return 1
             If __CD_SearchInArray($idCtrl, $__g_CD_aBhvTimersCtrls, $__g_CD_iBhvTimersCount) Then Return 2
-            If __CD_SearchInArray($idCtrl, $__g_CD_aBhvCarouselCtrls, $__g_CD_iBhvCarouselCount) Then Return 3
+            If __CD_SearchInArray($idCtrl, $__g_CD_aBhvSlideshowCtrls, $__g_CD_iBhvSlideshowCount) Then Return 3
             If __CD_SearchInArray($idCtrl, $__g_CD_aBhvRulesCtrls, $__g_CD_iBhvRulesCount) Then Return 4
     EndSwitch
     Return 0
@@ -4257,7 +4497,7 @@ Func __CD_GetSubLabel($iTab, $iSub)
             Local $a3[6] = [0, $__g_CD_idHkSubNav, $__g_CD_idHkSubWin, $__g_CD_idHkSubDesk, $__g_CD_idHkSubSend, $__g_CD_idHkSubActions]
             If $iSub <= 5 Then $id = $a3[$iSub]
         Case 4
-            Local $a4[5] = [0, $__g_CD_idBhvSubInteract, $__g_CD_idBhvSubTimers, $__g_CD_idBhvSubCarousel, $__g_CD_idBhvSubRules]
+            Local $a4[5] = [0, $__g_CD_idBhvSubInteract, $__g_CD_idBhvSubTimers, $__g_CD_idBhvSubSlideshow, $__g_CD_idBhvSubRules]
             If $iSub <= 4 Then $id = $a4[$iSub]
         Case 7
             If $iSub <= $__g_CD_iDeskPageCount Then $id = $__g_CD_aidDeskPageBtn[$iSub]
@@ -4567,7 +4807,7 @@ Func __CD_MessageLoop()
             If $id = $__g_CD_idDispSubThumbnails Then __CD_SwitchDispSub(2)
             If $id = $__g_CD_idBhvSubInteract Then __CD_SwitchBhvSub(1)
             If $id = $__g_CD_idBhvSubTimers Then __CD_SwitchBhvSub(2)
-            If $id = $__g_CD_idBhvSubCarousel Then __CD_SwitchBhvSub(3)
+            If $id = $__g_CD_idBhvSubSlideshow Then __CD_SwitchBhvSub(3)
             If $id = $__g_CD_idBhvSubRules Then __CD_SwitchBhvSub(4)
             ; Desktop page buttons
             If $__g_CD_iDeskPageCount > 1 Then
@@ -4757,7 +4997,7 @@ Func __CD_MessageLoop()
                     Local $aHkSub[5] = [$__g_CD_idHkSubNav, $__g_CD_idHkSubWin, $__g_CD_idHkSubDesk, $__g_CD_idHkSubSend, $__g_CD_idHkSubActions]
                     $iSubHit = __CD_SubTabHoverHit($aHkSub, 5, $__g_CD_iHkActiveSub - 1, $aCursor[4])
                 Case 4
-                    Local $aBhvSub[4] = [$__g_CD_idBhvSubInteract, $__g_CD_idBhvSubTimers, $__g_CD_idBhvSubCarousel, $__g_CD_idBhvSubRules]
+                    Local $aBhvSub[4] = [$__g_CD_idBhvSubInteract, $__g_CD_idBhvSubTimers, $__g_CD_idBhvSubSlideshow, $__g_CD_idBhvSubRules]
                     $iSubHit = __CD_SubTabHoverHit($aBhvSub, 4, $__g_CD_iBhvActiveSub - 1, $aCursor[4])
                 Case 7
                     If $__g_CD_iDeskPageCount > 1 Then
@@ -4877,6 +5117,9 @@ Func __CD_ApplyChanges()
     _Cfg_SetWidgetColorBar(__CD_GetCheckState($__g_CD_idChkWidgetColorBar))
     $s = GUICtrlRead($__g_CD_idInpColorBarH)
     If StringIsInt($s) Then _Cfg_SetWidgetColorBarHeight(Int($s))
+    _Cfg_SetWidgetColorBarAnim(__CD_DelocalizeOptionValue("Options.color_bar_anim", $CD_OPT_COLOR_BAR_ANIM, GUICtrlRead($__g_CD_idCmbColorBarAnim)))
+    $s = GUICtrlRead($__g_CD_idInpColorBarAnimDur)
+    If StringIsInt($s) Then _Cfg_SetWidgetColorBarAnimDuration(Int($s))
     _Cfg_SetTrayIconMode(__CD_GetCheckState($__g_CD_idChkTrayMode))
     _Cfg_SetQuickAccessEnabled(__CD_GetCheckState($__g_CD_idChkQuickAccess))
     _Cfg_SetListKeyboardNav(__CD_GetCheckState($__g_CD_idChkListKeyNav))
@@ -4947,7 +5190,7 @@ Func __CD_ApplyChanges()
     _Cfg_SetHotkeyRenameDesktop(GUICtrlRead($__g_CD_idInpHkRenameDesktop))
     _Cfg_SetHotkeyCloseWindow(GUICtrlRead($__g_CD_idInpHkCloseWindow))
     _Cfg_SetHotkeyMinimizeWindow(GUICtrlRead($__g_CD_idInpHkMinimizeWindow))
-    _Cfg_SetHotkeyToggleCarousel(GUICtrlRead($__g_CD_idInpHkCarousel))
+    _Cfg_SetHotkeyToggleSlideshow(GUICtrlRead($__g_CD_idInpHkSlideshow))
     _Cfg_SetHotkeyTaskView(GUICtrlRead($__g_CD_idInpHkTaskView))
     _Cfg_SetHotkeyMaximizeWindow(GUICtrlRead($__g_CD_idInpHkMaximizeWindow))
     _Cfg_SetHotkeyRestoreWindow(GUICtrlRead($__g_CD_idInpHkRestoreWindow))
@@ -4986,12 +5229,30 @@ Func __CD_ApplyChanges()
     _Cfg_SetDisableNativeOsd(__CD_GetCheckState($__g_CD_idChkDisableNativeOsd))
     _Cfg_SetPinningEnabled(__CD_GetCheckState($__g_CD_idChkPinningEnabled))
 
-    ; Carousel
-    _Cfg_SetCarouselEnabled(__CD_GetCheckState($__g_CD_idChkCarouselEnabled))
-    $s = GUICtrlRead($__g_CD_idInpCarouselInterval)
-    If StringIsInt($s) Then _Cfg_SetCarouselInterval(Int($s))
-    _Cfg_SetCarouselShowInMenu(__CD_GetCheckState($__g_CD_idChkCarouselMenu))
-    _Cfg_SetNotifyCarouselToggle(__CD_GetCheckState($__g_CD_idChkNotifyCarousel))
+    ; Slideshow. Sequence / per-desktop-intervals stored verbatim (setters clamp length);
+    ; the engine parses + validates them at start time, matching the lenient input style.
+    _Cfg_SetSlideshowEnabled(__CD_GetCheckState($__g_CD_idChkSlideshowEnabled))
+    $s = GUICtrlRead($__g_CD_idInpSlideshowInterval)
+    If StringIsInt($s) Then _Cfg_SetSlideshowInterval(Int($s))
+    _Cfg_SetSlideshowSelectionMode(__CD_DelocalizeOptionValue("Options.slideshow_selection_mode", $CD_OPT_SLIDESHOW_SELMODE, GUICtrlRead($__g_CD_idCmbSlideshowSelMode)))
+    _Cfg_SetSlideshowDirection(__CD_DelocalizeOptionValue("Options.slideshow_direction", $CD_OPT_SLIDESHOW_DIRECTION, GUICtrlRead($__g_CD_idCmbSlideshowDirection)))
+    _Cfg_SetSlideshowNameFilter(GUICtrlRead($__g_CD_idInpSlideshowNameFilter))
+    _Cfg_SetSlideshowSequence(GUICtrlRead($__g_CD_idInpSlideshowSequence))
+    _Cfg_SetSlideshowDesktopIntervals(GUICtrlRead($__g_CD_idInpSlideshowDesktopIntervals))
+    _Cfg_SetSlideshowLoopMode(__CD_DelocalizeOptionValue("Options.slideshow_loop_mode", $CD_OPT_SLIDESHOW_LOOPMODE, GUICtrlRead($__g_CD_idCmbSlideshowLoopMode)))
+    $s = GUICtrlRead($__g_CD_idInpSlideshowLoopCount)
+    If StringIsInt($s) Then _Cfg_SetSlideshowLoopCount(Int($s))
+    $s = GUICtrlRead($__g_CD_idInpSlideshowLoopDuration)
+    If StringIsInt($s) Then _Cfg_SetSlideshowLoopDuration(Int($s))
+    _Cfg_SetSlideshowAutostart(__CD_GetCheckState($__g_CD_idChkSlideshowAutostart))
+    $s = GUICtrlRead($__g_CD_idInpSlideshowAutostartDelay)
+    If StringIsInt($s) Then _Cfg_SetSlideshowAutostartDelay(Int($s))
+    _Cfg_SetSlideshowShowInMenu(__CD_GetCheckState($__g_CD_idChkSlideshowMenu))
+    _Cfg_SetNotifySlideshowToggle(__CD_GetCheckState($__g_CD_idChkNotifySlideshow))
+    _Cfg_SetSlideshowBreakOnManualSwitch(__CD_GetCheckState($__g_CD_idChkSlideshowBreakManual))
+    _Cfg_SetSlideshowBreakOnWidgetClick(__CD_GetCheckState($__g_CD_idChkSlideshowBreakWidget))
+    _Cfg_SetSlideshowBreakOnHotkey(__CD_GetCheckState($__g_CD_idChkSlideshowBreakHotkey))
+    _Cfg_SetSlideshowBreakOnAnyInput(__CD_GetCheckState($__g_CD_idChkSlideshowBreakInput))
 
     ; Rules engine
     _Cfg_SetRulesEnabled(__CD_GetCheckState($__g_CD_idChkRulesEnabled))
@@ -5365,7 +5626,7 @@ Func __CD_HandleHotkeyBuildClick($id)
     ElseIf $id = $__g_CD_idBtnHkBuild[26] Then
         $idInput = $__g_CD_idInpHkTaskView
     ElseIf $id = $__g_CD_idBtnHkBuild[27] Then
-        $idInput = $__g_CD_idInpHkCarousel
+        $idInput = $__g_CD_idInpHkSlideshow
     Else
         Local $i
         For $i = 1 To 9

@@ -399,4 +399,98 @@ Func _RunTest_ConfigDialog()
     $__g_CD_sSearchLast = ""
     $__g_CD_iSearchRowHovered = 0
     __CD_SearchReset()
+
+    ; ============================================================
+    ; t6-d: Slideshow sub-tab + color-bar animation rows
+    ; ============================================================
+
+    ; -- Option constants match the Config schema enum sets (pure) --
+    _Test_AssertEqual("Slideshow selmode option list", $CD_OPT_SLIDESHOW_SELMODE, "all|even|odd|name_contains|custom")
+    _Test_AssertEqual("Slideshow direction option list", $CD_OPT_SLIDESHOW_DIRECTION, "forward|backward")
+    _Test_AssertEqual("Slideshow loop-mode option list", $CD_OPT_SLIDESHOW_LOOPMODE, "infinite|count|duration")
+    _Test_AssertEqual("Color-bar anim option list", $CD_OPT_COLOR_BAR_ANIM, "none|grow|fade")
+    ; Carousel -> Slideshow tray-enum rename regression (t6-a widened the enum)
+    _Test_AssertTrue("Tray middle-click enum uses toggle_slideshow", StringInStr($CD_OPT_TRAY_MIDDLE, "toggle_slideshow") > 0)
+    _Test_AssertFalse("Tray middle-click enum drops toggle_carousel", StringInStr($CD_OPT_TRAY_MIDDLE, "toggle_carousel") > 0)
+
+    ; -- Combo apply/populate seam: localize -> delocalize round-trips every value --
+    ; Exactly what populate (__CD_SetLocalizedOptions) and apply (__CD_DelocalizeOptionValue)
+    ; do for the four new dropdowns, so a broken option-label key would surface here.
+    __CD_TestOptionRoundTrip("Options.slideshow_selection_mode", $CD_OPT_SLIDESHOW_SELMODE)
+    __CD_TestOptionRoundTrip("Options.slideshow_direction", $CD_OPT_SLIDESHOW_DIRECTION)
+    __CD_TestOptionRoundTrip("Options.slideshow_loop_mode", $CD_OPT_SLIDESHOW_LOOPMODE)
+    __CD_TestOptionRoundTrip("Options.color_bar_anim", $CD_OPT_COLOR_BAR_ANIM)
+
+    ; -- Real GUI: build General + Behavior tabs to validate the new controls --
+    Local $sSsIni = @TempDir & "\desk_switcheroo_cd_slideshow.ini"
+    If FileExists($sSsIni) Then FileDelete($sSsIni)
+    _Cfg_Init($sSsIni)
+
+    Local $hGuiSs = GUICreate("CD Slideshow Test", 540, 700)
+    $__g_CD_hGUI = $hGuiSs
+    ; _CD_Show normally resets these; do it by hand for the partial build.
+    $__g_CD_iChkCount = 0
+    $__g_CD_aiTabCtrlCount[1] = 0
+    $__g_CD_aiTabCtrlCount[4] = 0
+    __CD_BuildTabGeneral()
+    __CD_BuildTabBehavior()
+
+    ; Control-count: the rebuilt Slideshow sub-tab registers 28 controls (was 5 for Carousel)
+    _Test_AssertEqual("Slideshow sub-tab registers 28 controls", $__g_CD_iBhvSlideshowCount, 28)
+    _Test_AssertTrue("Slideshow enable checkbox created", $__g_CD_idChkSlideshowEnabled <> 0)
+    _Test_AssertTrue("Slideshow selection-mode combo created", $__g_CD_idCmbSlideshowSelMode <> 0)
+    _Test_AssertTrue("Slideshow sequence input created", $__g_CD_idInpSlideshowSequence <> 0)
+    _Test_AssertTrue("Color-bar anim combo created", $__g_CD_idCmbColorBarAnim <> 0)
+
+    ; Populate round-trip: set config, run the real populate path, read controls back.
+    _Cfg_SetSlideshowEnabled(True)
+    _Cfg_SetSlideshowInterval(12345)
+    _Cfg_SetSlideshowSelectionMode("even")
+    _Cfg_SetSlideshowDirection("backward")
+    _Cfg_SetSlideshowNameFilter("dev")
+    _Cfg_SetSlideshowSequence("3,1,2")
+    _Cfg_SetSlideshowDesktopIntervals("1:5000,3:8000")
+    _Cfg_SetSlideshowLoopMode("count")
+    _Cfg_SetSlideshowLoopCount(7)
+    _Cfg_SetWidgetColorBarAnim("fade")
+    _Cfg_SetWidgetColorBarAnimDuration(750)
+    __CD_PopulateControls()
+    _Test_AssertTrue("Populate: slideshow enabled checkbox on", __CD_GetCheckState($__g_CD_idChkSlideshowEnabled))
+    _Test_AssertEqual("Populate: interval field", GUICtrlRead($__g_CD_idInpSlideshowInterval), "12345")
+    _Test_AssertEqual("Populate: selection-mode combo", GUICtrlRead($__g_CD_idCmbSlideshowSelMode), __CD_LocalizeOptionValue("Options.slideshow_selection_mode", "even"))
+    _Test_AssertEqual("Populate: direction combo", GUICtrlRead($__g_CD_idCmbSlideshowDirection), __CD_LocalizeOptionValue("Options.slideshow_direction", "backward"))
+    _Test_AssertEqual("Populate: name filter field", GUICtrlRead($__g_CD_idInpSlideshowNameFilter), "dev")
+    _Test_AssertEqual("Populate: custom sequence field", GUICtrlRead($__g_CD_idInpSlideshowSequence), "3,1,2")
+    _Test_AssertEqual("Populate: per-desktop intervals field", GUICtrlRead($__g_CD_idInpSlideshowDesktopIntervals), "1:5000,3:8000")
+    _Test_AssertEqual("Populate: loop-mode combo", GUICtrlRead($__g_CD_idCmbSlideshowLoopMode), __CD_LocalizeOptionValue("Options.slideshow_loop_mode", "count"))
+    _Test_AssertEqual("Populate: loop count field", GUICtrlRead($__g_CD_idInpSlideshowLoopCount), "7")
+    _Test_AssertEqual("Populate: color-bar anim combo", GUICtrlRead($__g_CD_idCmbColorBarAnim), __CD_LocalizeOptionValue("Options.color_bar_anim", "fade"))
+    _Test_AssertEqual("Populate: color-bar anim duration field", GUICtrlRead($__g_CD_idInpColorBarAnimDur), "750")
+
+    ; Search harvest: the new rows are tooltip-indexed and thus discoverable.
+    __CD_BuildSearchIndex()
+    _Test_AssertTrue("Search: 'slideshow' finds the new rows", __CD_SearchMatch("slideshow") >= 8)
+    _Test_AssertTrue("Search: 'animation' finds the color-bar row", __CD_SearchMatch("animation") >= 1)
+
+    ; Sub-tab switch stays flicker-locked (lock depth balances back to 0).
+    $__g_CD_iLockDepth = 0
+    __CD_SwitchBhvSub(3)
+    _Test_AssertEqual("Switch to Slideshow sub-tab sets active index", $__g_CD_iBhvActiveSub, 3)
+    _Test_AssertEqual("Sub-tab switch balances the flicker lock", $__g_CD_iLockDepth, 0)
+
+    GUIDelete($hGuiSs)
+    $__g_CD_hGUI = 0
+    __CD_SearchReset()
+    FileDelete($sSsIni)
+EndFunc
+
+; Asserts every option value survives localize -> delocalize (the combo apply/populate seam).
+Func __CD_TestOptionRoundTrip($sBase, $sOptions)
+    Local $aOpts = StringSplit($sOptions, "|")
+    Local $i
+    For $i = 1 To $aOpts[0]
+        Local $sDisplay = __CD_LocalizeOptionValue($sBase, $aOpts[$i])
+        _Test_AssertEqual("Round-trip " & $sBase & " = " & $aOpts[$i], _
+            __CD_DelocalizeOptionValue($sBase, $sOptions, $sDisplay), $aOpts[$i])
+    Next
 EndFunc
