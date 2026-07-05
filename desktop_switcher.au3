@@ -40,6 +40,7 @@ Global Const $DESKTOP_LIMIT_HARD = 50 ; absolute safety cap
 #include "includes\SessionRestore.au3"
 #include "includes\CLI.au3"
 #include "includes\Hooks.au3"
+#include "includes\Slideshow.au3"
 #include "includes\Profiles.au3"
 
 ; ---- App version (read from VERSION file or fallback) ----
@@ -234,7 +235,7 @@ If _CLI_HasCommand() Then
         ; Action command that reached this point had NO running instance to relay to
         ; (the early IPC relay above found none). Execute it locally against the OS
         ; and exit — virtual desktops are global, so goto/next/prev/add/remove/rename/
-        ; move-window work standalone. GUI-only actions (toggle-list, toggle-carousel,
+        ; move-window work standalone. GUI-only actions (toggle-list, toggle-slideshow,
         ; load-/save-profile) print a "requires running instance" error and exit non-
         ; zero, since there is no widget to drive. This mirrors query-command handling
         ; and avoids spawning a persistent widget as a side effect of a one-shot action.
@@ -328,7 +329,16 @@ Global $__g_bTrayMode = False
 Global $__g_iTrayToggleList = 0, $__g_iTrayEditLabel = 0
 Global $__g_iTrayAddDesktop = 0, $__g_iTrayDelDesktop = 0
 Global $__g_iTraySettings = 0, $__g_iTrayAbout = 0, $__g_iTrayQuit = 0
-Global $__g_iTrayCarousel = 0
+Global $__g_iTraySlideshow = 0
+
+; ---- Slideshow runtime globals ----
+; Pending auto-start (armed at startup when slideshow_enabled AND slideshow_autostart)
+Global $__g_bSSAutostartPending = False
+Global $__g_hSSAutostartTimer = 0
+; GetLastInputInfo baseline captured after each own-step switch, for break-on-any-input.
+Global $__g_iSSInputBaseline = 0
+; Consecutive out-of-range steps (desktop count shrank mid-run); stop when it reaches seq len.
+Global $__g_iSSInvalidStreak = 0
 Global $__g_hTrayDesktopMenu = 0, $__g_hTrayMoveMenu = 0
 Global $__g_aTrayDesktopItems[51], $__g_aTrayMoveItems[51]
 Global $__g_iTrayDesktopSubCount = 0, $__g_iTrayMoveSubCount = 0
@@ -400,6 +410,7 @@ GUICtrlSetCursor($lblRight, 0)
 ; Color bar — thin accent at bottom showing the current desktop's color
 Local $iBarH = _Cfg_GetWidgetColorBarHeight()
 $lblColorBar = GUICtrlCreateLabel("", 0, $__g_iWidgetH - $iBarH, $__g_iWidgetW, $iBarH)
+_Theme_ColorBarAttach($lblColorBar, 0, $__g_iWidgetH - $iBarH, $__g_iWidgetW, $iBarH)
 _UpdateWidgetColorBar()
 
 ; Widget fade-in on startup
@@ -466,6 +477,14 @@ If _Cfg_GetAutoUpdateEnabled() Then
     AdlibRegister("_UC_AdlibCheck", _Cfg_GetAutoUpdateInterval())
 EndIf
 
+; ---- Slideshow auto-start (armed; actual start fires from _SlideshowTick after the
+; ---- configured delay, so the widget is fully up first). Master switch gates it. ----
+If _Cfg_GetSlideshowEnabled() And _Cfg_GetSlideshowAutostart() Then
+    $__g_bSSAutostartPending = True
+    $__g_hSSAutostartTimer = TimerInit()
+    _Log_Info("Slideshow auto-start armed (delay=" & _Cfg_GetSlideshowAutostartDelay() & "ms)")
+EndIf
+
 ; ---- Restore persisted window state ----
 Local $sStateFile = @ScriptDir & "\desk_switcheroo_state.ini"
 If FileExists($sStateFile) Then
@@ -518,6 +537,8 @@ WEnd
 Func _ProcessGUIEvents($msg, $hFrom)
     ; Main GUI events
     If $hFrom = $gui Then
+        ; Any click on the widget body/arrows breaks an active slideshow (if configured).
+        If $msg = $lblLeft Or $msg = $lblRight Or $msg = $lblNum Or $msg = $lblName Then _Slideshow_Break("widget_click")
         Switch $msg
             Case $GUI_EVENT_CLOSE
                 _Shutdown()
@@ -591,9 +612,9 @@ Func _ProcessGUIEvents($msg, $hFrom)
             Case "about"
                 _CM_Destroy()
                 _ShowAbout()
-            Case "carousel"
+            Case "slideshow"
                 _CM_Destroy()
-                _CarouselToggle()
+                _Slideshow_Toggle()
             Case "crash"
                 _CM_Destroy()
                 ; Intentional crash for testing — user picks crash type
@@ -1331,6 +1352,12 @@ Func _ProcessTimersAndSleep($bCursorActive)
     ; Taskbar auto-hide widget fade tick (non-blocking hide/show animation)
     _TAH_FadeTick()
 
+    ; Color-bar grow/fade animation tick (non-blocking; no-op when idle)
+    _Theme_ColorBarTick()
+
+    ; Slideshow step/auto-start/break tick (main-loop, not Adlib)
+    _SlideshowTick()
+
     ; Themed tooltip auto-dismiss
     _Theme_TooltipTick()
 
@@ -1375,7 +1402,7 @@ Func _ProcessTimersAndSleep($bCursorActive)
     ; 3 tiers: active hover / animating / pending settle (5ms), popups visible (15ms), fully idle (100ms)
     ; A running fade or an armed deferred refresh needs the fast tier so the animation stays
     ; smooth and the settle completes promptly (both were previously blocking Sleep loops).
-    If $bCursorActive Or $__g_bPendingRefresh Or _TAH_IsFading() Then
+    If $bCursorActive Or $__g_bPendingRefresh Or _TAH_IsFading() Or _Theme_ColorBarIsAnimating() Then
         Sleep(5)
     ElseIf _Theme_IsToastActive() Or _DL_IsVisible() Or _CM_IsVisible() Or _DL_CtxIsVisible() Or _DL_ColorPickerIsVisible() Or _DL_MoveMenuIsVisible() Or _WL_CtxIsVisible() Or _WL_SendToIsVisible() Or _WL_TitleCtxIsVisible() Or _WL_SendAllIsVisible() Then
         Sleep(15)
@@ -1389,23 +1416,28 @@ EndFunc
 ; =============================================
 
 ; Name:        _UpdateWidgetColorBar
-; Description: Shows/hides the thin color accent at the bottom of the widget
-Func _UpdateWidgetColorBar()
-    If Not _Cfg_GetWidgetColorBar() Or Not _Cfg_GetDesktopColorsEnabled() Then
-        GUICtrlSetBkColor($lblColorBar, $THEME_BG_MAIN)
-        Return
+; Description: Computes the color accent target for the current desktop and hands the
+;              paint to the Theme color-bar state machine. The target math is exactly
+;              as before (bar off / colors off / no desktop color => the "no color"
+;              fill $THEME_BG_MAIN). $bAnimate is True only on a real desktop change;
+;              init / settings-apply / name-sync repaint instantly (byte-for-byte the
+;              old GUICtrlSetBkColor behavior via _Theme_ColorBarSet's instant path).
+; Parameters:  $bAnimate - animate the transition (grow/fade) when enabled
+Func _UpdateWidgetColorBar($bAnimate = False)
+    Local $iBg = $THEME_BG_MAIN
+    Local $iColor = $iBg
+    If _Cfg_GetWidgetColorBar() And _Cfg_GetDesktopColorsEnabled() Then
+        Local $iDeskColor = _Cfg_GetDesktopColor($iDesktop)
+        If $iDeskColor <> 0 Then $iColor = $iDeskColor
     EndIf
-    Local $iColor = _Cfg_GetDesktopColor($iDesktop)
-    If $iColor = 0 Then
-        GUICtrlSetBkColor($lblColorBar, $THEME_BG_MAIN)
-    Else
-        GUICtrlSetBkColor($lblColorBar, $iColor)
-    EndIf
+    _Theme_ColorBarSet($iColor, $iBg, $bAnimate)
 EndFunc
 
 ; Name:        _ApplyDesktopChange
 ; Description: Updates widget display labels and list after desktop change
-Func _ApplyDesktopChange()
+; Parameters:  $bAnimateColorBar - animate the color-bar transition (True only on a
+;                                   genuine desktop change; default False for repaints)
+Func _ApplyDesktopChange($bAnimateColorBar = False)
     ; Lock window to batch all updates into a single repaint (prevents flicker)
     DllCall("user32.dll", "bool", "LockWindowUpdate", "hwnd", $gui)
 
@@ -1418,7 +1450,7 @@ Func _ApplyDesktopChange()
         GUICtrlSetFont($lblNum, 13, 700, 0, $THEME_FONT_MAIN)
     EndIf
     GUICtrlSetData($lblName, _Labels_Load($iDesktop))
-    _UpdateWidgetColorBar()
+    _UpdateWidgetColorBar($bAnimateColorBar)
     WinSetTitle($gui, "", String($iDesktop))
 
     ; Unlock — triggers a single repaint with all changes applied
@@ -1488,13 +1520,15 @@ Func _ApplySettingsLive()
         AdlibRegister("_UC_AdlibCheck", _Cfg_GetAutoUpdateInterval())
     EndIf
 
-    ; Update carousel timer
-    If $__g_bCarouselActive Then
-        AdlibUnRegister("_CarouselTick")
-        If _Cfg_GetCarouselEnabled() Then
-            AdlibRegister("_CarouselTick", _Cfg_GetCarouselInterval())
+    ; Slideshow live-apply: an active slideshow restarts with fresh config so selection/
+    ; timing/loop edits take effect; disabling the master switch stops it. (Tray item
+    ; visibility is rebuilt below via the tray-mode reinit.)
+    If _SS_IsActive() Then
+        If _Cfg_GetSlideshowEnabled() Then
+            _Slideshow_Stop("restart")
+            _Slideshow_Start()
         Else
-            $__g_bCarouselActive = False
+            _Slideshow_Stop("disabled")
         EndIf
     EndIf
 
@@ -1605,8 +1639,10 @@ Func _RefreshIndex()
         EndIf
         ; Fire hook for desktop change
         _Hooks_Fire("on_desktop_change", "desktop=" & $iDesktop & "|desktop_name=" & _Labels_Load($iDesktop) & "|desktop_count=" & _VD_GetCount() & "|prev_desktop=" & $iPrevDesktop)
+        ; Break the slideshow if this change wasn't the one it commanded (manual switch).
+        _Slideshow_NotifyDesktopChanged()
     EndIf
-    _ApplyDesktopChange()
+    _ApplyDesktopChange($iDesktop <> $iOld)
     _ForceTopMost()
 EndFunc
 
@@ -1870,6 +1906,8 @@ Func _WM_MOUSEWHEEL($hWnd, $iMsg, $wParam, $lParam)
     If $hWnd = $gui Then
         If Not _Cfg_GetScrollEnabled() Then Return $GUI_RUNDEFMSG
 
+        ; Scrolling the widget is a widget interaction — break the slideshow if configured.
+        _Slideshow_Break("widget_click")
         Local $iDir2 = ($iDelta > 0) ? -1 : 1
         If _Cfg_GetScrollDirection() = "inverted" Then $iDir2 = -$iDir2
         __ScrollNavigate($iDir2, _Cfg_GetScrollWrap())
@@ -2025,65 +2063,172 @@ Func _ForceTopMost()
 EndFunc
 
 ; =============================================
-; CAROUSEL MODE
+; SLIDESHOW MODE
 ; =============================================
+; The pure engine lives in includes\Slideshow.au3 (selection/sequence/timing/loop/
+; break decisions). These wrappers own the effects: label snapshotting, switching via
+; _NavigateTo, toasts, hooks, and break wiring. All switching happens HERE, never in
+; the module. Driven by _SlideshowTick from the main loop (NOT an Adlib) so per-step
+; intervals can vary and there is no Adlib-reentrancy hazard.
 
-; Name:        _CarouselTick
-; Description: Adlib callback — advances to next desktop in carousel mode
-Func _CarouselTick()
-    If Not $__g_bCarouselActive Then Return
-    If $__g_bShuttingDown Then Return
-    If _Peek_IsActive() Then Return
-    If _CM_IsVisible() Then Return
-    If _RD_IsVisible() Then Return
+; Name:        _Slideshow_Start
+; Description: Resolves the participating-desktop selection + per-desktop timing from
+;              config, snapshots labels at start time (Risk 11), and arms the engine.
+;              An empty/invalid selection refuses the start with a toast and fires NO
+;              hooks (it never started).
+Func _Slideshow_Start()
+    If _SS_IsActive() Then Return
 
     Local $iCount = _VD_GetCount()
-    If $iCount <= 1 Then Return
+    ; Snapshot labels: 0-based, $aNames[i-1] is the label of desktop i (resolved HERE,
+    ; never inside the dependency-free module). Renames mid-run do not re-filter.
+    Local $aNames[$iCount]
+    Local $i
+    For $i = 1 To $iCount
+        $aNames[$i - 1] = _Labels_Load($i)
+    Next
 
-    Local $iNext = _Nav_NextTarget($iDesktop, $iCount, False, True) ; carousel always wraps
+    Local $aSeq = _SS_BuildSelection(_Cfg_GetSlideshowSelectionMode(), _Cfg_GetSlideshowDirection(), _
+        $iCount, $aNames, _Cfg_GetSlideshowNameFilter(), _Cfg_GetSlideshowSequence())
+    If @error Then
+        ; Empty selection (empty/no-match filter, invalid/empty custom CSV) — refuse start.
+        If _Cfg_GetNotificationsEnabled() Then
+            _Theme_Toast(_i18n("Toasts.toast_slideshow_invalid", "No desktops match the slideshow selection"), _
+                Default, Default, 2000, $TOAST_WARNING)
+        EndIf
+        _Log_Info("Slideshow: start refused — empty selection (mode=" & _Cfg_GetSlideshowSelectionMode() & ")")
+        Return
+    EndIf
 
-    ; Adlib handler: request a switch + deferred refresh only. Never Sleep here — an Adlib
-    ; cannot be preempted by another Adlib, so a blocking sleep froze _ForceTopMost/__TAH_Poll.
-    ; _NavigateTo optimistically advances $iDesktop so successive ticks chain off a fresh index.
-    _NavigateTo($iNext)
-    ; Async fire (Run, non-blocking) — safe inside an Adlib. Keep the handler tiny; no Sleep/GUI.
-    _Hooks_Fire("on_carousel_tick", "desktop=" & $iNext & "|desktop_count=" & $iCount)
-EndFunc
-
-; Name:        _CarouselStart
-; Description: Starts the carousel auto-rotation timer
-Func _CarouselStart()
-    If $__g_bCarouselActive Then Return
-    $__g_bCarouselActive = True
-    AdlibRegister("_CarouselTick", _Cfg_GetCarouselInterval())
-    _Log_Info("Carousel started (interval=" & _Cfg_GetCarouselInterval() & "ms)")
-    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyCarouselToggle() Then
-        _Theme_Toast(_i18n("Toasts.toast_carousel_on", "Carousel enabled"), _
-            Default, Default, 1500, $TOAST_INFO)
+    Local $aIntervals = _SS_ParseDesktopIntervals(_Cfg_GetSlideshowDesktopIntervals(), $iCount, _Cfg_GetSlideshowInterval())
+    _SS_Start($aSeq, $aIntervals, _Cfg_GetSlideshowLoopMode(), _Cfg_GetSlideshowLoopCount(), _Cfg_GetSlideshowLoopDuration())
+    $__g_iSSInvalidStreak = 0
+    __Slideshow_CaptureInputBaseline()
+    _Log_Info("Slideshow started (mode=" & _Cfg_GetSlideshowSelectionMode() & ", direction=" & _Cfg_GetSlideshowDirection() & ", steps=" & UBound($aSeq) & ")")
+    _Hooks_Fire("on_slideshow_start", "mode=" & _Cfg_GetSlideshowSelectionMode() & "|direction=" & _Cfg_GetSlideshowDirection() & _
+        "|steps=" & UBound($aSeq) & "|loop=" & _Cfg_GetSlideshowLoopMode())
+    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifySlideshowToggle() Then
+        _Theme_Toast(_i18n("Toasts.toast_slideshow_on", "Slideshow started"), Default, Default, 1500, $TOAST_INFO)
     EndIf
 EndFunc
 
-; Name:        _CarouselStop
-; Description: Stops the carousel auto-rotation timer
-Func _CarouselStop()
-    If Not $__g_bCarouselActive Then Return
-    $__g_bCarouselActive = False
-    AdlibUnRegister("_CarouselTick")
-    _Log_Info("Carousel stopped")
-    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifyCarouselToggle() Then
-        _Theme_Toast(_i18n("Toasts.toast_carousel_off", "Carousel disabled"), _
-            Default, Default, 1500, $TOAST_INFO)
+; Name:        _Slideshow_Stop
+; Description: Stops an active slideshow, fires on_slideshow_stop with the reason, and
+;              toasts stopped/finished. No-op when not active.
+Func _Slideshow_Stop($sReason = "manual")
+    If Not _SS_IsActive() Then Return
+    _SS_Stop()
+    $__g_iSSInvalidStreak = 0
+    _Log_Info("Slideshow stopped (reason=" & $sReason & ")")
+    _Hooks_Fire("on_slideshow_stop", "reason=" & $sReason)
+    If _Cfg_GetNotificationsEnabled() And _Cfg_GetNotifySlideshowToggle() Then
+        Local $sKey = "Toasts.toast_slideshow_off", $sDef = "Slideshow stopped"
+        If $sReason = "finished" Then
+            $sKey = "Toasts.toast_slideshow_finished"
+            $sDef = "Slideshow finished"
+        EndIf
+        _Theme_Toast(_i18n($sKey, $sDef), Default, Default, 1500, $TOAST_INFO)
     EndIf
 EndFunc
 
-; Name:        _CarouselToggle
-; Description: Toggles the carousel on or off
-Func _CarouselToggle()
-    If $__g_bCarouselActive Then
-        _CarouselStop()
+; Name:        _Slideshow_Toggle
+; Description: Toggles the slideshow. Always available regardless of break config
+;              (guaranteed stop of an active slideshow).
+Func _Slideshow_Toggle()
+    If _SS_IsActive() Then
+        _Slideshow_Stop("toggle")
     Else
-        _CarouselStart()
+        _Slideshow_Start()
     EndIf
+EndFunc
+
+; Name:        _SlideshowTick
+; Description: Main-loop tick (from _ProcessTimersAndSleep). Handles the pending
+;              auto-start deadline, break-on-any-input, and the engine poll: -1 stops
+;              with "finished", a target desktop is validated then switched via
+;              _NavigateTo. NEVER an Adlib (variable per-step intervals; no reentrancy).
+Func _SlideshowTick()
+    ; Pending auto-start (armed at startup)
+    If $__g_bSSAutostartPending Then
+        If _SS_IsActive() Then
+            $__g_bSSAutostartPending = False
+        ElseIf TimerDiff($__g_hSSAutostartTimer) >= _Cfg_GetSlideshowAutostartDelay() Then
+            $__g_bSSAutostartPending = False
+            _Slideshow_Start()
+        EndIf
+    EndIf
+
+    If Not _SS_IsActive() Then Return
+    If $__g_bShuttingDown Then Return
+
+    ; Break-on-any-input: the slideshow's own DLL switches generate no HID input, so a
+    ; changed GetLastInputInfo tick since the last own switch means the user did something.
+    If _Cfg_GetSlideshowBreakOnAnyInput() Then
+        Local $iLast = __Slideshow_GetLastInputTick()
+        If $iLast <> 0 And $iLast <> $__g_iSSInputBaseline Then
+            _Slideshow_Stop("break_any_input")
+            Return
+        EndIf
+    EndIf
+
+    Local $iTarget = _SS_Poll()
+    If $iTarget = 0 Then Return
+    If $iTarget = -1 Then
+        _Slideshow_Stop("finished")
+        Return
+    EndIf
+
+    ; Validate against the live desktop count (create/delete can change it mid-run).
+    ; Skip invalid steps; stop only when the whole resolved selection is out of range.
+    Local $iCount = _VD_GetCount()
+    If $iTarget < 1 Or $iTarget > $iCount Then
+        $__g_iSSInvalidStreak += 1
+        If $__g_iSSInvalidStreak >= _SS_GetSeqLen() Then _Slideshow_Stop("sequence_invalid")
+        Return
+    EndIf
+    $__g_iSSInvalidStreak = 0
+
+    _NavigateTo($iTarget)
+    __Slideshow_CaptureInputBaseline() ; own switch — re-baseline so it isn't seen as user input
+    _Hooks_Fire("on_slideshow_step", "desktop=" & $iTarget & "|step=" & _SS_CurrentStep() & "|desktop_count=" & $iCount)
+    ; Legacy back-compat: on_carousel_tick keeps firing on every slideshow step (Decision 1).
+    _Hooks_Fire("on_carousel_tick", "desktop=" & $iTarget & "|desktop_count=" & $iCount)
+EndFunc
+
+; Name:        _Slideshow_Break
+; Description: Runs the break rule for an input event; stops the slideshow when the
+;              matching break condition is enabled. No-op when inactive.
+; Parameters:  $sEvent - "manual_switch" | "widget_click" | "hotkey" | "any_input"
+Func _Slideshow_Break($sEvent)
+    If Not _SS_IsActive() Then Return
+    If _SS_ShouldBreakOn($sEvent, _Cfg_GetSlideshowBreakOnManualSwitch(), _Cfg_GetSlideshowBreakOnWidgetClick(), _
+            _Cfg_GetSlideshowBreakOnHotkey(), _Cfg_GetSlideshowBreakOnAnyInput()) Then
+        _Slideshow_Stop("break_" & $sEvent)
+    EndIf
+EndFunc
+
+; Name:        _Slideshow_NotifyDesktopChanged
+; Description: Called from _RefreshIndex on every APPLIED desktop change. A change to a
+;              desktop the slideshow did not command is treated as a manual switch.
+Func _Slideshow_NotifyDesktopChanged()
+    If Not _SS_IsActive() Then Return
+    If $iDesktop <> _SS_ExpectedTarget() Then _Slideshow_Break("manual_switch")
+EndFunc
+
+; Name:        __Slideshow_GetLastInputTick
+; Description: Returns the system's last-input tick (GetLastInputInfo dwTime), or 0 on failure.
+Func __Slideshow_GetLastInputTick()
+    Local $tLII = DllStructCreate("uint cbSize;dword dwTime")
+    DllStructSetData($tLII, "cbSize", DllStructGetSize($tLII))
+    Local $aRet = DllCall("user32.dll", "bool", "GetLastInputInfo", "struct*", $tLII)
+    If @error Or Not IsArray($aRet) Or $aRet[0] = 0 Then Return 0
+    Return DllStructGetData($tLII, "dwTime")
+EndFunc
+
+; Name:        __Slideshow_CaptureInputBaseline
+; Description: Records the current last-input tick as the baseline for break-on-any-input.
+Func __Slideshow_CaptureInputBaseline()
+    $__g_iSSInputBaseline = __Slideshow_GetLastInputTick()
 EndFunc
 
 ; Name:        _WM_ACTIVATE
@@ -2213,10 +2358,10 @@ Func _RegisterHotkeys()
         $iRet = HotKeySet($sKey, "_HK_MinimizeWindow")
         If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (minimize window)")
     EndIf
-    $sKey = _Cfg_GetHotkeyToggleCarousel()
+    $sKey = _Cfg_GetHotkeyToggleSlideshow()
     If $sKey <> "" Then
-        $iRet = HotKeySet($sKey, "_HK_ToggleCarousel")
-        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (toggle carousel)")
+        $iRet = HotKeySet($sKey, "_HK_ToggleSlideshow")
+        If $iRet = 0 Then _Log_Warn("Hotkey registration failed: " & $sKey & " (toggle slideshow)")
     EndIf
     $sKey = _Cfg_GetHotkeyTaskView()
     If $sKey <> "" Then
@@ -2313,7 +2458,7 @@ Func _UnregisterHotkeys()
     If $sKey <> "" Then HotKeySet($sKey)
     $sKey = _Cfg_GetHotkeyMinimizeWindow()
     If $sKey <> "" Then HotKeySet($sKey)
-    $sKey = _Cfg_GetHotkeyToggleCarousel()
+    $sKey = _Cfg_GetHotkeyToggleSlideshow()
     If $sKey <> "" Then HotKeySet($sKey)
     $sKey = _Cfg_GetHotkeyTaskView()
     If $sKey <> "" Then HotKeySet($sKey)
@@ -2346,6 +2491,7 @@ EndFunc
 ; Name:        _HK_Next
 ; Description: Hotkey callback to switch to next desktop (with wrap/auto-create)
 Func _HK_Next()
+    _Slideshow_Break("hotkey")
     Local $iCount = _VD_GetCount()
     Local $bAutoCreate = _Cfg_GetAutoCreateDesktop()
     ; Compute the target from the (optimistically-updated) index so rapid repeats chain.
@@ -2361,6 +2507,7 @@ EndFunc
 ; Name:        _HK_Prev
 ; Description: Hotkey callback to switch to previous desktop (with wrap)
 Func _HK_Prev()
+    _Slideshow_Break("hotkey")
     Local $iCount = _VD_GetCount()
     Local $iTarget = _Nav_PrevTarget($iDesktop, $iCount, _Cfg_GetWrapNavigation())
     If $iTarget = $iDesktop Then Return ; no move possible
@@ -2372,6 +2519,7 @@ EndFunc
 ;              HotKeySet requires named function stubs, so each _HK_DesktopN
 ;              delegates here.
 Func __HK_GotoDesktop($iNum)
+    _Slideshow_Break("hotkey")
     If $iNum <= _VD_GetCount() Then
         _NavigateTo($iNum)
     EndIf
@@ -2409,18 +2557,21 @@ EndFunc
 ; Description: Hotkey callback to toggle the desktop list panel.
 ;              When pinned, this is a no-op (list stays open).
 Func _HK_ToggleList()
+    _Slideshow_Break("hotkey")
     _DL_Toggle($iTaskbarY, $iDesktop)
 EndFunc
 
 ; Name:        _HK_OpenSettings
 ; Description: Global hotkey handler: opens the Settings dialog
 Func _HK_OpenSettings()
+    _Slideshow_Break("hotkey")
     If Not _CD_IsVisible() Then _CD_Show()
 EndFunc
 
 ; Name:        _HK_ToggleLast
 ; Description: Hotkey callback to switch to the previously active desktop
 Func _HK_ToggleLast()
+    _Slideshow_Break("hotkey")
     If $iPrevDesktop > 0 And $iPrevDesktop <> $iDesktop And $iPrevDesktop <= _VD_GetCount() Then
         _Log_Debug("Hotkey: toggle last -> desktop " & $iPrevDesktop)
         _NavigateTo($iPrevDesktop)
@@ -2464,6 +2615,7 @@ EndFunc
 ; Name:        _HK_MoveFollowNext
 ; Description: Hotkey callback to move the active window to the next desktop and follow it
 Func _HK_MoveFollowNext()
+    _Slideshow_Break("hotkey")
     Local $hWnd = WinGetHandle("[ACTIVE]")
     If $hWnd = $gui Then Return
     Local $iCount = _VD_GetCount()
@@ -2486,6 +2638,7 @@ EndFunc
 ; Name:        _HK_MoveFollowPrev
 ; Description: Hotkey callback to move the active window to the previous desktop and follow it
 Func _HK_MoveFollowPrev()
+    _Slideshow_Break("hotkey")
     Local $hWnd = WinGetHandle("[ACTIVE]")
     If $hWnd = $gui Then Return
     Local $iCount = _VD_GetCount()
@@ -2508,6 +2661,7 @@ EndFunc
 ; Name:        _HK_MoveNext
 ; Description: Hotkey callback to move the active window to the next desktop (stay on current)
 Func _HK_MoveNext()
+    _Slideshow_Break("hotkey")
     Local $hWnd = WinGetHandle("[ACTIVE]")
     If $hWnd = $gui Then Return
     Local $iCount = _VD_GetCount()
@@ -2529,6 +2683,7 @@ EndFunc
 ; Name:        _HK_MovePrev
 ; Description: Hotkey callback to move the active window to the previous desktop (stay on current)
 Func _HK_MovePrev()
+    _Slideshow_Break("hotkey")
     Local $hWnd = WinGetHandle("[ACTIVE]")
     If $hWnd = $gui Then Return
     Local $iCount = _VD_GetCount()
@@ -2550,6 +2705,7 @@ EndFunc
 ; Name:        _HK_SendNewDesktop
 ; Description: Hotkey callback to create a new desktop and move the active window to it
 Func _HK_SendNewDesktop()
+    _Slideshow_Break("hotkey")
     Local $hWnd = WinGetHandle("[ACTIVE]")
     If $hWnd = $gui Then Return
     If _VD_GetCount() >= _GetDesktopLimit() Then
@@ -2572,6 +2728,7 @@ EndFunc
 ; Name:        _HK_PinWindow
 ; Description: Hotkey callback to toggle pin state of the active window across all desktops
 Func _HK_PinWindow()
+    _Slideshow_Break("hotkey")
     If Not _Cfg_GetPinningEnabled() Then Return
     Local $hWnd = WinGetHandle("[ACTIVE]")
     If $hWnd = $gui Then Return
@@ -2587,6 +2744,7 @@ EndFunc
 ; Name:        _HK_ToggleWindowList
 ; Description: Hotkey callback to toggle the window list panel
 Func _HK_ToggleWindowList()
+    _Slideshow_Break("hotkey")
     If Not _Cfg_GetWindowListEnabled() Then Return
     _Log_Debug("Hotkey: toggle window list")
     _WL_Toggle($iDesktop)
@@ -2595,11 +2753,13 @@ EndFunc
 ; Name:        _HK_TaskView
 ; Description: Hotkey callback to open Windows Task View (simulates Win+Tab)
 Func _HK_TaskView()
+    _Slideshow_Break("hotkey")
     _Log_Debug("Hotkey: task view")
     Send("#{TAB}")
 EndFunc
 
 Func _HK_ToggleRules()
+    _Slideshow_Break("hotkey")
     _Log_Debug("Hotkey: toggle rules")
     _Cfg_SetRulesEnabled(Not _Cfg_GetRulesEnabled())
     ; Persist first so _WR_LoadRules reads current rule_N rows from disk, and _WR_Start's
@@ -2615,6 +2775,7 @@ Func _HK_ToggleRules()
 EndFunc
 
 Func _HK_LoadNextProfile()
+    _Slideshow_Break("hotkey")
     _Log_Debug("Hotkey: load next profile")
     Local $sList = _Prof_ListProfiles()
     If $sList = "" Then Return
@@ -2630,6 +2791,7 @@ Func _HK_LoadNextProfile()
 EndFunc
 
 Func _HK_LoadPrevProfile()
+    _Slideshow_Break("hotkey")
     _Log_Debug("Hotkey: load prev profile")
     Local $sList = _Prof_ListProfiles()
     If $sList = "" Then Return
@@ -2643,6 +2805,7 @@ Func _HK_LoadPrevProfile()
 EndFunc
 
 Func _HK_ToggleOsd()
+    _Slideshow_Break("hotkey")
     _Log_Debug("Hotkey: toggle OSD")
     _Cfg_SetOsdEnabled(Not _Cfg_GetOsdEnabled())
     If _Cfg_GetOsdEnabled() Then
@@ -2654,6 +2817,7 @@ Func _HK_ToggleOsd()
 EndFunc
 
 Func _HK_ToggleWidget()
+    _Slideshow_Break("hotkey")
     _Log_Debug("Hotkey: toggle widget")
     If BitAND(WinGetState($gui), 2) Then ; visible
         GUISetState(@SW_HIDE, $gui)
@@ -2664,18 +2828,21 @@ Func _HK_ToggleWidget()
 EndFunc
 
 Func _HK_MaximizeWindow()
+    _Slideshow_Break("hotkey")
     _Log_Debug("Hotkey: maximize window")
     Local $hFg = WinGetHandle("[ACTIVE]")
     If $hFg <> 0 Then WinSetState($hFg, "", @SW_MAXIMIZE)
 EndFunc
 
 Func _HK_RestoreWindow()
+    _Slideshow_Break("hotkey")
     _Log_Debug("Hotkey: restore window")
     Local $hFg = WinGetHandle("[ACTIVE]")
     If $hFg <> 0 Then WinSetState($hFg, "", @SW_RESTORE)
 EndFunc
 
 Func _HK_SwapDesktops()
+    _Slideshow_Break("hotkey")
     _Log_Debug("Hotkey: swap desktops (current <-> previous)")
     If $iPrevDesktop > 0 And $iPrevDesktop <= _VD_GetCount() Then
         If _Labels_IsSyncEnabled() Then _Labels_SyncFromOS()
@@ -2766,11 +2933,13 @@ Func _GatherWindowsToCurrentDesktop()
 EndFunc
 
 Func _HK_GatherWindows()
+    _Slideshow_Break("hotkey")
     _Log_Debug("Hotkey: gather all windows to current desktop")
     _GatherWindowsToCurrentDesktop()
 EndFunc
 
 Func _HK_ToggleSession()
+    _Slideshow_Break("hotkey")
     _Log_Debug("Hotkey: toggle session restore")
     _Cfg_SetSessionRestoreEnabled(Not _Cfg_GetSessionRestoreEnabled())
     If _Cfg_GetSessionRestoreEnabled() Then
@@ -2783,6 +2952,7 @@ EndFunc
 
 ; Move-to-desktop hotkey stubs (1-9) — same pattern as HK_Desktop1-9
 Func __HK_MoveToDesktop($iNum)
+    _Slideshow_Break("hotkey")
     If $iNum <= _VD_GetCount() Then
         Local $hFg = WinGetHandle("[ACTIVE]")
         If $hFg <> 0 Then
@@ -2825,6 +2995,7 @@ EndFunc
 ; Name:        _HK_AddDesktop
 ; Description: Hotkey callback to create a new virtual desktop
 Func _HK_AddDesktop()
+    _Slideshow_Break("hotkey")
     If _VD_GetCount() >= _GetDesktopLimit() Then
         _Theme_Toast(_i18n("Toasts.toast_desktop_limit", "Desktop limit reached"), Default, Default, 1500, $TOAST_WARNING)
         Return
@@ -2840,6 +3011,7 @@ EndFunc
 ; Name:        _HK_DeleteDesktop
 ; Description: Hotkey callback to delete the current virtual desktop
 Func _HK_DeleteDesktop()
+    _Slideshow_Break("hotkey")
     If _VD_GetCount() <= 1 Then
         _Theme_Confirm(_i18n("Dialogs.confirm_cannot_delete_title", "Cannot Delete"), _i18n("Dialogs.confirm_cannot_delete_msg", "This is the last desktop."))
         Return
@@ -2864,6 +3036,7 @@ EndFunc
 ; Name:        _HK_RenameDesktop
 ; Description: Hotkey callback to open rename dialog for the current desktop
 Func _HK_RenameDesktop()
+    _Slideshow_Break("hotkey")
     _Log_Debug("Hotkey: rename desktop " & $iDesktop)
     $iRenameTarget = $iDesktop
     _RD_Show($iDesktop, $iTaskbarY)
@@ -2872,6 +3045,7 @@ EndFunc
 ; Name:        _HK_CloseWindow
 ; Description: Hotkey callback to close the active window
 Func _HK_CloseWindow()
+    _Slideshow_Break("hotkey")
     Local $hWnd = WinGetHandle("[ACTIVE]")
     If $hWnd = $gui Then Return
     _Log_Debug("Hotkey: close window -> " & $hWnd)
@@ -2881,14 +3055,15 @@ EndFunc
 ; Name:        _HK_MinimizeWindow
 ; Description: Hotkey callback to minimize the active window
 Func _HK_MinimizeWindow()
+    _Slideshow_Break("hotkey")
     Local $hWnd = WinGetHandle("[ACTIVE]")
     If $hWnd = $gui Then Return
     _Log_Debug("Hotkey: minimize window -> " & $hWnd)
     WinSetState($hWnd, "", @SW_MINIMIZE)
 EndFunc
 
-Func _HK_ToggleCarousel()
-    _CarouselToggle()
+Func _HK_ToggleSlideshow()
+    _Slideshow_Toggle()
 EndFunc
 
 ; About dialog extracted to includes\AboutDialog.au3
@@ -2910,7 +3085,7 @@ Func _InitTrayMode()
     $__g_iTrayEditLabel = 0
     $__g_iTrayAddDesktop = 0
     $__g_iTrayDelDesktop = 0
-    $__g_iTrayCarousel = 0
+    $__g_iTraySlideshow = 0
     $__g_hTrayDesktopMenu = 0
     $__g_hTrayMoveMenu = 0
     $__g_iTrayDesktopSubCount = 0
@@ -2954,8 +3129,8 @@ Func _InitTrayMode()
 
     If $bHasMidSection Then TrayCreateItem("")
 
-    If _Cfg_GetCarouselEnabled() Then
-        $__g_iTrayCarousel = TrayCreateItem(_i18n("Tray.tray_toggle_carousel", "Toggle Carousel"))
+    If _Cfg_GetSlideshowEnabled() Then
+        $__g_iTraySlideshow = TrayCreateItem(_i18n("Tray.tray_toggle_slideshow", "Toggle Slideshow"))
     EndIf
     $__g_iTraySettings = TrayCreateItem(_i18n("Tray.tray_settings", "Settings"))
     $__g_iTrayAbout = TrayCreateItem(_i18n("Tray.tray_about", "About"))
@@ -3062,8 +3237,8 @@ Func _DispatchTrayAction($sAction)
                 EndIf
                 _RequestDeferredRefresh()
             EndIf
-        Case "toggle_carousel"
-            _CarouselToggle()
+        Case "toggle_slideshow"
+            _Slideshow_Toggle()
     EndSwitch
 EndFunc
 
@@ -3183,8 +3358,8 @@ Func _CheckTrayMessages()
             _CD_Show()
         Case $__g_iTrayAbout
             _ShowAbout()
-        Case $__g_iTrayCarousel
-            If $__g_iTrayCarousel <> 0 Then _CarouselToggle()
+        Case $__g_iTraySlideshow
+            If $__g_iTraySlideshow <> 0 Then _Slideshow_Toggle()
         Case $__g_iTrayQuit
             $__g_bForceQuit = True
             _Shutdown()
@@ -3604,7 +3779,7 @@ Func _Shutdown()
     AdlibUnRegister("_AdlibConfigWatcher")
     AdlibUnRegister("_UC_AdlibCheck")
     AdlibUnRegister("_CheckDLLHealth")
-    AdlibUnRegister("_CarouselTick")
+    _SS_Stop() ; slideshow runs on the main-loop tick (no Adlib); just disarm state
 
     ; Gracefully close visible popups (no animation — just clean up)
     If _DL_CtxIsVisible() Then _DL_CtxDestroy()

@@ -248,7 +248,7 @@ Func _CLI_ExecuteLocal()
             EndIf
             _VD_MoveWindowToDesktop($hActive, $iMoveDest)
             _Log_Info("CLI: moved active window to desktop " & $iMoveDest)
-        Case "toggle-list", "toggle-carousel", "load-profile", "save-profile"
+        Case "toggle-list", "toggle-slideshow", "toggle-carousel", "load-profile", "save-profile"
             ; These require a running GUI instance — cannot execute locally
             __CLI_PrintError("CLI.err_requires_running_instance", "Error: --{1} requires a running instance", $__g_CLI_sCommand)
             Return False
@@ -408,9 +408,11 @@ Func __CLI_ProcessIPCCommand($sCmd)
             _Log_Info("CLI IPC: toggle-list (forwarded to main loop)")
             ; Set a flag that the main loop can pick up
             $__g_CLI_sIPCPending = "toggle-list"
-        Case "toggle-carousel"
-            _Log_Info("CLI IPC: toggle-carousel (forwarded to main loop)")
-            $__g_CLI_sIPCPending = "toggle-carousel"
+        Case "toggle-slideshow", "toggle-carousel"
+            ; --toggle-carousel is a deprecated alias for --toggle-slideshow (Decision 1);
+            ; both map to the same pending command.
+            _Log_Info("CLI IPC: toggle-slideshow (forwarded to main loop)")
+            $__g_CLI_sIPCPending = "toggle-slideshow"
         Case "load-profile"
             _Log_Info("CLI IPC: load-profile '" & $sArg1 & "' (forwarded to main loop)")
             $__g_CLI_sIPCPending = "load-profile"
@@ -435,7 +437,7 @@ Global $__g_CLI_sIPCPendingArg = ""
 
 ; Name:        _CLI_CheckIPCPending
 ; Description: Call from the main loop to check if an IPC command needs
-;              GUI-level handling (toggle-list, toggle-carousel, profiles).
+;              GUI-level handling (toggle-list, toggle-slideshow, profiles).
 ; Return:      Command string if pending, "" if none. Clears the pending flag.
 Func _CLI_CheckIPCPending()
     If $__g_CLI_sIPCPending = "" Then Return ""
@@ -474,7 +476,7 @@ Func __CLI_PrintHelp()
         "  --status              Print JSON status" & @CRLF & @CRLF & _
         "GUI control:" & @CRLF & _
         "  --toggle-list         Toggle the desktop list panel" & @CRLF & _
-        "  --toggle-carousel     Toggle carousel mode" & @CRLF & _
+        "  --toggle-slideshow    Toggle the desktop slideshow (alias: --toggle-carousel)" & @CRLF & _
         '  --load-profile "name" Load a named profile' & @CRLF & _
         '  --save-profile "name" Save current state as named profile' & @CRLF & @CRLF & _
         "Information:" & @CRLF & _

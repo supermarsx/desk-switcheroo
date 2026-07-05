@@ -28,7 +28,8 @@
 Global Const $__HOOKS_MAX_HOOKS = 100
 Global Const $__HOOKS_MAX_PIDS  = 20
 Global Const $__HOOKS_EVENTS    = "on_desktop_change|on_desktop_create|on_desktop_delete|" & _
-                                  "on_window_move|on_profile_load|on_startup|on_shutdown|on_carousel_tick"
+                                  "on_window_move|on_profile_load|on_startup|on_shutdown|on_carousel_tick|" & _
+                                  "on_slideshow_start|on_slideshow_step|on_slideshow_stop"
 
 ; #INTERNAL GLOBALS# ============================================
 Global $__g_Hooks_bEnabled    = False

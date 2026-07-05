@@ -1,6 +1,7 @@
 #include-once
 #include "Theme.au3"
 #include "Config.au3"
+#include "Slideshow.au3"
 
 ; Extern globals from main script (declared here to suppress Au3Check warnings)
 Global $iDesktop
@@ -26,7 +27,7 @@ Global $__g_CM_iQuitID    = 0
 Global $__g_CM_iCrashID   = 0
 Global $__g_CM_iPinID     = 0
 Global $__g_CM_iWinListID = 0
-Global $__g_CM_iCarouselID = 0
+Global $__g_CM_iSlideshowID = 0
 Global $__g_CM_iHovered   = 0
 Global $__g_CM_hHideTimer = 0
 Global $__g_CM_bHideArmed = False
@@ -116,7 +117,7 @@ Func _CM_Show($iTaskbarY, $bListVisible)
     If _Cfg_GetPinningEnabled() Then $iItemCount += 1
     If _Cfg_GetWindowListEnabled() Then $iItemCount += 1
     If _Cfg_GetDebugMode() Then $iItemCount += 1
-    If _Cfg_GetCarouselEnabled() And _Cfg_GetCarouselShowInMenu() Then $iItemCount += 1
+    If _Cfg_GetSlideshowEnabled() And _Cfg_GetSlideshowShowInMenu() Then $iItemCount += 1
     Local $iMenuH = $iItemCount * $THEME_MENU_ITEM_H + 2 * $iSepH + 20
 
     ; Anchor at the cursor; fall back to bottom-left above the taskbar when the
@@ -164,10 +165,10 @@ Func _CM_Show($iTaskbarY, $bListVisible)
         $iY += $THEME_MENU_ITEM_H
     EndIf
 
-    If _Cfg_GetCarouselEnabled() And _Cfg_GetCarouselShowInMenu() Then
-        Local $sCarouselLbl = "  " & _i18n("ContextMenu.cm_toggle_carousel", "Toggle Carousel")
-        If _CarouselIsActive() Then $sCarouselLbl &= "  " & ChrW(0x25CF)
-        $__g_CM_iCarouselID = _Theme_CreateMenuItem($sCarouselLbl, 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+    If _Cfg_GetSlideshowEnabled() And _Cfg_GetSlideshowShowInMenu() Then
+        Local $sSlideshowLbl = "  " & _i18n("ContextMenu.cm_slideshow_start", "Start Slideshow")
+        If _SS_IsActive() Then $sSlideshowLbl = "  " & _i18n("ContextMenu.cm_slideshow_stop", "Stop Slideshow") & "  " & ChrW(0x25CF)
+        $__g_CM_iSlideshowID = _Theme_CreateMenuItem($sSlideshowLbl, 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
         $iY += $THEME_MENU_ITEM_H
     EndIf
 
@@ -229,7 +230,7 @@ Func _CM_Destroy()
     $__g_CM_iCrashID = 0
     $__g_CM_iPinID = 0
     $__g_CM_iWinListID = 0
-    $__g_CM_iCarouselID = 0
+    $__g_CM_iSlideshowID = 0
     $__g_CM_iHovered = 0
     $__g_CM_bHideArmed = False
 EndFunc
@@ -259,7 +260,7 @@ Func _CM_CheckHover($iTargetDesktop = 0)
     If $aCursor[4] = $__g_CM_iDeleteID Then $iFound = $__g_CM_iDeleteID
     If $aCursor[4] = $__g_CM_iAboutID Then $iFound = $__g_CM_iAboutID
     If $aCursor[4] = $__g_CM_iSettingsID Then $iFound = $__g_CM_iSettingsID
-    If $__g_CM_iCarouselID <> 0 And $aCursor[4] = $__g_CM_iCarouselID Then $iFound = $__g_CM_iCarouselID
+    If $__g_CM_iSlideshowID <> 0 And $aCursor[4] = $__g_CM_iSlideshowID Then $iFound = $__g_CM_iSlideshowID
     If $__g_CM_iCrashID <> 0 And $aCursor[4] = $__g_CM_iCrashID Then $iFound = $__g_CM_iCrashID
     If $aCursor[4] = $__g_CM_iQuitID Then $iFound = $__g_CM_iQuitID
 
@@ -303,7 +304,7 @@ Func _CM_HandleClick($msg)
     If $msg = $__g_CM_iAboutID Then Return "about"
     If $msg = $__g_CM_iSettingsID Then Return "settings"
     If $__g_CM_iCrashID <> 0 And $msg = $__g_CM_iCrashID Then Return "crash"
-    If $__g_CM_iCarouselID <> 0 And $msg = $__g_CM_iCarouselID Then Return "carousel"
+    If $__g_CM_iSlideshowID <> 0 And $msg = $__g_CM_iSlideshowID Then Return "slideshow"
     If $msg = $__g_CM_iQuitID Then Return "quit"
     Return ""
 EndFunc

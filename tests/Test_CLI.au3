@@ -218,6 +218,27 @@ Func _RunTest_CLI()
     _Test_AssertEqual("Pending cleared", _CLI_CheckIPCPending(), "")
     _Test_AssertEqual("Pending arg cleared", _CLI_GetIPCPendingArg(), "")
 
+    ; ---- Slideshow toggle + deprecated carousel alias (Decision 1) ----
+    ; --toggle-slideshow is the new flag; --toggle-carousel is an accepted alias mapping
+    ; to the SAME IPC pending command. Both are non-query, GUI-only, relayed verbatim.
+    $__g_CLI_sCommand = "toggle-slideshow"
+    _Test_AssertFalse("toggle-slideshow is not query", _CLI_IsQueryCommand())
+    $__g_CLI_sArg = ""
+    $__g_CLI_sArg2 = ""
+    _Test_AssertEqual("IPC string: toggle-slideshow", _CLI_BuildIPCString(), "toggle-slideshow")
+    Local $bTogSlide = _CLI_ExecuteLocal()
+    _Test_AssertFalse("toggle-slideshow fails locally", $bTogSlide)
+
+    ; Alias mapping through the IPC command processor: both spellings queue the same
+    ; pending command "toggle-slideshow" for the main loop.
+    $__g_CLI_sIPCPending = ""
+    __CLI_ProcessIPCCommand("toggle-slideshow")
+    _Test_AssertEqual("IPC toggle-slideshow -> pending toggle-slideshow", _CLI_CheckIPCPending(), "toggle-slideshow")
+    $__g_CLI_sIPCPending = ""
+    __CLI_ProcessIPCCommand("toggle-carousel")
+    _Test_AssertEqual("IPC toggle-carousel alias -> pending toggle-slideshow", _CLI_CheckIPCPending(), "toggle-slideshow")
+    $__g_CLI_sIPCPending = ""
+
     ; ---- IPC magic constant ----
     _Test_AssertEqual("IPC magic = 0x44534B", $__g_CLI_IPC_MAGIC, 0x44534B)
 

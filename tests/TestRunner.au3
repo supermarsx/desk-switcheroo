@@ -48,6 +48,7 @@ EndFunc
 #include "..\includes\WindowRules.au3"
 #include "..\includes\SessionRestore.au3"
 #include "..\includes\Hooks.au3"
+#include "..\includes\Slideshow.au3"
 #include "..\includes\CLI.au3"
 #include "..\includes\Profiles.au3"
 
@@ -72,6 +73,7 @@ EndFunc
 #include "Test_WindowRules.au3"
 #include "Test_SessionRestore.au3"
 #include "Test_Hooks.au3"
+#include "Test_Slideshow.au3"
 #include "Test_CLI.au3"
 #include "Test_Profiles.au3"
 #include "Test_Performance.au3"
@@ -103,6 +105,7 @@ _RunTest_TaskbarAutoHide()
 _RunTest_WindowRules()
 _RunTest_SessionRestore()
 _RunTest_Hooks()
+_RunTest_Slideshow()
 _RunTest_CLI()
 _RunTest_Profiles()
 _RunTest_Performance()
