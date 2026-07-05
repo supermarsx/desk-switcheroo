@@ -1009,6 +1009,9 @@ Func _DL_CtxShow($iTarget)
 
     If _Cfg_GetMoveWindowEnabled() Then
         $__g_DL_iCtxMoveWin = _Theme_CreateMenuItem("  " & _i18n("DesktopList.dl_move_menu", "Move Here") & "  " & ChrW(0x25B6), 4, $iY, $iMenuW - 8, $THEME_MENU_ITEM_H)
+        ; When direct-click is enabled, underline the label so it reads as a clickable
+        ; action (hover still opens the submenu). Default OFF leaves the item byte-for-byte.
+        If _Cfg_GetMoveHereClickEnabled() Then GUICtrlSetFont($__g_DL_iCtxMoveWin, 10, 400, 4, $THEME_FONT_MAIN)
         $iY += $THEME_MENU_ITEM_H
     EndIf
 
@@ -1072,6 +1075,19 @@ Func _DL_CtxHandleClick($msg)
     If $msg = $__g_DL_iCtxAdd Then Return "add"
     If $msg = $__g_DL_iCtxDelete Then Return "delete"
     Return ""
+EndFunc
+
+; Name:        _DL_MoveHereClickAction
+; Description: Pure decision seam for a click on the "Move Here" context-menu item.
+;              Returns the action the caller should take. With the move_here_click
+;              toggle on, a click moves the active window directly to the row's
+;              desktop; otherwise it re-shows the move submenu (today's behavior).
+;              Hover still auto-opens the submenu in both modes. Headless-testable.
+; Parameters:  $bClickable - True when move_here_click_enabled is on
+; Return:      "move_direct" when $bClickable is True, else "move_menu"
+Func _DL_MoveHereClickAction($bClickable)
+    If $bClickable Then Return "move_direct"
+    Return "move_menu"
 EndFunc
 
 ; Name:        _DL_CtxCheckHover

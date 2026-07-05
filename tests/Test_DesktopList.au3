@@ -217,6 +217,21 @@ Func _RunTest_DesktopList()
     _DL_CtxDestroy()
     _Test_AssertFalse("MoveMenu: gone after CtxDestroy", _DL_MoveMenuIsVisible())
 
+    ; -- Clickable "Move Here" decision seam (Decision 5, move window still enabled here) --
+    _Test_AssertEqual("MoveHere: action when clickable", _DL_MoveHereClickAction(True), "move_direct")
+    _Test_AssertEqual("MoveHere: action when not clickable", _DL_MoveHereClickAction(False), "move_menu")
+
+    ; With the toggle ON, the ctx item is still created and its click still resolves to
+    ; "move_menu" — the direct-vs-submenu decision happens at the dispatcher via the pure
+    ; seam, not inside the desktop list. The underlined affordance must not break creation.
+    Local $bMoveHereWas = _Cfg_GetMoveHereClickEnabled()
+    _Cfg_SetMoveHereClickEnabled(True)
+    _DL_CtxShow(1)
+    _Test_AssertNotEqual("MoveHere: item created with toggle on", $__g_DL_iCtxMoveWin, 0)
+    _Test_AssertEqual("MoveHere: click still 'move_menu' with toggle on", _DL_CtxHandleClick($__g_DL_iCtxMoveWin), "move_menu")
+    _DL_CtxDestroy()
+    _Cfg_SetMoveHereClickEnabled($bMoveHereWas)
+
     _Cfg_SetMoveWindowEnabled($bMoveWas)
     _DL_Destroy()
 

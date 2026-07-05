@@ -117,6 +117,7 @@ Next
 Global $__g_Cfg_bConfirmDelete     = True
 Global $__g_Cfg_bMiddleClickDelete = False
 Global $__g_Cfg_bMoveWindowEnabled = True
+Global $__g_Cfg_bMoveHereClickEnabled = False
 Global $__g_Cfg_iPeekBounceDelay   = 500
 Global $__g_Cfg_iAutoHideTimeout   = 3000
 Global $__g_Cfg_iTopmostInterval   = 300
@@ -436,6 +437,7 @@ Func _Cfg_Load()
     $__g_Cfg_bConfirmDelete     = __Cfg_ReadBool($f, "Behavior", "confirm_delete", True)
     $__g_Cfg_bMiddleClickDelete = __Cfg_ReadBool($f, "Behavior", "middle_click_delete", False)
     $__g_Cfg_bMoveWindowEnabled = __Cfg_ReadBool($f, "Behavior", "move_window_enabled", True)
+    $__g_Cfg_bMoveHereClickEnabled = __Cfg_ReadBool($f, "Behavior", "move_here_click_enabled", False)
     $__g_Cfg_iPeekBounceDelay   = __Cfg_ReadInt($f, "Behavior", "peek_bounce_delay", 500, 100, 5000)
     $__g_Cfg_iAutoHideTimeout   = __Cfg_ReadInt($f, "Behavior", "auto_hide_timeout", 3000, 500, 30000)
     $__g_Cfg_iTopmostInterval   = __Cfg_ReadInt($f, "Behavior", "topmost_interval", 300, 100, 5000)
@@ -735,6 +737,7 @@ Func _Cfg_Save()
     __Cfg_WriteBool($f, "Behavior", "confirm_delete", $__g_Cfg_bConfirmDelete)
     __Cfg_WriteBool($f, "Behavior", "middle_click_delete", $__g_Cfg_bMiddleClickDelete)
     __Cfg_WriteBool($f, "Behavior", "move_window_enabled", $__g_Cfg_bMoveWindowEnabled)
+    __Cfg_WriteBool($f, "Behavior", "move_here_click_enabled", $__g_Cfg_bMoveHereClickEnabled)
     IniWrite($f, "Behavior", "peek_bounce_delay", $__g_Cfg_iPeekBounceDelay)
     IniWrite($f, "Behavior", "auto_hide_timeout", $__g_Cfg_iAutoHideTimeout)
     IniWrite($f, "Behavior", "topmost_interval", $__g_Cfg_iTopmostInterval)
@@ -1025,6 +1028,7 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultBool($f, "Behavior", "confirm_delete", True)
     __Cfg_DefaultBool($f, "Behavior", "middle_click_delete", False)
     __Cfg_DefaultBool($f, "Behavior", "move_window_enabled", True)
+    __Cfg_DefaultBool($f, "Behavior", "move_here_click_enabled", False)
     __Cfg_DefaultVal($f, "Behavior", "peek_bounce_delay", 500)
     __Cfg_DefaultVal($f, "Behavior", "auto_hide_timeout", 3000)
     __Cfg_DefaultVal($f, "Behavior", "topmost_interval", 300)
@@ -1401,6 +1405,9 @@ Func _Cfg_GetMiddleClickDelete()
 EndFunc
 Func _Cfg_GetMoveWindowEnabled()
     Return $__g_Cfg_bMoveWindowEnabled
+EndFunc
+Func _Cfg_GetMoveHereClickEnabled()
+    Return $__g_Cfg_bMoveHereClickEnabled
 EndFunc
 Func _Cfg_GetPeekBounceDelay()
     Return $__g_Cfg_iPeekBounceDelay
@@ -2086,6 +2093,9 @@ Func _Cfg_SetMiddleClickDelete($b)
 EndFunc
 Func _Cfg_SetMoveWindowEnabled($b)
     $__g_Cfg_bMoveWindowEnabled = $b
+EndFunc
+Func _Cfg_SetMoveHereClickEnabled($b)
+    $__g_Cfg_bMoveHereClickEnabled = $b
 EndFunc
 Func _Cfg_SetPeekBounceDelay($i)
     If $i < 100 Then $i = 100
