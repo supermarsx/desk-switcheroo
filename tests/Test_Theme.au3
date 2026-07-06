@@ -313,6 +313,103 @@ Func _RunTest_Theme()
 
     ; -- Concrete real-window regression (drives the actual mechanism, not just the math) --
     __Test_Theme_TopmostOcclusionRegression()
+
+    ; -- Themed tooltip dynamic sizing (t9-a): height must fit wrapped + multi-line text --
+    __Test_Theme_TooltipSizing()
+EndFunc
+
+; Name:        __Test_Theme_TooltipSizing
+; Description: Covers the themed-tooltip sizing seam (t9-a). _Theme_MeasureTextBlock and
+;              _Theme_TooltipCalcSize are exercised headlessly (GDI via a throwaway screen
+;              DC — no window shown), proving the popup grows in height to fit every
+;              rendered line: explicit @CRLF breaks AND word-wrapped ones. The old code
+;              sized height from the count of explicit breaks only, so a long single line
+;              or a wrapping multi-line tip clipped. Placement is checked against
+;              _CM_ClampToWorkArea (pure geometry) so a tall tooltip near a screen edge
+;              stays fully inside the work area.
+Func __Test_Theme_TooltipSizing()
+    Local $iMax = $__g_Theme_iTipMaxW
+
+    ; A single short line: sane floors, width within [min, max].
+    Local $iShortW, $iShortH
+    _Theme_TooltipCalcSize("Widget width in pixels", $iShortW, $iShortH)
+    _Test_AssertGreaterEqual("Tooltip: short-line width >= min", $iShortW, $__g_Theme_iTipMinW)
+    _Test_AssertLessEqual("Tooltip: short-line width <= max", $iShortW, $iMax)
+    _Test_AssertGreaterEqual("Tooltip: short-line height positive", $iShortH, 1)
+
+    ; One long logical line, NO explicit breaks: it must WRAP, and height must grow to
+    ; cover the wrapped rows. Under the old (explicit-line-count) math this was one line
+    ; tall and clipped. Width is clamped, height is not.
+    Local $sLong = ""
+    Local $w
+    For $w = 1 To 60
+        $sLong &= "wrap-word" & $w & " "
+    Next
+    Local $iLongW, $iLongH
+    _Theme_TooltipCalcSize($sLong, $iLongW, $iLongH)
+    _Test_AssertLessEqual("Tooltip: wrapped width clamped to max", $iLongW, $iMax)
+    _Test_AssertTrue("Tooltip: wrapped long line is taller than one short line", $iLongH > $iShortH)
+    _Test_AssertTrue("Tooltip: wrapped long line spans several rows (>= 3x short)", $iLongH >= $iShortH * 3)
+
+    ; Explicit multi-line (@CRLF) tip sizes to its line count and exceeds a single line.
+    Local $s3 = "Line one" & @CRLF & "Line two is here" & @CRLF & "Line three"
+    Local $i3W, $i3H
+    _Theme_TooltipCalcSize($s3, $i3W, $i3H)
+    _Test_AssertTrue("Tooltip: 3-line tip taller than 1 short line", $i3H > $iShortH)
+
+    ; A 10-line "monster" must be taller still — no ceiling on height.
+    Local $sMonster = ""
+    Local $ln
+    For $ln = 1 To 10
+        $sMonster &= "Monster tooltip line number " & $ln
+        If $ln < 10 Then $sMonster &= @CRLF
+    Next
+    Local $iMonW, $iMonH
+    _Theme_TooltipCalcSize($sMonster, $iMonW, $iMonH)
+    _Test_AssertTrue("Tooltip: 10-line monster taller than 3-line tip", $iMonH > $i3H)
+    _Test_AssertLessEqual("Tooltip: monster width still clamped to max", $iMonW, $iMax)
+
+    ; Synthetic stand-in for the longest real tip (tip_rules_help): mixes explicit @CRLF
+    ; breaks with long lines that also wrap. Must be tall — the exact clip case reported.
+    Local $sReal = "Rules automatically move new windows to a specific desktop." & @CRLF & @CRLF & _
+            "Type: Click to toggle between Process and Class." & @CRLF & _
+            "  Process - match by executable name (e.g. chrome.exe)" & @CRLF & _
+            "  Class - match by window class (e.g. CabinetWClass)" & @CRLF & @CRLF & _
+            "Pattern: The text to match against. Wildcards * and ? are supported." & @CRLF & _
+            "  e.g. discord* matches discord.exe and discordptb.exe" & @CRLF & @CRLF & _
+            "Desk: The desktop number to send matching windows to." & @CRLF & _
+            "Leave a row empty to skip it."
+    Local $iRealW, $iRealH
+    _Theme_TooltipCalcSize($sReal, $iRealW, $iRealH)
+    _Test_AssertLessEqual("Tooltip: real long tip width clamped", $iRealW, $iMax)
+    ; Regression 2026-07-06: tall tooltips must not clip. This tip has 9 explicit lines plus
+    ; wrapping; it must be many lines tall, not a couple. Assert it clears a generous
+    ; multi-line floor so a future height-from-line-count regression fails loudly.
+    _Test_AssertTrue("Regression 2026-07-06: tall tooltips must not clip (real tip is many rows tall)", $iRealH >= $iShortH * 5)
+
+    ; Empty text: no crash, minimum-sized popup with positive dimensions.
+    Local $iEmptyW, $iEmptyH
+    _Theme_TooltipCalcSize("", $iEmptyW, $iEmptyH)
+    _Test_AssertGreaterEqual("Tooltip: empty width at floor", $iEmptyW, $__g_Theme_iTipMinW)
+    _Test_AssertGreaterEqual("Tooltip: empty height positive", $iEmptyH, 1)
+
+    ; Direct measurement: the same text wraps taller at a narrow width than a wide one.
+    Local $sBlock = "the quick brown fox jumps over the lazy dog and keeps on running past the fence"
+    Local $iWideW, $iWideH, $iNarrowW, $iNarrowH
+    _Theme_MeasureTextBlock($sBlock, 380, _Cfg_GetTooltipFontSize(), $THEME_FONT_MAIN, $iWideW, $iWideH)
+    _Theme_MeasureTextBlock($sBlock, 90, _Cfg_GetTooltipFontSize(), $THEME_FONT_MAIN, $iNarrowW, $iNarrowH)
+    _Test_AssertTrue("Tooltip: narrower wrap width yields greater height", $iNarrowH > $iWideH)
+    _Test_AssertLessEqual("Tooltip: measured width respects narrow bound", $iNarrowW, 90)
+
+    ; Placement: a tall tooltip anchored at the bottom-right corner of a work area must be
+    ; clamped fully inside it (flips up/left) — reuses the house geometry helper.
+    Local $iWaL = 0, $iWaT = 0, $iWaR = 1920, $iWaB = 1040
+    Local $iPosX, $iPosY
+    _CM_ClampToWorkArea(1900, 1030, $iRealW, $iRealH, $iWaL, $iWaT, $iWaR, $iWaB, $iPosX, $iPosY)
+    _Test_AssertGreaterEqual("Tooltip clamp: left edge inside work area", $iPosX, $iWaL)
+    _Test_AssertGreaterEqual("Tooltip clamp: top edge inside work area", $iPosY, $iWaT)
+    _Test_AssertLessEqual("Tooltip clamp: right edge inside work area", $iPosX + $iRealW, $iWaR)
+    _Test_AssertLessEqual("Regression 2026-07-06: tall tooltip bottom stays on-screen", $iPosY + $iRealH, $iWaB)
 EndFunc
 
 ; Name:        __Test_Theme_ColorBar

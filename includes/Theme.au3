@@ -878,6 +878,102 @@ EndFunc
 Global $__g_Tooltip_hGUI = 0
 Global $__g_Tooltip_hTimer = 0
 
+; -- Tooltip geometry (shared by size calc and the show path) --
+Global Const $__g_Theme_iTipMaxW  = 400 ; max popup width; text wraps rather than growing wider
+Global Const $__g_Theme_iTipMinW  = 80  ; floor so a one-word tip is not a sliver
+Global Const $__g_Theme_iTipPadX  = 6   ; inner horizontal padding, each side
+Global Const $__g_Theme_iTipPadY  = 5   ; inner vertical padding, each side
+
+; Name:        _Theme_MeasureTextBlock
+; Description: Measures the pixel width/height a block of text occupies when drawn
+;              in the given font and wrapped at $iMaxW. Honors explicit @CRLF/@LF
+;              line breaks AND word-wrap, via DrawText DT_CALCRECT | DT_WORDBREAK,
+;              so the height covers every rendered line — the wrapped ones too, not
+;              just the count of explicit breaks. Uses a throwaway screen DC, so it
+;              needs no window and is cheap enough to call once per tooltip show.
+; Parameters:  $sText  - text to measure (may contain @CRLF)
+;              $iMaxW  - wrap width in pixels
+;              $iFontSz - font point size
+;              $sFont  - font face name
+;              ByRef $iOutW, $iOutH - resolved pixel width/height (0,0 on failure)
+Func _Theme_MeasureTextBlock($sText, $iMaxW, $iFontSz, $sFont, ByRef $iOutW, ByRef $iOutH)
+    $iOutW = 0
+    $iOutH = 0
+    If $sText = "" Or $iMaxW < 1 Then Return SetError(1, 0, 0)
+
+    Local Const $DT_CALCRECT = 0x0400, $DT_WORDBREAK = 0x0010, $DT_NOPREFIX = 0x0800
+    Local Const $LOGPIXELSY = 90
+
+    Local $aDC = DllCall("user32.dll", "handle", "GetDC", "hwnd", 0)
+    If @error Or Not IsArray($aDC) Or $aDC[0] = 0 Then Return SetError(2, 0, 0)
+    Local $hDC = $aDC[0]
+
+    ; Point size -> logical (negative) font height for the DC's DPI.
+    Local $iLogPixY = 96
+    Local $aCaps = DllCall("gdi32.dll", "int", "GetDeviceCaps", "handle", $hDC, "int", $LOGPIXELSY)
+    If Not @error And IsArray($aCaps) And $aCaps[0] > 0 Then $iLogPixY = $aCaps[0]
+    Local $iFontHeight = -Int($iFontSz * $iLogPixY / 72)
+
+    Local $hOldFont = 0, $hFont = 0
+    Local $aFont = DllCall("gdi32.dll", "handle", "CreateFontW", _
+            "int", $iFontHeight, "int", 0, "int", 0, "int", 0, "int", 400, _
+            "dword", 0, "dword", 0, "dword", 0, "dword", 1, "dword", 0, _
+            "dword", 0, "dword", 0, "dword", 0, "wstr", $sFont)
+    If Not @error And IsArray($aFont) And $aFont[0] <> 0 Then
+        $hFont = $aFont[0]
+        Local $aSel = DllCall("gdi32.dll", "handle", "SelectObject", "handle", $hDC, "handle", $hFont)
+        If Not @error And IsArray($aSel) Then $hOldFont = $aSel[0]
+    EndIf
+
+    Local $tRect = DllStructCreate("int Left;int Top;int Right;int Bottom")
+    DllStructSetData($tRect, "Left", 0)
+    DllStructSetData($tRect, "Top", 0)
+    DllStructSetData($tRect, "Right", $iMaxW)
+    DllStructSetData($tRect, "Bottom", 0)
+
+    DllCall("user32.dll", "int", "DrawTextW", "handle", $hDC, "wstr", $sText, "int", -1, _
+            "struct*", $tRect, "uint", BitOR($DT_CALCRECT, $DT_WORDBREAK, $DT_NOPREFIX))
+
+    $iOutW = DllStructGetData($tRect, "Right") - DllStructGetData($tRect, "Left")
+    $iOutH = DllStructGetData($tRect, "Bottom") - DllStructGetData($tRect, "Top")
+
+    ; Release everything we touched, in reverse order.
+    If $hOldFont <> 0 Then DllCall("gdi32.dll", "handle", "SelectObject", "handle", $hDC, "handle", $hOldFont)
+    If $hFont <> 0 Then DllCall("gdi32.dll", "bool", "DeleteObject", "handle", $hFont)
+    DllCall("user32.dll", "int", "ReleaseDC", "hwnd", 0, "handle", $hDC)
+EndFunc
+
+; Name:        _Theme_TooltipCalcSize
+; Description: Resolves the final tooltip window size (padding included) for text,
+;              clamping width to a max and letting height grow to fit every wrapped
+;              and explicit line. This is the sizing seam the show path and tests
+;              share — no clipping regardless of text length. Falls back to an
+;              explicit-line-count estimate if GDI measurement is unavailable.
+; Parameters:  $sText - tooltip text (may contain @CRLF)
+;              ByRef $iOutW, $iOutH - resolved window width/height in pixels
+Func _Theme_TooltipCalcSize($sText, ByRef $iOutW, ByRef $iOutH)
+    Local $iFontSz = _Cfg_GetTooltipFontSize()
+    Local $iLineH = $iFontSz + 6 ; fallback per-line height when GDI is unavailable
+    Local $iMaxContentW = $__g_Theme_iTipMaxW - 2 * $__g_Theme_iTipPadX
+
+    Local $iContentW = 0, $iContentH = 0
+    If $sText <> "" Then _Theme_MeasureTextBlock($sText, $iMaxContentW, $iFontSz, $THEME_FONT_MAIN, $iContentW, $iContentH)
+
+    If $iContentH <= 0 Then
+        ; GDI measurement failed (or empty text): estimate from explicit line breaks.
+        Local $aLines = StringSplit($sText, @CRLF, 1)
+        $iContentH = $aLines[0] * $iLineH
+    EndIf
+    If $iContentW <= 0 Then $iContentW = $iMaxContentW
+
+    $iOutW = $iContentW + 2 * $__g_Theme_iTipPadX
+    $iOutH = $iContentH + 2 * $__g_Theme_iTipPadY
+    If $iOutW < $__g_Theme_iTipMinW Then $iOutW = $__g_Theme_iTipMinW
+    If $iOutW > $__g_Theme_iTipMaxW Then $iOutW = $__g_Theme_iTipMaxW
+    Local $iMinH = $iLineH + 2 * $__g_Theme_iTipPadY
+    If $iOutH < $iMinH Then $iOutH = $iMinH
+EndFunc
+
 ; Name:        _Theme_ShowTooltip
 ; Description: Shows a dark-themed tooltip popup near the cursor. Non-blocking.
 ;              Auto-dismisses after 2.5 seconds or when cursor moves away.
@@ -888,39 +984,38 @@ Global $__g_Tooltip_hTimer = 0
 Func _Theme_ShowTooltip($sText, $iX = -1, $iY = -1)
     _Theme_HideTooltip()
 
+    ; Size to fit the fully rendered (wrapped + multi-line) text — no clipping.
+    Local $iW, $iH
+    _Theme_TooltipCalcSize($sText, $iW, $iH)
+
+    ; Anchor near the cursor unless an explicit position was given.
+    Local $iAnchorX = $iX, $iAnchorY = $iY
     If $iX = -1 Or $iY = -1 Then
         Local $aMP = MouseGetPos()
-        If $iX = -1 Then $iX = $aMP[0] + 16
-        If $iY = -1 Then $iY = $aMP[1] + 16
+        If IsArray($aMP) Then
+            If $iX = -1 Then $iAnchorX = $aMP[0] + 16
+            If $iY = -1 Then $iAnchorY = $aMP[1] + 16
+        Else
+            If $iX = -1 Then $iAnchorX = 0
+            If $iY = -1 Then $iAnchorY = 0
+        EndIf
     EndIf
 
-    ; Calculate size based on text
-    Local $aLines = StringSplit($sText, @CRLF, 1)
-    Local $iMaxLen = 0
-    Local $i
-    For $i = 1 To $aLines[0]
-        If StringLen($aLines[$i]) > $iMaxLen Then $iMaxLen = StringLen($aLines[$i])
-    Next
-    Local $iFontSz = _Cfg_GetTooltipFontSize()
-    Local $iCharW = Int($iFontSz * 0.75) + 1
-    Local $iLineH = $iFontSz + 6
-    Local $iW = $iMaxLen * $iCharW + 16
-    If $iW < 80 Then $iW = 80
-    If $iW > 400 Then $iW = 400
-    Local $iH = $aLines[0] * $iLineH + 10
-    If $iH < $iLineH + 6 Then $iH = $iLineH + 6
+    ; Clamp to the work area of the monitor under the anchor: a tall tooltip near a
+    ; screen edge flips/fits instead of running off-screen. Multi-monitor aware.
+    Local $iWaL, $iWaT, $iWaR, $iWaB
+    _CM_GetWorkArea($iAnchorX, $iAnchorY, $iWaL, $iWaT, $iWaR, $iWaB)
+    Local $iPosX, $iPosY
+    _CM_ClampToWorkArea($iAnchorX, $iAnchorY, $iW, $iH, $iWaL, $iWaT, $iWaR, $iWaB, $iPosX, $iPosY)
 
-    ; Keep on screen
-    If $iX + $iW > @DesktopWidth Then $iX = @DesktopWidth - $iW - 4
-    If $iY + $iH > @DesktopHeight Then $iY = $iY - $iH - 32
-
-    $__g_Tooltip_hGUI = GUICreate("Tooltip", $iW, $iH, $iX, $iY, $WS_POPUP, _
+    $__g_Tooltip_hGUI = GUICreate("Tooltip", $iW, $iH, $iPosX, $iPosY, $WS_POPUP, _
         BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW, $WS_EX_LAYERED))
     GUISwitch($__g_Tooltip_hGUI)
     GUISetBkColor($THEME_BG_POPUP)
     _WinAPI_SetLayeredWindowAttributes($__g_Tooltip_hGUI, 0, 240, $LWA_ALPHA)
 
-    GUICtrlCreateLabel($sText, 6, 4, $iW - 12, $iH - 8)
+    GUICtrlCreateLabel($sText, $__g_Theme_iTipPadX, $__g_Theme_iTipPadY, _
+        $iW - 2 * $__g_Theme_iTipPadX, $iH - 2 * $__g_Theme_iTipPadY)
     GUICtrlSetFont(-1, _Cfg_GetTooltipFontSize(), 400, 0, $THEME_FONT_MAIN)
     GUICtrlSetColor(-1, $THEME_FG_NORMAL)
     GUICtrlSetBkColor(-1, $GUI_BKCOLOR_TRANSPARENT)
