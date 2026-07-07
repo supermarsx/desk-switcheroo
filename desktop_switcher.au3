@@ -786,12 +786,18 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 _Cfg_SetDesktopColorsEnabled(True)
                 _Cfg_Save()
             EndIf
+            ; Repaint the widget accent bar immediately (animated) so the new
+            ; color shows without waiting for the next desktop switch.
+            _UpdateWidgetColorBar(True)
             _DL_ColorPickerDestroy()
             _DL_CtxDestroy()
             _CM_Destroy()
-            ; Full rebuild to show updated color indicators
-            _DL_Destroy()
-            _DL_Show($iTaskbarY, $iDesktop)
+            ; Refresh the list in place ONLY if it is already open, so setting a
+            ; color from the widget context menu doesn't force-open/flash the list.
+            If _DL_IsVisible() Then
+                _DL_Destroy()
+                _DL_Show($iTaskbarY, $iDesktop)
+            EndIf
         EndIf
     EndIf
 
