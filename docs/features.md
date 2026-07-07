@@ -35,7 +35,10 @@ extension and not an Explorer injection.
 - **Color bar accent.** An accent bar matches the current desktop's color
   (`widget_color_bar`, `widget_color_bar_height`) — see [Coloring &
   Theming](guides/coloring.md). Its transition on a desktop change is configurable
-  (`widget_color_bar_anim`: `none`/`grow`/`fade`, `widget_color_bar_anim_duration`).
+  (`widget_color_bar_anim`: `none`/`grow`/`fade`, `widget_color_bar_anim_duration`). In
+  `grow` mode the bar animates both directions — the outgoing color compresses out before
+  the incoming color grows in — so leaving a colored desktop is animated too, not just
+  arriving.
 - **Desktop count display.** An optional "2/5"-style counter shows the current desktop and the
   total, with a configurable font size.
 - **Always-on-top enforcement.** A periodic re-assert keeps the widget above other windows

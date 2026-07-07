@@ -71,7 +71,10 @@ View, another tool) still updates the widget.
 otherwise be `For … Sleep` loops are driven one step per main-loop pass: the toast fade
 (`_Theme_ToastTick`), OSD fade (`_Theme_OsdTick`), taskbar auto-hide fade
 (`_TAH_FadeTick`), and the widget color-bar animation (`_Theme_ColorBarTick`) all advance
-from `_ProcessTimersAndSleep`. The desktop slideshow steps the same way, from its own
+from `_ProcessTimersAndSleep`. The color-bar `grow` mode is itself a two-phase state
+machine inside that tick — it first compresses the outgoing color out, then grows the
+incoming one in — with the phase transition handled between ticks so it never blocks the
+loop. The desktop slideshow steps the same way, from its own
 main-loop tick (`_SlideshowTick`) rather than an Adlib, because its per-step intervals vary
 and the idle sleep granularity is fine for second-scale steps. (The generic menu/dialog
 fade is a documented exception that still blocks briefly — see

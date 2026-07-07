@@ -91,6 +91,12 @@ When accent colors are enabled, a desktop's color shows up in two places:
   The bar is repainted on every desktop change by `_UpdateWidgetColorBar` in
   `desktop_switcher.au3`; if the current desktop has no color, or either the color bar or
   accent colors are disabled, the strip falls back to the theme background.
+  The transition is set by `widget_color_bar_anim`: `grow` (the default) animates both
+  entry and exit — it compresses the outgoing color out (width shrinks to zero) and then
+  grows the incoming color in, so leaving a colored desktop is animated as well as arriving
+  at one; `fade` crossfades the background color in a single step; and `none` snaps
+  instantly. The total motion time is set by `widget_color_bar_anim_duration`, split evenly
+  between the compress and grow phases.
 
 ![The Settings dialog Desktops tab showing a table of desktop labels and their hex accent colors with color swatches.](../assets/screenshots/settings-desktops.png)
 

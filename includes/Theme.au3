@@ -1181,10 +1181,26 @@ EndFunc
 ; it one TimerDiff-gated step from the main loop, and it is a no-op when idle. The pure
 ; frame math (_Theme_ColorLerp / _Theme_EaseOutCubic / __Theme_ColorBarFrame) is headless.
 ;
-; Modes (config, _Cfg_GetWidgetColorBarAnim): "none" instant, "grow" width sweeps 0->W
-; with ease-out cubic (color set up front), "fade" background lerps from the currently
-; displayed color to the target. A new set mid-flight snap-completes the running animation
-; to its target, then starts fresh from that visual state (deterministic, no strobe).
+; Modes (config, _Cfg_GetWidgetColorBarAnim): "none" instant, "grow" a symmetric two-phase
+; width transition, "fade" background lerps from the currently displayed color to the target.
+; A new set mid-flight snap-completes the running animation to its target, then starts fresh
+; from that visual state (deterministic, no strobe).
+;
+; "grow" is two-phase and symmetric on a real desktop change (an "hourglass"):
+;   Phase A (EXIT / "compress"): hold the OLD displayed color, animate width W->0, anchored at
+;     the same left edge (right edge sweeps leftward). Eased with ease-IN cubic (t^3) — the exact
+;     time-mirror of the Phase B grow, so compress(t) == grow(1-t).
+;   Phase B (ENTRY / "grow"): switch to the NEW color, animate width 0->W with ease-OUT cubic.
+;   Phase A is SKIPPED when the OLD color is the "no color" bg (nothing meaningful to compress);
+;   grow then behaves exactly like the historical single-phase grow. When the NEW color is bg
+;   (leaving a colored desktop), Phase A compresses the old color out and Phase B grows the bg
+;   in invisibly — a clean compress-out, the case this feature most improves.
+; The configured widget_color_bar_anim_duration D is split D/2 + D/2 across the two phases so
+; total motion time is unchanged (see $__CB_PHASE_DUR_FRACTION). $__g_CB_bActive stays True across
+; the phase boundary, so _Theme_ColorBarIsAnimating() holds the fast sleep tier through both phases.
+;
+; "fade" has NO separate exit phase: it is a single symmetric crossfade of the fill color at full
+; width, so "compress" (a width semantic) does not apply to it — mode fade is unchanged.
 
 Global $__g_CB_idLbl      = 0             ; attached bar control id (0 = not attached, instant only)
 Global $__g_CB_iX         = 0             ; attached geometry (restored on every completed frame)
@@ -1197,12 +1213,20 @@ Global $__g_CB_iFromColor = $THEME_BG_MAIN ; fade start color
 Global $__g_CB_iToColor   = $THEME_BG_MAIN ; target color
 Global $__g_CB_iBgColor   = $THEME_BG_MAIN ; the "no color" fill (today $THEME_BG_MAIN)
 Global $__g_CB_iCurColor  = $THEME_BG_MAIN ; currently displayed color (module-tracked, fade source)
-Global $__g_CB_iDurationMs = 300          ; this animation's duration
-Global $__g_CB_hTimer     = 0             ; animation start (elapsed = TimerDiff)
+Global $__g_CB_iDurationMs = 300          ; full configured animation duration (both phases together)
+Global $__g_CB_sPhase     = ""            ; grow sub-phase: "compress" (A) | "grow" (B); "" fade/idle
+Global $__g_CB_iPhaseDurMs = 300          ; duration of the currently-running segment (per-phase for grow)
+Global $__g_CB_hTimer     = 0             ; current-segment start (elapsed = TimerDiff); reset on A->B
 Global $__g_CB_hStepTimer = 0             ; per-step throttle timer (0 = apply next tick immediately)
 
 ; ~16 ms step gate: a 300 ms animation is ~19 repaints of a 2-10 px label — negligible.
 Global Const $__CB_STEP_MS = 16
+
+; Duration split for the two-phase grow: each phase (compress, then grow) runs over
+; D * $__CB_PHASE_DUR_FRACTION of the configured widget_color_bar_anim_duration. 0.5 keeps the
+; total motion time equal to the historical single-phase grow (the tasteful default). Flip this
+; one line to 1.0 to give EACH phase the full configured D (a slower, more deliberate hourglass).
+Global Const $__CB_PHASE_DUR_FRACTION = 0.5
 
 ; Name:        _Theme_ColorLerp
 ; Description: PURE per-channel RGB linear interpolation between two 0xRRGGBB colors.
@@ -1240,13 +1264,29 @@ Func _Theme_EaseOutCubic($fT)
     Return 1 - ($fInv * $fInv * $fInv)
 EndFunc
 
+; Name:        _Theme_EaseInCubic
+; Description: PURE ease-in cubic easing: t^3. Maps [0,1]->[0,1], monotonically increasing, with
+;              0->0 and 1->1. Gentle start, fast finish — the exact time-mirror of ease-out cubic:
+;              _Theme_EaseInCubic(t) == 1 - _Theme_EaseOutCubic(1-t). Used for the "compress"
+;              (Phase A / exit) width sweep so it reverses the grow. Input clamped to [0,1]. Headless.
+; Parameters:  $fT - normalized time 0..1
+; Return:      Eased fraction 0..1
+Func _Theme_EaseInCubic($fT)
+    If $fT < 0 Then $fT = 0
+    If $fT > 1 Then $fT = 1
+    Return $fT * $fT * $fT
+EndFunc
+
 ; Name:        __Theme_ColorBarFrame
 ; Description: PURE frame calculator — given the mode and elapsed/total time, returns the
-;              [width, color] the bar should show for this frame. "grow" eases the width
-;              0->$iW with a constant target color; "fade" holds full width and lerps the
-;              color from->to; "none" is the settled full-width target. $iDurationMs<=0 is
-;              treated as fully elapsed (final frame). Headless.
-; Parameters:  $sMode      - none|grow|fade
+;              [width, color] the bar should show for this frame. "compress" (Phase A / exit)
+;              eases the width $iW->0 with ease-IN cubic holding the OLD ($iFromColor) color;
+;              "grow" (Phase B / entry) eases the width 0->$iW with ease-OUT cubic and a
+;              constant target ($iToColor) color; "fade" holds full width and lerps the color
+;              from->to; "none" is the settled full-width target. compress is the exact time-
+;              mirror of grow: compress(t) width == grow(1-t) width. $iDurationMs<=0 is treated
+;              as fully elapsed (final frame). Headless.
+; Parameters:  $sMode      - none|compress|grow|fade
 ;              $iElapsedMs - time since the animation started
 ;              $iDurationMs- total animation duration
 ;              $iW         - attached bar width (full)
@@ -1265,6 +1305,13 @@ Func __Theme_ColorBarFrame($sMode, $iElapsedMs, $iDurationMs, $iW, $iFromColor, 
     If $fT > 1 Then $fT = 1
 
     Switch $sMode
+        Case "compress"
+            ; Exit / Phase A: width W->0 via the ease-in mirror; hold the OLD (from) color.
+            Local $iWidthC = Int(Round((1 - _Theme_EaseInCubic($fT)) * $iW))
+            If $iWidthC < 0 Then $iWidthC = 0
+            If $iWidthC > $iW Then $iWidthC = $iW
+            $aOut[0] = $iWidthC
+            $aOut[1] = $iFromColor
         Case "grow"
             Local $iWidth = Int(Round(_Theme_EaseOutCubic($fT) * $iW))
             If $iWidth < 0 Then $iWidth = 0
@@ -1297,6 +1344,7 @@ Func _Theme_ColorBarAttach($idLbl, $iX, $iY, $iW, $iH)
     $__g_CB_iH = $iH
     $__g_CB_bActive = False
     $__g_CB_sMode = "none"
+    $__g_CB_sPhase = ""
     $__g_CB_hStepTimer = 0
     $__g_CB_iCurColor = $THEME_BG_MAIN
 EndFunc
@@ -1318,6 +1366,7 @@ EndFunc
 Func __Theme_ColorBarSnap($iColor)
     $__g_CB_bActive = False
     $__g_CB_sMode = "none"
+    $__g_CB_sPhase = ""
     If $__g_CB_idLbl <> 0 Then
         __Theme_ColorBarSetWidth($__g_CB_iW)
         GUICtrlSetBkColor($__g_CB_idLbl, $iColor)
@@ -1365,26 +1414,61 @@ Func _Theme_ColorBarSet($iColor, $iBgColor = $THEME_BG_MAIN, $bAnimate = True)
     EndIf
 
     $__g_CB_sMode = $sMode
-    $__g_CB_iFromColor = $__g_CB_iCurColor
+    $__g_CB_iFromColor = $__g_CB_iCurColor ; OLD displayed color (compress source; grow snap source)
     $__g_CB_iToColor = $iColor
     $__g_CB_iDurationMs = $iDuration
     $__g_CB_bActive = True
-    $__g_CB_hTimer = TimerInit()
     $__g_CB_hStepTimer = 0 ; first tick applies immediately
 
-    ; Grow: set the target color up front and start from width 0.
-    ; Fade: keep full width; the tick lerps the color from the current displayed value.
     If $sMode = "grow" Then
-        GUICtrlSetBkColor($__g_CB_idLbl, $iColor)
-        __Theme_ColorBarSetWidth(0)
-        $__g_CB_iCurColor = $iColor
+        ; Two-phase grow. Each phase runs over D * $__CB_PHASE_DUR_FRACTION (>=1 ms).
+        Local $iPhaseDur = Int(Round($iDuration * $__CB_PHASE_DUR_FRACTION))
+        If $iPhaseDur < 1 Then $iPhaseDur = 1
+        $__g_CB_iPhaseDurMs = $iPhaseDur
+        If $__g_CB_iCurColor = $iBgColor Then
+            ; OLD == bg: nothing meaningful to compress (bg-on-bg is invisible) -> Phase B only,
+            ; identical to the historical single-phase grow.
+            __Theme_ColorBarBeginGrowPhase()
+        Else
+            ; Phase A (compress / exit): hold the OLD color at full width, sweep width W->0.
+            $__g_CB_sPhase = "compress"
+            GUICtrlSetBkColor($__g_CB_idLbl, $__g_CB_iFromColor)
+            __Theme_ColorBarSetWidth($__g_CB_iW)
+            $__g_CB_hTimer = TimerInit()
+        EndIf
+    Else
+        ; Fade: keep full width; the tick lerps the color from the current displayed value.
+        ; No phases — the single crossfade is its own symmetric transition.
+        $__g_CB_iPhaseDurMs = $iDuration
+        $__g_CB_sPhase = ""
+        $__g_CB_hTimer = TimerInit()
     EndIf
+EndFunc
+
+; Name:        __Theme_ColorBarBeginGrowPhase
+; Description: Enters Phase B (ENTRY / grow) of the two-phase grow: switches the bar to the NEW
+;              target color, resets it to width 0, and (re)starts the segment timer so the tick
+;              eases width 0->W. Called both when Phase A is skipped (old == bg, from
+;              _Theme_ColorBarSet) and on the Phase-A->B transition (from _Theme_ColorBarTick).
+;              Leaves $__g_CB_bActive untouched so _Theme_ColorBarIsAnimating() stays True across
+;              the phase boundary. $__g_CB_iPhaseDurMs is set by the caller and preserved here.
+Func __Theme_ColorBarBeginGrowPhase()
+    $__g_CB_sPhase = "grow"
+    If $__g_CB_idLbl <> 0 Then
+        GUICtrlSetBkColor($__g_CB_idLbl, $__g_CB_iToColor)
+        __Theme_ColorBarSetWidth(0)
+    EndIf
+    $__g_CB_iCurColor = $__g_CB_iToColor
+    $__g_CB_hTimer = TimerInit()
 EndFunc
 
 ; Name:        _Theme_ColorBarTick
 ; Description: Advances the color-bar animation one TimerDiff-gated (~16 ms) step. No-op
-;              when idle. Call from _ProcessTimersAndSleep. On the final frame it snaps to
-;              the exact attached geometry + target color and quiesces.
+;              when idle. Call from _ProcessTimersAndSleep. Timing is per-segment
+;              ($__g_CB_iPhaseDurMs): for grow, Phase A (compress) completing transitions into
+;              Phase B (grow) instead of quiescing (bar stays animating across the boundary);
+;              only Phase B / fade completion snaps to the exact attached geometry + target and
+;              quiesces.
 Func _Theme_ColorBarTick()
     If Not $__g_CB_bActive Then Return
     If $__g_CB_idLbl = 0 Then
@@ -1395,12 +1479,26 @@ Func _Theme_ColorBarTick()
     $__g_CB_hStepTimer = TimerInit()
 
     Local $iElapsed = TimerDiff($__g_CB_hTimer)
-    If $iElapsed >= $__g_CB_iDurationMs Then
+
+    ; Grow Phase A (compress / exit): on completion, hand off to Phase B (do NOT quiesce).
+    If $__g_CB_sMode = "grow" And $__g_CB_sPhase = "compress" Then
+        If $iElapsed >= $__g_CB_iPhaseDurMs Then
+            __Theme_ColorBarBeginGrowPhase()
+            Return
+        EndIf
+        Local $aC = __Theme_ColorBarFrame("compress", $iElapsed, $__g_CB_iPhaseDurMs, _
+                $__g_CB_iW, $__g_CB_iFromColor, $__g_CB_iToColor)
+        __Theme_ColorBarSetWidth($aC[0]) ; bkcolor already the held OLD color
+        Return
+    EndIf
+
+    ; Grow Phase B (grow / entry) or fade: complete on the current segment's duration.
+    If $iElapsed >= $__g_CB_iPhaseDurMs Then
         __Theme_ColorBarSnap($__g_CB_iToColor)
         Return
     EndIf
 
-    Local $aFrame = __Theme_ColorBarFrame($__g_CB_sMode, $iElapsed, $__g_CB_iDurationMs, _
+    Local $aFrame = __Theme_ColorBarFrame($__g_CB_sMode, $iElapsed, $__g_CB_iPhaseDurMs, _
             $__g_CB_iW, $__g_CB_iFromColor, $__g_CB_iToColor)
     Switch $__g_CB_sMode
         Case "grow"

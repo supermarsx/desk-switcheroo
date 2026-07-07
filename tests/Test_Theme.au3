@@ -460,6 +460,48 @@ Func __Test_Theme_ColorBar()
     _Test_AssertTrue("Grow width monotone q1<mid", $aFq1[0] < $aFmid[0])
     _Test_AssertTrue("Grow width monotone mid<q3", $aFmid[0] < $aFq3[0])
 
+    ; ---- _Theme_EaseInCubic: endpoints, known midpoint, monotonicity, clamp, back-loaded ----
+    _Test_AssertEqual("EaseInCubic(0) = 0", _Theme_EaseInCubic(0), 0)
+    _Test_AssertEqual("EaseInCubic(1) = 1", _Theme_EaseInCubic(1), 1)
+    _Test_AssertEqual("EaseInCubic(0.5) = 0.125", _Theme_EaseInCubic(0.5), 0.125)
+    _Test_AssertEqual("EaseInCubic clamps t<0 to 0", _Theme_EaseInCubic(-0.5), 0)
+    _Test_AssertEqual("EaseInCubic clamps t>1 to 1", _Theme_EaseInCubic(2), 1)
+    _Test_AssertTrue("EaseInCubic monotone 0.25<0.5", _Theme_EaseInCubic(0.25) < _Theme_EaseInCubic(0.5))
+    _Test_AssertTrue("EaseInCubic monotone 0.5<0.75", _Theme_EaseInCubic(0.5) < _Theme_EaseInCubic(0.75))
+    ; Ease-IN: back-loaded — at t=0.5 it is still short of halfway (mirror of ease-out)
+    _Test_AssertTrue("EaseInCubic back-loaded (0.5 -> <0.5)", _Theme_EaseInCubic(0.5) < 0.5)
+    ; Exact time-mirror of ease-out: EaseIn(t) == 1 - EaseOut(1-t) for all t
+    _Test_AssertEqual("EaseIn mirror of EaseOut @0.25", _Theme_EaseInCubic(0.25), 1 - _Theme_EaseOutCubic(0.75))
+    _Test_AssertEqual("EaseIn mirror of EaseOut @0.5", _Theme_EaseInCubic(0.5), 1 - _Theme_EaseOutCubic(0.5))
+
+    ; ---- __Theme_ColorBarFrame: compress (exit) sweeps W->0, holds OLD (from) color ----
+    ; from = OLD color 0x0A0B0C, to = NEW 0x646464; compress must show OLD throughout.
+    Local $aC0 = __Theme_ColorBarFrame("compress", 0, 300, 100, 0x0A0B0C, 0x646464)
+    _Test_AssertEqual("Compress t=0 width = W", $aC0[0], 100)
+    _Test_AssertEqual("Compress t=0 color = OLD (from)", $aC0[1], 0x0A0B0C)
+    Local $aCmid = __Theme_ColorBarFrame("compress", 150, 300, 100, 0x0A0B0C, 0x646464)
+    _Test_AssertTrue("Compress mid width in (0,W)", $aCmid[0] > 0 And $aCmid[0] < 100)
+    _Test_AssertEqual("Compress mid color = OLD (from)", $aCmid[1], 0x0A0B0C)
+    Local $aCend = __Theme_ColorBarFrame("compress", 300, 300, 100, 0x0A0B0C, 0x646464)
+    _Test_AssertEqual("Compress t=duration width = 0", $aCend[0], 0)
+    _Test_AssertEqual("Compress t=duration color = OLD (from)", $aCend[1], 0x0A0B0C)
+    Local $aCpast = __Theme_ColorBarFrame("compress", 400, 300, 100, 0x0A0B0C, 0x646464)
+    _Test_AssertEqual("Compress t>duration width = 0 (clamped)", $aCpast[0], 0)
+    Local $aCz = __Theme_ColorBarFrame("compress", 0, 0, 100, 0x0A0B0C, 0x646464)
+    _Test_AssertEqual("Compress duration<=0 -> final frame width 0", $aCz[0], 0)
+    ; Monotone DECREASING width across the sweep (opposite of grow)
+    Local $aCq1 = __Theme_ColorBarFrame("compress", 75, 300, 100, 0x0A0B0C, 0x646464)
+    Local $aCq3 = __Theme_ColorBarFrame("compress", 225, 300, 100, 0x0A0B0C, 0x646464)
+    _Test_AssertTrue("Compress width monotone q1>mid", $aCq1[0] > $aCmid[0])
+    _Test_AssertTrue("Compress width monotone mid>q3", $aCmid[0] > $aCq3[0])
+    ; Exact time-mirror of grow: compress(t) width == grow(1-t) width at every sampled t.
+    ; grow uses to-color, compress uses from-color, but WIDTHS must coincide.
+    _Test_AssertEqual("Compress mirror grow @t=0/1", $aC0[0], $aFend[0]) ; W == W
+    _Test_AssertEqual("Compress mirror grow @t=1/0", $aCend[0], $aF0[0]) ; 0 == 0
+    _Test_AssertEqual("Compress mirror grow @q1/q3", $aCq1[0], $aFq3[0]) ; compress(75)==grow(225)
+    _Test_AssertEqual("Compress mirror grow @q3/q1", $aCq3[0], $aFq1[0]) ; compress(225)==grow(75)
+    _Test_AssertEqual("Compress mirror grow @mid", $aCmid[0], $aFmid[0]) ; symmetric midpoint
+
     ; ---- __Theme_ColorBarFrame: fade holds full width, lerps color from->to ----
     Local $aD0 = __Theme_ColorBarFrame("fade", 0, 300, 100, 0x000000, 0x646464)
     _Test_AssertEqual("Fade t=0 width = W", $aD0[0], 100)
@@ -516,23 +558,94 @@ Func __Test_Theme_ColorBar()
     _Test_AssertFalse("Animate=False: not animating", _Theme_ColorBarIsAnimating())
     _Test_AssertEqual("Animate=False: color snapped", $__g_CB_iCurColor, 0x0A0B0C)
 
-    ; Grow start: target differs from displayed -> animation arms
+    ; Grow start from a REAL prior color (0x0A0B0C, != bg): now a two-phase transition -> it
+    ; ENTERS PHASE A (compress) first, holding the OLD color while width sweeps W->0. from/to
+    ; semantics are preserved (from = OLD displayed, to = requested target).
     _Cfg_SetWidgetColorBarAnimDuration(2000)
     _Theme_ColorBarSet(0x00FF00, $THEME_BG_MAIN, True)
     _Test_AssertTrue("Grow: animating after set", _Theme_ColorBarIsAnimating())
     _Test_AssertEqual("Grow: running mode is grow", $__g_CB_sMode, "grow")
+    _Test_AssertEqual("Grow: prior real color enters Phase A (compress)", $__g_CB_sPhase, "compress")
     _Test_AssertEqual("Grow: from = prior displayed color", $__g_CB_iFromColor, 0x0A0B0C)
     _Test_AssertEqual("Grow: to = requested target", $__g_CB_iToColor, 0x00FF00)
+    ; Duration split: full D tracked, each phase runs D * 0.5 (default fraction 0.5)
+    _Test_AssertEqual("Grow: full duration tracked", $__g_CB_iDurationMs, 2000)
+    _Test_AssertEqual("Grow: phase duration = D/2", $__g_CB_iPhaseDurMs, 1000)
 
-    ; One tick mid-flight keeps it animating (2000ms budget, ~0ms elapsed)
+    ; One tick mid-flight keeps it animating (2000ms budget, ~0ms elapsed), still in Phase A
     _Theme_ColorBarTick()
     _Test_AssertTrue("Grow: still animating after one mid tick", _Theme_ColorBarIsAnimating())
+    _Test_AssertEqual("Grow: still Phase A mid-tick", $__g_CB_sPhase, "compress")
 
-    ; Retrigger mid-animation: snap-completes old target, starts fresh from it
+    ; Retrigger mid-animation (during Phase A): snap-completes old target, starts fresh from it.
+    ; OLD becomes the snapped 0x00FF00 (real, != bg) -> re-enters Phase A.
     _Theme_ColorBarSet(0x0000FF, $THEME_BG_MAIN, True)
-    _Test_AssertTrue("Retrigger: still animating", _Theme_ColorBarIsAnimating())
-    _Test_AssertEqual("Retrigger: from = old target (snapped)", $__g_CB_iFromColor, 0x00FF00)
-    _Test_AssertEqual("Retrigger: to = new target", $__g_CB_iToColor, 0x0000FF)
+    _Test_AssertTrue("Retrigger(A): still animating", _Theme_ColorBarIsAnimating())
+    _Test_AssertEqual("Retrigger(A): re-enters Phase A", $__g_CB_sPhase, "compress")
+    _Test_AssertEqual("Retrigger(A): from = old target (snapped)", $__g_CB_iFromColor, 0x00FF00)
+    _Test_AssertEqual("Retrigger(A): to = new target", $__g_CB_iToColor, 0x0000FF)
+
+    ; ---- Edge: OLD == bg -> skip Phase A, go straight to Phase B (today's grow) ----
+    ; Snap to bg first (instant, so displayed color == bg), then grow toward a real color.
+    _Theme_ColorBarSet($THEME_BG_MAIN, $THEME_BG_MAIN, False)
+    _Test_AssertEqual("OLD==bg setup: displayed is bg", $__g_CB_iCurColor, $THEME_BG_MAIN)
+    _Cfg_SetWidgetColorBarAnimDuration(2000)
+    _Theme_ColorBarSet(0x00FF00, $THEME_BG_MAIN, True)
+    _Test_AssertTrue("OLD==bg: animating", _Theme_ColorBarIsAnimating())
+    _Test_AssertEqual("OLD==bg: skips compress -> Phase B (grow)", $__g_CB_sPhase, "grow")
+    _Test_AssertEqual("OLD==bg: displayed switched to NEW up front", $__g_CB_iCurColor, 0x00FF00)
+    _Test_AssertEqual("OLD==bg: to = requested target", $__g_CB_iToColor, 0x00FF00)
+
+    ; Retrigger DURING Phase B: snap-completes to running target, then restarts (old real -> Phase A)
+    _Theme_ColorBarTick() ; advance Phase B a little (still 2000ms budget)
+    _Test_AssertEqual("OLD==bg: still Phase B after tick", $__g_CB_sPhase, "grow")
+    _Theme_ColorBarSet(0x0000FF, $THEME_BG_MAIN, True)
+    _Test_AssertTrue("Retrigger(B): still animating", _Theme_ColorBarIsAnimating())
+    _Test_AssertEqual("Retrigger(B): from = old target (snapped 0x00FF00)", $__g_CB_iFromColor, 0x00FF00)
+    _Test_AssertEqual("Retrigger(B): re-enters Phase A (old real)", $__g_CB_sPhase, "compress")
+    _Test_AssertEqual("Retrigger(B): to = new target", $__g_CB_iToColor, 0x0000FF)
+
+    ; ---- Edge: NEW == bg (leaving a colored desktop) -> compress old out, grow bg in ----
+    ; Short per-phase durations so we can drive the full A->B->quiesce cycle with real sleeps.
+    _Cfg_SetWidgetColorBarAnimDuration(40) ; phase dur = 20ms each
+    _Theme_ColorBarSet(0x123456, $THEME_BG_MAIN, False) ; displayed = real color, instant
+    _Theme_ColorBarSet($THEME_BG_MAIN, $THEME_BG_MAIN, True) ; leave to "no color"
+    _Test_AssertTrue("NEW==bg: animating", _Theme_ColorBarIsAnimating())
+    _Test_AssertEqual("NEW==bg: enters Phase A (compress old)", $__g_CB_sPhase, "compress")
+    _Test_AssertEqual("NEW==bg: from = OLD real color", $__g_CB_iFromColor, 0x123456)
+    _Test_AssertEqual("NEW==bg: to = bg", $__g_CB_iToColor, $THEME_BG_MAIN)
+    _Test_AssertEqual("NEW==bg: displayed still OLD during compress", $__g_CB_iCurColor, 0x123456)
+    ; Drive Phase A to completion -> transitions to Phase B WITHOUT quiescing (boundary hold)
+    Sleep(35)
+    _Theme_ColorBarTick()
+    _Test_AssertTrue("NEW==bg: STILL animating across A->B boundary", _Theme_ColorBarIsAnimating())
+    _Test_AssertEqual("NEW==bg: transitioned to Phase B (grow)", $__g_CB_sPhase, "grow")
+    _Test_AssertEqual("NEW==bg: displayed switched to bg for Phase B", $__g_CB_iCurColor, $THEME_BG_MAIN)
+    ; Drive Phase B to completion -> quiesce on bg
+    Sleep(35)
+    _Theme_ColorBarTick()
+    _Test_AssertFalse("NEW==bg: quiesced after Phase B", _Theme_ColorBarIsAnimating())
+    _Test_AssertEqual("NEW==bg: settled on bg (clean compress-out)", $__g_CB_iCurColor, $THEME_BG_MAIN)
+
+    ; ---- Edge: both real colors -> full compress-out then grow-in, then quiesce ----
+    _Cfg_SetWidgetColorBarAnimDuration(40)
+    _Theme_ColorBarSet(0x111111, $THEME_BG_MAIN, False) ; displayed = real
+    _Theme_ColorBarSet(0x222222, $THEME_BG_MAIN, True)  ; both real
+    _Test_AssertEqual("Both-real: Phase A", $__g_CB_sPhase, "compress")
+    _Test_AssertEqual("Both-real: from = OLD", $__g_CB_iFromColor, 0x111111)
+    _Test_AssertEqual("Both-real: to = NEW", $__g_CB_iToColor, 0x222222)
+    Sleep(35)
+    _Theme_ColorBarTick()
+    _Test_AssertTrue("Both-real: animating across boundary", _Theme_ColorBarIsAnimating())
+    _Test_AssertEqual("Both-real: Phase B", $__g_CB_sPhase, "grow")
+    _Test_AssertEqual("Both-real: displayed = NEW in Phase B", $__g_CB_iCurColor, 0x222222)
+    Sleep(35)
+    _Theme_ColorBarTick()
+    _Test_AssertFalse("Both-real: quiesced after full cycle", _Theme_ColorBarIsAnimating())
+    _Test_AssertEqual("Both-real: settled on NEW", $__g_CB_iCurColor, 0x222222)
+
+    ; Restore a long duration for the following fade completion test's setup neutrality
+    _Cfg_SetWidgetColorBarAnimDuration(2000)
 
     ; Completion: short duration + elapsed past it -> tick snaps and quiesces
     _Cfg_SetWidgetColorBarAnim("fade")
