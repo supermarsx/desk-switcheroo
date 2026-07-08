@@ -209,7 +209,7 @@ Func __DL_UpdateRowSwatch($iSlot, $iDesktop)
     Local $iCtrl = $__g_DL_aColorInds[$iSlot]
     If $iCtrl = 0 Then Return
     Local $iSwClr = $THEME_BG_POPUP
-    If _Cfg_GetDesktopColorsEnabled() And $iDesktop >= 1 And $iDesktop <= 9 Then
+    If _Cfg_GetDesktopColorsEnabled() And $iDesktop >= 1 And $iDesktop <= $__g_Cfg_MAX_DESKTOPS Then
         Local $iClr = _Cfg_GetDesktopColor($iDesktop)
         If $iClr <> 0 Then $iSwClr = $iClr
     EndIf
@@ -349,7 +349,7 @@ Func _DL_Show($iTaskbarY, $iCurrentDesktop)
         $__g_DL_aColorVals[$iSlot] = 0
         If _Cfg_GetDesktopColorsEnabled() Then
             Local $iSwClr = $THEME_BG_POPUP
-            If $i <= 9 Then
+            If $i >= 1 And $i <= $__g_Cfg_MAX_DESKTOPS Then
                 Local $iClr = _Cfg_GetDesktopColor($i)
                 If $iClr <> 0 Then $iSwClr = $iClr
             EndIf

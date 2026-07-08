@@ -63,7 +63,7 @@ desktop_2_color=0x4AFF7E
 ```
 
 Each value is a `0xRRGGBB` color. A value of `0x000000` (or a missing key) means **no
-color** for that desktop. Accent colors are tracked for desktops 1–9.
+color** for that desktop. Accent colors are tracked for desktops 1–50.
 
 ### Setting a color
 

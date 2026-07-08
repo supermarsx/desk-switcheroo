@@ -322,6 +322,25 @@ Func _RunTest_DesktopList()
     _Cfg_SetDesktopColor(1, $iSavedColor1)
     _Cfg_SetDesktopColorsEnabled($bColorsWasST)
 
+    ; High-desktop swatch (Regression 2026-07-08): per-desktop colors are stored for 1–50,
+    ; but the swatch draw historically capped eligibility at desktop 9, so colored desktops
+    ; 10–50 rendered the invisible popup bg. Set a color on desktop 12 and drive the
+    ; swatch-update path directly (slot 1 remapped to desktop 12); the tracked swatch must
+    ; map to the set color rather than the invisible bg.
+    Local $bColorsWasHi = _Cfg_GetDesktopColorsEnabled()
+    Local $iSavedColor12 = _Cfg_GetDesktopColor(12)
+    Local $iHighColor = 0x22AA88
+    _Cfg_SetDesktopColorsEnabled(True)
+    _Cfg_SetDesktopColor(12, $iHighColor)
+    _DL_ResetScroll()
+    _DL_Show($iTestTaskbarY, $iCurrentDesktop)
+    __DL_UpdateRowSwatch(1, 12) ; remap slot 1 to desktop 12 (exercises the >9 eligibility guard)
+    _Test_AssertEqual("Regression 2026-07-08: high-desktop (12) swatch maps to color", _DL_GetRowSwatchColor(1), $iHighColor)
+    _Test_AssertNotEqual("Regression 2026-07-08: high-desktop swatch not invisible bg", _DL_GetRowSwatchColor(1), $THEME_BG_POPUP)
+    _DL_Destroy()
+    _Cfg_SetDesktopColor(12, $iSavedColor12)
+    _Cfg_SetDesktopColorsEnabled($bColorsWasHi)
+
     ; -- Cleanup --
     FileDelete($sTempIni)
 EndFunc
