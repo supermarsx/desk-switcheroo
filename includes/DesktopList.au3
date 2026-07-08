@@ -21,6 +21,8 @@ Global $__g_DL_hGUI          = 0
 Global $__g_DL_bVisible      = False
 Global $__g_DL_aItems[1]
 Global $__g_DL_aPeekBtns[1]
+Global $__g_DL_aColorInds[1]  ; per-slot color swatch control IDs (0 = none)
+Global $__g_DL_aColorVals[1]  ; per-slot last-applied swatch color (for state getter/tests)
 Global $__g_DL_iCount        = 0
 Global $__g_DL_iHovered      = 0
 Global $__g_DL_iPeekHovered  = 0
@@ -174,6 +176,56 @@ Func _DL_Toggle($iTaskbarY, $iCurrentDesktop)
     EndIf
 EndFunc
 
+; Name:        __DL_RowLayout
+; Description: Pure geometry helper for a desktop-list row. Returns the text label
+;              and color-swatch rectangles with the invariant textX + textW <= swatchX
+;              so the swatch column never overlaps the (transparent-bg) text label.
+;              The swatch gutter is only reserved when desktop colors are enabled, so the
+;              no-colors layout stays byte-identical to the historical values.
+; Parameters:  $iListW - full list popup width
+; Return:      4-element array [textX, textW, swatchX, swatchW]
+Func __DL_RowLayout($iListW)
+    Local Const $iSwatchW = 4
+    Local Const $iGutter  = 2 ; gap reserved between text right edge and swatch column
+    Local $iTextX  = 4 + $THEME_PEEK_ZONE_W
+    Local $iSwatchX = $iListW - 8
+    Local $iTextW  = $iListW - 8 - $THEME_PEEK_ZONE_W ; no-colors default (byte-identical)
+    If _Cfg_GetDesktopColorsEnabled() Then
+        ; Reserve the swatch column + gap so the text never intersects the swatch.
+        $iTextW = $iSwatchX - $iGutter - $iTextX
+        If $iTextW < 0 Then $iTextW = 0
+    EndIf
+    Local $aOut[4] = [$iTextX, $iTextW, $iSwatchX, $iSwatchW]
+    Return $aOut
+EndFunc
+
+; Name:        __DL_UpdateRowSwatch
+; Description: Re-reads the desktop color for a slot's mapped desktop and repaints its
+;              tracked swatch control (invisible popup-bg when unset/out-of-range/disabled).
+;              Keeps swatches correct after a scroll remap.
+; Parameters:  $iSlot - visual slot (1-based); $iDesktop - mapped desktop index (1-based)
+Func __DL_UpdateRowSwatch($iSlot, $iDesktop)
+    If $iSlot < 1 Or $iSlot > UBound($__g_DL_aColorInds) - 1 Then Return
+    Local $iCtrl = $__g_DL_aColorInds[$iSlot]
+    If $iCtrl = 0 Then Return
+    Local $iSwClr = $THEME_BG_POPUP
+    If _Cfg_GetDesktopColorsEnabled() And $iDesktop >= 1 And $iDesktop <= 9 Then
+        Local $iClr = _Cfg_GetDesktopColor($iDesktop)
+        If $iClr <> 0 Then $iSwClr = $iClr
+    EndIf
+    GUICtrlSetBkColor($iCtrl, $iSwClr)
+    $__g_DL_aColorVals[$iSlot] = $iSwClr
+EndFunc
+
+; Name:        _DL_GetRowSwatchColor
+; Description: Read-only accessor returning the last-applied swatch color for a slot,
+;              or -1 if the slot is out of range. Used by the state-invariant test.
+; Parameters:  $iSlot - visual slot (1-based)
+Func _DL_GetRowSwatchColor($iSlot)
+    If $iSlot < 1 Or $iSlot > UBound($__g_DL_aColorVals) - 1 Then Return -1
+    Return $__g_DL_aColorVals[$iSlot]
+EndFunc
+
 ; Name:        _DL_Show
 ; Description: Creates and shows the desktop list GUI
 ; Parameters:  $iTaskbarY - Y position of the taskbar
@@ -219,8 +271,12 @@ Func _DL_Show($iTaskbarY, $iCurrentDesktop)
 
     ReDim $__g_DL_aItems[$iVisibleCount + 1]
     ReDim $__g_DL_aPeekBtns[$iVisibleCount + 1]
+    ReDim $__g_DL_aColorInds[$iVisibleCount + 1]
+    ReDim $__g_DL_aColorVals[$iVisibleCount + 1]
     $__g_DL_aItems[0] = $iVisibleCount
     $__g_DL_aPeekBtns[0] = $iVisibleCount
+    $__g_DL_aColorInds[0] = $iVisibleCount
+    $__g_DL_aColorVals[0] = $iVisibleCount
     $__g_DL_iHovered = 0
     $__g_DL_iPeekHovered = 0
     $__g_DL_idScrollUp = 0
@@ -274,24 +330,34 @@ Func _DL_Show($iTaskbarY, $iCurrentDesktop)
         GUICtrlSetBkColor($__g_DL_aPeekBtns[$iSlot], $GUI_BKCOLOR_TRANSPARENT)
         GUICtrlSetCursor($__g_DL_aPeekBtns[$iSlot], 0)
 
-        ; Text label
+        ; Text label — geometry from the pure layout helper (reserves a swatch gutter
+        ; only when colors are enabled, so the text never overlaps the swatch column).
+        Local $aLay = __DL_RowLayout($iListW)
         Local $sFont = _Cfg_GetListFontName()
         If $sFont = "" Then $sFont = _Theme_GetMonoFont()
         Local $iFontSize = _Cfg_GetListFontSize()
-        $__g_DL_aItems[$iSlot] = GUICtrlCreateLabel($sText, 4 + $THEME_PEEK_ZONE_W, $iY, $iListW - 8 - $THEME_PEEK_ZONE_W, $THEME_ITEM_HEIGHT - 2, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
+        $__g_DL_aItems[$iSlot] = GUICtrlCreateLabel($sText, $aLay[0], $iY, $aLay[1], $THEME_ITEM_HEIGHT - 2, BitOR($SS_CENTERIMAGE, $SS_NOTIFY))
         GUICtrlSetFont($__g_DL_aItems[$iSlot], $iFontSize, $iBold, 0, $sFont)
         GUICtrlSetColor($__g_DL_aItems[$iSlot], $iColor)
         GUICtrlSetBkColor($__g_DL_aItems[$iSlot], $iBg)
         GUICtrlSetCursor($__g_DL_aItems[$iSlot], 0)
 
-        ; Desktop color indicator (skip if colors disabled or color is 0/none)
-        If _Cfg_GetDesktopColorsEnabled() And $i <= 9 Then
-            Local $iClr = _Cfg_GetDesktopColor($i)
-            If $iClr <> 0 Then
-                Local $iColorInd = GUICtrlCreateLabel("", $iListW - 8, $iY + 2, 4, $THEME_ITEM_HEIGHT - 6)
-                GUICtrlSetBkColor($iColorInd, $iClr)
-                GUICtrlSetState($iColorInd, $GUI_DISABLE) ; pass clicks through to text label
+        ; Desktop color indicator. When colors are enabled we always create ONE tracked
+        ; swatch per slot (bkcolor = the set color, or the popup bg — invisible — when
+        ; unset/out-of-range) so later text repaints can't leave a stale/blank swatch.
+        $__g_DL_aColorInds[$iSlot] = 0
+        $__g_DL_aColorVals[$iSlot] = 0
+        If _Cfg_GetDesktopColorsEnabled() Then
+            Local $iSwClr = $THEME_BG_POPUP
+            If $i <= 9 Then
+                Local $iClr = _Cfg_GetDesktopColor($i)
+                If $iClr <> 0 Then $iSwClr = $iClr
             EndIf
+            Local $iColorInd = GUICtrlCreateLabel("", $aLay[2], $iY + 2, $aLay[3], $THEME_ITEM_HEIGHT - 6)
+            GUICtrlSetBkColor($iColorInd, $iSwClr)
+            GUICtrlSetState($iColorInd, $GUI_DISABLE) ; pass clicks through to text label
+            $__g_DL_aColorInds[$iSlot] = $iColorInd
+            $__g_DL_aColorVals[$iSlot] = $iSwClr
         EndIf
     Next
 
@@ -330,6 +396,10 @@ Func _DL_Destroy()
     $__g_DL_iCount = 0
     $__g_DL_idScrollUp = 0
     $__g_DL_idScrollDown = 0
+    ReDim $__g_DL_aColorInds[1]
+    ReDim $__g_DL_aColorVals[1]
+    $__g_DL_aColorInds[0] = 0
+    $__g_DL_aColorVals[0] = 0
 EndFunc
 
 ; Name:        _DL_HandleClick
@@ -734,6 +804,9 @@ Func _DL_RefreshScrollView($iCurrentDesktop)
 
         ; Update label text
         GUICtrlSetData($__g_DL_aItems[$iSlot], $sText)
+
+        ; Keep the swatch mapped to the newly-scrolled desktop for this slot.
+        __DL_UpdateRowSwatch($iSlot, $i)
 
         ; Update font/color for active vs inactive
         If $i = $iCurrentDesktop Then

@@ -284,6 +284,44 @@ Func _RunTest_DesktopList()
     _DL_ThumbClearCache()
     _Test_AssertTrue("DL ThumbClearCache no crash", True)
 
+    ; ---- Regression 2026-07-08: color swatch overlap + stale-on-scroll ----
+
+    ; Layout invariant (Regression 2026-07-08): the text label must never intersect the
+    ; swatch column when colors are enabled. Pre-fix returned 146 > 142 (overlap); the text
+    ; label repaint then painted over the swatch, making it intermittently vanish.
+    Local $bColorsWasRL = _Cfg_GetDesktopColorsEnabled()
+    Local $iListWTest = $THEME_MAIN_WIDTH + $THEME_PEEK_ZONE_W
+    _Cfg_SetDesktopColorsEnabled(True)
+    Local $aLayOn = __DL_RowLayout($iListWTest)
+    _Test_AssertTrue("Regression 2026-07-08: layout no overlap (colors on)", $aLayOn[0] + $aLayOn[1] <= $aLayOn[2])
+    _Test_AssertTrue("Regression 2026-07-08: swatch width positive", $aLayOn[3] > 0)
+    ; No-colors layout stays byte-identical to the historical values.
+    _Cfg_SetDesktopColorsEnabled(False)
+    Local $aLayOff = __DL_RowLayout($iListWTest)
+    _Test_AssertEqual("Regression 2026-07-08: no-colors textX unchanged", $aLayOff[0], 4 + $THEME_PEEK_ZONE_W)
+    _Test_AssertEqual("Regression 2026-07-08: no-colors textW unchanged", $aLayOff[1], $iListWTest - 8 - $THEME_PEEK_ZONE_W)
+    _Cfg_SetDesktopColorsEnabled($bColorsWasRL)
+
+    ; State invariant (Regression 2026-07-08): a set desktop color must survive a highlight
+    ; repaint and an in-place scroll refresh — the tracked swatch stays mapped to the color.
+    Local $bColorsWasST = _Cfg_GetDesktopColorsEnabled()
+    Local $iSavedColor1 = _Cfg_GetDesktopColor(1)
+    Local $iKnownColor = 0x336699
+    _Cfg_SetDesktopColorsEnabled(True)
+    _Cfg_SetDesktopColor(1, $iKnownColor)
+    _DL_ResetScroll()
+    _DL_Show($iTestTaskbarY, $iCurrentDesktop)
+    ; Slot 1 maps to desktop 1 at scroll offset 0.
+    _Test_AssertEqual("Regression 2026-07-08: swatch set on show", _DL_GetRowSwatchColor(1), $iKnownColor)
+    _DL_UpdateHighlight($iCurrentDesktop) ; simulate a desktop switch repaint
+    _Test_AssertEqual("Regression 2026-07-08: swatch survives highlight", _DL_GetRowSwatchColor(1), $iKnownColor)
+    _DL_RefreshScrollView($iCurrentDesktop) ; simulate a scroll refresh (offset 0 = same map)
+    _Test_AssertEqual("Regression 2026-07-08: swatch survives scroll refresh", _DL_GetRowSwatchColor(1), $iKnownColor)
+    _DL_Destroy()
+    _Test_AssertEqual("Regression 2026-07-08: swatch getter -1 after destroy", _DL_GetRowSwatchColor(1), -1)
+    _Cfg_SetDesktopColor(1, $iSavedColor1)
+    _Cfg_SetDesktopColorsEnabled($bColorsWasST)
+
     ; -- Cleanup --
     FileDelete($sTempIni)
 EndFunc
