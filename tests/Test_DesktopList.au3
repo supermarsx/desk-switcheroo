@@ -341,6 +341,32 @@ Func _RunTest_DesktopList()
     _Cfg_SetDesktopColor(12, $iSavedColor12)
     _Cfg_SetDesktopColorsEnabled($bColorsWasHi)
 
+    ; ---- Flicker-safe 2026-07-08: in-place color refresh (no destroy/recreate) ----
+    ; Setting a desktop color while the list is open now recolors the existing swatch
+    ; controls in place via _DL_RefreshColors instead of destroy+recreate. Prove the GUI
+    ; handle is UNCHANGED (no fade/rebuild) and the swatch reflects the new color in place,
+    ; and that refreshing a hidden list is a no-op (never force-opens).
+    Local $bColorsWasFR = _Cfg_GetDesktopColorsEnabled()
+    Local $iSavedColorFR = _Cfg_GetDesktopColor(1)
+    _Cfg_SetDesktopColorsEnabled(True)
+    _Cfg_SetDesktopColor(1, 0x111111)
+    _DL_ResetScroll()
+    _DL_Show($iTestTaskbarY, $iCurrentDesktop)
+    Local $hBeforeFR = _DL_GetGUI()
+    _Test_AssertEqual("Flicker-safe 2026-07-08: refresh precondition swatch", _DL_GetRowSwatchColor(1), 0x111111)
+    ; Change the color and refresh in place — GUI handle must NOT change (no rebuild/fade).
+    _Cfg_SetDesktopColor(1, 0x7788AA)
+    _DL_RefreshColors()
+    _Test_AssertEqual("Flicker-safe 2026-07-08: GUI handle unchanged across color refresh", _DL_GetGUI(), $hBeforeFR)
+    _Test_AssertEqual("Flicker-safe 2026-07-08: swatch recolored in place", _DL_GetRowSwatchColor(1), 0x7788AA)
+    _DL_Destroy()
+    ; Hidden-list refresh is a no-op: stays hidden, GUI stays 0.
+    _DL_RefreshColors()
+    _Test_AssertFalse("Flicker-safe 2026-07-08: refresh on hidden list stays hidden", _DL_IsVisible())
+    _Test_AssertEqual("Flicker-safe 2026-07-08: refresh on hidden list keeps GUI 0", _DL_GetGUI(), 0)
+    _Cfg_SetDesktopColor(1, $iSavedColorFR)
+    _Cfg_SetDesktopColorsEnabled($bColorsWasFR)
+
     ; -- Cleanup --
     FileDelete($sTempIni)
 EndFunc

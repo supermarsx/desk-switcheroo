@@ -841,6 +841,25 @@ Func _DL_RefreshScrollView($iCurrentDesktop)
     $__g_DL_iPeekHovered = 0
 EndFunc
 
+; Name:        _DL_RefreshColors
+; Description: Repaints every currently-visible row's tracked color swatch IN PLACE after a
+;              desktop-color change, without destroying/recreating the popup (no fade, no
+;              flash). No-op when the list is hidden — never force-opens it. Reuses the exact
+;              slot->desktop scroll-offset mapping from _DL_RefreshScrollView and the existing
+;              __DL_UpdateRowSwatch helper, which only recolors an already-created control
+;              (creates nothing, touches no window style and not the layered surface). The
+;              active-row highlight lives on the text labels, which this does not touch, so it
+;              stays correct across a color set.
+Func _DL_RefreshColors()
+    If Not $__g_DL_bVisible Or $__g_DL_hGUI = 0 Then Return
+    If UBound($__g_DL_aItems) < 2 Or $__g_DL_aItems[0] < 1 Then Return
+    Local $iSlot, $i
+    For $iSlot = 1 To $__g_DL_aItems[0]
+        $i = $__g_DL_iScrollOffset + $iSlot
+        __DL_UpdateRowSwatch($iSlot, $i)
+    Next
+EndFunc
+
 ; Name:        _DL_ResetScroll
 ; Description: Resets the scroll offset to zero (e.g., when desktop count changes)
 Func _DL_ResetScroll()

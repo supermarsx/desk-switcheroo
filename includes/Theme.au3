@@ -1218,6 +1218,8 @@ Global $__g_CB_sPhase     = ""            ; grow sub-phase: "compress" (A) | "gr
 Global $__g_CB_iPhaseDurMs = 300          ; duration of the currently-running segment (per-phase for grow)
 Global $__g_CB_hTimer     = 0             ; current-segment start (elapsed = TimerDiff); reset on A->B
 Global $__g_CB_hStepTimer = 0             ; per-step throttle timer (0 = apply next tick immediately)
+Global $__g_CB_iCurWidth  = 0             ; currently-displayed bar width (tracked so the compress-prime can skip a no-op repaint)
+Global $__g_CB_iPrimeCount = 0            ; count of grow-compress prime repaints actually issued (observable state for the guard test)
 
 ; ~16 ms step gate: a 300 ms animation is ~19 repaints of a 2-10 px label — negligible.
 Global Const $__CB_STEP_MS = 16
@@ -1347,6 +1349,7 @@ Func _Theme_ColorBarAttach($idLbl, $iX, $iY, $iW, $iH)
     $__g_CB_sPhase = ""
     $__g_CB_hStepTimer = 0
     $__g_CB_iCurColor = $THEME_BG_MAIN
+    $__g_CB_iCurWidth = $iW ; the caller created the bar at this full width; track it as displayed
 EndFunc
 
 ; Name:        __Theme_ColorBarSetWidth
@@ -1356,6 +1359,7 @@ EndFunc
 Func __Theme_ColorBarSetWidth($iWidth)
     If $__g_CB_idLbl = 0 Then Return
     GUICtrlSetPos($__g_CB_idLbl, $__g_CB_iX, $__g_CB_iY, $iWidth, $__g_CB_iH)
+    $__g_CB_iCurWidth = $iWidth
 EndFunc
 
 ; Name:        __Theme_ColorBarSnap
@@ -1432,8 +1436,15 @@ Func _Theme_ColorBarSet($iColor, $iBgColor = $THEME_BG_MAIN, $bAnimate = True)
         Else
             ; Phase A (compress / exit): hold the OLD color at full width, sweep width W->0.
             $__g_CB_sPhase = "compress"
-            GUICtrlSetBkColor($__g_CB_idLbl, $__g_CB_iFromColor)
-            __Theme_ColorBarSetWidth($__g_CB_iW)
+            ; Redundant-prime guard: after the previous snap the bar already rests at full
+            ; width showing the OLD (== currently-displayed) color, so re-applying that exact
+            ; color+width would be a no-op invalidate — a tiny start-of-animation flash. Only
+            ; prime when the displayed color or width actually differs from what Phase A holds.
+            If $__g_CB_iCurColor <> $__g_CB_iFromColor Or $__g_CB_iCurWidth <> $__g_CB_iW Then
+                $__g_CB_iPrimeCount += 1
+                GUICtrlSetBkColor($__g_CB_idLbl, $__g_CB_iFromColor)
+                __Theme_ColorBarSetWidth($__g_CB_iW)
+            EndIf
             $__g_CB_hTimer = TimerInit()
         EndIf
     Else
@@ -1515,4 +1526,19 @@ EndFunc
 ;              fast 5 ms sleep tier so the sweep stays smooth).
 Func _Theme_ColorBarIsAnimating()
     Return $__g_CB_bActive
+EndFunc
+
+; Name:        _Theme_ColorBarGetCurWidth
+; Description: Read-only accessor for the currently-displayed bar width (module-tracked by
+;              __Theme_ColorBarSetWidth). Used by the redundant-prime guard test.
+Func _Theme_ColorBarGetCurWidth()
+    Return $__g_CB_iCurWidth
+EndFunc
+
+; Name:        _Theme_ColorBarGetPrimeCount
+; Description: Read-only accessor for the running count of grow-compress prime repaints that
+;              were actually issued. The redundant-prime guard test asserts this stays flat
+;              when the prime is a no-op and increments when the displayed state genuinely differs.
+Func _Theme_ColorBarGetPrimeCount()
+    Return $__g_CB_iPrimeCount
 EndFunc

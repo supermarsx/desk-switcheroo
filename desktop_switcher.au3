@@ -794,10 +794,9 @@ Func _ProcessGUIEvents($msg, $hFrom)
             _CM_Destroy()
             ; Refresh the list in place ONLY if it is already open, so setting a
             ; color from the widget context menu doesn't force-open/flash the list.
-            If _DL_IsVisible() Then
-                _DL_Destroy()
-                _DL_Show($iTaskbarY, $iDesktop)
-            EndIf
+            ; In-place swatch recolor (no destroy/recreate, no fade) avoids the visible
+            ; flash the old rebuild caused for a single-swatch change.
+            If _DL_IsVisible() Then _DL_RefreshColors()
         EndIf
     EndIf
 

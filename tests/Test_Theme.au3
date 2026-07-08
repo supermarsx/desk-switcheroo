@@ -644,6 +644,34 @@ Func __Test_Theme_ColorBar()
     _Test_AssertFalse("Both-real: quiesced after full cycle", _Theme_ColorBarIsAnimating())
     _Test_AssertEqual("Both-real: settled on NEW", $__g_CB_iCurColor, 0x222222)
 
+    ; ---- Flicker-safe 2026-07-08: redundant grow-compress prime guard ----
+    ; After a snap the bar rests at full width showing the OLD color; starting a grow from
+    ; that quiesced state re-enters Phase A holding that SAME color at that SAME width, so the
+    ; prime SetBkColor+width-set is a no-op invalidate (a tiny start-of-animation flash). The
+    ; guard SKIPS it. Both cases start from a QUIESCED state (instant snap) so no mid-flight
+    ; snap intervenes to restore full width.
+    _Cfg_SetWidgetColorBarAnim("grow")
+    _Cfg_SetWidgetColorBarAnimDuration(2000)
+    ; SKIP case: rest at a real color, full width; grow to another real color.
+    _Theme_ColorBarSet(0x0A0B0C, $THEME_BG_MAIN, False) ; snap -> curWidth = W (=100), quiesced
+    _Test_AssertEqual("Prime guard: rests at full attached width", _Theme_ColorBarGetCurWidth(), 100)
+    Local $iPrimeSkip = _Theme_ColorBarGetPrimeCount()
+    _Theme_ColorBarSet(0x00FF00, $THEME_BG_MAIN, True) ; enters compress; bar already OLD @ full W
+    _Test_AssertEqual("Prime guard: entered compress (skip case)", $__g_CB_sPhase, "compress")
+    _Test_AssertEqual("Prime guard: redundant prime SKIPPED (same color+full width)", _Theme_ColorBarGetPrimeCount(), $iPrimeSkip)
+    ; PRIME case: quiesce again (instant snap -> bActive False), force a genuinely-different
+    ; displayed width, then grow. With no mid-flight snap the compress branch sees width != W
+    ; and MUST re-issue the prime (and restore full width).
+    _Theme_ColorBarSet(0x0A0B0C, $THEME_BG_MAIN, False) ; snap -> quiesced, curWidth = W
+    $__g_CB_iCurWidth = 3 ; pretend the bar was left mid-sweep at a partial width
+    Local $iPrimeFire = _Theme_ColorBarGetPrimeCount()
+    _Theme_ColorBarSet(0x00FF00, $THEME_BG_MAIN, True) ; enters compress; displayed width != W
+    _Test_AssertEqual("Prime guard: entered compress (prime case)", $__g_CB_sPhase, "compress")
+    _Test_AssertTrue("Prime guard: prime FIRES when displayed width differs", _Theme_ColorBarGetPrimeCount() > $iPrimeFire)
+    _Test_AssertEqual("Prime guard: prime restored full width", _Theme_ColorBarGetCurWidth(), 100)
+    ; Quiesce cleanly so the following fade test starts from a settled state.
+    _Theme_ColorBarSet(0x00FF00, $THEME_BG_MAIN, False)
+
     ; Restore a long duration for the following fade completion test's setup neutrality
     _Cfg_SetWidgetColorBarAnimDuration(2000)
 
