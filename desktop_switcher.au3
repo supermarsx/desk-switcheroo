@@ -773,18 +773,18 @@ Func _ProcessGUIEvents($msg, $hFrom)
                 ; Clear color — set to 0 (transparent/disabled for this desktop)
                 _Cfg_SetDesktopColor($iColorTarget, 0)
                 _Cfg_SetDesktopColorsEnabled(True)
-                _Cfg_Save()
+                _Cfg_Save(True) ; force: unset must never be debounce-dropped
             ElseIf $vColorResult = "custom" Then
                 Local $iCustomColor = _DL_ColorPickerCustomDialog()
                 If $iCustomColor >= 0 Then
                     _Cfg_SetDesktopColor($iColorTarget, $iCustomColor)
                     _Cfg_SetDesktopColorsEnabled(True)
-                    _Cfg_Save()
+                    _Cfg_Save(True) ; force: deliberate color pick must land
                 EndIf
             Else
                 _Cfg_SetDesktopColor($iColorTarget, Int($vColorResult))
                 _Cfg_SetDesktopColorsEnabled(True)
-                _Cfg_Save()
+                _Cfg_Save(True) ; force: deliberate color pick must land
             EndIf
             ; Repaint the widget accent bar immediately (animated) so the new
             ; color shows without waiting for the next desktop switch.

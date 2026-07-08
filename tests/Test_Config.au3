@@ -774,6 +774,59 @@ Func _RunTest_Config()
     _Cfg_SetDesktopColor(10, 0)
     _Cfg_SetDesktopColor(50, 0)
 
+    ; -- Persist 2026-07-08: desktop color set/unset round-trips to disk (E1) --
+    Local $sColorIni = @TempDir & "\desk_switcheroo_test_color_persist.ini"
+    If FileExists($sColorIni) Then FileDelete($sColorIni)
+    _Cfg_Init($sColorIni)
+
+    ; Round-trip SET: color is written to disk and survives a reload from the same INI.
+    _Cfg_SetDesktopColorsEnabled(True)
+    _Cfg_SetDesktopColor(4, 0x123456)
+    _Cfg_Save(True)
+    _Test_AssertEqual("Persist SET: key on disk", IniRead($sColorIni, "DesktopColors", "desktop_4_color", "MISSING"), "0x123456")
+    _Cfg_SetDesktopColor(4, 0) ; scribble in-memory to prove the reload value comes from disk
+    _Cfg_Load()
+    _Test_AssertEqual("Persist SET: survives reload", _Cfg_GetDesktopColor(4), 0x123456)
+
+    ; Round-trip UNSET (the core bug): clearing to 0 must remove the key from disk,
+    ; not leave a stale value that resurrects on reload.
+    _Cfg_SetDesktopColor(4, 0)
+    _Cfg_Save(True)
+    _Test_AssertEqual("Persist UNSET: key deleted from disk", IniRead($sColorIni, "DesktopColors", "desktop_4_color", "GONE"), "GONE")
+    _Cfg_SetDesktopColor(4, 0x999999) ; scribble in-memory before reload
+    _Cfg_Load()
+    _Test_AssertEqual("Persist UNSET: reads as 0 after reload", _Cfg_GetDesktopColor(4), 0)
+
+    ; Clearing ALL colors leaves no stale desktop_N_color keys anywhere on disk.
+    _Cfg_SetDesktopColor(2, 0x111111)
+    _Cfg_SetDesktopColor(7, 0x222222)
+    _Cfg_Save(True)
+    _Cfg_SetDesktopColor(2, 0)
+    _Cfg_SetDesktopColor(7, 0)
+    _Cfg_Save(True)
+    Local $bAnyColorKey = False, $iCk
+    For $iCk = 1 To $__g_Cfg_MAX_DESKTOPS
+        If IniRead($sColorIni, "DesktopColors", "desktop_" & $iCk & "_color", "GONE") <> "GONE" Then $bAnyColorKey = True
+    Next
+    _Test_AssertFalse("Persist UNSET-ALL: no stale color keys remain", $bAnyColorKey)
+
+    ; Force bypasses debounce: two rapid force-saves (<500ms apart) both land the latest value.
+    _Cfg_SetDesktopColor(6, 0xAAAAAA)
+    _Cfg_Save(True)
+    _Cfg_SetDesktopColor(6, 0xBBBBBB)
+    _Cfg_Save(True) ; within the debounce window; force must still write
+    _Test_AssertEqual("Persist FORCE: 2nd rapid force-save lands", IniRead($sColorIni, "DesktopColors", "desktop_6_color", "MISSING"), "0xBBBBBB")
+
+    ; Contrast: an UNforced rapid 2nd save is debounce-dropped (proves force is load-bearing).
+    _Cfg_SetDesktopColor(8, 0xCCCCCC)
+    _Cfg_Save(True) ; lands baseline + resets the debounce timer to "now"
+    _Cfg_SetDesktopColor(8, 0xDDDDDD)
+    _Cfg_Save() ; NOT forced, within 500ms -> silently dropped
+    _Test_AssertEqual("Persist DEBOUNCE: unforced rapid save is dropped", IniRead($sColorIni, "DesktopColors", "desktop_8_color", "MISSING"), "0xCCCCCC")
+
+    FileDelete($sColorIni)
+    _Cfg_Init($sTempIni) ; restore the suite's working INI path
+
     ; -- Config loaded defaults flag --
     _Test_AssertTrue("DidLoadDefaults is bool", IsBool(_Cfg_DidLoadDefaults()) Or IsInt(_Cfg_DidLoadDefaults()))
 

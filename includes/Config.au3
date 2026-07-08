@@ -624,9 +624,11 @@ EndFunc
 
 ; Name:        _Cfg_Save
 ; Description: Writes all in-memory values to the INI file
-Func _Cfg_Save()
-    ; Debounce: skip if saved less than 500ms ago (skip check on first call)
-    If $__g_Cfg_hSaveTimer <> 0 And TimerDiff($__g_Cfg_hSaveTimer) < $__g_Cfg_SAVE_DEBOUNCE Then Return True
+Func _Cfg_Save($bForce = False)
+    ; Debounce: skip if saved less than 500ms ago (skip check on first call).
+    ; $bForce = True bypasses the debounce so a deliberate write (e.g. a color
+    ; set/unset) always lands on disk instead of being silently dropped.
+    If Not $bForce And $__g_Cfg_hSaveTimer <> 0 And TimerDiff($__g_Cfg_hSaveTimer) < $__g_Cfg_SAVE_DEBOUNCE Then Return True
     $__g_Cfg_hSaveTimer = TimerInit()
     ; Write to temp file first, then rename for atomic save (prevents corruption on crash)
     Local $f = $__g_Cfg_sIniPath & ".tmp"
@@ -783,6 +785,11 @@ Func _Cfg_Save()
     For $i = 1 To $__g_Cfg_MAX_DESKTOPS
         If $__g_Cfg_aDesktopColors[$i] <> 0 Then
             IniWrite($f, "DesktopColors", "desktop_" & $i & "_color", "0x" & Hex($__g_Cfg_aDesktopColors[$i], 6))
+        Else
+            ; Color cleared/unset: delete any stale key from the temp file so the
+            ; atomic move carries the removal (otherwise the old color, copied from
+            ; the base INI at :635, resurrects on next _Cfg_Load).
+            IniDelete($f, "DesktopColors", "desktop_" & $i & "_color")
         EndIf
     Next
 
