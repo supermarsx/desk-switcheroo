@@ -345,6 +345,17 @@ Global $__g_CD_bEscWasDown = False
 
 ; #FUNCTIONS# ===================================================
 
+; Returns the extended window style that gives the Settings window a Windows
+; taskbar button: strips $WS_EX_TOOLWINDOW (0x00000080, which suppresses the
+; taskbar button and hides the window from Alt+Tab) and sets $WS_EX_APPWINDOW
+; (0x00040000, which forces a taskbar button). All other bits (TOPMOST, LAYERED,
+; etc.) are preserved. Pure/unit-testable — no GUI required.
+Func __CD_TaskbarExStyle($iEx)
+    $iEx = BitAND($iEx, BitNOT($WS_EX_TOOLWINDOW)) ; clear 0x00000080
+    $iEx = BitOR($iEx, $WS_EX_APPWINDOW)           ; set 0x00040000
+    Return $iEx
+EndFunc
+
 Func _CD_Show()
     ; Reentry guard (guard 1): with async settings the ctx-menu "settings", tray, hotkey
     ; and relayed-IPC open paths all stay reachable while the dialog is already up. Never
@@ -375,6 +386,20 @@ Func _CD_Show()
     Local $iY = (@DesktopHeight - $iH) / 2
 
     $__g_CD_hGUI = _Theme_CreatePopup("Settings", $iW, $iH, $iX, $iY, $THEME_BG_POPUP, $THEME_ALPHA_DIALOG)
+
+    ; Give the Settings window a taskbar button so the user can resurface it if it
+    ; falls behind other windows. _Theme_CreatePopup sets $WS_EX_TOOLWINDOW on every
+    ; popup, which suppresses the taskbar button; here (Settings-only) we clear that
+    ; bit and set $WS_EX_APPWINDOW. Applied while the window is still hidden (GUICreate
+    ; makes it hidden until _Theme_FadeIn's first GUISetState below), so the shell
+    ; evaluates the app-window bit at button-creation time — no hide/show toggle needed.
+    ; TOPMOST/LAYERED and all other bits are preserved by __CD_TaskbarExStyle.
+    Local $iCDExStyle = _WinAPI_GetWindowLong($__g_CD_hGUI, $GWL_EXSTYLE)
+    _WinAPI_SetWindowLong($__g_CD_hGUI, $GWL_EXSTYLE, __CD_TaskbarExStyle($iCDExStyle))
+    ; Set the app icon so the taskbar entry isn't blank on uncompiled runs (the
+    ; compiled exe already embeds it via build.ps1). Guarded by FileExists.
+    If FileExists(@ScriptDir & "\assets\desk_switcheroo.ico") Then _
+        GUISetIcon(@ScriptDir & "\assets\desk_switcheroo.ico", -1, $__g_CD_hGUI)
 
     ; Reset state
     $__g_CD_iChkCount = 0

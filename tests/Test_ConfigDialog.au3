@@ -702,6 +702,25 @@ Func _RunTest_ConfigDialog()
     $__g_CD_hGUI = 0
     __CD_SearchReset()
     FileDelete($sMhIni)
+
+    ; -- Settings taskbar-button ex-style math (__CD_TaskbarExStyle, pure) --
+    ; Gives the Settings window a taskbar button: clears WS_EX_TOOLWINDOW,
+    ; sets WS_EX_APPWINDOW, preserves all other bits, idempotent.
+    ; Tool bit cleared when it was the only bit set.
+    _Test_AssertEqual("Taskbar ex: TOOLWINDOW bit cleared", _
+        BitAND(__CD_TaskbarExStyle($WS_EX_TOOLWINDOW), $WS_EX_TOOLWINDOW), 0)
+    ; App bit set even when starting from zero.
+    _Test_AssertTrue("Taskbar ex: APPWINDOW bit set from 0", _
+        BitAND(__CD_TaskbarExStyle(0), $WS_EX_APPWINDOW) <> 0)
+    ; Preserve an arbitrary unrelated bit (TOPMOST) present alongside the tool bit.
+    Local $iCDExIn = BitOR($WS_EX_TOPMOST, $WS_EX_TOOLWINDOW, $WS_EX_LAYERED)
+    Local $iCDExOut = __CD_TaskbarExStyle($iCDExIn)
+    _Test_AssertTrue("Taskbar ex: TOPMOST preserved", BitAND($iCDExOut, $WS_EX_TOPMOST) <> 0)
+    _Test_AssertTrue("Taskbar ex: LAYERED preserved", BitAND($iCDExOut, $WS_EX_LAYERED) <> 0)
+    _Test_AssertTrue("Taskbar ex: APPWINDOW added", BitAND($iCDExOut, $WS_EX_APPWINDOW) <> 0)
+    _Test_AssertEqual("Taskbar ex: TOOLWINDOW removed", BitAND($iCDExOut, $WS_EX_TOOLWINDOW), 0)
+    ; Idempotent: applying twice equals applying once.
+    _Test_AssertEqual("Taskbar ex: idempotent", __CD_TaskbarExStyle($iCDExOut), $iCDExOut)
 EndFunc
 
 ; Test callbacks for the hotkey-suspend/resume seam (invoked via Call() by the wrappers).
