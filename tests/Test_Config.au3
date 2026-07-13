@@ -824,6 +824,30 @@ Func _RunTest_Config()
     _Cfg_Save() ; NOT forced, within 500ms -> silently dropped
     _Test_AssertEqual("Persist DEBOUNCE: unforced rapid save is dropped", IniRead($sColorIni, "DesktopColors", "desktop_8_color", "MISSING"), "0xCCCCCC")
 
+    ; Removing a desktop shifts higher desktop colors down and purges the old last slot.
+    _Cfg_SetDesktopColor(1, 0x111111)
+    _Cfg_SetDesktopColor(2, 0x222222)
+    _Cfg_SetDesktopColor(3, 0x333333)
+    _Cfg_SetDesktopColor(4, 0x444444)
+    _Cfg_SetDesktopColor(5, 0x555555) ; stale above the live old count
+    _Cfg_Save(True)
+    _Test_AssertTrue("Remove color shift: middle remove succeeds", _Cfg_RemoveDesktopColorAndShift(2, 4))
+    _Test_AssertEqual("Remove color shift: pos 1 unchanged", _Cfg_GetDesktopColor(1), 0x111111)
+    _Test_AssertEqual("Remove color shift: pos 2 = old 3", _Cfg_GetDesktopColor(2), 0x333333)
+    _Test_AssertEqual("Remove color shift: pos 3 = old 4", _Cfg_GetDesktopColor(3), 0x444444)
+    _Test_AssertEqual("Remove color shift: pos 4 cleared", _Cfg_GetDesktopColor(4), 0)
+    _Test_AssertEqual("Remove color shift: stale high slot cleared", _Cfg_GetDesktopColor(5), 0)
+    _Test_AssertEqual("Remove color shift: disk pos 2", IniRead($sColorIni, "DesktopColors", "desktop_2_color", "MISSING"), "0x333333")
+    _Test_AssertEqual("Remove color shift: disk orphan purged", IniRead($sColorIni, "DesktopColors", "desktop_4_color", "GONE"), "GONE")
+    _Test_AssertEqual("Remove color shift: disk stale high purged", IniRead($sColorIni, "DesktopColors", "desktop_5_color", "GONE"), "GONE")
+
+    ; Removing the last desktop only clears that slot.
+    _Cfg_SetDesktopColor(3, 0xABCDEF)
+    _Cfg_Save(True)
+    _Test_AssertTrue("Remove color shift: end remove succeeds", _Cfg_RemoveDesktopColorAndShift(3, 3))
+    _Test_AssertEqual("Remove color shift: end slot cleared", _Cfg_GetDesktopColor(3), 0)
+    _Test_AssertEqual("Remove color shift: end disk purged", IniRead($sColorIni, "DesktopColors", "desktop_3_color", "GONE"), "GONE")
+
     FileDelete($sColorIni)
     _Cfg_Init($sTempIni) ; restore the suite's working INI path
 

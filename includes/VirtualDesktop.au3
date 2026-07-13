@@ -619,6 +619,7 @@ EndFunc
 ;              $iFallback - desktop to move windows to (1-based, default: adjacent)
 ; Return:      True on success, False on failure or unsupported
 Func _VD_RemoveDesktop($iDesktop, $iFallback = Default)
+    Local $iOldCount = _VD_GetCount()
     If $iFallback = Default Then
         If $iDesktop > 1 Then
             $iFallback = $iDesktop - 1
@@ -630,6 +631,7 @@ Func _VD_RemoveDesktop($iDesktop, $iFallback = Default)
     Local $aResult = __VD_Call("RemoveDesktop", "int", $aArgs)
     If @error Then Return False
     _VD_InvalidateCountCache()
+    _Cfg_RemoveDesktopColorAndShift($iDesktop, $iOldCount)
     Return True
 EndFunc
 

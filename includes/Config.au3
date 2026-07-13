@@ -2207,6 +2207,24 @@ EndFunc
 Func _Cfg_SetDesktopColor($i, $iColor)
     If $i >= 1 And $i <= $__g_Cfg_MAX_DESKTOPS Then $__g_Cfg_aDesktopColors[$i] = Int($iColor)
 EndFunc
+Func _Cfg_RemoveDesktopColorAndShift($iRemovedIndex, $iOldCount)
+    If $iRemovedIndex < 1 Or $iOldCount < 1 Or $iRemovedIndex > $iOldCount Then Return False
+    If $iRemovedIndex > $__g_Cfg_MAX_DESKTOPS Then Return False
+
+    Local $iLastColorSlot = $iOldCount
+    If $iLastColorSlot > $__g_Cfg_MAX_DESKTOPS Then $iLastColorSlot = $__g_Cfg_MAX_DESKTOPS
+
+    Local $i
+    For $i = $iRemovedIndex To $iLastColorSlot - 1
+        $__g_Cfg_aDesktopColors[$i] = $__g_Cfg_aDesktopColors[$i + 1]
+    Next
+    For $i = $iLastColorSlot To $__g_Cfg_MAX_DESKTOPS
+        $__g_Cfg_aDesktopColors[$i] = 0
+    Next
+
+    If $__g_Cfg_sIniPath <> "" Then _Cfg_Save(True)
+    Return True
+EndFunc
 
 ; [Wallpaper]
 Func _Cfg_SetWallpaperEnabled($b)
