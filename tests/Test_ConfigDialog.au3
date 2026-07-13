@@ -628,9 +628,9 @@ Func _RunTest_ConfigDialog()
     $__g_CD_hGUI = $hSavGui
 
     ; -- Builder coverage: EVERY hotkey row gets a "..." builder (Decision 4, real GUI) --
-    ; Building the Hotkeys tab must register a builder for all 47 rows (28 legacy + 19 that
-    ; previously had none). The registry is count-agnostic; we assert the current total and
-    ; that every registered pair is a live (button, input) mapping.
+    ; Building the Hotkeys tab must register a builder for all 49 rows (28 legacy,
+    ; 19 formerly-buttonless rows, plus 2 current-desktop move rows). The registry is
+    ; count-agnostic; we assert the current total and every live (button, input) mapping.
     Local $sHkIni = @TempDir & "\desk_switcheroo_cd_hkbuild.ini"
     If FileExists($sHkIni) Then FileDelete($sHkIni)
     _Cfg_Init($sHkIni)
@@ -642,7 +642,7 @@ Func _RunTest_ConfigDialog()
     $__g_CD_iHkBuildCount = 0
     __CD_BuildTabHotkeys()
 
-    _Test_AssertEqual("Builder registry covers all 47 hotkey rows", $__g_CD_iHkBuildCount, 47)
+    _Test_AssertEqual("Builder registry covers all 49 hotkey rows", $__g_CD_iHkBuildCount, 49)
     Local $bAllPairsLive = True, $hi
     For $hi = 0 To $__g_CD_iHkBuildCount - 1
         If $__g_CD_aHkBuildBtn[$hi] = 0 Or $__g_CD_aHkBuildInp[$hi] = 0 Then $bAllPairsLive = False
@@ -655,6 +655,8 @@ Func _RunTest_ConfigDialog()
     _Test_AssertTrue("Move-to-desktop 1 row now has a builder", __CDTest_HkInputRegistered($__g_CD_aidInpHkMoveToDesktop[1]))
     _Test_AssertTrue("Toggle-rules action row now has a builder", __CDTest_HkInputRegistered($__g_CD_idInpHkToggleRules))
     _Test_AssertTrue("Swap-desktops action row now has a builder", __CDTest_HkInputRegistered($__g_CD_idInpHkSwapDesktops))
+    _Test_AssertTrue("Move-desktop-next action row now has a builder", __CDTest_HkInputRegistered($__g_CD_idInpHkMoveDesktopNext))
+    _Test_AssertTrue("Move-desktop-prev action row now has a builder", __CDTest_HkInputRegistered($__g_CD_idInpHkMoveDesktopPrev))
 
     GUIDelete($hGuiHk)
     $__g_CD_hGUI = 0

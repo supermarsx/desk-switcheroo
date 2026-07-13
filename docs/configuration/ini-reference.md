@@ -172,7 +172,9 @@ a raw `IniRead`.
 | `hotkey_load_prev_profile` | string | *(empty)* | chord | Yes (Hotkeys) | Load the previous saved profile. |
 | `hotkey_toggle_osd` | string | *(empty)* | chord | Yes (Hotkeys) | Toggle the on-screen display. |
 | `hotkey_toggle_widget` | string | *(empty)* | chord | Yes (Hotkeys) | Show/hide the widget. |
-| `hotkey_swap_desktops` | string | *(empty)* | chord | Yes (Hotkeys) | Swap the current desktop with an adjacent one. |
+| `hotkey_swap_desktops` | string | *(empty)* | chord | Yes (Hotkeys) | Swap the current desktop with the previously active desktop. |
+| `hotkey_move_desktop_next` | string | *(empty)* | chord | Yes (Hotkeys) | Move the current desktop one position later, following it to the new position. No-op on the last desktop. |
+| `hotkey_move_desktop_prev` | string | *(empty)* | chord | Yes (Hotkeys) | Move the current desktop one position earlier, following it to the new position. No-op on the first desktop. |
 | `hotkey_gather_windows` | string | *(empty)* | chord | Yes (Hotkeys) | Gather windows onto the current desktop. |
 | `hotkey_toggle_session` | string | *(empty)* | chord | Yes (Hotkeys) | Toggle session restore. |
 

@@ -2486,6 +2486,14 @@ Func _RegisterHotkeys()
     If $sKey <> "" Then
         If HotKeySet($sKey, "_HK_SwapDesktops") = 0 Then _Log_Warn("Hotkey failed: " & $sKey & " (swap desktops)")
     EndIf
+    $sKey = _Cfg_GetHotkeyMoveDesktopNext()
+    If $sKey <> "" Then
+        If HotKeySet($sKey, "_HK_MoveDesktopNext") = 0 Then _Log_Warn("Hotkey failed: " & $sKey & " (move desktop next)")
+    EndIf
+    $sKey = _Cfg_GetHotkeyMoveDesktopPrev()
+    If $sKey <> "" Then
+        If HotKeySet($sKey, "_HK_MoveDesktopPrev") = 0 Then _Log_Warn("Hotkey failed: " & $sKey & " (move desktop prev)")
+    EndIf
     $sKey = _Cfg_GetHotkeyGatherWindows()
     If $sKey <> "" Then
         If HotKeySet($sKey, "_HK_GatherWindows") = 0 Then _Log_Warn("Hotkey failed: " & $sKey & " (gather windows)")
@@ -2563,6 +2571,10 @@ Func _UnregisterHotkeys()
     $sKey = _Cfg_GetHotkeyRestoreWindow()
     If $sKey <> "" Then HotKeySet($sKey)
     $sKey = _Cfg_GetHotkeySwapDesktops()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyMoveDesktopNext()
+    If $sKey <> "" Then HotKeySet($sKey)
+    $sKey = _Cfg_GetHotkeyMoveDesktopPrev()
     If $sKey <> "" Then HotKeySet($sKey)
     $sKey = _Cfg_GetHotkeyGatherWindows()
     If $sKey <> "" Then HotKeySet($sKey)
@@ -2936,6 +2948,28 @@ Func _HK_SwapDesktops()
         _Labels_Swap($iDesktop, $iPrevDesktop, True)
         _RequestDeferredRefresh()
     EndIf
+EndFunc
+
+Func __MoveCurrentDesktopBy($iDelta)
+    Local $iCount = _VD_GetCount()
+    Local $iTarget = $iDesktop + $iDelta
+    If $iTarget < 1 Or $iTarget > $iCount Then Return
+
+    If _Labels_IsSyncEnabled() Then _Labels_SyncFromOS()
+    _Log_Debug("Hotkey: move current desktop " & $iDesktop & " -> position " & $iTarget)
+    _VD_SwapDesktops($iDesktop, $iTarget)
+    _Labels_Swap($iDesktop, $iTarget, True)
+    _NavigateTo($iTarget)
+EndFunc
+
+Func _HK_MoveDesktopNext()
+    _Slideshow_Break("hotkey")
+    __MoveCurrentDesktopBy(1)
+EndFunc
+
+Func _HK_MoveDesktopPrev()
+    _Slideshow_Break("hotkey")
+    __MoveCurrentDesktopBy(-1)
 EndFunc
 
 Func __IsInternalDeskSwitcherooWindow($hWnd)

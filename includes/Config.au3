@@ -106,6 +106,8 @@ Global $__g_Cfg_sHotkeyToggleWidget = ""
 Global $__g_Cfg_sHotkeyMaximizeWindow = ""
 Global $__g_Cfg_sHotkeyRestoreWindow = ""
 Global $__g_Cfg_sHotkeySwapDesktops = ""
+Global $__g_Cfg_sHotkeyMoveDesktopNext = ""
+Global $__g_Cfg_sHotkeyMoveDesktopPrev = ""
 Global $__g_Cfg_sHotkeyGatherWindows = ""
 Global $__g_Cfg_sHotkeyToggleSession = ""
 Global $__g_Cfg_sHotkeyMoveToDesktop[10] ; index 1-9, direct send-to-desktop
@@ -427,6 +429,8 @@ Func _Cfg_Load()
     $__g_Cfg_sHotkeyMaximizeWindow = IniRead($f, "Hotkeys", "hotkey_maximize_window", "")
     $__g_Cfg_sHotkeyRestoreWindow = IniRead($f, "Hotkeys", "hotkey_restore_window", "")
     $__g_Cfg_sHotkeySwapDesktops = IniRead($f, "Hotkeys", "hotkey_swap_desktops", "")
+    $__g_Cfg_sHotkeyMoveDesktopNext = IniRead($f, "Hotkeys", "hotkey_move_desktop_next", "")
+    $__g_Cfg_sHotkeyMoveDesktopPrev = IniRead($f, "Hotkeys", "hotkey_move_desktop_prev", "")
     $__g_Cfg_sHotkeyGatherWindows = IniRead($f, "Hotkeys", "hotkey_gather_windows", "")
     $__g_Cfg_sHotkeyToggleSession = IniRead($f, "Hotkeys", "hotkey_toggle_session", "")
     For $i = 1 To 9
@@ -729,6 +733,8 @@ Func _Cfg_Save($bForce = False)
     IniWrite($f, "Hotkeys", "hotkey_maximize_window", $__g_Cfg_sHotkeyMaximizeWindow)
     IniWrite($f, "Hotkeys", "hotkey_restore_window", $__g_Cfg_sHotkeyRestoreWindow)
     IniWrite($f, "Hotkeys", "hotkey_swap_desktops", $__g_Cfg_sHotkeySwapDesktops)
+    IniWrite($f, "Hotkeys", "hotkey_move_desktop_next", $__g_Cfg_sHotkeyMoveDesktopNext)
+    IniWrite($f, "Hotkeys", "hotkey_move_desktop_prev", $__g_Cfg_sHotkeyMoveDesktopPrev)
     IniWrite($f, "Hotkeys", "hotkey_gather_windows", $__g_Cfg_sHotkeyGatherWindows)
     IniWrite($f, "Hotkeys", "hotkey_toggle_session", $__g_Cfg_sHotkeyToggleSession)
     For $i = 1 To 9
@@ -1026,6 +1032,8 @@ Func _Cfg_WriteDefaults()
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_maximize_window", "")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_restore_window", "")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_swap_desktops", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_move_desktop_next", "")
+    __Cfg_DefaultVal($f, "Hotkeys", "hotkey_move_desktop_prev", "")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_gather_windows", "")
     __Cfg_DefaultVal($f, "Hotkeys", "hotkey_toggle_session", "")
     For $i = 1 To 9
@@ -2666,6 +2674,18 @@ Func _Cfg_GetHotkeySwapDesktops()
 EndFunc
 Func _Cfg_SetHotkeySwapDesktops($s)
     $__g_Cfg_sHotkeySwapDesktops = __Cfg_ClampStringLen($s, 32)
+EndFunc
+Func _Cfg_GetHotkeyMoveDesktopNext()
+    Return $__g_Cfg_sHotkeyMoveDesktopNext
+EndFunc
+Func _Cfg_SetHotkeyMoveDesktopNext($s)
+    $__g_Cfg_sHotkeyMoveDesktopNext = __Cfg_ClampStringLen($s, 32)
+EndFunc
+Func _Cfg_GetHotkeyMoveDesktopPrev()
+    Return $__g_Cfg_sHotkeyMoveDesktopPrev
+EndFunc
+Func _Cfg_SetHotkeyMoveDesktopPrev($s)
+    $__g_Cfg_sHotkeyMoveDesktopPrev = __Cfg_ClampStringLen($s, 32)
 EndFunc
 Func _Cfg_GetHotkeyGatherWindows()
     Return $__g_Cfg_sHotkeyGatherWindows

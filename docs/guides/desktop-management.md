@@ -89,6 +89,8 @@ desktop from position A to position B, it repeatedly swaps neighboring desktops 
 arrives (`_DL_DragPerformReorder` in `DesktopList.au3`). Each swap (`_VD_SwapDesktops` in
 `includes/VirtualDesktop.au3`) moves the windows of the two desktops, and swaps their OS names
 and accent colors; the app keeps its own stored labels in lockstep with `_Labels_Swap`.
+The `hotkey_move_desktop_next` and `hotkey_move_desktop_prev` shortcuts use the same one-step
+swap path for the current desktop and follow it to its new position.
 
 Swapping the windows of a desktop requires enumerating windows that live on *other* desktops,
 which AutoIt's built-in `WinList()` cannot do — it only sees windows on the current desktop.

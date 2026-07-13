@@ -149,8 +149,9 @@ hotkey. The defaults that ship enabled:
 | Open Settings | `Ctrl+Alt+S` | `hotkey_open_settings` |
 
 Jump-to-desktop hotkeys (`hotkey_desktop_1` through `hotkey_desktop_9`) and several others
-(delete desktop, toggle slideshow, load profiles) ship *unbound* — set them in Settings or the
-INI. The complete list with every default chord is in the
+(delete desktop, toggle slideshow, load profiles, and moving the current desktop one position
+with `hotkey_move_desktop_next` / `hotkey_move_desktop_prev`) ship *unbound* — set them in
+Settings or the INI. The complete list with every default chord is in the
 [Advanced INI Reference](../configuration/ini-reference.md).
 
 Every row on the Hotkeys tab has a **`…` builder button** for capturing a binding: click it,

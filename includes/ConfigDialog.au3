@@ -206,6 +206,7 @@ Global $__g_CD_idInpHkTaskView
 Global $__g_CD_idInpHkMaximizeWindow, $__g_CD_idInpHkRestoreWindow, $__g_CD_idInpHkGatherWindows
 Global $__g_CD_idInpHkToggleRules, $__g_CD_idInpHkToggleSession, $__g_CD_idInpHkToggleOsd, $__g_CD_idInpHkToggleWidget
 Global $__g_CD_idInpHkLoadNextProfile, $__g_CD_idInpHkLoadPrevProfile, $__g_CD_idInpHkSwapDesktops
+Global $__g_CD_idInpHkMoveDesktopNext, $__g_CD_idInpHkMoveDesktopPrev
 Global $__g_CD_aidInpHkMoveToDesktop[10] ; index 1-9, send active window to desktop N
 
 ; -- Tab 3: Hotkey sub-tabs --
@@ -2016,7 +2017,9 @@ Func __CD_BuildTabHotkeys()
     $__g_CD_idInpHkToggleWidget = __CD_AddHkRow($iX, $iY, $iLblW, $iInpW, _i18n("Settings.Hotkeys.lbl_hotkey_toggle_widget", "Toggle widget:"), 5, _i18n("Settings.Hotkeys.tip_hotkey_toggle_widget", "Global hotkey to show or hide the widget"))
     $__g_CD_idInpHkLoadNextProfile = __CD_AddHkRow($iX, $iY, $iLblW, $iInpW, _i18n("Settings.Hotkeys.lbl_hotkey_load_next_profile", "Next profile:"), 5, _i18n("Settings.Hotkeys.tip_hotkey_load_next_profile", "Global hotkey to load the next configuration profile"))
     $__g_CD_idInpHkLoadPrevProfile = __CD_AddHkRow($iX, $iY, $iLblW, $iInpW, _i18n("Settings.Hotkeys.lbl_hotkey_load_prev_profile", "Prev profile:"), 5, _i18n("Settings.Hotkeys.tip_hotkey_load_prev_profile", "Global hotkey to load the previous configuration profile"))
-    $__g_CD_idInpHkSwapDesktops = __CD_AddHkRow($iX, $iY, $iLblW, $iInpW, _i18n("Settings.Hotkeys.lbl_hotkey_swap_desktops", "Swap desktops:"), 5, _i18n("Settings.Hotkeys.tip_hotkey_swap_desktops", "Global hotkey to swap the current desktop with the next one"))
+    $__g_CD_idInpHkSwapDesktops = __CD_AddHkRow($iX, $iY, $iLblW, $iInpW, _i18n("Settings.Hotkeys.lbl_hotkey_swap_desktops", "Swap desktops:"), 5, _i18n("Settings.Hotkeys.tip_hotkey_swap_desktops", "Global hotkey to swap the current desktop with the previously active desktop"))
+    $__g_CD_idInpHkMoveDesktopNext = __CD_AddHkRow($iX, $iY, $iLblW, $iInpW, _i18n("Settings.Hotkeys.lbl_hotkey_move_desktop_next", "Move desk next:"), 5, _i18n("Settings.Hotkeys.tip_hotkey_move_desktop_next", "Global hotkey to move the current desktop to the next position"))
+    $__g_CD_idInpHkMoveDesktopPrev = __CD_AddHkRow($iX, $iY, $iLblW, $iInpW, _i18n("Settings.Hotkeys.lbl_hotkey_move_desktop_prev", "Move desk prev:"), 5, _i18n("Settings.Hotkeys.tip_hotkey_move_desktop_prev", "Global hotkey to move the current desktop to the previous position"))
 
     ; Format help (Actions)
     $idLbl = GUICtrlCreateLabel(_i18n("Settings.Hotkeys.lbl_format_help", "^=Ctrl  !=Alt  +=Shift  #=Win  e.g. ^!{RIGHT}"), $iX, $iY + 4, 380, 16)
@@ -4200,6 +4203,8 @@ Func __CD_PopulateControls()
     GUICtrlSetData($__g_CD_idInpHkLoadNextProfile, _Cfg_GetHotkeyLoadNextProfile())
     GUICtrlSetData($__g_CD_idInpHkLoadPrevProfile, _Cfg_GetHotkeyLoadPrevProfile())
     GUICtrlSetData($__g_CD_idInpHkSwapDesktops, _Cfg_GetHotkeySwapDesktops())
+    GUICtrlSetData($__g_CD_idInpHkMoveDesktopNext, _Cfg_GetHotkeyMoveDesktopNext())
+    GUICtrlSetData($__g_CD_idInpHkMoveDesktopPrev, _Cfg_GetHotkeyMoveDesktopPrev())
     For $i = 1 To 9
         GUICtrlSetData($__g_CD_aidInpHkMoveToDesktop[$i], _Cfg_GetHotkeyMoveToDesktop($i))
     Next
@@ -5200,6 +5205,8 @@ Func __CD_ApplyChanges()
     _Cfg_SetHotkeyLoadNextProfile(GUICtrlRead($__g_CD_idInpHkLoadNextProfile))
     _Cfg_SetHotkeyLoadPrevProfile(GUICtrlRead($__g_CD_idInpHkLoadPrevProfile))
     _Cfg_SetHotkeySwapDesktops(GUICtrlRead($__g_CD_idInpHkSwapDesktops))
+    _Cfg_SetHotkeyMoveDesktopNext(GUICtrlRead($__g_CD_idInpHkMoveDesktopNext))
+    _Cfg_SetHotkeyMoveDesktopPrev(GUICtrlRead($__g_CD_idInpHkMoveDesktopPrev))
     For $i = 1 To 9
         _Cfg_SetHotkeyMoveToDesktop($i, GUICtrlRead($__g_CD_aidInpHkMoveToDesktop[$i]))
     Next

@@ -132,6 +132,8 @@ Func _RunTest_i18n()
     _Test_AssertNotEqual("lbl_hotkey_send_new exists", _i18n("Settings.Hotkeys.lbl_hotkey_send_new", "MISSING"), "MISSING")
     _Test_AssertNotEqual("lbl_hotkey_pin_window exists", _i18n("Settings.Hotkeys.lbl_hotkey_pin_window", "MISSING"), "MISSING")
     _Test_AssertNotEqual("lbl_hotkey_toggle_wl exists", _i18n("Settings.Hotkeys.lbl_hotkey_toggle_wl", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("lbl_hotkey_move_desktop_next exists", _i18n("Settings.Hotkeys.lbl_hotkey_move_desktop_next", "MISSING"), "MISSING")
+    _Test_AssertNotEqual("lbl_hotkey_move_desktop_prev exists", _i18n("Settings.Hotkeys.lbl_hotkey_move_desktop_prev", "MISSING"), "MISSING")
 
     ; -- Format with {1} works for toast_window_sent --
     Local $sFmtToast = _i18n_Format("Toasts.toast_window_sent", "Window sent to Desktop {1}", 3)
